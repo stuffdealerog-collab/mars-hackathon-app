@@ -21,6 +21,11 @@ export type Tab = "channel" | "posts" | "dept" | "video";
 export type ApproveResult = { ok: true } | { ok: false; message: string; undone?: boolean };
 export type PublishResult = { ok: true; url?: string } | { ok: false; message: string; adminUrl?: string; botUrl?: string };
 export type RecentBrand = { id: string; name: string; channel?: string };
+/**
+ * The line under a post. `missing` (placeholder_left only): the scripts whose text still has a
+ * blank, as the server named them, so the editor can open on the one that needs the fact.
+ */
+export type PostNote = { text: string; href?: string; link?: string; tone: "ok" | "bad" | "hint"; missing?: api.Missing[] };
 export type StepKey = "read" | "voice" | "photos" | "plan" | "posts" | "images";
 export type StepStatus = "wait" | "run" | "done" | "fail" | "skip";
 /** t0/t1: when the step started and finished (ms), for "how long it took" in Professional rejim. */
@@ -70,7 +75,7 @@ interface StudioState {
   edited: Record<string, Partial<Record<Script, string>>>;
   busy: Record<string, "approve" | "publish" | undefined>;
   /** Under a post: done (ok), went wrong (bad), or a fact the owner still has to add (hint). */
-  postNote: Record<string, { text: string; href?: string; link?: string; tone: "ok" | "bad" | "hint" } | undefined>;
+  postNote: Record<string, PostNote | undefined>;
   /** The script the post list shows (one switch for all cards); null = follow the page language. */
   postScript: Script | null;
   /** Plan slots ("day time") whose post is being written on request. */
@@ -191,6 +196,15 @@ let polling = false;
 const seen = new Map<string, number>();
 const isOpen = (i?: PostImage | null) => i?.status === "queued" || i?.status === "running";
 
+/**
+ * Which posts the run draws a picture for. Drafts without one (or whose attempt failed and left
+ * nothing), and approved posts that never got one, approved before the picture loop reached
+ * them. Never a published post, and never a redraw of an approved post's existing picture: the
+ * bot sends what the owner approved.
+ */
+const needsPicture = (p: PostDraft) =>
+  (p.status === "draft" && (!p.image || (p.image.status === "failed" && !p.image.url))) || (p.status === "approved" && !p.image);
+
 /** Posts whose picture start is in flight: never a second paid start for the same post. */
 const starting = new Set<string>();
 /** Picture starts whose answer was lost (post id -> when it started), and how long to wait for them. */
@@ -286,7 +300,7 @@ export const useStudio = create<StudioState>((set, get) => {
       const message = expired ? copy().access.expired : problemOf(r).message || copy().posts.approveError;
       set({
         posts: get().posts.map((p) => (p.id === id ? { ...p, status: "draft" } : p)),
-        postNote: { ...get().postNote, [id]: { text: message, tone: r.code === BLANK_LEFT ? "hint" : "bad" } },
+        postNote: { ...get().postNote, [id]: r.code === BLANK_LEFT ? { text: message, tone: "hint", missing: r.missing } : { text: message, tone: "bad" } },
       });
       return { ok: false, message };
     }
@@ -361,7 +375,7 @@ export const useStudio = create<StudioState>((set, get) => {
     // Drafts only: a redrawn approved post would no longer match what the owner approved (and the
     // bot refuses to publish it). A failed attempt that still has a picture keeps it; the owner can
     // ask for another one from the card.
-    const posts = get().posts.filter((p) => p.status === "draft" && (!p.image || (p.image.status === "failed" && !p.image.url)));
+    const posts = get().posts.filter(needsPicture);
     if (!posts.length && !get().posts.some((p) => p.image?.status === "queued" || p.image?.status === "running")) {
       countImages();
       return;
@@ -880,7 +894,7 @@ export const useStudio = create<StudioState>((set, get) => {
       }
       // A run cut short (tab closed mid-way) leaves drafts without a picture: finish them now,
       // so no slot waits for a picture nobody is drawing.
-      if (posts.some((x) => x.status === "draft" && !x.image)) void pictures(my);
+      if (posts.some(needsPicture)) void pictures(my);
       else if (posts.some((x) => isOpen(x.image))) void poll(my);
     },
 
@@ -1030,7 +1044,7 @@ export const useStudio = create<StudioState>((set, get) => {
       const admin = r.ok ? r.data.addAdminUrl : r.addAdminUrl;
       // A blank still in the text is the owner's fact to add, not a failure.
       const blank = (r.ok ? r.data.code : r.code) === BLANK_LEFT;
-      note({ text: msg, href: blank ? undefined : admin, tone: blank ? "hint" : "bad" });
+      note(blank ? { text: msg, tone: "hint", missing: r.ok ? r.data.missing : r.missing } : { text: msg, href: admin, tone: "bad" });
       return { ok: false, message: msg, adminUrl: blank ? undefined : admin, botUrl };
     },
 

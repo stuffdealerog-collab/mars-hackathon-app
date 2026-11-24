@@ -88,6 +88,14 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
   // Named for the script on screen; the server's own sentence when it did not say which blanks.
   const blankText = blanks.length ? fmt(c.posts.blank, { facts: blanks.join(", ") }) : post.note;
   const hint = blankLeft ? blankText : note?.tone === "hint" ? note.text : null;
+  // The server named the scripts that still have the blank: editing opens on one of them, not on
+  // a clean script the owner happens to be reading.
+  const blankIn = note?.tone === "hint" ? note.missing?.map((m) => m.script) : undefined;
+  const editScript = blankIn?.length && !blankIn.includes(script) && post.variants[blankIn[0]]?.trim() ? blankIn[0] : null;
+  const startEdit = () => {
+    if (editScript) useStudio.getState().setPostScript(editScript);
+    setEditing(true);
+  };
   // Editing opened from anywhere (the button, or E in the queue) starts from the text on screen.
   const editKey = `${post.id}:${script}`;
   if (editing && draftFor !== editKey) {
@@ -293,7 +301,7 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
           )
         ) : (
           <div className="flex gap-2.5">
-            <button type="button" className="btn-2 flex-1 @md:flex-none" aria-keyshortcuts="E" onClick={() => setEditing(true)}>
+            <button type="button" className="btn-2 flex-1 @md:flex-none" aria-keyshortcuts="E" onClick={startEdit}>
               {c.posts.edit}
             </button>
             <button type="button" className="btn flex-1 @md:flex-none" disabled={busy === "approve"} aria-keyshortcuts="Enter" title={`${c.posts.approve} · Enter`} onClick={onApprove}>
