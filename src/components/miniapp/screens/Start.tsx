@@ -1,6 +1,5 @@
 import { ChevronRight, ImagePlus, Link2, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
-import { LedStrip } from "../../lamp/Led";
 import { Mark } from "../../lamp/Mark";
 import { useStudio } from "../../studio/store";
 import { keepNumbers, useCopy } from "../../ui/lang";
@@ -8,7 +7,7 @@ import { parseChannel } from "../../ui/parts";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons, useNav } from "../nav";
 import { TopBar, useCompact } from "../Shell";
-import { ledFit, useWidth } from "../measure";
+import { Sign } from "../Sign";
 import { haptic } from "../tg";
 
 /** The first screen: one field, one decision (Telegram's MainButton «Boshlash»). */
@@ -26,8 +25,6 @@ export function StartScreen({ active }: { active: boolean }) {
   const { ref, compact } = useCompact(10);
   const typed = parseChannel(value);
   const sign = typed ? `@${typed}` : undefined;
-  const { ref: stripRef, width: stripWidth } = useWidth<HTMLDivElement>();
-  const led = ledFit(sign ?? "", stripWidth - 24); // the strip minus its padding
 
   const go = () => {
     const name = parseChannel(value);
@@ -50,9 +47,7 @@ export function StartScreen({ active }: { active: boolean }) {
       <div ref={ref} className="ma-scroll">
         <div className="ma-pad flex min-h-full flex-col">
           {/* The shop sign stays dark until there is a real channel to read. */}
-          <div ref={stripRef} className="ma-sign mt-2 rounded-[12px]">
-            <LedStrip text={sign} dot={led.dot} gap={led.gap} run={led.run} label={sign} />
-          </div>
+          <Sign text={sign} label={sign} className="ma-sign mt-2 rounded-[12px]" />
           <h1 className="ma-h1 mt-8">{c.start.title}</h1>
           <p className="mt-2.5 text-[16px] leading-relaxed text-ink-2">{m.start.sub}</p>
 
