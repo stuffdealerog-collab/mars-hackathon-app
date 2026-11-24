@@ -1,5 +1,5 @@
 import type { Script } from "@/lib/uslub/contract";
-import { Check, Copy, Laptop, Link2, PencilLine } from "lucide-react";
+import { Check, ChevronRight, Copy, Laptop, Lightbulb, Link2, PencilLine } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import * as api from "../../studio/api";
 import { problemOf, useStudio } from "../../studio/store";
@@ -10,6 +10,7 @@ import { blankNote, blankScript, blankTokens } from "../blank";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons, useNav, type Sheet as SheetT } from "../nav";
 import { scriptOf, usePostScript, useWhen } from "../screens/Posts";
+import { INTRO_COPY } from "../../onboarding";
 import { Sheet } from "../Shell";
 import { cloud, confirmNative, haptic, openLink, popup } from "../tg";
 
@@ -127,6 +128,23 @@ function SettingsSheet({ leaving, onRestart }: { leaving: boolean; onRestart: ()
           <span className="switch" data-on={pro ? "true" : "false"} aria-hidden>
             <span className="switch__knob" />
           </span>
+        </button>
+      </div>
+
+      {/* The first-run intro, again: over everything, the sheet closes beneath it. */}
+      <div className="ma-group mt-6">
+        <button
+          type="button"
+          className="ma-row ma-press"
+          onClick={() => {
+            haptic.tap();
+            useNav.getState().openIntro();
+            useNav.getState().closeSheet();
+          }}
+        >
+          <Lightbulb className="h-5 w-5 shrink-0 text-ink-2" strokeWidth={1.8} aria-hidden />
+          <span className="min-w-0 flex-1 text-[16px] font-medium">{INTRO_COPY[lang].again}</span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-ink-3" aria-hidden />
         </button>
       </div>
 

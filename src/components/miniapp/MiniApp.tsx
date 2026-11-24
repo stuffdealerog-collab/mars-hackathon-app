@@ -16,6 +16,8 @@ import { FreshScreen, StartScreen } from "./screens/Start";
 import { VideoScreen } from "./screens/Video";
 import { EdgeBack, Layer, Skel, Toast } from "./Shell";
 import { SheetHost } from "./sheets/Sheets";
+import { markIntroSeen, MiniIntro } from "./Intro";
+import { decideIntro, forcedByUrl, INTRO_CLOUD_KEY, introSeen, localIntro } from "../onboarding";
 import { launchTarget } from "./launch";
 import { restart } from "./actions";
 import { useResume } from "./sync";
@@ -45,6 +47,7 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
   // The bottom bar appears with the first screen, not over the launch moment.
   const barShown = useBottomBar(theme, launched);
   useNativeNav(booted, () => {
+    if (useNav.getState().intro != null) return; // the intro covers the app: Settings waits
     haptic.tap();
     useNav.getState().openSheet({ name: "settings" });
   });
@@ -68,15 +71,24 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
     const st = useStudio.getState();
     st.configure({ bot });
     void (async () => {
-      const saved = await cloud.get(["lang", "pro", "brand"]);
+      const saved = await cloud.get(["lang", "pro", "brand", INTRO_CLOUD_KEY]);
       if (isLang(saved.lang)) useLang.getState().setLang(saved.lang);
       if (saved.pro === "1" || saved.pro === "0") useStudio.getState().setPro(saved.pro === "1");
-      setBooted(true);
       const s = useStudio.getState();
-      if (s.sample) return; // ?mock=1: the start screen runs the made-up bakery
       // The link the app was opened with comes first (bot button, startapp=brand_<id> from the
       // desktop Studio), then the brand this owner worked on last.
       const target = launchTarget(window.location.search, tg()?.initDataUnsafe?.start_param);
+      // The intro on an ordinary first open only; it opens under the launch moment, which reveals it.
+      const intro = decideIntro({
+        seen: introSeen(saved[INTRO_CLOUD_KEY]) || localIntro.seen(),
+        returning: !!saved.brand,
+        withIntent: !!(target.brand || target.channel || s.sample),
+        force: forcedByUrl(window.location.search),
+      });
+      if (intro.mark) markIntroSeen();
+      if (intro.show) useNav.getState().openIntro();
+      setBooted(true);
+      if (s.sample) return; // ?mock=1: the start screen runs the made-up bakery
       // Same rule as the desktop Studio: a brand that is gone or someone else's is forgotten; a
       // network or server failure keeps it and Start offers «Qayta urinish».
       const open = async (id: string) => {
@@ -156,6 +168,7 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
         </Layer>
       ))}
       <SheetHost onRestart={restart} />
+      <MiniIntro />
       <Toast />
       <Launch done={booted} onLeave={() => setLaunched(true)} />
     </div>

@@ -41,6 +41,11 @@ interface NavState {
    * came: network, timeout) or "busy" (409 publish_in_progress: another tap is posting it right now).
    */
   checking: Record<string, "lost" | "busy" | undefined>;
+  /** The first-run intro over everything, at this step (null: closed). Back walks its steps. */
+  intro: number | null;
+  openIntro: () => void;
+  setIntroStep: (n: number) => void;
+  closeIntro: () => void;
   push: (r: Route) => void;
   pop: () => void;
   /** Drops every pushed screen at once (flow changes such as "start over"). */
@@ -67,6 +72,11 @@ export const useNav = create<NavState>((set, get) => ({
   retryBrand: null,
   dirtyEdit: false,
   checking: {},
+  intro: null,
+
+  openIntro: () => set({ intro: 0 }),
+  setIntroStep: (n) => set({ intro: n }),
+  closeIntro: () => set({ intro: null }),
 
   push: (r) => set({ stack: [...get().stack.filter((s) => !s.leaving), { ...r, key: ++seq }] }),
 
@@ -91,6 +101,12 @@ export const useNav = create<NavState>((set, get) => ({
   },
 
   back: () => {
+    // The intro covers everything: Back steps through it and never reaches what lies beneath.
+    const intro = get().intro;
+    if (intro != null) {
+      if (intro > 0) set({ intro: intro - 1 });
+      return intro > 0;
+    }
     if (get().sheet && !get().sheetLeaving) {
       get().closeSheet();
       return true;
@@ -113,13 +129,13 @@ export const useNav = create<NavState>((set, get) => ({
 }));
 
 /** True when something can be closed or popped: Telegram shows its Back button. */
-export const useCanGoBack = () => useNav((s) => (!!s.sheet && !s.sheetLeaving) || s.stack.some((x) => !x.leaving));
+export const useCanGoBack = () => useNav((s) => (s.intro != null ? s.intro > 0 : (!!s.sheet && !s.sheetLeaving) || s.stack.some((x) => !x.leaving)));
 
 /** The live (not leaving) pushed screens. */
 export const liveStack = (s: NavState) => s.stack.filter((x) => !x.leaving);
 
-/** Layer priorities: the base flow screen, pushed screens above it, sheets on top. */
-export const PRIORITY = { base: 10, pushed: 20, sheet: 40 } as const;
+/** Layer priorities: the base flow screen, pushed screens above it, sheets, the intro on top. */
+export const PRIORITY = { base: 10, pushed: 20, sheet: 40, intro: 60 } as const;
 
 /**
  * Declares this layer's bottom buttons while `enabled`. Handlers are read through a ref, so a
