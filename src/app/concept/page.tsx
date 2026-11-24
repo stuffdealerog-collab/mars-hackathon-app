@@ -102,7 +102,7 @@ export default function ConceptPage() {
         <section className="pb-6 pt-12 sm:pt-20">
           <p className="mono-label">Konsepsiya · yo&apos;nalishni tasdiqlash uchun</p>
           <h1 className="mt-4 max-w-4xl text-[40px] font-bold leading-[1.02] tracking-[-0.035em] sm:text-[72px]">
-            Uslub AI — sizning marketing bo&apos;limingiz
+            Mercat — sizning marketing bo&apos;limingiz
           </h1>
           <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-mute">
             Marketologi yo&apos;q kichik biznes egasi uchun. Topshiriq berasiz — 10 ta AI xodim tahlil qiladi, reja tuzadi, yozadi,
@@ -509,7 +509,7 @@ export default function ConceptPage() {
             </div>
             <div className="rounded-[32px] bg-surface p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
               <div className="mono-label">Shrift va raqamlar</div>
-              <p className="mt-4 text-[44px] font-bold leading-none tracking-[-0.03em]">Uslub — Услуб</p>
+              <p className="mt-4 text-[44px] font-bold leading-none tracking-[-0.03em]">Mercat — Меркат</p>
               <p className="mt-2 text-[13px] text-mute">Manrope — sarlavha va matn, lotin va kirill</p>
               <p className="mt-4 font-mono text-[13px] uppercase tracking-[0.08em] text-fog/85">JetBrains Mono · 19:00 · 27%</p>
               <p className="mt-1 text-[13px] text-mute">Kichik yorliqlar, vaqt va dalillar uchun</p>

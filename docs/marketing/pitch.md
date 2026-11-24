@@ -1,4 +1,4 @@
-# Pitch: Uslub AI (working name), 7 slides
+# Pitch: Mercat (working name), 7 slides
 
 MARS AI Hackathon · Techstars Startup Week Tashkent. Target: **about 3 min of talk plus a 60 s live demo**. One idea per slide and few words on screen. The speaker carries the rest.
 Visuals: `public/generated/hero.png` (slides 1-2), `public/generated/og.png` (slide 7), the 9 avatars `public/generated/agent-*.png` (slides 2 and 4). Palette: Paper `#FAF7F2` background, Ink text, Lapis/Turquoise accents, Saffron for numbers.
