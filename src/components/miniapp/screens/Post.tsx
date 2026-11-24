@@ -3,7 +3,7 @@ import { Check, ChevronRight, Send } from "lucide-react";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { PostImage } from "../../media";
 import * as api from "../../studio/api";
-import { useStudio } from "../../studio/store";
+import { pictureBusy, useStudio } from "../../studio/store";
 import { fmt, keepNumbers, useCopy, useLang } from "../../ui/lang";
 import { blankNote, blankTokens, useBlank } from "../blank";
 import { useMiniCopy } from "../copy";
@@ -15,7 +15,8 @@ import { scriptOf, usePostScript, useWhen } from "./Posts";
 
 type Status = "draft" | "approved" | "published";
 const statusOf = (p: PostDraft): Status => (p.status === "published" ? "published" : p.status === "approved" ? "approved" : "draft");
-const picturePending = (p: PostDraft) => !!p.image && (p.image.status === "queued" || p.image.status === "running");
+/** A picture still being started or drawn: publishing waits for it (the store's own rule). */
+const picturePending = (p: PostDraft) => pictureBusy(p.id, p.image);
 
 /** Approve, then publish, from inside Telegram (no bot detour). Outcomes answer with haptics, a toast or a native popup. */
 export function usePostActions() {
