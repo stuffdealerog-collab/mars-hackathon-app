@@ -15,6 +15,7 @@ import { publishOnce } from "./publish-once";
 import { parseChannelUsername, ScrapeError } from "./scrape";
 import { getBrand, getPost, savePosts } from "./store";
 import { studioLink } from "./handoff";
+import { clip } from "./text";
 
 /** "Send your channel link or describe your business" in the user's language. */
 export const onboardPrompt = (locale: Locale) => t(locale, "bot.onboard_prompt");
@@ -129,7 +130,7 @@ export async function runOnboarding(
       // Publishing goes through publishFromBot (owner + own channel + admin checks); only for linked channels.
       const kb = brand.channel ? new InlineKeyboard().text(t(locale, "bot.publish_to", { channel: brand.channel }), `pub:${p.id}`) : undefined;
       const text = p.variants[pickScript(p.variants, undefined, brand.dna?.languages)];
-      await api.sendMessage(chatId, `${t(locale, "bot.post_header", { i: i + 1, score: p.humanScore })}\n\n${text}`.slice(0, 4000), {
+      await api.sendMessage(chatId, clip(`${t(locale, "bot.post_header", { i: i + 1, score: p.humanScore })}\n\n${text}`, 4000), {
         ...(kb ? { reply_markup: kb } : {}),
       });
     }

@@ -5,6 +5,7 @@
 import { createHash } from "node:crypto";
 import { checkChatRights, type MemberInfo } from "./access";
 import type { Script } from "./contract";
+import { clip } from "./text";
 
 const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
 const SHORT: Record<Script, string> = { uz_latn: "l", uz_cyrl: "c", ru: "r", en: "e" };
@@ -102,5 +103,5 @@ export function splitForPhoto(text: string): { caption?: string; rest?: string }
   const t = text.trim();
   if (!t) return {};
   if (t.length <= 1024) return { caption: t };
-  return { rest: t.slice(0, 4096) };
+  return { rest: clip(t, 4096) };
 }

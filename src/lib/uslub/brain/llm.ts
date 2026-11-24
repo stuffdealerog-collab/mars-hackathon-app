@@ -3,9 +3,10 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import { recordUsage } from "@/lib/uslub/context";
 import { getAnthropic, LlmError } from "@/lib/uslub/llm";
+import { wellFormed } from "../text";
 
 /** Drops lone UTF-16 surrogates (e.g. an emoji cut in half), which make the request body invalid JSON. */
-export const wellFormed = (s: string) => s.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
+export { wellFormed };
 
 export const SONNET = "claude-sonnet-5-5";
 export const HAIKU = "claude-haiku-5-5";
@@ -37,7 +38,7 @@ export async function brainJson<S extends z.ZodType>(opts: {
         max_tokens: opts.maxTokens ?? 12000,
         output_config: { effort: opts.effort, format: betaZodOutputFormat(opts.schema) },
         ...(sonnet ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
-        system: [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }],
+        system: [{ type: "text", text: wellFormed(opts.system), cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: wellFormed(opts.prompt) }],
       },
       { timeout: opts.timeoutMs ?? 50_000, ...(opts.maxRetries != null ? { maxRetries: opts.maxRetries } : {}) },

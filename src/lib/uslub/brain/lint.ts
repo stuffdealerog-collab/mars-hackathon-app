@@ -4,6 +4,7 @@
  */
 import { lexiconHits, normApos } from "./stats";
 import { ID_RE, type LedgerEntry } from "./types";
+import { clip } from "../text";
 
 export function extractIds(text: string): string[] {
   return [...new Set(text.match(ID_RE) ?? [])];
@@ -131,7 +132,7 @@ export function lintItem(item: LintItem, ctx: LintCtx): CheckFail[] {
 
   const hook = item.hook.trim();
   if (hook.length > 90) fails.push({ check: "HOOK", quote: hook, reason: `hook is ${hook.length} chars (>90)` });
-  if (GREETING_RE.test(hook)) fails.push({ check: "HOOK", quote: hook.slice(0, 30), reason: "hook opens with a greeting" });
+  if (GREETING_RE.test(hook)) fails.push({ check: "HOOK", quote: clip(hook, 30), reason: "hook opens with a greeting" });
   if (!/\d/.test(hook) && !hook.includes("?") && extractIds(hook).length === 0 && item.factIds.length === 0)
     fails.push({ check: "HOOK", quote: hook, reason: "hook has no specific (number, product, place or real question)" });
   const tg = trigrams(hook);

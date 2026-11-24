@@ -7,6 +7,7 @@ import { llmJson, MODEL_QUALITY, type Effort } from "./llm";
 import { analyzeNeuro, inventedFacts } from "./neuro";
 import { findPlaceholders } from "./placeholders";
 import { latinToCyrillic, polishUzLatin } from "./translit";
+import { clip } from "./text";
 
 const PostsSchema = z.object({
   posts: z.array(
@@ -42,7 +43,7 @@ function brandContext(brand: BrandProfile): string {
     .join("\n");
   return [
     `BRAND DNA:\n${JSON.stringify(dna, null, 1)}`,
-    brand.knowledge ? `BRAND KNOWLEDGE (the only source of facts):\n${brand.knowledge.slice(0, 6000)}` : "BRAND KNOWLEDGE: none beyond the posts.",
+    brand.knowledge ? `BRAND KNOWLEDGE (the only source of facts):\n${clip(brand.knowledge, 6000)}` : "BRAND KNOWLEDGE: none beyond the posts.",
     examples ? `THE BRAND'S REAL POSTS (match this voice):\n${examples}` : "",
   ]
     .filter(Boolean)
@@ -165,7 +166,7 @@ export async function generatePosts(brand: BrandProfile, brief: string, count = 
   const result = await llmJson({
     schema: PostsSchema,
     system: SYSTEM,
-    prompt: `${brandContext(brand)}\n\n${opts.slot ? "PLAN SLOT" : "BRIEF FROM THE OWNER"}:\n${brief.slice(0, 2400)}\n\nWrite exactly ${n} post${n > 1 ? "s" : ""}.`,
+    prompt: `${brandContext(brand)}\n\n${opts.slot ? "PLAN SLOT" : "BRIEF FROM THE OWNER"}:\n${clip(brief, 2400)}\n\nWrite exactly ${n} post${n > 1 ? "s" : ""}.`,
     model: MODEL_QUALITY,
     effort: opts.effort ?? "low",
     maxTokens: 12000,

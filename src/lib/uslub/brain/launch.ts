@@ -8,6 +8,7 @@ import { GROWTH_IDEAS, KIND_BRIEF, descriptionSignals, launchKpis, launchQuestio
 import { brainJson, SONNET } from "./llm";
 import { LEXICON } from "./stats";
 import type { Lang } from "./types";
+import { clip } from "../text";
 
 /**
  * Fresh mode: a 2-week LAUNCH plan for a Telegram channel with no posts and 0–few subscribers, built only
@@ -107,7 +108,7 @@ export async function buildLaunchStrategy(inp: LaunchInput) {
   const lang = inp.lang ?? "uz";
   const now = inp.now ?? Date.now();
   const emit = inp.onStage ?? (() => {});
-  const description = inp.knowledge.trim().slice(0, 6000);
+  const description = clip(inp.knowledge.trim(), 6000);
   const sig = descriptionSignals(description);
   const slots = launchSkeleton(now);
   emit({ stage: "skeleton", slots, mode: "fresh", elapsedMs: Date.now() - t0 });
@@ -115,7 +116,7 @@ export async function buildLaunchStrategy(inp: LaunchInput) {
   const context = [
     inp.brandName ? `BRAND NAME: ${inp.brandName}` : "",
     inp.channel ? `TELEGRAM CHANNEL: @${inp.channel.replace(/^@/, "")} (new, empty)` : "TELEGRAM CHANNEL: not created yet or empty",
-    inp.goal ? `OWNER'S GOAL: ${inp.goal.slice(0, 400)}` : "",
+    inp.goal ? `OWNER'S GOAL: ${clip(inp.goal, 400)}` : "",
     `OWNER'S DESCRIPTION:\n${description}`,
   ]
     .filter(Boolean)
@@ -145,7 +146,7 @@ export async function buildLaunchStrategy(inp: LaunchInput) {
   const bySlot = new Map(itemsR.value.items.map((i) => [i.slot, i]));
   const items: (PlanItem & Record<string, unknown>)[] = slots.map((s: LaunchSlot) => {
     const it = bySlot.get(s.slot);
-    const hook = stripIds(it?.hook ?? "").slice(0, 160);
+    const hook = clip(stripIds(it?.hook ?? ""), 160);
     const cta = stripIds(it?.cta ?? "");
     const brief = stripIdsAll(it?.brief ?? "");
     const reasons: string[] = [];

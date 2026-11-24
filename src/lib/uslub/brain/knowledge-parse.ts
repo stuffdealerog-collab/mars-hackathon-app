@@ -4,6 +4,7 @@
  * and turning the owner's structured answers into plain KB lines.
  * No I/O and no server-only import, so every rule is unit-tested.
  */
+import { clip } from "../text";
 
 export type KnowledgeKind = "gdoc" | "gsheet" | "pdf" | "website" | "manual";
 
@@ -178,7 +179,7 @@ export const squash = (s: string) =>
 /** Cuts at the last line break (or space) before `max` chars. */
 export function capText(s: string, max = TEXT_CAP): string {
   if (s.length <= max) return s;
-  const cut = s.slice(0, max);
+  const cut = clip(s, max);
   const nl = cut.lastIndexOf("\n");
   const at = nl > max * 0.8 ? nl : cut.lastIndexOf(" ");
   return (at > max * 0.8 ? cut.slice(0, at) : cut).trimEnd();
