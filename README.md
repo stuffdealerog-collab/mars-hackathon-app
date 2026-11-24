@@ -1,184 +1,101 @@
 <div align="center">
 
-# Mercat
+<img src="public/brand/readme-hero.png" alt="Mercat: the ten lamps of the marketing department, lit one after another in their colours" width="100%">
 
-**An AI marketing department for small businesses in Uzbekistan.**
-Paste your Telegram channel link — ten AI employees learn your brand voice, audit your real numbers, plan the week and write posts in Uzbek (Latin and Cyrillic), Russian and English. You only approve.
+**Paste a Telegram channel link, and Mercat reads the channel, plans the week and writes posts with pictures in your voice, ready for you to approve.**
 
-*Bir havola — butun marketing bo‘limi.* · *Одна ссылка — весь отдел маркетинга.*
+*Telegram kanalingiz havolasini qo‘ying: Mercat bir haftalik postlarni rasmlari bilan tayyorlaydi, siz faqat tasdiqlaysiz.*<br>
+*Вставьте ссылку на Telegram-канал: Mercat подготовит посты на неделю с картинками, а вы только утверждаете.*
+
+[**Open Mercat**](https://mercat-ai.vercel.app) · [**Telegram bot**](https://t.me/hackathonproj1_bot) · [Sample bakery, no sign-up](https://mercat-ai.vercel.app/studio?mock=1)
 
 [![CI](https://github.com/stuffdealerog-collab/mercat/actions/workflows/ci.yml/badge.svg)](https://github.com/stuffdealerog-collab/mercat/actions/workflows/ci.yml)
-[**Live app**](https://mercat-ai.vercel.app) · [**Studio demo**](https://mercat-ai.vercel.app/studio?demo=bir-havola&channel=t.me/safiabakery) · [**Telegram bot**](https://t.me/hackathonproj1_bot) · [Concept board](https://mercat-ai.vercel.app/concept)
-
-<img src="public/media/3d/constellation-16x9.png" alt="Ten glossy orbs — Mercat's AI employees — connected by dotted light on a dark background" width="100%">
 
 </div>
 
 ---
 
-## Why
+In a small Tashkent business the marketing department is usually the owner, at night, after closing. Mercat gives them one: ten employees drawn as lamps behind glass. A lamp glows while its employee works and stays lit when the result is ready. Nothing glows for decoration.
 
-In a small Tashkent business, marketing is one tired person — usually the owner. They write the posts, translate them into Russian, chase a designer, shoot Reels and still don't know where their customers are. Generic chatbots start from zero every time, write the same clichés for everyone and invent facts.
-
-We heard this directly from people at the MARS AI Hackathon (Techstars Startup Week Tashkent, November 2026): a marketing director who wants *"one service that learns how I think, so I can delegate the routine"*, an SMM specialist who can't find *"an app that makes a product video without AI slop"*, and founders who say the hardest part is *finding clients*.
-
-## The AI department
-
-| Employee | Role | What it does |
-|---|---|---|
-| **Brend xotirasi** | Brand memory | Reads your public channel and your notes, builds a Brand DNA: tone, *siz*/*sen*, emoji density, post length, CTA style, products, do's and don'ts |
-| **Analitik** | Analyst | Audits real channel numbers — views, reach, posting rhythm, formats, competitors — with deterministic statistics |
-| **Strateg** | Strategist | Positioning, audiences, offer, content pillars and a 7-day plan where every post has a goal, hook, single CTA and metric |
-| **Kopirayter** | Copywriter | Writes posts in *your* voice, using your own posts as examples and only facts you provided |
-| **Muharrir** | Editor | Removes "neuro-words" (AI clichés) and rejects any rewrite that invents numbers, dates, prices or promos |
-| **Tarjimon** | Translator | Uzbek Latin, Uzbek Cyrillic (deterministic transliteration, not an LLM), Russian, English |
-| **Dizayner** | Designer | Ad stills from a product photo through the media API when an image provider key is configured (the Studio shows cover placeholders for now) |
-| **Videograf** | Videographer | Reels/TikTok scripts; product photo → ad video jobs through the media API when a video provider key is configured (not yet wired into the Studio) |
-| **SMM-menejer** | Publisher | Publishes to the owner's Telegram channel after approval |
-| **Mijoz radar** | Client radar | Finds where your customers are — channels, groups, bloggers, events — with sources |
-
-**Killer feature — "Bir havola".** Paste one channel link and the whole department runs on a live node canvas in about a minute: Brand DNA, an audit, a strategy, posts in four scripts, places where your customers are and a Reels plan.
-
-## Not another AI wrapper
-
-- **Code decides what is true.** Channel statistics, thresholds and decision rules are computed deterministically. The model only phrases findings: every audit finding and plan hook must cite an evidence id from a ledger, otherwise it is dropped and replaced by a rule template.
-- **No invented facts.** The editor's output is checked by code: new numbers, dates, weekdays, prices, promo or urgency words that were not in the input make the rewrite fail, and a deletion-only edit is used instead.
-- **Uzbek done properly.** Cyrillic is produced by rules with tests (o‘/g‘ apostrophe variants, *e*→*э*, *ye/yo/yu/ya*, loanwords, brand names kept), plus Uzbek suffix assimilation (*keshbekka*, not *keshbekga*).
-- **Honest by default.** Not enough data → the app says so. Any sample data in the UI is visibly labelled *namuna*.
-- **Human in the loop.** Nothing is published until the owner taps Publish. Promotions, prices, videos and a new brand's first posts are flagged as sensitive and wait for approval by default; autopilot for routine posts is a beta setting.
+<p align="center">
+  <img src="docs/brand/screens/studio-department.png" alt="Desktop Studio: the department at work on the sample bakery, seven lamps lit" width="49%">
+  <img src="docs/brand/screens/studio-posts.png" alt="Desktop Studio in Pro: the queue of five posts, the post preview and the inspector" width="49%">
+</p>
+<p align="center">
+  <img src="docs/brand/screens/miniapp-channel.png" alt="Telegram Mini App: the channel's numbers on the amber LED and what to fix" width="24%">
+  &nbsp;
+  <img src="docs/brand/screens/miniapp-post.png" alt="Telegram Mini App: a post with Edit and Approve" width="24%">
+</p>
+<p align="center"><sub>Screenshots use the built-in sample, a made-up bakery marked "namuna". No client data.</sub></p>
 
 ## How it works
 
-```mermaid
-flowchart LR
-  L["Telegram channel link"] --> B["Brend xotirasi<br/>t.me/s scrape → Brand DNA"]
-  L --> A["Analitik<br/>own scrape → deterministic stats + rules"]
-  A --> S["Strateg<br/>strategy + 7-day plan"]
-  B --> S
-  B --> C["Kopirayter<br/>posts in brand voice · UZ Latin + RU + EN"]
-  C --> E["Muharrir<br/>neuro-word filter + fact guard"]
-  E --> T["Tarjimon<br/>deterministic UZ Cyrillic"]
-  T --> Q{"Approval"}
-  Q -->|owner approves| P["SMM-menejer<br/>publish to Telegram"]
-  B --> R["Mijoz radar<br/>web search with sources"]
-  B --> V["Videograf<br/>Reels plan"]
+1. **Paste a link** to a public channel. If the channel is still empty, describe the business and attach up to five photos instead.
+2. **The department reads it.** The analyst counts subscribers, average views and how many subscribers actually see a post. The strategist turns that into a plan for the week.
+3. **Posts arrive in your voice.** The copywriter learns from your own posts, the editor strips phrases that sound like a robot, and the designer draws each picture in the style of your channel's photos.
+4. **You approve.** Edit a post or tap Approve. The bot publishes approved posts to your channel. Nothing goes out without your tap.
+
+## What is in it
+
+- **Simple and Pro.** On a phone, three steps and a strip of ten lights. On a computer the Studio opens in Pro: the full panel, a post queue, a preview and an inspector.
+- **Telegram Mini App.** The same Studio inside Telegram at `/tg`. It follows Telegram's light or dark theme and uses Telegram's own buttons.
+- **Pictures in the channel's style.** Claude reads the channel's recent photos and the owner's, writes the style down, and every post gets a picture rendered from that style with the channel's photos as references. Needs a fal.ai or Higgsfield key.
+- **Uzbek, Russian, English.** The interface speaks uz, ru and en. Posts come in Uzbek Latin, Uzbek Cyrillic, Russian and English. Cyrillic is made by tested rules, not by a model.
+- **Honest data.** Code computes the numbers and the model only words them. The editor rejects a rewrite that adds a price, a date or a figure that was not there. Anything that is not the owner's own data carries a dashed "namuna" label.
+
+Video is not ready. Its tab says so instead of pretending.
+
+## Stack
+
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, zustand, motion · Anthropic Claude API (structured output, vision) · Neon Postgres · grammY bot and a Telegram Mini App · fal.ai or Higgsfield for pictures · Vercel, Frankfurt · Vitest, ESLint, GitHub Actions.
+
+## Architecture
+
+```text
+src/app/                 landing /, Studio /studio, Mini App /tg, /stats, /qr; API routes under /api
+src/lib/uslub/           the department: t.me/s scrape, brand voice, stats and rules (brain/), week plan, copywriter, editor, Cyrillic
+src/lib/uslub/visual/    channel photos -> picture style; media/ renders one picture per post and keeps it on the post
+src/lib/ai.ts            Claude calls with structured output: code decides what is true, the model phrases it
+src/lib/bot.ts           grammY bot on /api/telegram: onboarding, previews, publishing after the owner approves
+db/schema.sql            Neon Postgres via src/lib/db.ts (tagged-template SQL only): brands, posts, plans, media jobs
 ```
 
-## Tech stack
+Internal paths still say `uslub`, the project's working name.
 
-| Layer | Choice |
-|---|---|
-| App | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4 |
-| Studio UI | @xyflow/react (node canvas), motion, lucide-react, zustand |
-| AI | Anthropic Claude API (`claude-sonnet-5-5`, `claude-haiku-5-5`) with structured outputs and server-side web search |
-| Data | Neon Postgres (serverless HTTP driver, parameterized tagged-template SQL) |
-| Telegram | grammY bot (webhook), Telegram Mini App with `initData` validation |
-| Media | Provider interface for Higgsfield and fal.ai video generation (optional) |
-| Hosting | Vercel (Frankfurt region) |
-| Quality | Vitest, ESLint, TypeScript strict, GitHub Actions CI |
+## Run it locally
 
-## Project structure
-
-```
-src/
-  app/                    pages: landing, /studio, /concept, /stats, /qr, /tg (Mini App)
-    api/
-      telegram/           bot webhook (secret-token protected)
-      auth/telegram/      Mini App initData login
-      health/             liveness + DB round trip
-      uslub/              the department API (brand, posts, neuro, analyze, strategy, ...)
-  components/             studio canvas, panels, landing and concept board
-  lib/
-    uslub/                engine: scrape, Brand DNA, copywriter, editor, translit, radar, publish
-      brain/              analysis + strategy: stats, rules + evidence ledger, audit, slot planner, lint + critic, calendar
-      media/              video/image job pipeline and providers
-    bot.ts, db.ts, ai.ts, telegram-auth.ts, track.ts
-db/schema.sql             idempotent Postgres schema
-scripts/                  db-migrate, set-webhook, vercel-env-push
-tests/                    unit tests (translit, neuro guard, access control, brain stats, ...)
-docs/                     brain spec, quality samples, creative playbook, video plans, marketing notes
-```
-
-> Internal module and route names still use the working name `uslub`; they will be renamed to `mercat` in one refactor.
-
-## API
-
-Routes take JSON bodies, return `{ error }` on failure and are rate limited. Methods are `POST` unless noted.
-
-| Route | Purpose |
-|---|---|
-| `/api/uslub/brand` | Build or load a brand from a channel and/or owner knowledge (`GET ?id=` reads one) |
-| `/api/uslub/analyze` | Channel audit with evidence-cited findings and competitor benchmark |
-| `/api/uslub/strategy` | Strategy and 7-day content plan, critic-checked |
-| `/api/uslub/posts` | Posts in four scripts with neuro-word report and sensitivity flags |
-| `/api/uslub/neuro` | Remove AI clichés from a text (before/after human score) |
-| `/api/uslub/radar` | Places where the customers are, with sources |
-| `/api/uslub/video` | Reels plan: hook, scenes, voice-over, captions |
-| `/api/uslub/plan` | Turn a task into a node graph of employees |
-| `/api/uslub/department` | "Bir havola": brand, then posts, radar and video in parallel |
-| `/api/uslub/publish` | Publish to the owner's channel (Telegram auth, ownership and admin-rights checks) |
-| `/api/uslub/media`, `/media/jobs`, `/media/jobs/cancel`, `/media/captions` | Media jobs: `GET` provider status, `POST` create, `GET ?id=` poll, `POST` cancel, `POST` captions (needs a provider key or `MEDIA_DEMO=1`) |
-
-## Getting started
-
-Requirements: Node.js ≥ 20.12, pnpm 9.
+Node.js 20.12 or newer and pnpm 9.
 
 ```bash
 pnpm install
-cp .env.example .env.local      # then fill in the values (never commit this file)
-pnpm db:migrate                 # creates tables in your Postgres
-pnpm dev                        # http://localhost:3000
+cp .env.example .env.local    # fill it in; it is gitignored, never commit it
+pnpm db:migrate               # creates the tables
+pnpm dev                      # http://localhost:3000, sample mode at /studio?mock=1
 ```
 
-To connect the Telegram bot after deploying: set `TELEGRAM_BOT_TOKEN`, `BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` and `PUBLIC_URL`, then run `pnpm set-webhook`.
+`.env.example` explains every variable. The app needs `DATABASE_URL`, `DATABASE_URL_UNPOOLED` and `ANTHROPIC_API_KEY`. The bot also needs `TELEGRAM_BOT_TOKEN`, `BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` and `PUBLIC_URL`, then `pnpm set-webhook`. Pictures need `FAL_KEY` or `HIGGSFIELD_API_KEY`.
 
-### Environment variables
-
-| Variable | Required | Purpose |
-|---|---|---|
-| `DATABASE_URL`, `DATABASE_URL_UNPOOLED` | yes | Neon Postgres connection (pooled / direct for migrations) |
-| `ANTHROPIC_API_KEY` | for AI features | Claude API (without it the bot answers with a fallback message and the department API fails) |
-| `ANTHROPIC_MODEL` | no | Override the bot's chat model (the department API uses fixed models) |
-| `TELEGRAM_BOT_TOKEN`, `BOT_USERNAME` | for the bot | Bot credentials and username (without `@`) |
-| `TELEGRAM_WEBHOOK_SECRET` | for the bot | Verifies `X-Telegram-Bot-Api-Secret-Token` on the webhook |
-| `PUBLIC_URL` | for the bot | Production origin, e.g. `https://mercat-ai.vercel.app` |
-| `MENU_BUTTON_TEXT` | no | Label of the bot's Mini App menu button |
-| `HIGGSFIELD_API_KEY` or `HF_API_KEY` + `HF_API_SECRET` | no | Higgsfield video/image generation |
-| `FAL_KEY` | no | fal.ai video/image generation |
-| `HIGGSFIELD_VIDEO_MODEL`, `HIGGSFIELD_IMAGE_MODEL`, `FAL_VIDEO_MODEL`, `FAL_IMAGE_MODEL` | no | Model path overrides for the media providers |
-| `MEDIA_PROVIDERS`, `MEDIA_DAILY_LIMIT`, `MEDIA_USER_DAILY_LIMIT`, `MEDIA_ANON_DAILY_LIMIT`, `MEDIA_DEMO` | no | Media provider order, spend limits and offline demo mode |
-
-## Quality and security
+Before a push:
 
 ```bash
-pnpm lint          # ESLint
-pnpm typecheck     # route types + tsc --noEmit
+pnpm lint
+pnpm typecheck
 pnpm exec vitest run
 ```
 
-- Telegram Mini App `initData` is validated with HMAC (and `auth_date` age) on the server; the webhook requires a secret token.
-- Publishing requires a verified Telegram user who owns the brand, targets the brand's own channel and is the channel's creator or an administrator with post rights; the bot's rights are checked too.
-- Brand caches are only reused for data scraped from public channels, never for owner-supplied knowledge; owner ids are never returned to clients.
-- LLM-heavy endpoints and bot onboarding are rate limited; media generation has daily caps.
-- No secrets in the repository: `.env*` files are gitignored and excluded from deployments.
-- Generated Uzbek copy from real channels, prepared for native-speaker review, lives in [`docs/quality/`](docs/quality).
+## Docs
 
-## Status and roadmap
-
-Working today: channel → Brand DNA, audit, strategy and plan, posts in four scripts, neuro-word editor, client radar, Reels plans, Telegram bot onboarding and authorized publishing, live usage stats at [`/stats`](https://mercat-ai.vercel.app/stats).
-
-Next: a learning loop from published posts' views and link clicks, scheduled autopilot publishing, Instagram and YouTube publishing, rendered videos via the media pipeline, team seats, renaming internal `uslub` modules to `mercat`.
-
-## Documentation
-
-See [`docs/`](docs) — brain spec and samples, quality reviews, creative playbook, video storyboard and runbooks, marketing notes.
+- [Sprint plan for the 25.11 client demo](docs/sprint/2026-11-25-plan.md), [product spec](docs/sprint/product-spec.md), [desktop atmosphere](docs/sprint/desktop-atmosphere.md), [demo runbook](docs/sprint/demo-runbook.md)
+- [DESIGN.md](DESIGN.md) for the lamp world, [PRODUCT.md](PRODUCT.md) for who it is for
+- [Brand kit](docs/brand/brand-kit.md): the mark, logo, icons, link previews and covers in [`public/brand`](public/brand)
+- [`docs/brain`](docs/brain) for the analysis engine, [`docs/quality`](docs/quality) for Uzbek copy reviews
 
 ---
 
 <div align="center">
 
-Built during the **MARS AI Hackathon · Techstars Startup Week Tashkent 2026** with Claude Code.
+Built at the **MARS AI Hackathon**, Techstars Startup Week Tashkent 2026, with Claude Code.
 
-Copyright © 2026 Mercat. All rights reserved. See [LICENSE](LICENSE).
+Copyright © 2026 Mercat. All rights reserved. The code is public for viewing and evaluation only, see [LICENSE](LICENSE).
 
 </div>

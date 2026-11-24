@@ -1,0 +1,193 @@
+<!doctype html>
+<!--
+  Mercat brand kit scenes. Rendered by render.mjs (headless Chromium), one scene per URL:
+  kit.html?s=og&lang=uz · gh · cover&lang=ru · hero · avatar · icon&src=…&size=32 · sheet
+  The lamps use the same gradients as the product (src/app/globals.css .lamp, lamps.ts lampVars).
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --stage: #0b0a09;
+    --glass: #131210;
+    --hair: rgb(255 236 214 / 0.08);
+    --ink: #f3f1ec;
+    --ink-2: #a8a49c;
+    --ink-3: #948f87;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { background: transparent; }
+  body { font-family: Onest, ui-sans-serif, system-ui, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  .scene { position: relative; overflow: hidden; background: var(--stage); }
+
+  /* The room: a warm night stage, a little lighter where the lamps stand. */
+  .room { position: absolute; inset: 0; pointer-events: none; }
+
+  .panel { position: absolute; }
+  .housing {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 34px;
+    background: #0f0e0d;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), inset 0 0 0 1px rgb(255 255 255 / 0.025), 0 30px 60px -30px rgb(0 0 0 / 0.9);
+  }
+  .wall, .floor { position: absolute; pointer-events: none; mix-blend-mode: plus-lighter; }
+
+  /* Not isolated: the spill falls behind the opaque glass, into the gaps and onto the housing. */
+  .lamp { position: relative; border-radius: 22px; background: var(--glass); box-shadow: inset 0 0 0 1px var(--hair); }
+  .lamp .glow { position: absolute; inset: 0; border-radius: inherit; opacity: var(--k);
+    background:
+      radial-gradient(55% 28% at 50% 0%, var(--g-core) 0%, transparent 100%),
+      radial-gradient(120% 78% at 50% -6%, var(--g-hue) 0%, var(--g-mid) 34%, var(--g-deep-a) 62%, transparent 88%); }
+  .lamp .glow::after { content: ""; position: absolute; inset: 0; border-radius: inherit;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), inset 0 0 0 1px rgb(255 255 255 / 0.08); }
+  .lamp .spill { position: absolute; inset: 8% -10% -34% -10%; z-index: -1; border-radius: 50%; opacity: calc(0.42 * var(--k));
+    background: radial-gradient(closest-side, var(--hue-a) 0%, var(--hue-b) 55%, transparent 100%); }
+  .lamp .fil { position: absolute; top: 12px; left: 50%; width: 34px; height: 4px; margin-left: -17px; border-radius: 3px;
+    background: var(--core); box-shadow: 0 0 12px 2px var(--core); }
+  .lamp .name { position: absolute; left: 16px; right: 12px; bottom: 14px; font-size: 16px; font-weight: 640; letter-spacing: -0.01em; color: #fff;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.55), 0 0 14px rgb(0 0 0 / 0.45); white-space: nowrap; }
+  .sm .lamp { border-radius: 18px; }
+  .sm .lamp .fil { top: 10px; width: 26px; height: 3px; margin-left: -13px; }
+  .sm .lamp .name { left: 13px; bottom: 11px; font-size: 14px; }
+  .sm .housing { border-radius: 28px; padding: 10px; gap: 8px; }
+
+  .line { position: absolute; display: flex; align-items: center; white-space: nowrap; }
+  .quiet { color: var(--ink-2); }
+  h1 { font-weight: 600; letter-spacing: -0.035em; line-height: 1.02; text-wrap: balance; }
+
+  /* Contact sheet */
+  .sheet { padding: 48px; background: #151311; }
+  .sheet h2 { font-size: 15px; font-weight: 500; color: var(--ink-2); margin: 0 0 10px; }
+  .grid { display: grid; gap: 28px 24px; align-items: start; }
+  .cell img { display: block; border-radius: 10px; box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08); }
+  .cell p { font-size: 13px; color: var(--ink-3); margin-top: 8px; }
+  .chk { background-color: #fff; background-image: linear-gradient(45deg, #e8e8e8 25%, transparent 25%, transparent 75%, #e8e8e8 75%), linear-gradient(45deg, #e8e8e8 25%, transparent 25%, transparent 75%, #e8e8e8 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px; }
+</style>
+</head>
+<body>
+<script>
+const MARK = "../../../public/brand/mark.svg";
+const LOGO = "../../../public/brand/logo.svg";
+
+/* src/components/lamp/lamps.ts */
+const ORDER = ["brand", "analyst", "strategist", "copywriter", "editor", "translator", "designer", "video", "radar", "publisher"];
+const LAMPS = {
+  brand: ["#FFD6A0", "#FFF7EA", "#B8642F"], analyst: ["#FFB547", "#FFEBC2", "#A8501A"],
+  strategist: ["#FF8A3D", "#FFD6B8", "#9A2E1A"], copywriter: ["#FF6152", "#FFC9BF", "#931D38"],
+  editor: ["#FF4580", "#FFC0D5", "#7E1258"], translator: ["#E04BC9", "#F8C2EE", "#561A86"],
+  designer: ["#9E62FF", "#DECBFF", "#341C98"], video: ["#6273FF", "#CBD1FF", "#1A2788"],
+  radar: ["#2F9CFF", "#BEE3FF", "#0C4A8C"], publisher: ["#25D0C2", "#BDFFF7", "#0A6B74"],
+};
+/* src/components/ui/copy.ts, team names */
+const NAMES = {
+  uz: ["Brend xotirasi", "Analitik", "Strateg", "Kopirayter", "Muharrir", "Tarjimon", "Dizayner", "Videograf", "Mijozlar radari", "SMM-menejer"],
+  ru: ["Память бренда", "Аналитик", "Стратег", "Копирайтер", "Редактор", "Переводчик", "Дизайнер", "Видеограф", "Радар клиентов", "SMM-менеджер"],
+  en: ["Brand memory", "Analyst", "Strategist", "Copywriter", "Editor", "Translator", "Designer", "Videographer", "Customer radar", "SMM manager"],
+};
+const LINE = {
+  uz: "Kanalingiz uchun haftalik postlar",
+  ru: "Посты на неделю для вашего канала",
+  en: "A week of posts for your channel",
+};
+const HEAD = {
+  uz: "Kanalingizga postlarni Mercat yozadi. Siz faqat tasdiqlaysiz.",
+  ru: "Посты для вашего канала пишет Mercat. Вы только утверждаете.",
+  en: "Mercat writes the posts for your channel. You just approve them.",
+};
+
+const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const rgba = (c, a) => `rgba(${c.join(",")},${a})`;
+const mixRgb = (a, b, t) => rgb(a).map((v, i) => v * (1 - t) + rgb(b)[i] * t);
+const dim = (c, a = 1) => rgba(c.map((v) => Math.round(v * 0.85)), a);
+function lampVars(role, k) {
+  const [hue, core, deep] = LAMPS[role];
+  return [
+    `--k:${k}`, `--hue:${hue}`, `--core:${core}`, `--deep:${deep}`,
+    `--hue-a:${rgba(rgb(hue), 0.7)}`, `--hue-b:${rgba(rgb(hue), 0.22)}`,
+    `--g-core:${dim(rgb(core))}`, `--g-hue:${dim(rgb(hue))}`,
+    `--g-mid:${dim(mixRgb(hue, deep, 0.45))}`, `--g-deep-a:${dim(rgb(deep), 0.55)}`,
+  ].join(";");
+}
+
+/* The panel lit in a gentle sequence: the light travels along the pipeline and the last lamps
+   are still warming up. */
+const seq = (i) => +(1 - i * 0.032).toFixed(3);
+
+function panel({ x, y, w, cols, tileH, lang, small = false, names = true }) {
+  const rows = Math.ceil(ORDER.length / cols);
+  const pad = small ? 10 : 12, gap = small ? 8 : 10;
+  const tileW = (w - 2 * pad - gap * (cols - 1)) / cols;
+  const h = 2 * pad + rows * tileH + (rows - 1) * gap;
+  const tiles = ORDER.map((role, i) => `
+    <div class="lamp" style="${lampVars(role, seq(i))};height:${tileH}px">
+      <div class="spill"></div><div class="glow"></div><div class="fil"></div>
+      ${names ? `<div class="name">${NAMES[lang][i]}</div>` : ""}
+    </div>`).join("");
+  /* Light on the wall above the top row and on the floor below the bottom row. */
+  const room = ORDER.map((role, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    const cx = x + pad + col * (tileW + gap) + tileW / 2;
+    const c = rgb(LAMPS[role][0]);
+    if (row === 0) return `<div class="wall" style="left:${cx - tileW}px;top:${y - 120}px;width:${tileW * 2}px;height:220px;background:radial-gradient(closest-side,${rgba(c, 0.1 * seq(i))},transparent)"></div>`;
+    if (row === rows - 1) return `<div class="floor" style="left:${cx - tileW * 1.1}px;top:${y + h - 70}px;width:${tileW * 2.2}px;height:240px;background:radial-gradient(closest-side,${rgba(c, 0.18 * seq(i))},transparent)"></div>`;
+    return "";
+  }).join("");
+  return `${room}<div class="panel ${small ? "sm" : ""}" style="left:${x}px;top:${y}px;width:${w}px">
+    <div class="housing" style="grid-template-columns:repeat(${cols},1fr)">${tiles}</div></div>`;
+}
+
+const q = new URLSearchParams(location.search);
+const lang = q.get("lang") || "uz";
+const s = q.get("s");
+const scene = (w, h, inner, bg = "") => `<div class="scene" style="width:${w}px;height:${h}px;${bg}">${inner}</div>`;
+const roomGlow = (w, h, cx, cy) => `<div class="room" style="background:radial-gradient(${w * 0.7}px ${h * 0.6}px at ${cx}px ${cy}px, rgb(40 32 24 / .55), transparent)"></div>`;
+
+let html = "";
+if (s === "og") {
+  html = scene(1200, 630, roomGlow(1200, 630, 600, 230) +
+    panel({ x: 56, y: 48, w: 1088, cols: 5, tileH: 164, lang }) +
+    `<div class="line" style="left:56px;bottom:58px;gap:18px">
+       <img src="${MARK}" width="54" height="54">
+       <span style="font-size:40px;font-weight:600;letter-spacing:-0.025em">${LINE[lang]} <span class="quiet">· Mercat</span></span>
+     </div>`);
+} else if (s === "gh") {
+  html = scene(1280, 640, roomGlow(1280, 640, 980, 320) +
+    panel({ x: 760, y: 52, w: 456, cols: 2, tileH: 92, lang: "en", small: true }) +
+    `<div style="position:absolute;left:72px;top:72px"><img src="${LOGO}" height="44"></div>
+     <h1 style="position:absolute;left:72px;top:200px;width:600px;font-size:60px">An AI marketing department for Telegram channels</h1>
+     <p class="quiet" style="position:absolute;left:72px;top:430px;width:560px;font-size:24px;line-height:1.45;letter-spacing:-0.01em">It reads the channel, plans the week and writes posts with pictures in the channel’s voice. The owner approves; the bot publishes.</p>`);
+} else if (s === "cover") {
+  html = scene(1280, 720, roomGlow(1280, 720, 640, 470) +
+    `<div style="position:absolute;left:72px;top:60px"><img src="${LOGO}" height="40"></div>
+     <h1 style="position:absolute;left:72px;top:140px;width:1100px;font-size:60px">${HEAD[lang]}</h1>` +
+    panel({ x: 72, y: 330, w: 1136, cols: 5, tileH: 124, lang }) +
+    `<div class="line quiet" style="left:72px;bottom:48px;font-size:22px;letter-spacing:-0.01em">mercat-ai.vercel.app <span style="padding:0 12px">·</span> t.me/hackathonproj1_bot</div>`);
+} else if (s === "hero") {
+  html = scene(1280, 560, roomGlow(1280, 560, 640, 330) +
+    `<div style="position:absolute;left:0;right:0;top:56px;display:flex;justify-content:center"><img src="${LOGO}" height="52"></div>
+     <p class="quiet" style="position:absolute;left:0;right:0;top:128px;text-align:center;font-size:22px;letter-spacing:-0.01em">An AI marketing department for Telegram channels</p>` +
+    panel({ x: 72, y: 214, w: 1136, cols: 5, tileH: 128, lang: "en" }));
+} else if (s === "avatar") {
+  /* Safe for a circular crop: the mark's farthest corner sits 236 px from the centre (r 320). */
+  html = scene(640, 640,
+    `<div class="room" style="background:radial-gradient(330px 300px at 320px 300px, rgb(255 214 160 / .12), rgb(184 100 47 / .05) 55%, transparent)"></div>
+     <div class="room" style="background:radial-gradient(250px 70px at 320px 528px, rgb(255 214 160 / .26), rgb(184 100 47 / .1) 55%, transparent)"></div>
+     <img src="${MARK}" width="408" height="408" style="position:absolute;left:116px;top:108px">`);
+} else if (s === "icon") {
+  const size = +q.get("size");
+  html = `<img src="${q.get("src")}" width="${size}" height="${size}" style="display:block">`;
+} else if (s === "sheet") {
+  const items = JSON.parse(decodeURIComponent(q.get("items")));
+  html = `<div class="sheet" style="width:1600px"><h2 style="font-size:28px;color:var(--ink);font-weight:600;margin-bottom:28px">Mercat brand kit</h2>
+    <div class="grid" style="grid-template-columns:repeat(4, 1fr)">${items.map((it) =>
+      `<div class="cell" style="grid-column:span ${it.span || 1}"><img src="${it.src}" style="width:${it.w}px" class="${it.chk ? "chk" : ""}"><p>${it.label}</p></div>`).join("")}</div></div>`;
+}
+document.body.innerHTML = html;
+</script>
+</body>
+</html>

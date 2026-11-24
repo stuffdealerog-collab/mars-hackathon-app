@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" color="#0b0a09" role="img" aria-label="Mercat">
+  <title>Mercat</title>
+  <path fill="currentColor" fill-rule="evenodd" d="M18 0h28c9.94 0 18 8.06 18 18v28c0 9.94-8.06 18-18 18H18C8.06 64 0 55.94 0 46V18C0 8.06 8.06 0 18 0Zm1 6c-7.18 0-13 5.82-13 13v26c0 7.18 5.82 13 13 13h26c7.18 0 13-5.82 13-13V19c0-7.18-5.82-13-13-13H19Zm1 9h24a4 4 0 0 1 0 8H20a4 4 0 0 1 0-8Z"/>
+</svg>
