@@ -15,8 +15,17 @@ export const viewport: Viewport = {
  * hash as tgWebAppThemeParams) or the dev preview, so a light-theme Telegram never flashes black.
  * It adds a <style> to <head> (React tolerates extra head nodes) instead of touching <html>
  * attributes, which would not match the server HTML; the app reads window.__maTheme on start.
+ *
+ * It also sets window.__maPerf: Telegram for Android tells its device class in the user agent
+ * (HIGH / AVERAGE / LOW). Anything but HIGH, or 2 GB of memory or less, gets the light path
+ * (a lamp check instead of Spektr, fades instead of slides). iOS is high. ?perf=low forces it.
  */
-const THEME_SCRIPT = `(function(){try{var t="dark",q=new URLSearchParams(location.search).get("preview");
+const THEME_SCRIPT = `(function(){try{var ua=navigator.userAgent,f="high",m;
+if(/Android/i.test(ua)){m=ua.match(/\\b(HIGH|AVERAGE|LOW)\\b/);f=m&&m[1]==="HIGH"?"high":"low"}
+if(navigator.deviceMemory&&navigator.deviceMemory<=2)f="low";
+if(new URLSearchParams(location.search).get("perf")==="low")f="low";
+window.__maPerf=f}catch(e){}
+try{var t="dark",q=new URLSearchParams(location.search).get("preview");
 if(q==="light"||q==="dark"){t=q}else{var h=new URLSearchParams(location.hash.slice(1)).get("tgWebAppThemeParams");
 if(h){var b=(JSON.parse(h).bg_color||"").replace("#","");if(b.length===6){var r=parseInt(b.slice(0,2),16),g=parseInt(b.slice(2,4),16),l=parseInt(b.slice(4,6),16);
 t=(0.299*r+0.587*g+0.114*l)>150?"light":"dark"}}}

@@ -150,6 +150,46 @@ html.ma-html body {
   display: none;
 }
 
+/* Weak Android: a power-on lamp test instead of Spektr; every lamp flashes once in pipeline order. */
+.ma-lampcheck li .lamp__glow {
+  animation: ma-lampcheck 520ms linear both;
+}
+.ma-lampcheck li:nth-child(2) .lamp__glow { animation-delay: 60ms; }
+.ma-lampcheck li:nth-child(3) .lamp__glow { animation-delay: 120ms; }
+.ma-lampcheck li:nth-child(4) .lamp__glow { animation-delay: 180ms; }
+.ma-lampcheck li:nth-child(5) .lamp__glow { animation-delay: 240ms; }
+.ma-lampcheck li:nth-child(6) .lamp__glow { animation-delay: 300ms; }
+.ma-lampcheck li:nth-child(7) .lamp__glow { animation-delay: 360ms; }
+.ma-lampcheck li:nth-child(8) .lamp__glow { animation-delay: 420ms; }
+.ma-lampcheck li:nth-child(9) .lamp__glow { animation-delay: 480ms; }
+.ma-lampcheck li:nth-child(10) .lamp__glow { animation-delay: 540ms; }
+@keyframes ma-lampcheck {
+  0% { opacity: 0; }
+  25% { opacity: 0.6; }
+  40% { opacity: 0.15; }
+  55% { opacity: 0.45; }
+  100% { opacity: 0; }
+}
+
+/* Weak Android: screens fade (120 ms) instead of sliding; nothing behind them moves. */
+.ma[data-perf="low"] .ma-layer,
+.ma[data-perf="low"] .ma-layer__dim {
+  transition: none;
+}
+.ma[data-perf="low"] .ma-layer[data-covered="true"] {
+  transform: none;
+}
+.ma[data-perf="low"] .ma-layer[data-anim="in"] {
+  animation: ma-fade-in 120ms linear both;
+  box-shadow: none;
+}
+.ma[data-perf="low"] .ma-layer[data-anim="out"] {
+  animation: ma-fade-out 120ms linear both;
+}
+.ma[data-perf="low"] .ma-edge {
+  display: none;
+}
+
 /* A flow change (start → run → ready) swaps the base layer with a short crossfade. */
 .ma-base-in {
   animation: ma-base-in 420ms var(--ease-out) both;
@@ -830,6 +870,9 @@ html.ma-html body {
     animation: ma-fade-in 160ms linear both;
   }
   .ma-skel {
+    animation: none;
+  }
+  .ma-lampcheck li .lamp__glow {
     animation: none;
   }
   .ma-shake {

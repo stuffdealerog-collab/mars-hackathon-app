@@ -43,7 +43,7 @@ export function useWhen() {
 const played = { list: false };
 
 /** «Postlar»: every post as a row; tap opens it full size with the actions. */
-export function PostsScreen({ onOpen, active }: { onOpen: (index: number) => void; active: boolean }) {
+export function PostsScreen({ onOpen, active }: { onOpen: (id: string) => void; active: boolean }) {
   const c = useCopy();
   const m = useMiniCopy();
   const posts = useStudio((s) => s.posts);
@@ -94,7 +94,7 @@ export function PostsScreen({ onOpen, active }: { onOpen: (index: number) => voi
             <ul className="mt-5 flex flex-col gap-2.5">
               {posts.map((p, i) => (
                 <li key={p.id} className={rise ? "ma-rise" : undefined} style={{ ["--i" as string]: i }}>
-                  <PostRow post={p} script={scriptOf(p, script)} onOpen={() => onOpen(i)} />
+                  <PostRow post={p} script={scriptOf(p, script)} onOpen={() => onOpen(p.id)} />
                 </li>
               ))}
             </ul>

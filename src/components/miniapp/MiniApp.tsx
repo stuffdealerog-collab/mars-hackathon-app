@@ -2,7 +2,7 @@ import { BarChart3, Clapperboard, Newspaper } from "lucide-react";
 import { LAMP_ORDER, LAMPS } from "../lamp/lamps";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudio, type Tab } from "../studio/store";
-import { isLang, useInitLang, useLang } from "../ui/lang";
+import { fmt, isLang, useInitLang, useLang } from "../ui/lang";
 import { parseChannel } from "../ui/parts";
 import { useMiniCopy } from "./copy";
 import "./miniapp.css";
@@ -16,6 +16,7 @@ import { FreshScreen, StartScreen } from "./screens/Start";
 import { VideoScreen } from "./screens/Video";
 import { EdgeBack, Layer, Skel, Toast } from "./Shell";
 import { SheetHost } from "./sheets/Sheets";
+import { useResume } from "./sync";
 import { cloud, haptic, tg } from "./tg";
 
 /**
@@ -29,6 +30,9 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
   const brandId = useStudio((s) => s.brand?.id ?? null);
   const emptyChannel = useStudio((s) => s.emptyChannel);
   const busy = useStudio((s) => Object.values(s.busy).some(Boolean));
+  // An edited draft not yet approved lives only on this device: closing would lose it.
+  const unsaved = useStudio((s) => s.posts.some((p) => p.status === "draft" && !!s.edited[p.id]));
+  const [perf] = useState<"high" | "low">(() => ((window as { __maPerf?: "high" | "low" }).__maPerf === "low" ? "low" : "high"));
   const stack = useNav((s) => s.stack);
   const sheetOpen = useNav((s) => !!s.sheet);
   const [booted, setBooted] = useState(false);
@@ -42,7 +46,8 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
     haptic.tap();
     useNav.getState().openSheet({ name: "settings" });
   });
-  useClosingConfirmation(phase === "working" || busy);
+  useClosingConfirmation(phase === "working" || busy || unsaved);
+  useResume(booted);
 
   // The document itself never scrolls: each screen scrolls inside its own region.
   useEffect(() => {
@@ -69,8 +74,19 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
       const startParam = tg()?.initDataUnsafe?.start_param ?? "";
       const fromLink = p.get("brand") ?? (startParam.startsWith("brand_") ? startParam.slice(6) : null);
       const brand = fromLink || saved.brand || null;
+      const post = p.get("post") ?? (startParam.startsWith("post_") ? startParam.slice(5) : null);
       if (brand) {
-        void s.reopen(brand);
+        await s.reopen(brand);
+        const after = useStudio.getState();
+        // A dead id (deleted, someone else's) must not open again at every launch.
+        if (after.phase !== "ready") {
+          cloud.remove("brand");
+          return;
+        }
+        if (post && after.posts.some((x) => x.id === post)) {
+          after.setTab("posts");
+          useNav.getState().push({ name: "post", id: post });
+        }
         return;
       }
       const channel = p.get("channel") ?? (startParam.startsWith("ch_") ? startParam.slice(3) : null);
@@ -84,13 +100,19 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
     if (booted && brandId && !useStudio.getState().sample) cloud.set("brand", brandId);
   }, [booted, brandId]);
 
-  // A flow change (start → run → ready) replaces whatever was pushed.
+  // A flow change (start → run → ready) replaces whatever was pushed. Right after a run the
+  // owner first sees what was read (Kanal), with one step on to the posts.
   const lastPhase = useRef(phase);
   useEffect(() => {
     if (lastPhase.current !== phase) {
+      const fromRun = lastPhase.current === "working";
       lastPhase.current = phase;
       useNav.getState().clear();
-      if (phase === "ready") haptic.success();
+      if (phase === "ready" && fromRun) {
+        haptic.success();
+        useStudio.getState().setTab("channel");
+        useNav.setState({ firstLook: true });
+      } else useNav.setState({ firstLook: false });
     }
   }, [phase]);
 
@@ -122,6 +144,7 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
       data-theme={theme}
       data-platform={platform === "android" || platform === "android_x" ? "android" : "ios"}
       data-fullscreen={insets.content.top > 0 ? "true" : "false"}
+      data-perf={perf}
       style={vars}
     >
       <Layer covered={live.length > 0}>
@@ -153,7 +176,7 @@ function Base({ phase, active }: { phase: string; active: boolean }) {
 
 function Pushed({ route, active }: { route: Route; active: boolean }) {
   if (route.name === "fresh") return <FreshScreen active={active} />;
-  return <PostScreen start={route.index} active={active} />;
+  return <PostScreen id={route.id} active={active} />;
 }
 
 /* -------------------------------------------------------------------- tabs */
@@ -168,17 +191,28 @@ function Tabs({ active }: { active: boolean }) {
   // The badge counts what waits for the owner: drafts to approve.
   const count = useStudio((s) => s.posts.filter((p) => p.status === "draft").length);
   const push = useNav((s) => s.push);
-  const openPost = useCallback((index: number) => push({ name: "post", index }), [push]);
-  // The one next step on every tab: open the first post that still waits for the owner.
-  const next = useStudio((s) => {
-    const draft = s.posts.findIndex((p) => p.status === "draft");
-    return draft >= 0 ? draft : s.posts.findIndex((p) => p.status === "approved");
-  });
-  useBottomButtons("tabs", PRIORITY.base, active && next >= 0, { text: m.review, onClick: () => (haptic.tap(), openPost(next)) });
+  const firstLook = useNav((s) => s.firstLook);
+  const openPost = useCallback((id: string) => push({ name: "post", id }), [push]);
+  // On Postlar, one step: open the first post that still waits for the owner.
+  const next = useStudio((s) => (s.posts.find((p) => p.status === "draft") ?? s.posts.find((p) => p.status === "approved"))?.id ?? null);
+  const total = useStudio((s) => s.posts.length);
+  const toPosts = () => {
+    haptic.tap();
+    useNav.setState({ firstLook: false });
+    setTab("posts");
+  };
+  const main =
+    tab === "channel" && firstLook && total > 0
+      ? { text: fmt(m.seePosts, { n: total }), onClick: toPosts }
+      : tab === "posts" && next
+        ? { text: m.review, onClick: () => (haptic.tap(), openPost(next)) }
+        : null;
+  useBottomButtons("tabs", PRIORITY.base, active && !!main, main);
 
   const pick = (t: Tab) => {
     if (t === tab) return;
     haptic.select();
+    if (t === "posts") useNav.setState({ firstLook: false });
     setTab(t);
   };
 

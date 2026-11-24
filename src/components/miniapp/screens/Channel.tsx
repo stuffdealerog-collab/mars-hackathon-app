@@ -21,7 +21,7 @@ const SufficiencyPanel = dynamic(() => import("../../studio/pro/ProDetails").the
 const PlanRowDetails = dynamic(() => import("../../studio/pro/ProDetails").then((m) => m.PlanRowDetails), { ssr: false });
 
 /** «Kanal»: what Mercat read, what to fix, how the owner writes, the week's plan. */
-export function ChannelScreen({ onOpenPost }: { onOpenPost: (index: number) => void }) {
+export function ChannelScreen({ onOpenPost }: { onOpenPost: (id: string) => void }) {
   const c = useCopy();
   const m = useMiniCopy();
   const lang = useLang((s) => s.lang);
@@ -266,7 +266,7 @@ function Voice() {
   );
 }
 
-function Plan({ onOpenPost }: { onOpenPost: (index: number) => void }) {
+function Plan({ onOpenPost }: { onOpenPost: (id: string) => void }) {
   const c = useCopy();
   const lang = useLang((s) => s.lang);
   const mode = useStudio((s) => s.mode);
@@ -315,10 +315,10 @@ function Plan({ onOpenPost }: { onOpenPost: (index: number) => void }) {
 
   const open = (it: PlanItem) => {
     const key = slotKey(it);
-    const index = posts.findIndex((p) => p.slot && slotKey(p.slot) === key);
-    if (index >= 0) {
+    const found = posts.find((p) => p.slot && slotKey(p.slot) === key);
+    if (found) {
       haptic.tap();
-      onOpenPost(index);
+      onOpenPost(found.id);
       return;
     }
     if (sample || !brand || writing[key]) return;

@@ -9,7 +9,8 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { create } from "zustand";
 
-export type Route = { name: "fresh" } | { name: "post"; index: number };
+/** A post is opened by id: writing or refreshing posts reorders the list, an index would go stale. */
+export type Route = { name: "fresh" } | { name: "post"; id: string };
 export type SheetName = "settings" | "edit" | "lang" | "details" | "admin" | "channel";
 export type Sheet = { name: SheetName; postId?: string };
 
@@ -31,6 +32,8 @@ interface NavState {
   sheetLeaving: boolean;
   toast: { text: string; tone: "ok" | "bad" | "plain"; id: number } | null;
   regs: Record<string, Reg>;
+  /** Right after a run: Kanal shows what was read, with one step on to the posts. */
+  firstLook: boolean;
   push: (r: Route) => void;
   pop: () => void;
   /** Drops every pushed screen at once (flow changes such as "start over"). */
@@ -54,6 +57,7 @@ export const useNav = create<NavState>((set, get) => ({
   sheetLeaving: false,
   toast: null,
   regs: {},
+  firstLook: false,
 
   push: (r) => set({ stack: [...get().stack.filter((s) => !s.leaving), { ...r, key: ++seq }] }),
 
