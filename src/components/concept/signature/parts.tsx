@@ -101,7 +101,7 @@ export function EndCard({ t, at, reduced }: { t: number; at: number; reduced: bo
         Butun bo‘lim.
       </p>
       <p className="mt-5 text-[14px] font-medium" style={{ opacity: sub, color: "var(--ink-2)" }}>
-        Uslub AI
+        Mercat
       </p>
     </div>
   );

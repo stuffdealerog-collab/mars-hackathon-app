@@ -26,7 +26,7 @@ export function Logo({ className = "", light = false }: { className?: string; li
           boxShadow: "0 0 18px -2px rgba(215,255,58,.6)",
         }}
       />
-      <span className={`text-[16px] font-bold tracking-[-0.02em] ${light ? "text-white" : "text-fog"}`}>Uslub AI</span>
+      <span className={`text-[16px] font-bold tracking-[-0.02em] ${light ? "text-white" : "text-fog"}`}>Mercat</span>
     </span>
   );
 }

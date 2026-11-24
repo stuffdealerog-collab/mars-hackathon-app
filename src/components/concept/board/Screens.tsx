@@ -40,7 +40,7 @@ function Mark() {
       <span aria-hidden className="relative h-[18px] w-[18px] rounded-[6px] bg-[var(--glass-2)]" style={{ boxShadow: "inset 0 0 0 1px var(--hair-2)" }}>
         <span className="absolute left-1/2 top-[4px] h-[2px] w-[8px] -translate-x-1/2 rounded-full bg-[#FFD6A0] shadow-[0_0_6px_1px_#FFD6A0]" />
       </span>
-      Uslub
+      Mercat
     </span>
   );
 }
@@ -138,7 +138,7 @@ export function Screens() {
             <div className="flex items-center justify-between border-b border-[var(--hair)] px-4 pb-2.5 pt-1">
               <span className="flex items-center gap-1 text-[15px] text-[#2a7fd4]"><X className="h-4 w-4" aria-hidden /> Yopish</span>
               <span className="text-center leading-tight">
-                <span className="block text-[15px] font-semibold">Uslub AI</span>
+                <span className="block text-[15px] font-semibold">Mercat</span>
                 <span className="block text-[12px] text-[var(--ink-3)]">mini ilova</span>
               </span>
               <MoreVertical className="h-4 w-4 text-[#2a7fd4]" aria-hidden />
@@ -185,7 +185,7 @@ export function Screens() {
                 <span className="h-[2px] w-[10px] rounded-full bg-[#FFD6A0] shadow-[0_0_6px_1px_#FFD6A0]" />
               </span>
               <span className="leading-tight">
-                <span className="block text-[15px] font-semibold text-white">Uslub AI</span>
+                <span className="block text-[15px] font-semibold text-white">Mercat</span>
                 <span className="block text-[12px] text-[#6d7f8f]">bot</span>
               </span>
             </div>

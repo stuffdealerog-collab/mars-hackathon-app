@@ -18,7 +18,7 @@ Their job: "Get marketing done for my business without hiring anyone, and withou
 
 ## Product Purpose
 
-Uslub AI is an AI marketing department. The owner pastes one Telegram channel link. Ten AI employees read the channel and return the following in about 60 seconds:
+Mercat (formerly "Uslub AI") is an AI marketing department. The owner pastes one Telegram channel link. Ten AI employees read the channel and return the following in about 60 seconds:
 
 - Brand DNA: tone, siz/sen, emoji density, post length, CTA style.
 - A real channel audit with numbers.
@@ -68,7 +68,7 @@ Success means the owner understands the offer in 5 seconds, pastes a link, sees 
 
 ## Brand Commitments
 
-- Name: Uslub AI (working name).
+- Name: Mercat (renamed from "Uslub AI" on 24 Nov; internal code paths keep `uslub`).
 - Copy must not sound machine-written. No "neuro-words" or AI clichés. The Muharrir filter is part of the brand promise, so the product's own copy must pass it too.
 - The founder's references set the craft bar and may lend their material:
   - "AI OS" by Slava Komilov: luminous mesh-gradient widget cards on black, dot-matrix numerals, stacked card decks, a radial orb menu, a neon-lime pill.

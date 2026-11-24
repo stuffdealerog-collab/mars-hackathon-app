@@ -33,7 +33,7 @@ export default function ConceptPage() {
       <nav aria-label="Разделы борда" className="sticky top-0 z-40 border-b border-[var(--hair)] bg-black/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1240px] items-center gap-1 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] sm:px-8">
           <Link href="/" className="mr-3 shrink-0 text-[15px] font-semibold tracking-[-0.01em]">
-            Uslub
+            Mercat
           </Link>
           {NAV.map(([id, name]) => (
             <a key={id} href={`#${id}`} className="shrink-0 rounded-full px-3 py-1.5 text-[13.5px] text-[var(--ink-2)] transition-colors duration-200 hover:bg-[var(--glass-2)] hover:text-[var(--ink)]">
