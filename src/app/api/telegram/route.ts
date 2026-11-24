@@ -4,7 +4,7 @@ import { getBot } from "@/lib/bot";
 import { getEnv } from "@/lib/env";
 
 // Telegram webhook endpoint. Register it with `pnpm set-webhook`.
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 type Handler = (req: Request) => Promise<Response>;
 let handler: Handler | null = null;

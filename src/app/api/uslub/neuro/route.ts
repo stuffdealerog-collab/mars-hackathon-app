@@ -3,7 +3,7 @@ import { cleanText } from "@/lib/uslub/editor";
 import { handle, json, rateLimit, readJson } from "@/lib/uslub/http";
 import { analyzeNeuro } from "@/lib/uslub/neuro";
 
-export const maxDuration = 45;
+export const maxDuration = 60;
 
 const Body = z.object({
   text: z.string().min(1).max(6000),

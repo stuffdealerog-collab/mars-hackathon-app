@@ -3,7 +3,7 @@ import { buildBrand } from "@/lib/uslub/brand";
 import { handle, HttpError, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import { publicBrand } from "@/lib/uslub/store";
 
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 const Body = z.object({
   channel: z.string().trim().max(200).optional(),

@@ -85,16 +85,44 @@ function dnaSummary(brand: BrandProfile, postsRead: number, locale: Locale): str
   return lines.filter((l) => l !== "").join("\n").slice(0, 3500);
 }
 
+/**
+ * Time budget of one bot onboarding. It runs in after() inside the Telegram webhook (maxDuration 120 s): the work
+ * gets this long, the owner hears back before the function can be killed, never silence.
+ */
+export const ONBOARD_BUDGET_MS = 95_000;
+
+export interface OnboardRun {
+  /** Wall-clock deadline (ms epoch) for the posts step: it skips its optional passes near it. */
+  deadline?: number;
+  /** True once the owner was told "took too long": nothing more is sent for this run. */
+  cancelled?: () => boolean;
+}
+
 /** Slow part of the onboarding: run after replying "Ishlayapman…" so the webhook answers fast. */
-export async function runOnboarding(api: Api, chatId: number, userId: number, input: Exclude<OnboardInput, null>, locale: Locale = "uz"): Promise<void> {
+export async function runOnboarding(
+  api: Api,
+  chatId: number,
+  userId: number,
+  input: Exclude<OnboardInput, null>,
+  locale: Locale = "uz",
+  run: OnboardRun = {},
+): Promise<void> {
   const started = Date.now();
+  const live = () => !run.cancelled?.();
   try {
     // The DNA's prose follows the user's Telegram language; the posts keep all four variants.
     const { brand, channel } = await buildBrand({ ...input, ownerTelegramId: userId, lang: locale });
+    if (!live()) return;
     await api.sendMessage(chatId, dnaSummary(brand, channel?.totalMessages ?? brand.samplePosts.length, locale));
 
-    const posts = await generatePosts(brand, "Kanal uchun ikkita yangi post: biri mahsulot yoki xizmat haqida, biri mijozlar bilan suhbat (savol yoki foydali maslahat).", 2);
+    const posts = await generatePosts(
+      brand,
+      "Kanal uchun ikkita yangi post: biri mahsulot yoki xizmat haqida, biri mijozlar bilan suhbat (savol yoki foydali maslahat).",
+      2,
+      { deadline: run.deadline },
+    );
     await savePosts(posts, userId);
+    if (!live()) return;
     for (const [i, p] of posts.entries()) {
       // Publishing goes through publishFromBot (owner + own channel + admin checks); only for linked channels.
       const kb = brand.channel ? new InlineKeyboard().text(t(locale, "bot.publish_to", { channel: brand.channel }), `pub:${p.id}`) : undefined;
@@ -111,10 +139,52 @@ export async function runOnboarding(api: Api, chatId: number, userId: number, in
     await api.sendMessage(chatId, t(locale, "bot.done"), { reply_markup: kb });
     await safeLogEvent(userId, "bot_onboarded", { brand_id: brand.id, ms: Date.now() - started });
   } catch (err) {
+    if (!live()) return;
     // Same owner-safe sentence as the API, in the user's language (never a stack trace or an English SDK error).
     const { body } = errorBody(err, locale);
     if (!(err instanceof ScrapeError)) console.error("[uslub/onboard]", err instanceof Error ? err.message : err);
     const hint = err instanceof ScrapeError && body.code !== "channel_empty" ? `\n\n${t(locale, "bot.or_describe")}` : "";
     await api.sendMessage(chatId, `⚠️ ${body.error}${hint}`).catch(() => undefined);
   }
+}
+
+/** Callback data of the "try again" button after a slow channel onboarding (≤ 64 bytes). */
+export const retryOnboardData = (channel: string) => `ob:${channel}`;
+export const RETRY_ONBOARD_RE = /^ob:([A-Za-z][A-Za-z0-9_]{3,31})$/;
+
+/**
+ * runOnboarding within ONBOARD_BUDGET_MS. If it is not done by then, the owner gets a localized "this took too
+ * long" message (with a "try again" button for a channel link, or a request to resend the description), and the
+ * late run stays silent. Returns "done" or "timeout".
+ */
+export async function runOnboardingInTime(
+  api: Api,
+  chatId: number,
+  userId: number,
+  input: Exclude<OnboardInput, null>,
+  locale: Locale = "uz",
+  budgetMs = ONBOARD_BUDGET_MS,
+): Promise<"done" | "timeout"> {
+  const started = Date.now();
+  let timedOut = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const work = runOnboarding(api, chatId, userId, input, locale, { deadline: started + budgetMs - 10_000, cancelled: () => timedOut }).then(() => "done" as const);
+  const late = new Promise<"timeout">((resolve) => {
+    timer = setTimeout(() => resolve("timeout"), budgetMs);
+  });
+  const result = await Promise.race([work, late]);
+  clearTimeout(timer);
+  if (result === "done") return "done";
+  timedOut = true;
+  await safeLogEvent(userId, "bot_onboard_timeout", { ms: Date.now() - started, kind: "channel" in input ? "channel" : "text" });
+  if ("channel" in input) {
+    await api
+      .sendMessage(chatId, t(locale, "bot.too_slow_channel"), {
+        reply_markup: new InlineKeyboard().text(t(locale, "pub.button_retry"), retryOnboardData(input.channel)),
+      })
+      .catch(() => undefined);
+  } else {
+    await api.sendMessage(chatId, t(locale, "bot.too_slow_text")).catch(() => undefined);
+  }
+  return "timeout";
 }
