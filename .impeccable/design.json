@@ -1,0 +1,758 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-24T12:08:05.386623+00:00",
+  "title": "Design System: Mercat",
+  "extensions": {
+    "colorMeta": {
+      "stage": {
+        "role": "neutral",
+        "displayName": "True Black Stage",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#595959",
+          "#7a7a7a",
+          "#999999",
+          "#b8b8b8",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "glass": {
+        "role": "neutral",
+        "displayName": "Dark Glass",
+        "canonical": "#0d0d10",
+        "tonalRamp": [
+          "#242429",
+          "#3b3b44",
+          "#525261",
+          "#6e6e87",
+          "#9090a2",
+          "#b2b2bd",
+          "#d4d4d9",
+          "#f2f2f3"
+        ]
+      },
+      "glass-2": {
+        "role": "neutral",
+        "displayName": "Raised Glass",
+        "canonical": "#17171b",
+        "tonalRamp": [
+          "#242428",
+          "#3c3c43",
+          "#53535f",
+          "#717184",
+          "#9292a0",
+          "#b3b3bc",
+          "#d4d4d8",
+          "#f2f2f3"
+        ]
+      },
+      "glass-3": {
+        "role": "neutral",
+        "displayName": "Pressed Glass",
+        "canonical": "#222227",
+        "tonalRamp": [
+          "#252528",
+          "#3d3d43",
+          "#54545e",
+          "#727283",
+          "#93939f",
+          "#b4b4bb",
+          "#d5d5d8",
+          "#f2f2f3"
+        ]
+      },
+      "hair": {
+        "role": "neutral",
+        "displayName": "Filament Hairline",
+        "canonical": "rgb(255 255 255 / 0.07)"
+      },
+      "hair-2": {
+        "role": "neutral",
+        "displayName": "Strong Hairline",
+        "canonical": "rgb(255 255 255 / 0.13)"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Warm Ink",
+        "canonical": "#f3f1ec",
+        "tonalRamp": [
+          "#2b2821",
+          "#4a4436",
+          "#6a6049",
+          "#95865f",
+          "#ada285",
+          "#c3bdac",
+          "#dcd9d1",
+          "#f4f3f1"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Secondary Ink",
+        "canonical": "#a39f98",
+        "tonalRamp": [
+          "#282725",
+          "#42403d",
+          "#5d5a55",
+          "#817c74",
+          "#9e9a94",
+          "#bbb8b5",
+          "#d8d7d5",
+          "#f3f2f2"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Meta Ink",
+        "canonical": "#85817a",
+        "tonalRamp": [
+          "#272725",
+          "#42403e",
+          "#5c5a56",
+          "#807c75",
+          "#9d9a95",
+          "#bab8b5",
+          "#d7d6d5",
+          "#f3f2f2"
+        ]
+      },
+      "led": {
+        "role": "secondary",
+        "displayName": "Shop-Sign Amber",
+        "canonical": "#ffb547",
+        "tonalRamp": [
+          "#3c2b10",
+          "#6c4813",
+          "#a26810",
+          "#f29203",
+          "#f3ab3f",
+          "#ecc283",
+          "#eedbbe",
+          "#f8f3ec"
+        ]
+      },
+      "led-off": {
+        "role": "secondary",
+        "displayName": "Unlit LED Dot",
+        "canonical": "rgb(255 181 71 / 0.1)"
+      },
+      "lime": {
+        "role": "primary",
+        "displayName": "Owner Lime",
+        "canonical": "#d7ff3a",
+        "tonalRamp": [
+          "#333c10",
+          "#5a6c13",
+          "#85a210",
+          "#c1f203",
+          "#cef33f",
+          "#d7ec83",
+          "#e5eebe",
+          "#f6f8ec"
+        ]
+      },
+      "lime-ink": {
+        "role": "primary",
+        "displayName": "Lime Ink",
+        "canonical": "#0b0c02",
+        "tonalRamp": [
+          "#333616",
+          "#596020",
+          "#838e25",
+          "#bfd025",
+          "#ccd959",
+          "#d6dd92",
+          "#e4e7c5",
+          "#f6f6ee"
+        ]
+      },
+      "bad": {
+        "role": "tertiary",
+        "displayName": "Error Red",
+        "canonical": "#ff5a4e",
+        "tonalRamp": [
+          "#3c1310",
+          "#6c1913",
+          "#a21a10",
+          "#f21303",
+          "#f34b3f",
+          "#ec8a83",
+          "#eec1be",
+          "#f8edec"
+        ]
+      },
+      "light-stage": {
+        "role": "neutral",
+        "displayName": "White Stage",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#595959",
+          "#7a7a7a",
+          "#999999",
+          "#b8b8b8",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "light-glass": {
+        "role": "neutral",
+        "displayName": "Paper Glass",
+        "canonical": "#f1f0ed",
+        "tonalRamp": [
+          "#292823",
+          "#45433a",
+          "#625e50",
+          "#89826b",
+          "#a49f8e",
+          "#bebbb1",
+          "#d9d8d3",
+          "#f3f3f2"
+        ]
+      },
+      "light-glass-2": {
+        "role": "neutral",
+        "displayName": "Raised Paper",
+        "canonical": "#e9e8e4",
+        "tonalRamp": [
+          "#292824",
+          "#44423b",
+          "#615e52",
+          "#87826e",
+          "#a29e90",
+          "#bdbbb2",
+          "#d9d8d4",
+          "#f3f3f2"
+        ]
+      },
+      "light-glass-3": {
+        "role": "neutral",
+        "displayName": "Pressed Paper",
+        "canonical": "#dedcd7",
+        "tonalRamp": [
+          "#282724",
+          "#44423b",
+          "#605c52",
+          "#867f6f",
+          "#a29d90",
+          "#bdbab3",
+          "#d9d7d4",
+          "#f3f2f2"
+        ]
+      },
+      "light-ink": {
+        "role": "neutral",
+        "displayName": "Near-Black Ink",
+        "canonical": "#0d0d11",
+        "tonalRamp": [
+          "#232329",
+          "#3a3a46",
+          "#4f4f63",
+          "#6a6a8a",
+          "#8d8da5",
+          "#b1b1bf",
+          "#d3d3d9",
+          "#f1f1f3"
+        ]
+      },
+      "light-ink-2": {
+        "role": "neutral",
+        "displayName": "Light Secondary Ink",
+        "canonical": "#5b5852",
+        "tonalRamp": [
+          "#272725",
+          "#42413d",
+          "#5d5b55",
+          "#817c74",
+          "#9e9b94",
+          "#bab9b5",
+          "#d7d7d5",
+          "#f3f2f2"
+        ]
+      },
+      "light-ink-3": {
+        "role": "neutral",
+        "displayName": "Light Meta Ink",
+        "canonical": "#6e6a63",
+        "tonalRamp": [
+          "#272725",
+          "#42403d",
+          "#5d5a55",
+          "#817c74",
+          "#9e9a94",
+          "#bab8b5",
+          "#d7d7d5",
+          "#f3f2f2"
+        ]
+      },
+      "light-led": {
+        "role": "secondary",
+        "displayName": "Burnt Amber LED",
+        "canonical": "#c26a00",
+        "tonalRamp": [
+          "#3c2810",
+          "#6c4413",
+          "#a26010",
+          "#f28503",
+          "#f3a13f",
+          "#ecbc83",
+          "#eed8be",
+          "#f8f3ec"
+        ]
+      },
+      "light-focus": {
+        "role": "primary",
+        "displayName": "Deep Olive Focus",
+        "canonical": "#5a7000",
+        "tonalRamp": [
+          "#343c10",
+          "#5b6c13",
+          "#86a210",
+          "#c3f203",
+          "#cff33f",
+          "#d8ec83",
+          "#e5eebe",
+          "#f6f8ec"
+        ]
+      },
+      "lamp-brand": {
+        "role": "tertiary",
+        "displayName": "Brend xotirasi lamp (warm white)",
+        "canonical": "#ffd6a0",
+        "tonalRamp": [
+          "#b8642f",
+          "#ffd6a0",
+          "#fff7ea"
+        ],
+        "note": "Lamp triple from lamps.ts: deep, hue, core. Not a synthesized ramp."
+      },
+      "lamp-analyst": {
+        "role": "tertiary",
+        "displayName": "Analitik lamp (amber)",
+        "canonical": "#ffb547",
+        "tonalRamp": [
+          "#a8501a",
+          "#ffb547",
+          "#ffebc2"
+        ],
+        "note": "Lamp triple from lamps.ts: deep, hue, core. Not a synthesized ramp."
+      },
+      "lamp-strategist": {
+        "role": "tertiary",
+        "displayName": "Strateg lamp (orange)",
+        "canonical": "#ff8a3d",
+        "tonalRamp": [
+          "#9a2e1a",
+          "#ff8a3d",
+          "#ffd6b8"
+        ],
+        "note": "Lamp triple from lamps.ts: deep, hue, core. Not a synthesized ramp."
+      },
+      "lamp-copywriter": {
+        "role": "tertiary",
+        "displayName": "Kopirayter lamp (coral)",
+        "canonical": "#ff6152",
+        "tonalRamp": [
+          "#931d38",
+          "#ff6152",
+          "#ffc9bf"
+        ],
+        "note": "Lamp triple from lamps.ts: deep, hue, core. Not a synthesized ramp."
+      },
+      "lamp-editor": {
+        "role": "tertiary",
+        "displayName": "Muharrir lamp (rose)",
+        "canonical": "#ff4580",
+        "tonalRamp": [
+          "#7e1258",
+          "#ff4580",
+          "#ffc0d5"
+        ],
+        "note": "Lamp triple from lamps.ts: deep, hue, core. Not a synthesized ramp."
+      },
+      "lamp-translator": {
+        "role": "tertiary",
+        "displayName": "Tarjimon lamp (magenta)",
+        "canonical": "#e04bc9",
+        "tonalRamp": [
+          "#561a86",
+          "#e04bc9",
+          "#f8c2ee"
+        ],
+        "note": "Lamp triple from lamps.ts: deep, hue, core. Not a synthesized ramp."
+      },
+      "lamp-designer": {
+        "role": "tertiary",
+        "displayName": "Dizayner lamp (violet)",
+        "canonical": "#9e62ff",
+        "tonalRamp": [
+          "#341c98",
+          "#9e62ff",
+          "#decbff"
+        ],
+        "note": "Lamp triple from lamps.ts: deep, hue, core. Not a synthesized ramp."
+      },
+      "lamp-video": {
+        "role": "tertiary",
+        "displayName": "Videograf lamp (indigo)",
+        "canonical": "#6273ff",
+        "tonalRamp": [
+          "#1a2788",
+          "#6273ff",
+          "#cbd1ff"
+        ],
+        "note": "Lamp triple from lamps.ts: deep, hue, core. Not a synthesized ramp."
+      },
+      "lamp-radar": {
+        "role": "tertiary",
+        "displayName": "Mijoz radar lamp (blue)",
+        "canonical": "#2f9cff",
+        "tonalRamp": [
+          "#0c4a8c",
+          "#2f9cff",
+          "#bee3ff"
+        ],
+        "note": "Lamp triple from lamps.ts: deep, hue, core. Not a synthesized ramp."
+      },
+      "lamp-publisher": {
+        "role": "tertiary",
+        "displayName": "SMM-menejer lamp (teal)",
+        "canonical": "#25d0c2",
+        "tonalRamp": [
+          "#0a6b74",
+          "#25d0c2",
+          "#bdfff7"
+        ],
+        "note": "Lamp triple from lamps.ts: deep, hue, core. Not a synthesized ramp."
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The landing promise, 64px from 640px."
+      },
+      "display-mobile": {
+        "displayName": "Display (phone)",
+        "purpose": "The landing promise on phones, max 14ch."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section heads, 44px from 640px."
+      },
+      "headline-mobile": {
+        "displayName": "Headline (phone)",
+        "purpose": "Section heads on phones."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card, rule and Studio section heads."
+      },
+      "lamp-title": {
+        "displayName": "Lamp title",
+        "purpose": "Employee name on a lamp; 450 idle, 640 lit."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Supporting copy, max 46ch."
+      },
+      "post": {
+        "displayName": "Post",
+        "purpose": "Telegram post body, matching Telegram."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Lamp job/state words, meta, counters; sentence case."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Lime and quiet pill buttons."
+      }
+    },
+    "shadows": [
+      {
+        "name": "hairline",
+        "value": "inset 0 0 0 1px rgb(255 255 255 / 0.07)",
+        "purpose": "The only edge: tiles, cards, posts, quiet buttons."
+      },
+      {
+        "name": "hairline-strong",
+        "value": "inset 0 0 0 1px rgb(255 255 255 / 0.13)",
+        "purpose": "Fields, switches, deck edges."
+      },
+      {
+        "name": "lamp-spill",
+        "value": "background: var(--hue); filter: blur(28px); opacity 0.42",
+        "purpose": "Light thrown beneath a working or finished lamp only."
+      },
+      {
+        "name": "lamp-highlight",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 0.4), inset 0 0 0 1px rgb(255 255 255 / 0.1)",
+        "purpose": "Glass lip on a lit lamp."
+      },
+      {
+        "name": "filament-hot",
+        "value": "0 0 12px 2px var(--core)",
+        "purpose": "Filament of a working or lit lamp."
+      },
+      {
+        "name": "light-paper",
+        "value": "0 1px 2px rgb(10 10 15 / 0.08), 0 8px 24px -12px rgb(10 10 15 / 0.18)",
+        "purpose": "Telegram posts and deck edges on the white stage only."
+      },
+      {
+        "name": "focus-ring",
+        "value": "outline: 2px solid #d7ff3a; outline-offset: 3px (light theme #5a7000)",
+        "purpose": "Keyboard focus everywhere."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Default expo-out for tap, state, panel and warm-up spill."
+      },
+      {
+        "name": "ease-in",
+        "value": "cubic-bezier(0.7, 0, 0.84, 0)",
+        "purpose": "Lamp cool-down and leaving cards."
+      },
+      {
+        "name": "ease-io",
+        "value": "cubic-bezier(0.65, 0, 0.35, 1)",
+        "purpose": "The warming pulse."
+      },
+      {
+        "name": "t-tap",
+        "value": "120ms",
+        "purpose": "Press feedback, scale 0.96."
+      },
+      {
+        "name": "t-state",
+        "value": "200ms",
+        "purpose": "Hover, switch, filament."
+      },
+      {
+        "name": "t-panel",
+        "value": "360ms",
+        "purpose": "Deck, sheet, lamp result, switch knob."
+      },
+      {
+        "name": "t-on",
+        "value": "720ms",
+        "purpose": "Lamp warm-up with the lamp-on flicker keyframe (0, .75, .18, .9, .5, 1 by 46%)."
+      },
+      {
+        "name": "t-off",
+        "value": "1000ms",
+        "purpose": "Lamp cool-down, ease-in."
+      },
+      {
+        "name": "warming-pulse",
+        "value": "2.4s ease-io infinite, opacity 0.34 to 0.70",
+        "purpose": "A lamp whose employee is working."
+      },
+      {
+        "name": "pipeline-step",
+        "value": "420ms to 170ms",
+        "purpose": "Each next lamp lights faster."
+      },
+      {
+        "name": "number-spring",
+        "value": "stiffness 170, damping 18",
+        "purpose": "Numbers settle with slight overshoot."
+      },
+      {
+        "name": "deck-leave",
+        "value": "320ms ease-in, translate(14px,-40px) rotate(3deg)",
+        "purpose": "Approved post leaves the deck."
+      },
+      {
+        "name": "spektr",
+        "value": "~1900ms WAAPI: squeeze 380ms, charge to 700ms, drop to 980ms, split at 1000ms, beams 22ms apart, 520ms flash per lamp",
+        "purpose": "Signature moment in Studio when a link is given."
+      },
+      {
+        "name": "led-run",
+        "value": "linear, max(6s, 0.55s per character)",
+        "purpose": "Running-line LED for long text."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "no flicker, Spektr, running line or deck flight; lamps fade 150ms",
+        "purpose": "prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "rule-split",
+        "value": "900px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Lime Button",
+      "kind": "button",
+      "refersTo": "button-lime",
+      "description": "The owner's one decision on a screen.",
+      "html": "<button class=\"ds-btn-lime\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg>Tasdiqlash</button>",
+      "css": ".ds-btn-lime{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 22px;border:0;border-radius:999px;background:#d7ff3a;color:#0b0c02;font:620 16px/1 Onest,ui-sans-serif,system-ui,sans-serif;letter-spacing:-.01em;cursor:pointer;transition:transform 120ms cubic-bezier(.16,1,.3,1),filter 200ms cubic-bezier(.16,1,.3,1)}.ds-btn-lime:hover{filter:brightness(1.07)}.ds-btn-lime:active{transform:scale(.96)}.ds-btn-lime:focus-visible{outline:2px solid #d7ff3a;outline-offset:3px}.ds-btn-lime:disabled{opacity:.45;pointer-events:none}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Every action that is not the owner's decision.",
+      "html": "<button class=\"ds-btn-quiet\">Studiya</button>",
+      "css": ".ds-btn-quiet{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 22px;border:0;border-radius:999px;background:#17171b;color:#f3f1ec;box-shadow:inset 0 0 0 1px rgb(255 255 255/.07);font:620 16px/1 Onest,ui-sans-serif,system-ui,sans-serif;letter-spacing:-.01em;cursor:pointer;transition:transform 120ms cubic-bezier(.16,1,.3,1),background 200ms cubic-bezier(.16,1,.3,1)}.ds-btn-quiet:hover{background:#222227}.ds-btn-quiet:active{transform:scale(.96)}.ds-btn-quiet:focus-visible{outline:2px solid #d7ff3a;outline-offset:3px}"
+    },
+    {
+      "name": "Link Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "The one onboarding input: a pill with the lime action nested inside.",
+      "html": "<form class=\"ds-field\" onsubmit=\"return false\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#85817a\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 1 1 0 10h-2M8 12h8\"/></svg><input placeholder=\"t.me/kanalingiz\" aria-label=\"Telegram kanal havolasi\"><button class=\"ds-field-btn\">Bo‘limni yoqish</button></form>",
+      "css": ".ds-field{display:flex;align-items:center;gap:8px;width:360px;min-height:60px;padding:4px 4px 4px 18px;border-radius:999px;background:#17171b;box-shadow:inset 0 0 0 1px rgb(255 255 255/.13);transition:box-shadow 200ms cubic-bezier(.16,1,.3,1)}.ds-field:focus-within{box-shadow:inset 0 0 0 1.5px #d7ff3a}.ds-field input{flex:1;min-width:0;align-self:stretch;border:0;background:transparent;color:#f3f1ec;font:400 17px Onest,ui-sans-serif,system-ui,sans-serif;outline:none}.ds-field input::placeholder{color:#85817a}.ds-field-btn{min-height:50px;padding:0 20px;border:0;border-radius:999px;background:#d7ff3a;color:#0b0c02;font:620 16px/1 Onest,ui-sans-serif,system-ui,sans-serif;white-space:nowrap;cursor:pointer;transition:transform 120ms cubic-bezier(.16,1,.3,1)}.ds-field-btn:active{transform:scale(.96)}"
+    },
+    {
+      "name": "Lamp Tile",
+      "kind": "custom",
+      "refersTo": "lamp-tile-sm",
+      "description": "One employee, one lamp: dark when idle, lit with a 720ms flicker when it holds a result.",
+      "html": "<ul class=\"ds-panel\" style=\"list-style:none;margin:0\"><li class=\"ds-lamp\" style=\"--hue:#FF8A3D;--core:#FFD6B8;--deep:#9A2E1A\"><span class=\"ds-lamp-glow\"></span><span class=\"ds-lamp-fil\"></span><span class=\"ds-lamp-body\"><span class=\"ds-lamp-t\">Strateg</span><span class=\"ds-lamp-s\">kutmoqda</span></span></li><li class=\"ds-lamp\" data-on style=\"--hue:#FF4580;--core:#FFC0D5;--deep:#7E1258\"><span class=\"ds-lamp-glow\"></span><span class=\"ds-lamp-fil\"></span><span class=\"ds-lamp-body\"><span class=\"ds-lamp-t\">Muharrir</span><span class=\"ds-lamp-s\">tayyor</span></span></li></ul>",
+      "css": ".ds-panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:320px;padding:12px;background:#000;border-radius:16px}.ds-lamp{position:relative;isolation:isolate;display:flex;min-height:92px;border-radius:18px;background:#0d0d10;box-shadow:inset 0 0 0 1px rgb(255 255 255/.07);color:#f3f1ec;font-family:Onest,ui-sans-serif,system-ui,sans-serif;overflow:visible;transition:transform 120ms cubic-bezier(.16,1,.3,1)}.ds-lamp:hover{transform:scale(.99)}.ds-lamp-glow{position:absolute;inset:0;border-radius:inherit;opacity:0;transition:opacity 1000ms cubic-bezier(.7,0,.84,0);background:radial-gradient(60% 30% at 50% 0%,var(--core) 0%,transparent 100%),radial-gradient(150% 100% at 50% -10%,var(--hue) 0%,color-mix(in oklab,var(--hue) 55%,var(--deep)) 32%,color-mix(in oklab,var(--deep) 60%,transparent) 60%,transparent 88%)}.ds-lamp-fil{position:absolute;top:11px;left:50%;width:26px;height:3px;margin-left:-13px;border-radius:3px;background:rgb(255 255 255/.13)}.ds-lamp[data-on] .ds-lamp-glow{opacity:1;animation:ds-on 720ms linear both}.ds-lamp[data-on] .ds-lamp-fil{background:var(--core);box-shadow:0 0 12px 2px var(--core)}.ds-lamp-body{position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:26px 14px 13px;gap:2px}.ds-lamp-t{font-size:13.5px;font-weight:450;color:#a39f98;letter-spacing:-.01em}.ds-lamp[data-on] .ds-lamp-t{font-weight:640;color:#fff}.ds-lamp-s{font-size:12px;color:#a39f98}.ds-lamp[data-on] .ds-lamp-s{color:rgb(255 255 255/.9)}@keyframes ds-on{0%{opacity:0}8%{opacity:.75}12%{opacity:.18}21%{opacity:.9}27%{opacity:.5}46%,100%{opacity:1}}@media (prefers-reduced-motion:reduce){.ds-lamp-glow{animation:none!important;transition-duration:150ms!important}}"
+    },
+    {
+      "name": "Namuna Chip",
+      "kind": "chip",
+      "refersTo": "namuna-chip",
+      "description": "Dashed outline: this is sample data, not the owner's channel.",
+      "html": "<span class=\"ds-namuna\">namuna</span>",
+      "css": ".ds-namuna{display:inline-flex;align-items:center;height:22px;padding:0 9px;border:1px dashed #85817a;border-radius:999px;color:#a39f98;font:500 12px Onest,ui-sans-serif,system-ui,sans-serif}"
+    },
+    {
+      "name": "LED Strip",
+      "kind": "custom",
+      "description": "Amber 5x7 dot-matrix readout for measured numbers only; unlit grid always visible.",
+      "html": "<div class=\"ds-led\" role=\"img\" aria-label=\"27%\"><svg width=\"52\" height=\"34\" viewBox=\"0 0 52 34\"><g fill=\"#ffb547\" style=\"filter:drop-shadow(0 0 2.8px #ffb547)\"><circle cx=\"7\" cy=\"2\" r=\"2\"/><circle cx=\"13\" cy=\"2\" r=\"2\"/><circle cx=\"19\" cy=\"2\" r=\"2\"/><circle cx=\"2\" cy=\"8\" r=\"2\"/><circle cx=\"25\" cy=\"8\" r=\"2\"/><circle cx=\"25\" cy=\"14\" r=\"2\"/><circle cx=\"19\" cy=\"20\" r=\"2\"/><circle cx=\"13\" cy=\"26\" r=\"2\"/><circle cx=\"2\" cy=\"32\" r=\"2\"/><circle cx=\"7\" cy=\"32\" r=\"2\"/><circle cx=\"13\" cy=\"32\" r=\"2\"/><circle cx=\"19\" cy=\"32\" r=\"2\"/><circle cx=\"25\" cy=\"32\" r=\"2\"/><circle cx=\"37\" cy=\"2\" r=\"2\"/><circle cx=\"49\" cy=\"2\" r=\"2\"/><circle cx=\"49\" cy=\"8\" r=\"2\"/><circle cx=\"43\" cy=\"14\" r=\"2\"/><circle cx=\"43\" cy=\"20\" r=\"2\"/><circle cx=\"37\" cy=\"26\" r=\"2\"/><circle cx=\"37\" cy=\"32\" r=\"2\"/></g></svg></div>",
+      "css": ".ds-led{display:flex;align-items:center;width:260px;height:56px;padding:0 12px;border-radius:12px;background:#000;box-shadow:inset 0 0 0 1px rgb(255 255 255/.07);background-image:radial-gradient(circle at 2px 2px,rgb(255 181 71/.1) 1.8px,transparent 2px);background-size:6px 6px;background-position:12px 11px}"
+    },
+    {
+      "name": "Telegram Post",
+      "kind": "card",
+      "refersTo": "tg-post",
+      "description": "The owner's unit of work, drawn close to Telegram's own bubble.",
+      "html": "<article class=\"ds-post\"><header class=\"ds-post-h\"><span class=\"ds-post-av\">N</span><span class=\"ds-post-n\">Nafis kiyim<small>kanal</small></span><span class=\"ds-namuna\">namuna</span></header><p class=\"ds-post-b\">Dilnoza opa karamel paltoni sut rang sviter bilan oldi.</p><footer class=\"ds-post-f\">20:00</footer></article>",
+      "css": ".ds-post{width:320px;padding:12px 14px 9px;border-radius:20px 20px 20px 6px;background:#17171b;box-shadow:inset 0 0 0 1px rgb(255 255 255/.07);color:#f3f1ec;font-family:Onest,ui-sans-serif,system-ui,sans-serif}.ds-post-h{display:flex;align-items:center;gap:10px}.ds-post-av{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:linear-gradient(160deg,#C86B3C,#6e3b21);color:#fff;font-weight:600;font-size:15px}.ds-post-n{flex:1;font-size:14.5px;font-weight:600;color:#e3a27f}.ds-post-n small{display:block;font-size:12px;font-weight:400;color:#85817a}.ds-post-b{margin:10px 0 0;font-size:15px;line-height:1.45}.ds-post-f{margin-top:8px;text-align:right;font-size:12px;color:#85817a;font-variant-numeric:tabular-nums}.ds-namuna{display:inline-flex;align-items:center;height:22px;padding:0 9px;border:1px dashed #85817a;border-radius:999px;color:#a39f98;font-size:12px;font-weight:500}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "nav",
+      "refersTo": "segmented",
+      "description": "Quiet choice between views; never lime.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button class=\"ds-seg-i\" role=\"radio\" aria-checked=\"true\">Bo‘lim</button><button class=\"ds-seg-i\" role=\"radio\" aria-checked=\"false\">Tahlil</button><button class=\"ds-seg-i\" role=\"radio\" aria-checked=\"false\">Strategiya</button></div>",
+      "css": ".ds-seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:#0d0d10;box-shadow:inset 0 0 0 1px rgb(255 255 255/.07)}.ds-seg-i{min-height:36px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:#a39f98;font:550 14px Onest,ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:background 200ms cubic-bezier(.16,1,.3,1),color 200ms cubic-bezier(.16,1,.3,1)}.ds-seg-i:hover{color:#f3f1ec}.ds-seg-i[aria-checked=true]{background:#222227;color:#f3f1ec}.ds-seg-i:focus-visible{outline:2px solid #d7ff3a;outline-offset:3px}"
+    },
+    {
+      "name": "Switch",
+      "kind": "custom",
+      "refersTo": "switch-on",
+      "description": "Owner setting toggle; lime only when on.",
+      "html": "<button class=\"ds-switch\" role=\"switch\" aria-checked=\"true\" onclick=\"this.setAttribute('aria-checked',this.getAttribute('aria-checked')!=='true')\"><span class=\"ds-knob\"></span></button>",
+      "css": ".ds-switch{position:relative;width:52px;height:32px;border:0;border-radius:999px;background:#222227;box-shadow:inset 0 0 0 1px rgb(255 255 255/.13);cursor:pointer;transition:background 200ms cubic-bezier(.16,1,.3,1)}.ds-knob{position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:#a39f98;transition:transform 360ms cubic-bezier(.16,1,.3,1),background 200ms}.ds-switch[aria-checked=true]{background:#d7ff3a}.ds-switch[aria-checked=true] .ds-knob{transform:translateX(20px);background:#0b0c02}.ds-switch:focus-visible{outline:2px solid #d7ff3a;outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Chiroqlar yonadi (the lights come on)",
+    "overview": "\n**Creative North Star: \"Chiroqlar yonadi\" (the lights come on)**\n\nThe marketing department is a panel of ten lamps on a true black stage. Each employee owns one lamp and one hue, and the hues run in pipeline order from warm white through amber, coral, rose, magenta, violet, indigo and blue to teal, so a fully lit panel reads as a single spectrum. A lamp glows only while its employee works or holds a result; dark glass means idle. Nothing glows for decoration.\n\nThree other materials sit beside the lamps. An amber 5×7 dot-matrix LED, taken from the running-line signs above Tashkent shops, prints measured numbers and the channel's real facts. Lime is the owner's hand: it marks the one decision the owner makes on a screen. A dashed outline says \"namuna\": the figure is sample data, not the owner's channel. Everything else is quiet glass, hairlines and one sans family, Onest.\n\nThe layout is drawn first and never moves. State changes are carried by light, weight and stroke pattern: a lamp warms up with a filament flicker, cools down slowly, and its title goes from 450 to 640 weight when it lights. The world refuses the category default where every card glows, and the SaaS feature grid.",
+    "keyCharacteristics": [
+      "True black stage (dark) or white stage (Telegram light theme), with glass tiles drawn by a 1px inset hairline instead of borders or shadows.",
+      "Ten lamp hues, one per employee, in fixed pipeline order. Lime is never a lamp.",
+      "Amber LED dot matrix for measured numbers only.",
+      "One enabled lime action per screen.",
+      "Pills for every control; generous 18 to 28px corners for tiles.",
+      "Onest throughout, semibold display with tight negative tracking.",
+      "Motion is ballistic and physical: 720ms warm-up with flicker, 1000ms ease-in cool-down, press scale 0.96, nothing reflows."
+    ],
+    "rules": [
+      {
+        "name": "The Light Means Work Rule",
+        "body": "A lamp glows only while its employee works (`warming`) or holds a result (`on`, `you`). Idle is dark glass. Never light a tile, a card or a section for decoration, and never give a non-lamp surface a coloured glow.",
+        "section": "colors"
+      },
+      {
+        "name": "The Owner's Hand Rule",
+        "body": "Lime marks owner actions only, with one enabled lime action per screen. Lime is never a lamp hue, never a chart colour, never decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Measured Numbers Rule",
+        "body": "Amber LED dots print measured numbers and the channel's real facts only: never slogans, labels or invented figures. When there is nothing measured, the strip stays dark with its unlit grid showing.",
+        "section": "colors"
+      },
+      {
+        "name": "The Namuna Rule",
+        "body": "Any figure, post or result that is not from the owner's channel carries a dashed-outline \"namuna\" chip. The dashed stroke means sample and is used for nothing else.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "Onest only. No mono costume for numbers or code, no display serif, no system display face.",
+        "section": "typography"
+      },
+      {
+        "name": "The Weight Shows State Rule",
+        "body": "A lamp's title moves from 450 to 640 as the lamp lights. The layout does not change; only weight and light do.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Eyebrows Rule",
+        "body": "No kickers, eyebrows or small uppercase labels above headings.",
+        "section": "typography"
+      },
+      {
+        "name": "The Layout Never Moves Rule",
+        "body": "Every state a screen can reach is laid out before it is reached. Lamps, results, chips and counters have reserved space; switching state changes light, weight and opacity, never size or position (CLS 0).",
+        "section": "layout"
+      },
+      {
+        "name": "The Only Lamps Emit Rule",
+        "body": "Drop shadows and coloured glows belong to lit lamps (and the LED's own dot glow). Every other surface is flat with a hairline.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** light a lamp only for `warming`, `on` or `you`, and leave every other tile dark glass with its filament hairline.",
+      "**Do** keep the ten lamp hues in pipeline order (warm white → amber → orange → coral → rose → magenta → violet → indigo → blue → teal) so a full panel reads as one spectrum.",
+      "**Do** give each screen exactly one enabled lime action, with Lime Ink (#0b0c02) text.",
+      "**Do** print measured numbers in the amber LED matrix, and leave the strip dark with its unlit grid when nothing is measured yet.",
+      "**Do** put a dashed \"namuna\" chip on every figure, post or result that is not from the owner's channel.",
+      "**Do** draw edges as a 1px inset hairline (white at 7% / 13%) and round controls as pills.",
+      "**Do** warm lamps up in 720ms with the flicker and cool them in 1000ms ease-in; press-scale controls to 0.96.",
+      "**Do** reserve space for every state so nothing moves when a lamp lights (CLS 0), and honour `prefers-reduced-motion`.",
+      "**Do** follow Telegram's theme inside `/tg`, using the light tokens on the white stage."
+    ],
+    "donts": [
+      "**Don't** glow, tint or spill light on anything that is not a working or finished lamp.",
+      "**Don't** use lime as a lamp hue, a chart colour, a link colour or decoration, and don't put two enabled lime actions on one screen.",
+      "**Don't** use the LED amber for labels, slogans or invented numbers.",
+      "**Don't** use a dashed outline for anything except \"namuna\" sample data.",
+      "**Don't** add a second typeface, a monospace \"tech\" face, or kickers and eyebrows above headings.",
+      "**Don't** resize, reflow or reorder the panel when state changes; change light and weight only.",
+      "**Don't** add drop shadows to dark-theme surfaces; the light-theme paper shadow is for posts and deck edges only.",
+      "**Don't** build feature grids of identical glowing cards."
+    ]
+  }
+}

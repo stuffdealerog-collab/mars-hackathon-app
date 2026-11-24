@@ -141,9 +141,10 @@ export async function planFlow(brandId: string, task: string) {
 }
 
 export async function analyzeChannel(channel: string, competitors?: string[]) {
+  // Server maxDuration is 60 s; wait slightly longer so the server's own limit decides.
   const r = await call<{ audit: ChannelAudit }>("/analyze", post({ channel, competitors }), () => ({
     audit: MOCK_AUDIT,
-  }));
+  }), 65000);
   return { ...r, data: r.data.audit };
 }
 
@@ -151,5 +152,5 @@ export async function buildStrategy(brandId: string, audit?: ChannelAudit, goal?
   return call<{ strategy: Strategy; plan: ContentPlan }>("/strategy", post({ brandId, audit, goal }), () => ({
     strategy: MOCK_STRATEGY,
     plan: MOCK_PLAN,
-  }), 50000);
+  }), 65000); // the strategy with a full audit can take 40-55 s; server maxDuration is 60 s
 }

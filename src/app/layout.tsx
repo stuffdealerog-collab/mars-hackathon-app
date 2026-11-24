@@ -1,37 +1,27 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono, Manrope } from "next/font/google";
+import { onest } from "@/components/lamp/font";
 import "./globals.css";
 
-const manrope = Manrope({
-  subsets: ["latin", "cyrillic"],
-  variable: "--font-manrope",
-  display: "swap",
-});
-
-const mono = JetBrains_Mono({
-  subsets: ["latin", "cyrillic"],
-  variable: "--font-jbmono",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: { default: "Mercat — AI marketing bo'limi", template: "%s · Mercat" },
+  metadataBase: new URL(process.env.PUBLIC_URL ?? "https://mercat-ai.vercel.app"),
+  title: { default: "Mercat — marketing bo‘limi bir havoladan", template: "%s · Mercat" },
   description:
-    "Kichik biznes uchun AI marketing bo'limi: brend ovozi, 4 yozuvda postlar, Reels ssenariysi va mijozlar qayerdaligi. Siz faqat tasdiqlaysiz.",
+    "Telegram kanalingiz havolasini bering: 10 ta AI xodim kanalni o‘qiydi va bir daqiqada brend ovozi, bir haftalik postlar, Reels ssenariysi va mijozlaringiz turgan joylarni tayyorlaydi. Siz faqat tasdiqlaysiz.",
   openGraph: {
-    title: "Mercat — butun marketing bo'limi bir havolada",
-    description: "Telegram kanalingiz havolasini bering: 60 soniyada brend DNK, haftalik postlar va mijozlar ro'yxati.",
+    title: "Mercat — bir havola, butun marketing bo‘limi",
+    description: "Kanal havolasini bering: bir daqiqada brend ovozi, haftalik postlar va mijozlaringiz qayerdaligi.",
     images: ["/generated/og.png"],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#050506",
+  themeColor: "#000000",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="uz" className={`h-full antialiased ${manrope.variable} ${mono.variable}`}>
+    <html lang="uz" className={`h-full antialiased ${onest.variable}`}>
       <body className="flex min-h-full flex-col font-sans">{children}</body>
     </html>
   );
