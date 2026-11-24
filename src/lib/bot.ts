@@ -5,6 +5,7 @@ import { isAiConfigured } from "./ai";
 import { getEnv, getPublicUrl } from "./env";
 import { type Locale, pickLocale, t } from "./i18n";
 import { parseSource, safeLogEvent, track } from "./track";
+import { botProfile, syncBotProfile } from "./uslub/bot-profile";
 import { learnFor } from "./uslub/brain/learn-run";
 import { latestPlanForOwner, ORDER_BUCKETS, planByTag, recordOutcome } from "./uslub/brain/memory";
 import { scrapeChannelData } from "./uslub/brain/scrape";
@@ -33,6 +34,28 @@ async function runLater(task: () => Promise<void>): Promise<void> {
   } catch {
     await task();
   }
+}
+
+/**
+ * The bot's Telegram profile (name, descriptions, commands, menu button; bot-profile.ts) is brought up to date on
+ * the first update an instance handles, after the webhook has answered. It reads before it writes, so a cold start
+ * with nothing changed costs a few reads. Failures are logged, never shown to the user.
+ */
+let profileSyncStarted = false;
+
+function syncProfileOnce(api: Api): void {
+  if (profileSyncStarted) return;
+  profileSyncStarted = true;
+  // MENU_BUTTON_TEXT is optional and not validated in env.ts (lead's file): read as is, empty = "Mercat".
+  const want = botProfile(getPublicUrl(), process.env.MENU_BUTTON_TEXT);
+  void runLater(async () => {
+    try {
+      const { changed, failed } = await syncBotProfile(api, want);
+      if (changed.length || failed.length) console.info(`[bot-profile] changed: ${changed.join(", ") || "none"}; failed: ${failed.join(", ") || "none"}`);
+    } catch (err) {
+      console.warn("[bot-profile] sync failed:", err instanceof Error ? err.message : err);
+    }
+  });
 }
 
 /**
@@ -117,6 +140,10 @@ export function getBot(): Bot {
 }
 
 function registerHandlers(b: Bot) {
+  b.use((ctx, next) => {
+    syncProfileOnce(ctx.api);
+    return next();
+  });
   const pm = b.chatType("private");
 
   // /start <payload> — deep links like https://t.me/<bot>?start=src_booth1
