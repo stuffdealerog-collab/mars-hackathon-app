@@ -228,14 +228,15 @@ export function PostImage({
   useImperativeHandle(
     ref,
     () => ({
+      // While the parent is starting this picture (waiting), a second start would be a second paid one.
       regenerate: () => {
-        if (!locked && !working) void start({ regenerate: true });
+        if (!locked && !working && !waiting) void start({ regenerate: true });
       },
       pickPhoto: () => {
-        if (!locked && !working) fileInput.current?.click();
+        if (!locked && !working && !waiting) fileInput.current?.click();
       },
     }),
-    [locked, working, start],
+    [locked, working, waiting, start],
   );
 
   return (
@@ -316,7 +317,7 @@ export function PostImage({
             {t.retry}
           </Pill>
         ) : null}
-        {productButton && !working && !locked ? (
+        {productButton && !working && !waiting && !locked ? (
           <Pill reduce={reduce} onClick={() => fileInput.current?.click()} title={t.ownPhotoHint}>
             <ImagePlus className="h-3.5 w-3.5" aria-hidden />
             {t.ownPhoto}

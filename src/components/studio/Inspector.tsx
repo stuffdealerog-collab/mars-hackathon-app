@@ -34,9 +34,9 @@ export function Inspector({ post, script, lamps }: { post: PostDraft; script: Sc
 
   return (
     <aside aria-label={c.pro.label} className="@container card flex flex-col divide-y divide-line">
+      {/* Reja only for a post written from the plan; the bot's own posts have no slot. */}
       {slot && (
-      <Section role="strategist" lamps={lamps} title={c.insp.plan}>
-        {slot ? (
+        <Section role="strategist" lamps={lamps} title={c.insp.plan}>
           <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13.5px] leading-snug">
             <dt className="text-ink-2">{c.pro.goal}</dt>
             <dd>{c.channel.goal[slot.goal]}</dd>
@@ -53,12 +53,9 @@ export function Inspector({ post, script, lamps }: { post: PostDraft; script: Sc
               </>
             )}
           </dl>
-        ) : (
-          <p className="text-[13.5px] text-ink-2">{post.brief}</p>
-        )}
-        {slot && <p className="tnum mt-2 text-[12.5px] text-ink-3">{fmt(c.queue.suggest, { when: whenOf(slot) })}</p>}
-        {item && <PlanRowDetails item={item} />}
-      </Section>
+          <p className="tnum mt-2 text-[12.5px] text-ink-3">{fmt(c.queue.suggest, { when: whenOf(slot) })}</p>
+          {item && <PlanRowDetails item={item} />}
+        </Section>
       )}
 
       <Section role="translator" lamps={lamps} title={c.insp.lang}>

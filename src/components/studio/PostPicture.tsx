@@ -42,7 +42,7 @@ export function PostPicture({ image, alt, onRetry, expected = false }: { image?:
         <div className="lamp absolute inset-0 items-center justify-center !rounded-none" data-state="warming" style={lampVars("designer")} role="status">
           <span className="lamp__glow" aria-hidden />
           <span className="lamp__filament" aria-hidden />
-          <p className="relative text-[15px] font-medium text-white [text-shadow:0_1px_10px_rgb(0_0_0/.4)]">{c.posts.image.running}</p>
+          <p className="lamp-head-ink relative text-[15px] font-medium">{c.posts.image.running}</p>
         </div>
       )}
       {ready && (

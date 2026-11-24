@@ -534,18 +534,21 @@
   gap: 8px;
   padding: 24px 13px 12px;
 }
-/* The result sits in the middle of the tile, where the glow has already fallen to the lamp's
-   deep tone: white with a dark halo reads on every hue there (about 13:1 on Brand's brown).
-   Dark ink on the glow measured 1.2-2:1, so no lamp prints dark results any more. */
+/* The result sits on its own dark plate, because the glow behind it runs from the bulb's
+   near-white core down to the lamp's deep tone. On the plate, white text and the LED's dots stay
+   at 5:1 or more even over the brightest core (#FFF7EA under 56% black), on every hue.
+   Dark ink straight on the glow measured 1.2-2:1, and a text-shadow does not reach the LED's SVG. */
 .lamp__result {
   display: flex;
-  flex: 1;
+  flex: 0 1 auto;
+  align-self: flex-start;
   align-items: center;
   min-height: 30px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.56);
   color: #fff;
-  text-shadow:
-    0 1px 2px rgb(0 0 0 / 0.55),
-    0 0 14px rgb(0 0 0 / 0.45);
+  text-shadow: none;
   opacity: 0;
   transition: opacity var(--t-panel) var(--ease-out);
 }
@@ -627,6 +630,7 @@
   background: var(--bad);
 }
 [data-theme="light"] .lamp:is([data-state="on"], [data-state="you"]) .lamp__state,
+[data-theme="light"] .lamp:is([data-state="on"], [data-state="you"]) .lamp__job,
 [data-theme="light"] .lamp:is([data-state="on"], [data-state="you"]) .lamp__title {
   color: var(--ink);
   text-shadow: none;
@@ -642,7 +646,7 @@
   color: var(--ink);
   text-shadow: none;
 }
-[data-theme="light"] .lamp__result:empty {
+.lamp__result:empty {
   background: none;
   box-shadow: none;
 }

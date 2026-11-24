@@ -7,7 +7,7 @@ import { ClipboardList, Copy, Download, ImagePlus, Package, PenLine, RefreshCw, 
 import { weekday } from "../ui/format";
 import { fmt, useCopy } from "../ui/lang";
 import { useDesk } from "./desk";
-import { slotKey, useStudio } from "./store";
+import { pictureBusy, slotKey, useStudio } from "./store";
 
 type Tool = { key: string; icon: typeof Copy; label: string; run: () => void; off?: string | true };
 
@@ -36,7 +36,10 @@ export function Tools({ collapsed }: { collapsed: boolean }) {
   if (post) {
     const i = s.posts.indexOf(post) + 1;
     context = fmt(c.tools.ctxPost, { i, n: s.posts.length });
-    const draftOnly = notInSample ?? (post.status !== "draft" ? true : !desk.imageHandle ? true : undefined);
+    // Off while this post's picture is being started or drawn: a second start would be a second paid one.
+    const waiting = !post.image && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait"));
+    const drawing = pictureBusy(post.id, post.image) || waiting;
+    const draftOnly = notInSample ?? (post.status !== "draft" || drawing || !desk.imageHandle ? true : undefined);
     const url = post.image?.url;
     tools = [
       { key: "img", icon: RefreshCw, label: c.tools.otherImage, run: () => desk.imageHandle?.regenerate(), off: draftOnly },

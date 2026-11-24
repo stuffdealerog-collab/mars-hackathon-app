@@ -215,6 +215,7 @@ const uz = {
     moveRight: "Hubni o‘ngga o‘tkazish",
     moveLeft: "Hubni chapga o‘tkazish",
     signOut: "Bu qurilmadan chiqish",
+    signOutConfirm: "Saqlanmagan tahrirlar bor. Baribir chiqasizmi?",
     keyOwner: "Telegram akkaunti · {id}",
   },
   dept: {
@@ -537,6 +538,7 @@ const ru: Copy = {
     moveRight: "Перенести хаб вправо",
     moveLeft: "Перенести хаб влево",
     signOut: "Выйти на этом устройстве",
+    signOutConfirm: "Есть несохранённые правки. Всё равно выйти?",
     keyOwner: "Аккаунт Telegram · {id}",
   },
   dept: {
@@ -857,6 +859,7 @@ const en: Copy = {
     moveRight: "Move the hub right",
     moveLeft: "Move the hub left",
     signOut: "Sign out on this device",
+    signOutConfirm: "Some edits are not saved. Sign out anyway?",
     keyOwner: "Telegram account · {id}",
   },
   dept: {

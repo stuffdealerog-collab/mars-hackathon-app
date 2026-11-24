@@ -212,7 +212,7 @@ export type StrategyEvent =
 
 /**
  * The weekly plan, streamed (NDJSON): progress arrives as `skeleton` (how many slots) and `item`
- * (one per finished slot), then `result`. Strategy takes ~45 s; the route's maxDuration is 60 s.
+ * (one per finished slot), then `result`. Strategy takes ~45 s; the route's maxDuration is 90 s and the client waits 95 s.
  */
 export async function buildStrategy(
   brandId: string,

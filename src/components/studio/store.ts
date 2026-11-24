@@ -106,7 +106,7 @@ interface StudioState {
   /** Sends every waiting approval now (page hide, or publish of that post). */
   flushApprovals: () => void;
   /** Sends one post's waiting approval now (the bot link opens before the undo window ends). */
-  flushApproval: (id: string) => void;
+  flushApproval: (id: string) => Promise<void>;
   setPostScript: (s: Script) => void;
   writeSlot: (item: PlanItem) => Promise<void>;
   /** Writes the missed slots again, in one call. */
@@ -191,6 +191,14 @@ let polling = false;
 const seen = new Map<string, number>();
 const isOpen = (i?: PostImage | null) => i?.status === "queued" || i?.status === "running";
 
+/** Posts whose picture start is in flight: never a second paid start for the same post. */
+const starting = new Set<string>();
+/** Picture starts whose answer was lost (post id -> when it started), and how long to wait for them. */
+const lostAt = new Map<string, number>();
+const LOST_PICTURE_MS = 160_000;
+/** True while this post's picture is being started or drawn (the card and the hub's tools stay still). */
+export const pictureBusy = (id: string, image?: PostImage | null) => starting.has(id) || isOpen(image);
+
 /** Approvals inside their undo window: settle("go") sends, "undo" drops, "flushed" was sent already. */
 type Waiting = { timer: ReturnType<typeof setTimeout>; settle: (v: "go" | "undo" | "flushed") => void; done: Promise<ApproveResult> };
 const waiting = new Map<string, Waiting>();
@@ -267,6 +275,33 @@ export const useStudio = create<StudioState>((set, get) => {
     return { posts, missing: items.filter((it) => !have.has(slotKey(it))) };
   };
 
+  /**
+   * The server's answer to an approval: on success its post is merged (uz_cyrl rebuilt,
+   * approvedAt) and the SMM-menejer blinks; on failure the post is a draft again with the reason
+   * under it ("Kod: [kod]" is a quiet hint, an old link key says so).
+   */
+  const applyApproval = (id: string, r: api.Res<{ post: PostDraft }>): ApproveResult => {
+    if (!r.ok) {
+      const expired = r.status === 401 && api.handoffState() !== "none";
+      const message = expired ? copy().access.expired : problemOf(r).message || copy().posts.approveError;
+      set({
+        posts: get().posts.map((p) => (p.id === id ? { ...p, status: "draft" } : p)),
+        postNote: { ...get().postNote, [id]: { text: message, tone: r.code === BLANK_LEFT ? "hint" : "bad" } },
+      });
+      return { ok: false, message };
+    }
+    const server = r.data.post;
+    set({
+      posts: get().posts.map((p) =>
+        p.id === id
+          ? { ...p, ...server, variants: { ...server.variants, ...get().edited[id] }, image: server.image ?? p.image, status: server.status === "draft" ? "approved" : server.status }
+          : p,
+      ),
+      handTick: get().handTick + 1,
+    });
+    return { ok: true };
+  };
+
   /** Writes the posts for more plan slots (one row, or the ones the run missed), in one call. */
   const writeMore = async (items: PlanItem[]) => {
     const brand = get().brand;
@@ -333,7 +368,11 @@ export const useStudio = create<StudioState>((set, get) => {
     }
     step("images", { status: "run", n: 0, m: get().posts.length });
     for (const p of posts) {
-      const r = await api.startPostImage(p.id, lang());
+      // One paid start per post: a start still in flight (the run's, a reopen's) is not repeated.
+      if (starting.has(p.id)) continue;
+      starting.add(p.id);
+      const t0 = Date.now();
+      const r = await api.startPostImage(p.id, lang()).finally(() => starting.delete(p.id));
       if (my !== runId) return;
       if (!r.ok) {
         if (missingRoute(r)) {
@@ -343,8 +382,12 @@ export const useStudio = create<StudioState>((set, get) => {
         }
         // The answer was lost, not necessarily the picture: the route may still be drawing it
         // (it can take up to 150 s on a brand whose style is learned first). Poll for it.
-        if (lostAnswer(r)) setPostImage(p.id, { status: "queued", refsUsed: 0 });
-        else setPostImage(p.id, { status: "failed", refsUsed: 0, error: problemOf(r).message });
+        // A network failure long before the route's limit never reached the server: say so now.
+        const lost = r.code === "timeout" || (r.code === "network" && Date.now() - t0 > 15_000);
+        if (lost) {
+          lostAt.set(p.id, t0);
+          setPostImage(p.id, { status: "queued", refsUsed: 0 });
+        } else setPostImage(p.id, { status: "failed", refsUsed: 0, error: problemOf(r).message });
         continue;
       }
       setPostImage(p.id, r.data.image);
@@ -371,7 +414,15 @@ export const useStudio = create<StudioState>((set, get) => {
         await Promise.all(
           stale.map(async (p) => {
             const r = await api.getPostImage(p.id, lang());
-            if (r.ok && my === runId && r.data.image) setPostImage(p.id, r.data.image);
+            if (!r.ok || my !== runId) return;
+            if (r.data.image) {
+              lostAt.delete(p.id);
+              setPostImage(p.id, r.data.image);
+            } else if (Date.now() - (lostAt.get(p.id) ?? Date.now()) > LOST_PICTURE_MS) {
+              // The lost start saved nothing on the server: stop waiting, offer "Qayta urinish".
+              lostAt.delete(p.id);
+              setPostImage(p.id, { status: "failed", refsUsed: 0, error: copy().posts.image.failed });
+            }
           }),
         );
         countImages();
@@ -594,6 +645,11 @@ export const useStudio = create<StudioState>((set, get) => {
 
     deviceKey: null,
     signOutDevice: () => {
+      const s = get();
+      const unsaved = s.posts.some((p) => p.status === "draft" && s.edited[p.id] && !s.pendingApprove[p.id]);
+      if (unsaved && !window.confirm(copy().hub.signOutConfirm)) return;
+      // Approvals in their undo window leave while the key still signs them.
+      s.flushApprovals();
       api.saveHandoff(null);
       try {
         localStorage.removeItem(RECENT);
@@ -601,7 +657,8 @@ export const useStudio = create<StudioState>((set, get) => {
         /* nothing kept */
       }
       set({ deviceKey: null });
-      get().reset();
+      if (s.sample) window.location.assign(window.location.pathname);
+      else get().reset();
     },
 
     newChannel: () => {
@@ -637,11 +694,13 @@ export const useStudio = create<StudioState>((set, get) => {
       if (w) w.settle("undo");
     },
 
-    flushApproval: (id) => {
+    flushApproval: async (id) => {
       const w = waiting.get(id);
       if (!w) return;
-      void api.approvePost(id, lang(), get().edited[id], true);
       w.settle("flushed");
+      // keepalive: the bot's tab may take the page's place; the answer still counts when it comes.
+      const r = await api.approvePost(id, lang(), get().edited[id], true);
+      applyApproval(id, r);
     },
 
     flushApprovals: () => {
@@ -755,10 +814,16 @@ export const useStudio = create<StudioState>((set, get) => {
       const my = ++runId;
       pollRun++;
       visualRun = null;
+      // The address bar names the brand being opened from the first moment: a retry or the 403
+      // screen's bot link then go to this brand, not the channel that was open before.
+      rememberBrand(brandId);
       set({
         phase: "reopening",
         problem: null,
         justFinished: false,
+        brand: null,
+        posts: [],
+        steps: [],
         pendingApprove: {},
         styleLearning: false,
         audit: null,
@@ -923,23 +988,7 @@ export const useStudio = create<StudioState>((set, get) => {
       const r = await api.approvePost(id, lang(), get().edited[id]);
       busy(undefined);
       pending(false);
-      if (!r.ok) {
-        mark("draft");
-        // "Kod: [kod]" still in the text: the server names the fact; the owner adds it in Tahrirlash.
-        const message = problemOf(r).message || copy().posts.approveError;
-        note({ text: message, tone: r.code === BLANK_LEFT ? "hint" : "bad" });
-        return { ok: false, message };
-      }
-      const server = r.data.post;
-      set({
-        posts: get().posts.map((p) =>
-          p.id === id
-            ? { ...p, ...server, variants: { ...server.variants, ...get().edited[id] }, image: server.image ?? p.image, status: server.status === "draft" ? "approved" : server.status }
-            : p,
-        ),
-        handTick: get().handTick + 1,
-      });
-      return { ok: true };
+      return applyApproval(id, r);
     },
 
     publish: async (id, script, typed) => {
@@ -987,6 +1036,7 @@ export const useStudio = create<StudioState>((set, get) => {
 
     setImage: (id, image) => {
       seen.set(id, Date.now());
+      lostAt.delete(id); // the card heard from the server: no lost start to wait for
       setPostImage(id, image);
       countImages();
       // A new version started from the card keeps the lamp honest even if the owner leaves the tab.
