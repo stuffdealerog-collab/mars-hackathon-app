@@ -19,7 +19,8 @@ export type Phase = "start" | "working" | "ready" | "reopening";
 export type Mode = "channel" | "fresh";
 export type Tab = "channel" | "posts" | "dept" | "video";
 export type ApproveResult = { ok: true } | { ok: false; message: string; undone?: boolean };
-export type PublishResult = { ok: true; url?: string } | { ok: false; message: string; adminUrl?: string; botUrl?: string };
+/** `code` is the server's stable error code (e.g. "publish_in_progress"), when it sent one. */
+export type PublishResult = { ok: true; url?: string } | { ok: false; message: string; adminUrl?: string; botUrl?: string; code?: string };
 export type RecentBrand = { id: string; name: string; channel?: string };
 /**
  * The line under a post. `missing` (placeholder_left only): the scripts whose text still has a
@@ -1045,7 +1046,7 @@ export const useStudio = create<StudioState>((set, get) => {
       // A blank still in the text is the owner's fact to add, not a failure.
       const blank = (r.ok ? r.data.code : r.code) === BLANK_LEFT;
       note(blank ? { text: msg, tone: "hint", missing: r.ok ? r.data.missing : r.missing } : { text: msg, href: admin, tone: "bad" });
-      return { ok: false, message: msg, adminUrl: blank ? undefined : admin, botUrl };
+      return { ok: false, message: msg, adminUrl: blank ? undefined : admin, botUrl, code: r.ok ? r.data.code : r.code };
     },
 
     setImage: (id, image) => {
