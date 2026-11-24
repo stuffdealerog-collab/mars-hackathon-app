@@ -195,9 +195,13 @@ export function Hub({ lamps }: { lamps: Lamps }) {
  */
 export function StageLight({ lamps }: { lamps: Lamps }) {
   const side = useHub((s) => s.side);
-  const lit = LAMP_ORDER.filter((r) => lamps.state[r] === "on" || lamps.state[r] === "you").slice(0, 4);
-  if (!lit.length) return null;
-  const x = side === "left" ? 8 : 92;
-  const layers = lit.map((r, i) => `radial-gradient(38% 30% at ${x}% ${12 + i * 22}%, ${LAMPS[r].hue}26 0%, transparent 70%)`).join(", ");
-  return <div aria-hidden className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-700" style={{ background: layers }} />;
+  const lit = LAMP_ORDER.filter((r) => lamps.state[r] === "on" || lamps.state[r] === "you" || lamps.state[r] === "warming").slice(0, 5);
+  const x = side === "left" ? 9 : 91;
+  // Each lit lamp washes the stage behind the hub in its own colour (warming ones fainter), so the
+  // glass has real light to frost. A faint neutral pool keeps the glass legible before any lamp is lit.
+  const layers = [
+    ...lit.map((r, i) => `radial-gradient(30% 26% at ${x}% ${10 + i * 19}%, ${LAMPS[r].hue}${lamps.state[r] === "warming" ? "1f" : "33"} 0%, transparent 72%)`),
+    `radial-gradient(26% 60% at ${x}% 40%, rgb(255 255 255 / 0.035) 0%, transparent 75%)`,
+  ].join(", ");
+  return <div aria-hidden className="pointer-events-none fixed inset-0 z-0 transition-[background] duration-700" style={{ background: layers }} />;
 }

@@ -59,7 +59,7 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
   const hint = blankLeft ? blankText : note?.tone === "hint" ? note.text : null;
 
   return (
-    <article aria-labelledby={`${id}-h`}>
+    <article aria-labelledby={`${id}-h`} className="@container">
       <header className="flex items-center justify-between gap-3 px-1 pb-2">
         <h3 id={`${id}-h`} className="min-w-0 text-[14px] text-ink-2">
           {when}
@@ -121,12 +121,12 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
       <footer className="flex flex-col gap-3 px-1 pt-3">
         {editing ? (
           <div className="flex gap-2.5">
-            <button type="button" className="btn-2 flex-1 sm:flex-none" onClick={() => setEditing(false)}>
+            <button type="button" className="btn-2 flex-1 @md:flex-none" onClick={() => setEditing(false)}>
               {c.posts.cancel}
             </button>
             <button
               type="button"
-              className="btn flex-1 sm:flex-none"
+              className="btn flex-1 @md:flex-none"
               disabled={!draft.trim()}
               onClick={() => {
                 editPost(post.id, script, draft.trim());
@@ -149,11 +149,11 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
           ) : (
             <>
               {inTelegram ? (
-                <button type="button" className="btn w-full sm:w-auto sm:self-start" disabled={busy === "publish"} onClick={() => void publish(post.id, script)}>
+                <button type="button" className="btn w-full @md:w-auto @md:self-start" disabled={busy === "publish"} onClick={() => void publish(post.id, script)}>
                   {busy === "publish" ? c.posts.publishing : c.posts.publish}
                 </button>
               ) : (
-                <a href={botPublishUrl(bot, post.id, script)} target="_blank" rel="noreferrer" className="btn w-full sm:w-auto sm:self-start">
+                <a href={botPublishUrl(bot, post.id, script)} target="_blank" rel="noreferrer" className="btn w-full @md:w-auto @md:self-start">
                   {c.posts.publish}
                 </a>
               )}
@@ -164,7 +164,7 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
           <div className="flex gap-2.5">
             <button
               type="button"
-              className="btn-2 flex-1 sm:flex-none"
+              className="btn-2 flex-1 @md:flex-none"
               onClick={() => {
                 setDraft(text);
                 setEditing(true);
@@ -172,7 +172,7 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
             >
               {c.posts.edit}
             </button>
-            <button type="button" className="btn flex-1 sm:flex-none" disabled={busy === "approve"} onClick={() => void approve(post.id)}>
+            <button type="button" className="btn flex-1 @md:flex-none" disabled={busy === "approve"} onClick={() => void approve(post.id)}>
               {busy === "approve" ? c.posts.approving : c.posts.approve}
             </button>
           </div>

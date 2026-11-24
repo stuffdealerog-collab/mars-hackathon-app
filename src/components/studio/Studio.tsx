@@ -2,18 +2,16 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Script } from "@/lib/uslub/contract";
 import { Led } from "../lamp/Led";
-import { plural } from "../ui/format";
-import { fmt, useCopy, useInitLang, useLang, type Lang } from "../ui/lang";
+import { fmt, useCopy, useInitLang } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel } from "../ui/parts";
 import { ChannelTab } from "./ChannelTab";
 import { Panel, SOON_ROLES, Strip, useLamps } from "./Department";
 import { Hub, HUB_W, RAIL_W, StageLight, useDesktop, useHub, useHubRestore } from "./Hub";
-import { PostCard } from "./PostCard";
+import { PostsSplit, PostsTab } from "./Posts";
 import { SpectrumIntro } from "./SpectrumIntro";
 import { Start } from "./Start";
-import { POSTS_PER_RUN, slotKey, useStudio, type Step, type Tab } from "./store";
+import { POSTS_PER_RUN, useStudio, type Step, type Tab } from "./store";
 
 type Theme = "light" | "dark";
 
@@ -91,15 +89,19 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
     <div data-theme={theme} className="relative min-h-dvh bg-stage text-ink">
       <StageLight lamps={lamps} />
       <Hub lamps={lamps} />
+      {/* The canvas takes the width beside the hub: a pro tool, not a phone column. Reading
+          screens (start, the run) keep a reading measure; the ready workspace spreads out. */}
       <main
-        className="relative z-10 mx-auto w-full max-w-[1040px] px-8 pb-24 pt-6 transition-[padding] duration-300"
-        style={side === "left" ? { paddingLeft: gutter } : { paddingRight: gutter }}
+        className="relative z-10 w-full px-10 pb-24 pt-6 transition-[padding] duration-300"
+        style={side === "left" ? { paddingLeft: gutter + 8 } : { paddingRight: gutter + 8 }}
       >
-        {sample && <SampleBanner flush />}
-        {phase === "start" && <Start key={`${entry.view}:${entry.channel}`} initialView={entry.view} initialChannel={entry.channel} />}
-        {phase === "working" && <Working />}
-        {phase === "reopening" && <Reopening />}
-        {phase === "ready" && <Ready inTelegram={false} desktop />}
+        <div className={phase === "ready" ? "mx-auto max-w-[1280px]" : "mx-auto max-w-[720px]"}>
+          {sample && <SampleBanner flush />}
+          {phase === "start" && <Start key={`${entry.view}:${entry.channel}`} initialView={entry.view} initialChannel={entry.channel} />}
+          {phase === "working" && <Working />}
+          {phase === "reopening" && <Reopening />}
+          {phase === "ready" && <Ready inTelegram={false} desktop />}
+        </div>
       </main>
     </div>
   );
@@ -365,83 +367,11 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
           exit={reduce ? undefined : { opacity: 0, y: -4 }}
           transition={{ duration: 0.22, ease: EASE_OUT }}
         >
-          {tab === "channel" && <ChannelTab />}
-          {tab === "posts" && <PostsTab inTelegram={inTelegram} />}
+          {tab === "channel" && <ChannelTab wide={desktop} />}
+          {tab === "posts" && (desktop ? <PostsSplit /> : <PostsTab inTelegram={inTelegram} />)}
           {tab === "video" && <VideoTab />}
         </motion.div>
       </AnimatePresence>
-    </div>
-  );
-}
-
-const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
-const SCRIPT_FOR: Record<Lang, Script> = { uz: "uz_latn", ru: "ru", en: "en" };
-
-/** Posts the run asked for but did not get: how many, and one button to write them again. */
-function MissedNote() {
-  const c = useCopy();
-  const lang = useLang((s) => s.lang);
-  const missed = useStudio((s) => s.missed);
-  const writing = useStudio((s) => s.missed.some((it) => s.writingSlot[slotKey(it)]));
-  const writeMissed = useStudio((s) => s.writeMissed);
-  if (!missed.length) return null;
-  return (
-    <div className="card flex flex-wrap items-center gap-3 p-4">
-      <p className="mr-auto text-[15px] text-ink-2">
-        {missed.length} {plural(c.posts.missed, missed.length, lang)}.
-      </p>
-      <button type="button" className="btn-2" disabled={writing} onClick={() => void writeMissed()}>
-        {writing ? c.channel.writingSlot : c.posts.rewrite}
-      </button>
-    </div>
-  );
-}
-
-function PostsTab({ inTelegram }: { inTelegram: boolean }) {
-  const c = useCopy();
-  const lang = useLang((s) => s.lang);
-  const posts = useStudio((s) => s.posts);
-  const picked = useStudio((s) => s.postScript);
-  const setPostScript = useStudio((s) => s.setPostScript);
-  const channelLangs = useStudio((s) => s.brand?.dna.languages) ?? [];
-  const reduce = useReducedMotion() ?? false;
-  if (!posts.length) return <p className="text-[15px] text-ink-2">{c.posts.none}</p>;
-
-  // One switch for the whole list. The post language is the channel's own (from the brand),
-  // not the page language; the page language is only a fallback when the brand has none.
-  const available = SCRIPTS.filter((s) => posts.some((p) => p.variants[s]?.trim()));
-  const own = channelLangs.find((s) => available.includes(s));
-  const fallback = own ?? (available.includes(SCRIPT_FOR[lang]) ? SCRIPT_FOR[lang] : (available[0] ?? "uz_latn"));
-  const script = picked && available.includes(picked) ? picked : fallback;
-
-  return (
-    <div className="flex flex-col gap-6">
-      {available.length > 1 && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className="text-[14px] text-ink-2" id="post-lang">
-            {c.posts.langLabel}
-          </span>
-          <div className="seg" role="group" aria-labelledby="post-lang">
-            {available.map((s) => (
-              <button key={s} type="button" aria-pressed={script === s} title={c.posts.scriptNames[s]} onClick={() => setPostScript(s)}>
-                {c.posts.scripts[s]}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      <MissedNote />
-      {/* Cards are dealt in one after another, once; later state changes do not replay it. */}
-      {posts.map((p, i) => (
-        <motion.div
-          key={p.id}
-          initial={reduce ? false : { opacity: 0, y: 18, scale: 0.985 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.42, ease: EASE_OUT, delay: Math.min(i, 6) * 0.07 }}
-        >
-          <PostCard post={p} script={p.variants[script]?.trim() ? script : "uz_latn"} inTelegram={inTelegram} />
-        </motion.div>
-      ))}
     </div>
   );
 }

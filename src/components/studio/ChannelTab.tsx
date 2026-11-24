@@ -14,19 +14,47 @@ const PlanRowDetails = dynamic(() => import("./pro/ProDetails").then((m) => m.Pl
 
 const KIND_ORDER = { problem: 0, opportunity: 1, strength: 2 } as const;
 
-export function ChannelTab() {
+/**
+ * Kanal. On a phone one column; on the desktop canvas (`wide`) what the channel is (numbers,
+ * findings, voice) on the left and what to do about it (the week plan) on the right, with the
+ * full audit across the bottom in Pro. Every section sizes itself from its own container.
+ */
+export function ChannelTab({ wide = false }: { wide?: boolean }) {
   const c = useCopy();
   const mode = useStudio((s) => s.mode);
   const pro = useStudio((s) => s.pro);
-  return (
-    <div className="flex flex-col gap-12">
+  const audit = useStudio((s) => s.audit);
+  const sufficiency = useStudio((s) => s.sufficiency);
+  const about = (
+    <>
       {mode === "channel" ? <Numbers /> : <p className="text-[15px] leading-relaxed text-ink-2">{c.channel.freshNoStats}</p>}
       {mode === "fresh" && <Launch />}
       <Voice />
+    </>
+  );
+  const todo = (
+    <>
       <Plan />
       {pro && <StrategyDetails />}
-      {pro && mode === "channel" && <AuditFull />}
-      {pro && <SufficiencyPanel />}
+      {pro && <SufficiencyPanel items={sufficiency} />}
+    </>
+  );
+  if (!wide) {
+    return (
+      <div className="@container flex flex-col gap-12">
+        {about}
+        {todo}
+        {pro && mode === "channel" && <AuditFull audit={audit} />}
+      </div>
+    );
+  }
+  return (
+    <div className="@container flex flex-col gap-14">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-10 xl:gap-14">
+        <div className="@container flex min-w-0 flex-col gap-12">{about}</div>
+        <div className="@container flex min-w-0 flex-col gap-12">{todo}</div>
+      </div>
+      {pro && mode === "channel" && <AuditFull audit={audit} />}
     </div>
   );
 }
@@ -41,7 +69,7 @@ function Launch() {
     <Section id="launch-h" title={c.channel.launchTitle}>
       <ol className="flex flex-col gap-3">
         {launch.tactics.slice(0, 5).map((t, i) => (
-          <li key={i} className="card p-4 sm:p-5">
+          <li key={i} className="card p-4 @md:p-5">
             <p className="text-[16px] font-semibold leading-snug">{ownerText(t.title, lang)}</p>
             <p className="mt-1.5 text-[15px] leading-relaxed">{ownerText(t.how, lang)}</p>
             {t.why && <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{ownerText(t.why, lang)}</p>}
@@ -63,19 +91,19 @@ function StrategyDetails() {
     <Section id="strat-h" title={c.pro.label}>
       <div className="flex flex-col gap-3">
         {strategy.positioning && (
-          <div className="card p-4 sm:p-5">
+          <div className="card p-4 @md:p-5">
             <p className="text-[13px] text-ink-2">{c.pro.positioning}</p>
             <p className="mt-1.5 text-[15px] leading-relaxed">{t(strategy.positioning)}</p>
           </div>
         )}
         {strategy.offer && (
-          <div className="card p-4 sm:p-5">
+          <div className="card p-4 @md:p-5">
             <p className="text-[13px] text-ink-2">{c.pro.offer}</p>
             <p className="mt-1.5 text-[15px] leading-relaxed">{t(strategy.offer)}</p>
           </div>
         )}
         {strategy.pillars.length > 0 && (
-          <div className="card p-4 sm:p-5">
+          <div className="card p-4 @md:p-5">
             <p className="text-[13px] text-ink-2">{c.pro.pillars}</p>
             <ul className="mt-2 flex flex-col gap-1.5">
               {strategy.pillars.map((p) => (
@@ -88,7 +116,7 @@ function StrategyDetails() {
           </div>
         )}
         {strategy.kpis.length > 0 && (
-          <div className="card p-4 sm:p-5">
+          <div className="card p-4 @md:p-5">
             <p className="text-[13px] text-ink-2">{c.pro.kpis}</p>
             <ul className="mt-2 flex flex-col gap-2">
               {strategy.kpis.map((k) => (
@@ -101,7 +129,7 @@ function StrategyDetails() {
           </div>
         )}
         {strategy.risks.length > 0 && (
-          <div className="card p-4 sm:p-5">
+          <div className="card p-4 @md:p-5">
             <p className="text-[13px] text-ink-2">{c.pro.risks}</p>
             <ul className="mt-2 flex list-disc flex-col gap-1.5 pl-5 text-[15px] leading-snug">
               {strategy.risks.map((r) => (
@@ -161,7 +189,7 @@ function Numbers() {
   return (
     <>
       {/* Measured numbers print on the amber LED, like a shop sign; nothing else does. */}
-      <dl className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-2.5 @xl:grid-cols-4">
         {cells.map(([v, k]) => (
           <div key={k} className="card flex flex-col-reverse justify-end gap-2 px-4 pb-3.5 pt-4">
             <dt className="text-[13px] leading-snug text-ink-2">{k}</dt>
@@ -203,7 +231,7 @@ function Finding({ kind, text, evidence }: { kind: "problem" | "opportunity" | "
   const rest = m ? m[2] : "";
   const showAll = pro || open;
   return (
-    <li className="card p-4 sm:p-5">
+    <li className="card p-4 @md:p-5">
       <p className={`text-[14px] font-medium ${kind === "strength" ? "text-ok" : kind === "problem" ? "text-bad" : "text-ink-2"}`}>{c.channel.kind[kind]}</p>
       <p className="mt-1.5 text-[17px] font-medium leading-snug">{head}</p>
       {evidence && <p className="tnum mt-2 text-[14px] leading-relaxed text-ink-2">{evidence}</p>}
@@ -236,7 +264,7 @@ function Voice() {
       {d.oneLiner && <p className="mb-4 text-[16px] leading-relaxed">{d.oneLiner}</p>}
       <dl className="card divide-y divide-line">
         {rows.map(([k, v]) => (
-          <div key={k} className="grid grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)] gap-3 px-4 py-3 sm:px-5">
+          <div key={k} className="grid grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)] gap-3 px-4 py-3 @md:px-5">
             <dt className="text-[14px] text-ink-2">{k}</dt>
             <dd className="text-[15px]">{v}</dd>
           </div>
@@ -294,7 +322,7 @@ function Plan() {
           const has = posts.some((p) => p.slot && slotKey(p.slot) === key);
           const busy = writing[key];
           return (
-            <li key={i} className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 px-4 py-3.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:px-5">
+            <li key={i} className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 px-4 py-3.5 @md:grid-cols-[8.5rem_minmax(0,1fr)] @md:px-5">
               <div className="text-[14px] leading-snug text-ink-2">
                 <span className="block">{d != null ? c.weekdays[d] : it.day}</span>
                 <span className="block text-ink-3">{it.time}</span>
