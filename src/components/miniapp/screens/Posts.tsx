@@ -5,7 +5,7 @@ import { lampVars } from "../../lamp/lamps";
 import { slotKey, useStudio } from "../../studio/store";
 import { plural, weekday } from "../../ui/format";
 import { fmt, useCopy, useLang, type Lang } from "../../ui/lang";
-import { useBlank } from "../blank";
+import { useBlank } from "../use-blank";
 import { useMiniCopy } from "../copy";
 import { useNav } from "../nav";
 import { TopBar, useCompact } from "../Shell";

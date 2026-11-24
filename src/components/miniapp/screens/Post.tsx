@@ -5,7 +5,8 @@ import { PostImage } from "../../media";
 import * as api from "../../studio/api";
 import { pictureBusy, useStudio } from "../../studio/store";
 import { fmt, keepNumbers, useCopy, useLang } from "../../ui/lang";
-import { blankNote, blankTokens, useBlank } from "../blank";
+import { blankNote, blankTokens } from "../blank";
+import { useBlank } from "../use-blank";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons, useLatest, useNav, type BtnSpec } from "../nav";
 import { hasNativeSecondary } from "../native";
@@ -338,7 +339,7 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
               </span>
             </div>
             <p lang={script === "ru" ? "ru" : script === "en" ? "en" : "uz"} className="post-text select-text">
-              <TextWithBlanks text={text} tokens={blank ? blankTokens(post, script) : []} />
+              <TextWithBlanks text={text} tokens={blank ? blankTokens(post, script, note) : []} />
             </p>
             <p className="mt-1.5 text-right text-[12px] text-ink-3">
               {edited && <span className="mr-2">{m.post.edited}</span>}
