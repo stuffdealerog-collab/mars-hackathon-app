@@ -4,3 +4,7 @@
 
 # agent worktrees and local Claude files
 .claude/
+
+# docs, design screenshots and raw film footage are not part of the app
+docs/
+.impeccable/
