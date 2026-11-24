@@ -1,3 +1,6 @@
 # never upload local secrets (.env.local, .env.neon, ...); only the template ships
 .env*
 !.env.example
+
+# agent worktrees and local Claude files
+.claude/
