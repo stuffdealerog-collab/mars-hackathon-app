@@ -32,6 +32,7 @@ import {
   setPendingPublish,
   type StoredBrand,
 } from "./store";
+import { clip } from "./text";
 
 /**
  * Publishing from the bot — the last step of the demo: the Studio sends the owner to
@@ -113,14 +114,14 @@ async function sendPreviewOnly(api: Api, chatId: number, locale: Locale, post: P
       console.warn("[botpublish] photo preview failed, sending text with the picture as a link", err instanceof Error ? err.message : err);
       // The button's hash covers this picture and publishPost will send it: show it as a large link preview so the
       // owner still sees exactly what goes out.
-      await api.sendMessage(chatId, `${text.slice(0, 3900)}\n\n🖼 ${photo}`, {
+      await api.sendMessage(chatId, `${clip(text, 3900)}\n\n🖼 ${photo}`, {
         reply_markup: kb,
         link_preview_options: { url: photo, prefer_large_media: true, show_above_text: true },
       });
       return;
     }
   }
-  await api.sendMessage(chatId, text.slice(0, 4096), { reply_markup: kb, link_preview_options: { is_disabled: true } });
+  await api.sendMessage(chatId, clip(text, 4096), { reply_markup: kb, link_preview_options: { is_disabled: true } });
 }
 
 /**

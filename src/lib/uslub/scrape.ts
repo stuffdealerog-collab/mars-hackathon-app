@@ -3,6 +3,7 @@
  * No API keys, no login: only channels with a public preview work.
  * Pure parsing helpers are exported for tests; `scrapeChannel` does the fetch.
  */
+import { wellFormed } from "./text";
 
 export interface ScrapedPost {
   id?: number;
@@ -71,14 +72,21 @@ export function parseChannelUsername(input: string): string | null {
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", "#39": "'" };
 
+/**
+ * HTML entities to text. A surrogate entity ("&#55357;") decodes to half an emoji: two of them in a row make a whole
+ * one, a lone half is dropped (wellFormed). A number past U+10FFFF is dropped instead of throwing.
+ */
 export function decodeEntities(s: string): string {
-  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+|#39);/gi, (m, code: string) => {
-    if (code[0] === "#") {
-      const n = code[1].toLowerCase() === "x" ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
-      return Number.isFinite(n) ? String.fromCodePoint(n) : m;
-    }
-    return ENTITIES[code.toLowerCase()] ?? m;
-  });
+  return wellFormed(
+    s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+|#39);/gi, (m, code: string) => {
+      if (code[0] === "#") {
+        const n = code[1].toLowerCase() === "x" ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
+        if (!Number.isFinite(n)) return m;
+        return n > 0x10ffff ? "" : String.fromCodePoint(n);
+      }
+      return ENTITIES[code.toLowerCase()] ?? m;
+    }),
+  );
 }
 
 /** Telegram message HTML -> plain text (keeps line breaks and emoji). */

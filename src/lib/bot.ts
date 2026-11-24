@@ -11,6 +11,7 @@ import { scrapeChannelData } from "./uslub/brain/scrape";
 import { answerPendingChannel, publishFromButton, startPublish, switchScript } from "./uslub/botpublish";
 import { CALLBACK_RE, parseCallback } from "./uslub/botpublish-core";
 import { flushUsage, runWithContext } from "./uslub/context";
+import { clip, wellFormedDeep } from "./uslub/text";
 import {
   classifyOnboardText,
   gateMessage,
@@ -107,6 +108,9 @@ export function getBot(): Bot {
   const token = getEnv().TELEGRAM_BOT_TOKEN;
   if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not set");
   const instance = new Bot(token);
+  // Every Bot API call (bot.api, ctx.api, publish.ts) leaves without half an emoji: Telegram rejects text that is
+  // not valid UTF-8. Uploads (InputFile) and keyboards pass through untouched.
+  instance.api.config.use((prev, method, payload, signal) => prev(method, wellFormedDeep(payload), signal));
   registerHandlers(instance);
   bot = instance;
   return instance;
@@ -201,7 +205,7 @@ function registerHandlers(b: Bot) {
     await track(from, "message", { length: text.length });
     // The bot asked "which channel?" for a post (publish flow): a channel name answers that, not onboarding.
     if ((!/\s/.test(text.trim()) || /@|t\.me\//i.test(text)) && (await answerPendingChannel(ctx.api, ctx.chat.id, from, locale, text))) return;
-    const input = classifyOnboardText(text.slice(0, 4000));
+    const input = classifyOnboardText(clip(text, 4000));
     if (!input) {
       await ctx.reply(onboardPrompt(locale));
       return;
@@ -254,7 +258,7 @@ function registerHandlers(b: Bot) {
     const u = ctx.from;
     const item = plan.items.find((i) => i.slot === slot);
     const who = `${escapeHtml([u.first_name, u.last_name].filter(Boolean).join(" ") || "Mijoz")}${u.username ? ` (@${u.username})` : ""}`;
-    const post = item?.hook ? `«${escapeHtml(item.hook.slice(0, 80))}»` : `${slot}-post`;
+    const post = item?.hook ? `«${escapeHtml(clip(item.hook, 80))}»` : `${slot}-post`;
     try {
       await ctx.api.sendMessage(
         plan.ownerTelegramId,

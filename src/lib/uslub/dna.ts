@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { BrandDNA, BrandMode, Script } from "./contract";
 import type { ApiLang } from "./errors";
 import { llmJson, MODEL_QUALITY } from "./llm";
+import { clip } from "./text";
 
 const ScriptEnum = z.enum(["uz_latn", "uz_cyrl", "ru", "en"]);
 
@@ -79,11 +80,11 @@ export async function extractBrandDNA(input: {
 }): Promise<BrandDNA & { proseLang: ApiLang }> {
   const lang = input.lang ?? "uz";
   const fresh = input.mode === "fresh";
-  const samples = input.samplePosts.slice(-20).map((p) => p.slice(0, 900));
+  const samples = input.samplePosts.slice(-20).map((p) => clip(p, 900));
   const prompt = [
     input.channelTitle ? `Channel title: ${input.channelTitle}` : "",
     input.channelDescription ? `Channel description: ${input.channelDescription}` : "",
-    input.knowledge ? `Owner's notes about the business:\n${input.knowledge.slice(0, 6000)}` : "",
+    input.knowledge ? `Owner's notes about the business:\n${clip(input.knowledge, 6000)}` : "",
     samples.length
       ? `Recent posts (${samples.length}):\n${samples.map((p, i) => `--- post ${i + 1} ---\n${p}`).join("\n")}`
       : "No posts yet: build the DNA from the owner's description; keep it modest and practical.",

@@ -6,6 +6,7 @@
  */
 import type { ChannelData, Media, RawPost } from "./types";
 import { previewRedirected, serviceTexts } from "./validity";
+import { wellFormed } from "../text";
 
 export class BrainScrapeError extends Error {
   constructor(
@@ -43,14 +44,21 @@ export function parseCount(raw: string): { value: number; approx: boolean } | nu
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 
+/**
+ * HTML entities to text. A surrogate entity ("&#55357;") decodes to half an emoji: two of them in a row make a whole
+ * one, a lone half is dropped (wellFormed). A number past U+10FFFF is dropped instead of throwing.
+ */
 export function decode(s: string): string {
-  return s.replace(/&(#x?[0-9a-f]+|\w+);/gi, (all, e: string) => {
-    if (e[0] === "#") {
-      const code = e[1] === "x" || e[1] === "X" ? Number.parseInt(e.slice(2), 16) : Number.parseInt(e.slice(1), 10);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : all;
-    }
-    return ENTITIES[e.toLowerCase()] ?? all;
-  });
+  return wellFormed(
+    s.replace(/&(#x?[0-9a-f]+|\w+);/gi, (all, e: string) => {
+      if (e[0] === "#") {
+        const code = e[1] === "x" || e[1] === "X" ? Number.parseInt(e.slice(2), 16) : Number.parseInt(e.slice(1), 10);
+        if (!Number.isFinite(code)) return all;
+        return code > 0x10ffff ? "" : String.fromCodePoint(code);
+      }
+      return ENTITIES[e.toLowerCase()] ?? all;
+    }),
+  );
 }
 
 /** innerText-like: keeps line breaks, drops tags. */

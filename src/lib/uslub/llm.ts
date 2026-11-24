@@ -4,6 +4,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import { getEnv } from "@/lib/env";
 import { recordUsage } from "./context";
+import { wellFormed, wellFormedFetch } from "./text";
 
 /** Quality model for copy, brand DNA and research; fast model for cheap steps. */
 export const MODEL_QUALITY = "claude-sonnet-5-5";
@@ -33,7 +34,9 @@ export function isLlmConfigured(): boolean {
 export function getAnthropic(): Anthropic {
   const apiKey = getEnv().ANTHROPIC_API_KEY;
   if (!apiKey) throw new LlmError("AI is not configured (ANTHROPIC_API_KEY)", 503);
-  client ??= new Anthropic({ apiKey, timeout: 55_000, maxRetries: 1 });
+  // wellFormedFetch: every request body leaves without half an emoji (a lone surrogate makes it invalid JSON for
+  // the API: "unexpected end of hex escape"), whoever built it — llmJson, brainJson, knowledge, web, visual.
+  client ??= new Anthropic({ apiKey, timeout: 55_000, maxRetries: 1, fetch: wellFormedFetch() });
   return client;
 }
 
@@ -75,8 +78,8 @@ export async function llmJson<S extends z.ZodType>(opts: {
         max_tokens: opts.maxTokens ?? 8000,
         output_config: { effort: opts.effort ?? "low", format: betaZodOutputFormat(opts.schema) },
         ...(FALLBACK_MODELS.has(model) ? { betas: [FALLBACK_BETA], fallbacks: "default" as const } : {}),
-        system: opts.system,
-        messages: [{ role: "user", content: opts.prompt }],
+        system: wellFormed(opts.system),
+        messages: [{ role: "user", content: wellFormed(opts.prompt) }],
       },
       { timeout: opts.timeoutMs ?? 55_000, ...(opts.maxRetries != null ? { maxRetries: opts.maxRetries } : {}) },
     );
@@ -105,7 +108,7 @@ export async function llmWebResearch(opts: {
 }): Promise<{ text: string; sources: { url: string; title: string }[] }> {
   const anthropic = getAnthropic();
   const model = opts.model ?? MODEL_QUALITY;
-  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: opts.prompt }];
+  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: wellFormed(opts.prompt) }];
   const sources = new Map<string, string>();
   const texts: string[] = [];
   try {
@@ -117,7 +120,7 @@ export async function llmWebResearch(opts: {
           max_tokens: 8000,
           output_config: { effort: "low" },
           ...(FALLBACK_MODELS.has(model) ? { betas: [FALLBACK_BETA], fallbacks: "default" as const } : {}),
-          system: opts.system,
+          system: wellFormed(opts.system),
           tools: [{ type: "web_search_20260209", name: "web_search", max_uses: opts.maxUses ?? 5 }],
           messages,
         },

@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { BrandProfile, VideoPlan } from "./contract";
 import { llmJson, MODEL_QUALITY } from "./llm";
 import { polishUzLatin } from "./translit";
+import { clip } from "./text";
 
 const PlanSchema = z.object({
   hook: z.string(),
@@ -24,9 +25,7 @@ export async function planVideo(brand: BrandProfile, brief: string): Promise<Vid
   const plan = await llmJson({
     schema: PlanSchema,
     system: SYSTEM,
-    prompt: `BRAND DNA:\n${JSON.stringify(brand.dna)}\n\nKNOWLEDGE:\n${brand.knowledge.slice(0, 3000) || "(only the channel posts)"}\n\nRecent post example:\n${(
-      brand.samplePosts.at(-1) ?? ""
-    ).slice(0, 600)}\n\nVIDEO BRIEF: ${brief.slice(0, 1000)}`,
+    prompt: `BRAND DNA:\n${JSON.stringify(brand.dna)}\n\nKNOWLEDGE:\n${clip(brand.knowledge, 3000) || "(only the channel posts)"}\n\nRecent post example:\n${clip(brand.samplePosts.at(-1) ?? "", 600)}\n\nVIDEO BRIEF: ${clip(brief, 1000)}`,
     model: MODEL_QUALITY,
     effort: "low",
     maxTokens: 4000,

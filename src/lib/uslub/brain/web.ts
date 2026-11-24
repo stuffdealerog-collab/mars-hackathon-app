@@ -3,6 +3,7 @@ import { recordUsage } from "@/lib/uslub/context";
 import { getAnthropic } from "@/lib/uslub/llm";
 import { SONNET, wellFormed } from "./llm";
 import type { LedgerEntry } from "./types";
+import { clip } from "../text";
 
 /**
  * Web context (spec A2.3): one Sonnet call with server-side web search, plain text
@@ -62,7 +63,7 @@ export async function webContext(
         seen.add(key);
         out.push({
           id: `W${out.length + 1}`,
-          label: `${c.title ?? new URL(c.url).hostname}: ${block.text.trim().slice(0, 160)}`,
+          label: `${c.title ?? new URL(c.url).hostname}: ${clip(block.text.trim(), 160)}`,
           value: quote,
           display: Array.from(quote).slice(0, 220).join(""),
           url: c.url,

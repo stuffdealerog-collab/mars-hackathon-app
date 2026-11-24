@@ -3,6 +3,7 @@
  * goal, opening line and call to action, so the plan and the posts stay one thing.
  */
 import type { Goal, PlanSlot } from "./contract";
+import { clip } from "./text";
 
 export type SlotInput = PlanSlot & { brief: string };
 
@@ -44,7 +45,7 @@ export function slotBrief(slot: SlotInput): string {
 
 /** What we store as the post's brief (owner-readable): the plan's idea, without ids or meta. */
 export function slotSummary(slot: SlotInput): string {
-  return (cleanBrief(slot.brief) || cleanBrief(slot.hook) || `${slot.day} ${slot.time}`).slice(0, 2000);
+  return clip(cleanBrief(slot.brief) || cleanBrief(slot.hook) || `${slot.day} ${slot.time}`, 2000);
 }
 
 /** The slot as stored on the post (contract PlanSlot, no brief). */

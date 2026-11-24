@@ -18,6 +18,7 @@ import { features, LEXICON, median, normApos } from "./stats";
 import { sufficiency } from "./sufficiency";
 import type { ChannelData, ChannelStats, Goal, Lang, LedgerEntry, RuleResult } from "./types";
 import { webContext } from "./web";
+import { clip } from "../text";
 
 /* ------------------------------------------------------------------ D0 facts */
 
@@ -55,7 +56,7 @@ export async function extractFacts(kb: string): Promise<Fact[]> {
 }
 
 async function extractFactsUncached(kb: string): Promise<Fact[]> {
-  const res = await brainJson({ schema: FactsSchema, model: HAIKU, effort: "low", maxTokens: 5000, timeoutMs: 14_000, purpose: "facts", system: D0, prompt: `KNOWLEDGE BASE:\n${kb.slice(0, 12000)}` });
+  const res = await brainJson({ schema: FactsSchema, model: HAIKU, effort: "low", maxTokens: 5000, timeoutMs: 14_000, purpose: "facts", system: D0, prompt: `KNOWLEDGE BASE:\n${clip(kb, 12000)}` });
   const norm = ws(kb);
   return res.facts
     .filter((f) => f.quote.trim() && norm.includes(ws(f.quote)))

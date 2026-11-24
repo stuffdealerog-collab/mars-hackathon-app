@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { BrandProfile, RadarLead } from "./contract";
 import { llmJson, llmWebResearch, MODEL_FAST } from "./llm";
+import { clip } from "./text";
 
 const SEARCH_SYSTEM = `You are "Mijoz radar", the customer-finding employee of an AI marketing department in Uzbekistan.
 Use web search to find REAL places where this business's customers already are: Telegram channels and groups,
@@ -43,7 +44,7 @@ async function researchPass(prompt: string, maxUses: number, timeoutMs: number):
       "Convert research notes into structured leads. Keep only places that appear in the notes or search results. " +
       "url: the exact URL from the notes or sources, or empty string. audienceHint: only a number stated in the notes " +
       "(e.g. \"~45k obunachi\"), otherwise empty string. Write why/action in Uzbek (Latin), one short sentence each. Max 8 leads.",
-    prompt: `RESEARCH NOTES:\n${research.text.slice(0, 12000) || "(none)"}\n\nSEARCH RESULT URLS:\n${sourceText.slice(0, 6000) || "(none)"}`,
+    prompt: `RESEARCH NOTES:\n${clip(research.text, 12000) || "(none)"}\n\nSEARCH RESULT URLS:\n${clip(sourceText, 6000) || "(none)"}`,
     model: MODEL_FAST,
     effort: "low",
     maxTokens: 4000,

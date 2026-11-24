@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { AgentRole, BrandProfile, Flow, FlowEdge, FlowNode } from "./contract";
 import { llmJson, MODEL_FAST } from "./llm";
+import { clip } from "./text";
 
 const ROLES: AgentRole[] = ["brand", "analyst", "strategist","copywriter", "editor", "translator", "designer", "video", "publisher", "radar"];
 
@@ -98,7 +99,7 @@ export function guessRoles(task: string): AgentRole[] {
 
 /** Owner's task -> node graph of AI employees (the strategist decides who works). */
 export async function planFlow(brand: BrandProfile | null, task: string): Promise<Omit<Flow, "id">> {
-  let title = task.slice(0, 60);
+  let title = clip(task, 60);
   let roles: AgentRole[] = guessRoles(task);
   const notes: Record<string, string> = {};
   try {
