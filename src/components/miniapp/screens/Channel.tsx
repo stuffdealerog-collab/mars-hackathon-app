@@ -161,7 +161,7 @@ function Numbers() {
 /** A measured number on the sign, sized to its cell so every digit shows (123 456 on a 360 px phone). */
 function FitLed({ text }: { text: string }) {
   const { ref, width } = useWidth<HTMLElement>();
-  const fit = ledFit(text, width, { dot: 3.2, gap: 1.2 });
+  const fit = ledFit(text, width, { dot: 3.2, gap: 1.2 }, false); // numbers never run: always fit
   return (
     <dd ref={ref} className="min-w-0">
       {width > 0 && <Led text={text} dot={fit.dot} gap={fit.gap} label={text} grid={false} />}

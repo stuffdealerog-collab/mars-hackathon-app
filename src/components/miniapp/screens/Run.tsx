@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Led, LedStrip } from "../../lamp/Led";
+import { Led } from "../../lamp/Led";
 import { Mark } from "../../lamp/Mark";
 import { Panel, useLamps } from "../../studio/Department";
 import { SpectrumIntro } from "../../studio/SpectrumIntro";
@@ -8,7 +8,7 @@ import { fmt, useCopy } from "../../ui/lang";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons } from "../nav";
 import { TopBar } from "../Shell";
-import { ledFit, useWidth } from "../measure";
+import { Sign } from "../Sign";
 import { restart } from "../actions";
 import { haptic } from "../tg";
 
@@ -97,8 +97,6 @@ export function RunScreen({ active }: { active: boolean }) {
   const now = running ?? failed ?? lastDone;
   const nowLabel = now ? stepLabel(now, mode, c) : null;
   const led = sample ? undefined : input.channel ? `@${input.channel}` : undefined;
-  const { ref: stripRef, width: stripWidth } = useWidth<HTMLDivElement>();
-  const fit = ledFit(led ?? "", stripWidth - 24); // the strip beside the clock, minus its padding
 
   useBottomButtons(
     "run",
@@ -113,21 +111,18 @@ export function RunScreen({ active }: { active: boolean }) {
       <TopBar title={<Mark href={null} />} compact={false} pinned />
       <div className="ma-scroll">
         <div className="ma-pad ma-run">
-          <div className="flex items-center gap-2.5">
-            <div ref={ledRef} className="min-w-0 flex-1">
-              <div ref={stripRef} className="ma-sign rounded-[12px]">
-                <LedStrip text={led} dot={fit.dot} gap={fit.gap} run={fit.run} label={led} />
-              </div>
-            </div>
-            <span className="ma-sign rounded-[12px] bg-stage px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
+          {/* The sign has the whole row, so a channel name fits without running. */}
+          <Sign ref={ledRef} text={led} label={led} className="ma-sign rounded-[12px]" />
+
+          <h1 className="ma-h1 mt-6">{problem ? c.error.title : c.dept.working}</h1>
+          <div className="mt-2 flex min-h-6 items-start justify-between gap-3">
+            <p className="min-w-0 text-[16px] leading-snug" aria-live="polite">
+              {problem ? problem.message : nowLabel}
+            </p>
+            <span className="ma-sign shrink-0 rounded-[10px] bg-stage px-2.5 py-[7px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
               <Elapsed />
             </span>
           </div>
-
-          <h1 className="ma-h1 mt-6">{problem ? c.error.title : c.dept.working}</h1>
-          <p className="mt-2 min-h-6 text-[16px] leading-snug" aria-live="polite">
-            {problem ? problem.message : nowLabel}
-          </p>
           {!problem && <p className="mt-1 text-[14px] text-ink-3">{m.run.note}</p>}
 
           <div className={`relative mt-5 ${check ? "ma-lampcheck" : ""}`}>
@@ -151,5 +146,5 @@ function Elapsed() {
     return () => clearInterval(t);
   }, [problem]);
   const s = Math.max(0, Math.round((now - startedAt) / 1000));
-  return <Led text={`${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`} dot={3} gap={1.3} grid={false} label={`${s} s`} />;
+  return <Led text={`${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`} dot={2.2} gap={1} grid={false} label={`${s} s`} />;
 }
