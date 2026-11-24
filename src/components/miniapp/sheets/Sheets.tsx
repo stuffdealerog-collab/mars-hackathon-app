@@ -6,6 +6,7 @@ import { problemOf, useStudio } from "../../studio/store";
 import { ownerText } from "../../ui/format";
 import { fmt, LANGS, useCopy, useLang } from "../../ui/lang";
 import { parseChannel } from "../../ui/parts";
+import { blankNote, hasBlank } from "../blank";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons, useNav, type Sheet as SheetT } from "../nav";
 import { useClosingConfirmation } from "../native";
@@ -181,6 +182,7 @@ function EditSheet({ leaving, postId }: { leaving: boolean; postId: string }) {
 
   return (
     <Sheet title={m.edit.title} leaving={leaving}>
+      {post && hasBlank(post) && blankNote(post) && <p className="mb-1 mt-1 px-1 text-[14px] leading-snug text-led">{blankNote(post)}</p>}
       <label htmlFor={`${id}-t`} className="sr-only">
         {c.posts.textLabel}
       </label>
@@ -254,6 +256,7 @@ function DetailsSheet({ leaving, postId }: { leaving: boolean; postId: string })
   }
   if (post.brief && post.brief !== slot?.hook) rows.push([m.details.brief, ownerText(post.brief, lang)]);
   const busy = img?.status === "queued" || img?.status === "running";
+  const flagged = [...new Set(scripts.flatMap((s) => (post.neuroHits[s] ?? []).map((h) => h.phrase)))];
 
   return (
     <Sheet title={m.details.title} leaving={leaving}>
@@ -267,6 +270,16 @@ function DetailsSheet({ leaving, postId }: { leaving: boolean; postId: string })
           ))}
         </dl>
       )}
+
+      <p className="mt-4 px-1 text-[13.5px]">
+        <span className="tnum font-medium">{fmt(c.pro.natural, { n: post.humanScore })}</span>
+        {flagged.length > 0 && (
+          <>
+            <span className="text-ink-2"> · {c.pro.flagged}: </span>
+            <span className="text-bad">{flagged.slice(0, 6).join(", ")}</span>
+          </>
+        )}
+      </p>
 
       <p className="mb-2 mt-6 px-1 text-[13px] font-medium text-ink-2">{m.details.texts}</p>
       <div className="ma-group">

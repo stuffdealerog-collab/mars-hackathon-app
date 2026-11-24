@@ -1,9 +1,11 @@
 import type { ChannelAudit, PlanItem } from "@/lib/uslub/contract";
 import { ChevronRight, Settings2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { Led } from "../../lamp/Led";
 import { Panel, Strip, useLamps } from "../../studio/Department";
 import { slotKey, useStudio } from "../../studio/store";
-import { isMachineEvidence, ownerText, weekday } from "../../ui/format";
+import type { PlanItemExtra } from "../../studio/api";
+import { isMachineEvidence, ownerText, plural, weekday } from "../../ui/format";
 import { fmt, num, useCopy, useLang } from "../../ui/lang";
 import { useMiniCopy } from "../copy";
 import { useNav } from "../nav";
@@ -12,10 +14,16 @@ import { haptic } from "../tg";
 
 const KIND_ORDER = { problem: 0, opportunity: 1, strength: 2 } as const;
 
+// Professional rejim depth from the Studio, loaded only when Pro is on.
+const AuditFull = dynamic(() => import("../../studio/pro/ProDetails").then((m) => m.AuditFull), { ssr: false });
+const SufficiencyPanel = dynamic(() => import("../../studio/pro/ProDetails").then((m) => m.SufficiencyPanel), { ssr: false });
+const PlanRowDetails = dynamic(() => import("../../studio/pro/ProDetails").then((m) => m.PlanRowDetails), { ssr: false });
+
 /** «Kanal»: what Mercat read, what to fix, how the owner writes, the week's plan. */
 export function ChannelScreen({ onOpenPost }: { onOpenPost: (index: number) => void }) {
   const c = useCopy();
   const m = useMiniCopy();
+  const lang = useLang((s) => s.lang);
   const brand = useStudio((s) => s.brand);
   const mode = useStudio((s) => s.mode);
   const pro = useStudio((s) => s.pro);
@@ -25,7 +33,7 @@ export function ChannelScreen({ onOpenPost }: { onOpenPost: (index: number) => v
   const lamps = useLamps();
   const { ref, compact } = useCompact(56);
   const name = brand?.dna.name || brand?.channel || "Mercat";
-  const sub = [brand?.channel && brand.channel !== name ? brand.channel : null, mode === "channel" && postsRead != null ? `${postsRead} ${c.lampResult.postsRead}` : null]
+  const sub = [brand?.channel && brand.channel !== name ? brand.channel : null, mode === "channel" && postsRead != null ? `${postsRead} ${plural(c.lampResult.postsRead, postsRead, lang)}` : null]
     .filter(Boolean)
     .join(" · ");
 
@@ -65,6 +73,12 @@ export function ChannelScreen({ onOpenPost }: { onOpenPost: (index: number) => v
           <Voice />
           <Plan onOpenPost={onOpenPost} />
           {pro && <StrategyDetails />}
+          {pro && (
+            <div className="ma-pro mt-8 flex flex-col gap-8">
+              <AuditFull />
+              <SufficiencyPanel />
+            </div>
+          )}
         </div>
       </div>
     </>
@@ -284,11 +298,7 @@ function Plan({ onOpenPost }: { onOpenPost: (index: number) => void }) {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] leading-snug">{ownerText(it.hook, lang)}</span>
-                  {pro && (it.format || (it.brief && it.brief !== it.hook)) && (
-                    <span className="mt-1 block text-[13px] leading-snug text-ink-2">
-                      {[it.format, it.brief && it.brief !== it.hook ? ownerText(it.brief, lang) : null].filter(Boolean).join(" · ")}
-                    </span>
-                  )}
+                  {pro && <PlanRowDetails item={it as PlanItem & PlanItemExtra} />}
                   <span className={`mt-1 block text-[13px] ${has ? "text-ok" : "text-ink-3"}`}>
                     {has ? c.channel.planHasPost : busy ? <span className="breathe">{c.channel.writingSlot}</span> : c.channel.goal[it.goal]}
                   </span>
