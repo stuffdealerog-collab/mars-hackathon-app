@@ -36,8 +36,11 @@ interface NavState {
   retryBrand: string | null;
   /** The edit sheet holds unsaved text (MiniApp alone drives Telegram's closing confirmation). */
   dirtyEdit: boolean;
-  /** Posts whose publish answer was lost: the server is asked what happened before Publish is offered again. */
-  checking: Record<string, boolean>;
+  /**
+   * Publishes the server is asked about before Publish is offered again: "lost" (the answer never
+   * came: network, timeout) or "busy" (409 publish_in_progress: another tap is posting it right now).
+   */
+  checking: Record<string, "lost" | "busy" | undefined>;
   push: (r: Route) => void;
   pop: () => void;
   /** Drops every pushed screen at once (flow changes such as "start over"). */

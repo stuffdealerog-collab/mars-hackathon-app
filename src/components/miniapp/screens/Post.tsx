@@ -72,16 +72,24 @@ export function usePostActions() {
       haptic.warn();
       return;
     }
-    // The answer was lost (network, timeout), not necessarily the post: the server may have sent it.
-    // Ask before offering «Kanalga joylash» again, or the channel gets it twice.
-    if (r.message === c.error.network || r.message === c.error.timeout) {
-      useNav.setState({ checking: { ...useNav.getState().checking, [id]: true } });
-      const out = await wasPublished(id);
-      useNav.setState({ checking: { ...useNav.getState().checking, [id]: false } });
+    // Not a failure of the post: the answer was lost (network, timeout) or another tap is posting it
+    // right now (409 publish_in_progress). Ask the server before offering «Kanalga joylash» again.
+    const busyNow = r.code === "publish_in_progress";
+    const lost = r.message === c.error.network || r.message === c.error.timeout;
+    if (busyNow || lost) {
+      useNav.setState({ checking: { ...useNav.getState().checking, [id]: busyNow ? "busy" : "lost" } });
+      if (busyNow) useStudio.setState({ postNote: { ...useStudio.getState().postNote, [id]: undefined } });
+      const out = await wasPublished(id, busyNow ? 4 : 2);
+      useNav.setState({ checking: { ...useNav.getState().checking, [id]: undefined } });
       if (out) {
         useStudio.setState({ posts: useStudio.getState().posts.map((p) => (p.id === id ? { ...p, status: "published", publishedUrl: out.url ?? p.publishedUrl } : p)), postNote: { ...useStudio.getState().postNote, [id]: undefined } });
         haptic.success();
         say(m.post.publishedToast, "ok");
+        return;
+      }
+      if (busyNow) {
+        // Still going out on the other tap: said quietly, never as an error.
+        say(r.message);
         return;
       }
     }
@@ -91,17 +99,17 @@ export function usePostActions() {
   return { approve, publish };
 }
 
-/** Reads the post back (unthrottled): did a publish whose answer was lost go out after all? Tries twice. */
-async function wasPublished(id: string): Promise<{ url?: string } | null> {
+/** Reads the post back (unthrottled): did the publish go out after all? A few tries, 2.5 s apart. */
+async function wasPublished(id: string, tries = 2): Promise<{ url?: string } | null> {
   const brand = useStudio.getState().brand;
   if (!brand) return null;
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < tries; i++) {
     if (i) await new Promise((r) => setTimeout(r, 2500));
     const r = await api.listPosts(brand.id, useLang.getState().lang);
     if (!r.ok) continue;
     const p = r.data.posts.find((x) => x.id === id);
     if (p?.status === "published") return { url: p.publishedUrl };
-    if (p) return null;
+    if (p && i === tries - 1) return null;
   }
   return null;
 }
@@ -178,7 +186,7 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
   const nextOpen = posts.findIndex((p, i) => i !== index && statusOf(p) !== "published");
   // A blank the writer could not fill (a price, a code): the owner fills it before it can go out.
   const blank = useBlank(post);
-  const checking = useNav((st) => (post ? !!st.checking[post.id] : false));
+  const checking = useNav((st) => (post ? st.checking[post.id] : undefined));
   // Pictures are still coming (the store has not reached this post yet, or it is drawing): publishing
   // now would send text only.
   const picturesExpected = useStudio((st) => !st.sample && st.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")));
@@ -205,7 +213,7 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
       secondary = { text: c.posts.edit, onClick: edit, active: !moving };
     } else if (status === "approved") {
       main = checking
-        ? { text: m.post.checking, onClick: () => undefined, progress: true }
+        ? { text: checking === "busy" ? c.posts.publishing : m.post.checking, onClick: () => undefined, progress: true }
         : pictureComing
           ? { text: m.post.waitPicture, onClick: () => undefined, active: false }
           : { text: busy === "publish" ? c.posts.publishing : c.posts.publish, onClick: () => settled(post.id) && void publish(post.id, s), progress: busy === "publish", shine: true, active: !moving };
