@@ -112,6 +112,7 @@ const uz = {
     planMissing: "Bu sahifada reja saqlanmagan.",
     planRebuild: "Rejani qayta tuzish",
     freshNoStats: "Kanal hali bo‘sh, shuning uchun raqamlar yo‘q. Birinchi postlardan keyin bu yerda paydo bo‘ladi.",
+    launchTitle: "Birinchi obunachilarni qanday topish",
     newChannel: "Boshqa kanal",
   },
 
@@ -323,6 +324,7 @@ const ru: Copy = {
     planMissing: "План на этой странице не сохранён.",
     planRebuild: "Составить план заново",
     freshNoStats: "Канал пока пустой, поэтому цифр нет. Они появятся здесь после первых постов.",
+    launchTitle: "Как найти первых подписчиков",
     newChannel: "Другой канал",
   },
 
@@ -532,6 +534,7 @@ const en: Copy = {
     planMissing: "The plan isn’t saved on this page.",
     planRebuild: "Plan again",
     freshNoStats: "The channel is still empty, so there are no numbers yet. They will show up here after the first posts.",
+    launchTitle: "How to get the first subscribers",
     newChannel: "Another channel",
   },
 

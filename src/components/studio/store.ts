@@ -51,6 +51,7 @@ interface StudioState {
   audit: ChannelAudit | null;
   auditProblem: Problem | null;
   strategy: Strategy | null;
+  launch: api.Launch | null;
   plan: ContentPlan | null;
   planProgress: { n: number; m: number } | null;
   posts: PostDraft[];
@@ -223,7 +224,7 @@ export const useStudio = create<StudioState>((set, get) => {
       });
       if (my !== runId) return;
       if (!r.ok) return fail("plan", r);
-      set({ plan: r.data.plan, strategy: r.data.strategy });
+      set({ plan: r.data.plan, strategy: r.data.strategy, launch: r.data.launch?.tactics?.length ? r.data.launch : null });
       step("plan", { status: "done", n: r.data.plan.items.length });
     }
 
@@ -347,6 +348,7 @@ export const useStudio = create<StudioState>((set, get) => {
     audit: null,
     auditProblem: null,
     strategy: null,
+    launch: null,
     plan: null,
     planProgress: null,
     posts: [],
@@ -412,6 +414,7 @@ export const useStudio = create<StudioState>((set, get) => {
         auditProblem: null,
         plan: null,
         strategy: null,
+    launch: null,
         planProgress: null,
         posts: [],
         postsRead: null,
@@ -434,6 +437,7 @@ export const useStudio = create<StudioState>((set, get) => {
         auditProblem: null,
         plan: null,
         strategy: null,
+    launch: null,
         planProgress: null,
         posts: [],
         postsRead: null,
@@ -467,6 +471,7 @@ export const useStudio = create<StudioState>((set, get) => {
         auditProblem: null,
         plan: null,
         strategy: null,
+    launch: null,
         planProgress: null,
         posts: [],
         postsRead: null,
@@ -531,7 +536,7 @@ export const useStudio = create<StudioState>((set, get) => {
         set({ planProgress: null, problem: problemOf(r) });
         return;
       }
-      set({ plan: r.data.plan, strategy: r.data.strategy, planProgress: null, problem: null });
+      set({ plan: r.data.plan, strategy: r.data.strategy, launch: r.data.launch?.tactics?.length ? r.data.launch : null, planProgress: null, problem: null });
       step("plan", { status: "done", n: r.data.plan.items.length });
     },
 

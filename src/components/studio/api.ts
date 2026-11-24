@@ -40,8 +40,11 @@ export function tgInitData(): string | undefined {
   return d ? d : undefined;
 }
 
-export const botPublishUrl = (bot: string, postId: string) =>
-  `https://t.me/${bot}?start=${encodeURIComponent(`publish_${postId}`.slice(0, 64))}`;
+/** Bot deep link; the suffix tells the bot which text to publish (uz Latin is the default). */
+export const botPublishUrl = (bot: string, postId: string, script: Script = "uz_latn") => {
+  const suffix = script === "uz_latn" ? "" : `_${script}`;
+  return `https://t.me/${bot}?start=${encodeURIComponent(`publish_${postId}${suffix}`.slice(0, 64))}`;
+};
 
 function headers(): Record<string, string> {
   const init = tgInitData();
@@ -120,6 +123,10 @@ export function analyzeChannel(channel: string, lang: Lang) {
 
 /* --------------------------------------------------------------- strategy */
 
+/** Empty-channel brands also get launch tactics (how to get the first subscribers). */
+export type Launch = { weeks?: number; tactics: { title: string; how: string; why?: string }[] };
+export type StrategyResult = { strategy: Strategy; plan: ContentPlan; launch?: Launch };
+
 export type StrategyEvent =
   | { stage: "skeleton"; slots: unknown[] }
   | { stage: "item"; item: PlanItem }
@@ -134,7 +141,7 @@ export async function buildStrategy(
   lang: Lang,
   onEvent: (e: StrategyEvent) => void,
   timeoutMs = 75_000,
-): Promise<Res<{ strategy: Strategy; plan: ContentPlan }>> {
+): Promise<Res<StrategyResult>> {
   const ctrl = new AbortController();
   let timedOut = false;
   const timer = setTimeout(() => {
@@ -151,13 +158,13 @@ export async function buildStrategy(
     if (!res.ok) return await failFrom(res);
     const type = res.headers.get("content-type") ?? "";
     if (!type.includes("ndjson") || !res.body) {
-      const j = (await res.json().catch(() => null)) as { strategy: Strategy; plan: ContentPlan } | null;
+      const j = (await res.json().catch(() => null)) as StrategyResult | null;
       return j?.plan ? { ok: true, data: j } : { ok: false, code: "bad_json", status: res.status };
     }
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let buf = "";
-    let result: { strategy: Strategy; plan: ContentPlan } | null = null;
+    let result: StrategyResult | null = null;
     let failure: Fail | null = null;
     const line = (raw: string) => {
       const s = raw.trim();
@@ -168,7 +175,7 @@ export async function buildStrategy(
       } catch {
         return;
       }
-      if (e.stage === "result") result = e as unknown as { strategy: Strategy; plan: ContentPlan };
+      if (e.stage === "result") result = e as unknown as StrategyResult;
       else if (e.stage === "error") failure = { ok: false, code: e.code ?? "http", status: e.status ?? 500, error: e.error };
       else onEvent(e);
     };

@@ -13,10 +13,32 @@ export function ChannelTab() {
   return (
     <div className="flex flex-col gap-12">
       {mode === "channel" ? <Numbers /> : <p className="text-[15px] leading-relaxed text-ink-2">{c.channel.freshNoStats}</p>}
+      {mode === "fresh" && <Launch />}
       <Voice />
       <Plan />
       {pro && <StrategyDetails />}
     </div>
+  );
+}
+
+/** Empty channel: how to get the first subscribers (the strategist's launch tactics). */
+function Launch() {
+  const c = useCopy();
+  const lang = useLang((s) => s.lang);
+  const launch = useStudio((s) => s.launch);
+  if (!launch?.tactics.length) return null;
+  return (
+    <Section id="launch-h" title={c.channel.launchTitle}>
+      <ol className="flex flex-col gap-3">
+        {launch.tactics.slice(0, 5).map((t, i) => (
+          <li key={i} className="card p-4 sm:p-5">
+            <p className="text-[16px] font-semibold leading-snug">{ownerText(t.title, lang)}</p>
+            <p className="mt-1.5 text-[15px] leading-relaxed">{ownerText(t.how, lang)}</p>
+            {t.why && <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{ownerText(t.why, lang)}</p>}
+          </li>
+        ))}
+      </ol>
+    </Section>
   );
 }
 

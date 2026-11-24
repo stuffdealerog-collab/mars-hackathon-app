@@ -109,7 +109,7 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
                   {busy === "publish" ? c.posts.publishing : c.posts.publish}
                 </button>
               ) : (
-                <a href={botPublishUrl(bot, post.id)} target="_blank" rel="noreferrer" className="btn w-full sm:w-auto sm:self-start">
+                <a href={botPublishUrl(bot, post.id, script)} target="_blank" rel="noreferrer" className="btn w-full sm:w-auto sm:self-start">
                   {c.posts.publish}
                 </a>
               )}
