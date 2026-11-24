@@ -21,6 +21,7 @@ import { decideIntro, forcedByUrl, INTRO_CLOUD_KEY, introSeen, localIntro } from
 import { launchTarget } from "./launch";
 import { restart } from "./actions";
 import { useResume } from "./sync";
+import { isLimit } from "./limits";
 import { cloud, haptic, tg } from "./tg";
 
 /**
@@ -229,9 +230,14 @@ function Tabs({ active }: { active: boolean }) {
   useEffect(() => {
     if (!problem || said.current === problem) return;
     said.current = problem;
+    if (isLimit(problem.code)) {
+      haptic.warn();
+      useNav.getState().say(m.limit.note, "plain");
+      return;
+    }
     haptic.error();
     useNav.getState().say(problem.message, "bad");
-  }, [problem]);
+  }, [problem, m]);
 
   const pick = (t: PhoneTab) => {
     if (t === tab) return;

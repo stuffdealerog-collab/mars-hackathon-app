@@ -11,6 +11,7 @@ import type { PlanItemExtra } from "../../studio/api";
 import { isMachineEvidence, ownerText, plural, weekday } from "../../ui/format";
 import { fmt, num, useCopy, useLang } from "../../ui/lang";
 import { useMiniCopy } from "../copy";
+import { isLimit } from "../limits";
 import { ledFit, useWidth } from "../measure";
 import { useNav } from "../nav";
 import { Skel, TopBar, useCompact } from "../Shell";
@@ -106,6 +107,7 @@ function H2({ id, children }: { id: string; children: React.ReactNode }) {
 
 function Numbers() {
   const c = useCopy();
+  const m = useMiniCopy();
   const lang = useLang((s) => s.lang);
   const audit = useStudio((s) => s.audit);
   const problem = useStudio((s) => s.auditProblem);
@@ -116,7 +118,7 @@ function Numbers() {
       <>
         {problem ? (
           <div className="ma-group mt-6 flex flex-col items-start gap-3 p-4">
-            <p className="text-[15px] leading-relaxed text-ink-2">{problem.message}</p>
+            <p className="text-[15px] leading-relaxed text-ink-2">{isLimit(problem.code) ? m.limit.note : problem.message}</p>
             <button type="button" className="btn-2 !min-h-11" onClick={() => void reload()}>
               {c.error.retry}
             </button>
@@ -138,7 +140,9 @@ function Numbers() {
   if (audit.subscribers != null) cells.push([big(audit.subscribers), c.channel.subscribers]);
   if (audit.avgViews != null) cells.push([big(Math.round(audit.avgViews)), c.channel.avgViews]);
   if (audit.reachRate != null) cells.push([`${num(audit.reachRate * 100, lang)}%`, c.channel.reach]);
-  cells.push([num(audit.postsPerWeek, lang, 1), c.channel.perWeek]);
+  // "2 поста в неделю", "5 постов в неделю"; a fraction (1,5) takes the fraction form.
+  const perWeek = Math.round(audit.postsPerWeek * 10) / 10;
+  cells.push([num(audit.postsPerWeek, lang, 1), Number.isInteger(perWeek) ? plural(c.channel.perWeekForms, perWeek, lang) : c.channel.perWeekFraction]);
 
   return (
     <>
