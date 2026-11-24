@@ -1,6 +1,6 @@
 import type { ChannelAudit, ContentPlan } from "@/lib/uslub/contract";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { keepAudit, keepPlan, keptAudit, keptPlan } from "./keep";
+import { keepAudit, keepPlan, keptAudit, keptPlan, pickPlan } from "./keep";
 
 // The tests run in node: a minimal localStorage stands in for the browser's.
 const store = new Map<string, string>();
@@ -52,5 +52,41 @@ describe("kept plan", () => {
   it("ignores a stored value without plan items", () => {
     store.set("mercat.plan.b1", JSON.stringify({ plan: { items: "nope" } }));
     expect(keptPlan("b1")).toBeNull();
+  });
+});
+
+describe("which plan a reopen shows", () => {
+  const server = { items: [{ day: "tue" }] } as unknown as ContentPlan;
+  const at = Date.parse("2026-11-25T10:00:00Z");
+
+  it("takes the server's plan when this device has none", () => {
+    expect(pickPlan(null, { plan: server, strategy: null, createdAt: "2026-11-25T10:00:00Z" })?.plan).toEqual(server);
+  });
+
+  it("keeps this device's copy when the server has none", () => {
+    const kept = { plan, strategy: null, launch: null, sufficiency: null, at };
+    expect(pickPlan(kept, { plan: null })).toBe(kept);
+    expect(pickPlan(kept, null)).toBe(kept);
+    expect(pickPlan(null, { plan: null })).toBeNull();
+  });
+
+  it("prefers the server's newer plan from another device", () => {
+    const kept = { plan, strategy: null, launch: null, sufficiency: null, at };
+    expect(pickPlan(kept, { plan: server, createdAt: "2026-11-25T11:00:00Z" })?.plan).toEqual(server);
+  });
+
+  it("keeps a local plan built well after the server's (its save was missed)", () => {
+    const kept = { plan, strategy: null, launch: null, sufficiency: null, at };
+    expect(pickPlan(kept, { plan: server, createdAt: "2026-11-25T09:00:00Z" })).toBe(kept);
+  });
+
+  it("keeps the local extras when both hold the same plan", () => {
+    const kept = { plan, strategy: null, launch: null, sufficiency: [], at };
+    expect(pickPlan(kept, { plan: JSON.parse(JSON.stringify(plan)), createdAt: "2026-11-25T11:00:00Z" })).toBe(kept);
+  });
+
+  it("reads back when the plan was kept", () => {
+    keepPlan("b1", { plan, strategy: null, launch: null, sufficiency: null });
+    expect(typeof keptPlan("b1")?.at).toBe("number");
   });
 });

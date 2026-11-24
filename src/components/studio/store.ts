@@ -15,7 +15,7 @@ import { useLang, type Lang } from "../ui/lang";
 import * as api from "./api";
 import type { Fail } from "./api";
 import { latestBatch } from "./batch";
-import { keepAudit, keepPlan, keptAudit, keptPlan } from "./keep";
+import { keepAudit, keepPlan, keptAudit, keptPlan, pickPlan, type KeptPlan } from "./keep";
 import { sampleAudit, sampleBrand, samplePlan, samplePosts } from "./sample";
 
 export type Phase = "start" | "working" | "ready" | "reopening";
@@ -72,6 +72,8 @@ interface StudioState {
   /** How much real data stood behind each part of the plan (Brain v2), for Professional rejim. */
   sufficiency: api.Sufficiency[] | null;
   plan: ContentPlan | null;
+  /** A reopen is asking the server for the brand's saved plan (and this device has none to show meanwhile). */
+  planLoading: boolean;
   planProgress: { n: number; m: number } | null;
   posts: PostDraft[];
   steps: Step[];
@@ -646,6 +648,7 @@ export const useStudio = create<StudioState>((set, get) => {
     launch: null,
     sufficiency: null,
     plan: null,
+    planLoading: false,
     planProgress: null,
     posts: [],
     steps: [],
@@ -776,6 +779,7 @@ export const useStudio = create<StudioState>((set, get) => {
         audit: null,
         auditProblem: null,
         plan: null,
+        planLoading: false,
         strategy: null,
     launch: null,
     sufficiency: null,
@@ -919,11 +923,25 @@ export const useStudio = create<StudioState>((set, get) => {
           s.key === "read" || s.key === "voice" ? { ...s, status: "done" } : s.key === "posts" && posts.length ? { ...s, status: "done", n: posts.length } : s,
         ),
       });
+      // The plan: this device's copy at once, then the server's latest (built on any device).
+      // Neither: Kanal offers «Rejani tuzish».
+      const showPlan = (v: KeptPlan) => {
+        set({ plan: v.plan, strategy: v.strategy, launch: v.launch?.tactics?.length ? v.launch : null, sufficiency: v.sufficiency });
+        step("plan", { status: "done", n: v.plan.items.length });
+      };
       const kept = keptPlan(brand.id);
-      if (kept) {
-        set({ plan: kept.plan, strategy: kept.strategy, launch: kept.launch?.tactics?.length ? kept.launch : null, sufficiency: kept.sufficiency });
-        step("plan", { status: "done", n: kept.plan.items.length });
-      }
+      if (kept) showPlan(kept);
+      set({ planLoading: !kept });
+      void api.savedPlan(brand.id, L).then((r) => {
+        if (my !== runId) return;
+        set({ planLoading: false });
+        // A plan being built right now is newer than anything saved.
+        if (get().planProgress) return;
+        const pick = pickPlan(kept, r.ok ? r.data : null);
+        if (!pick || pick === kept) return;
+        showPlan(pick);
+        keepPlan(brand.id, pick);
+      });
       if (mode === "channel" && brand.channel) {
         const audit = keptAudit(brand.id);
         if (audit) set({ audit, auditProblem: null });
