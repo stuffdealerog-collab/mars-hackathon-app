@@ -210,14 +210,17 @@ A black stage lit only by work: ten spectral lamp hues, one amber for numbers, o
 - **Error Red** (`bad`): invalid field stroke, error filament, the wavy underline under a "neuro-word" the editor flagged.
 
 ### Neutral
-- **True Black Stage** (`stage`): the page ground in the dark world.
+- **Warm Room** (`stage`): on a computer screen (`.desk`) the stage is warm graphite `#171513`, and every surface is lighter than the room (glass `#1f1c19` → `#302c27`, the hub's glass too): light needs somewhere to land, and cards read as things, not holes. The LED well (`#0d0c0a`) is the darkest object; there is no pure black. Phones and the Mini App still use the black stage below.
+- **True Black Stage** (phones and the Mini App, for now): the page ground in the dark world.
 - **Dark Glass** (`glass`, `glass-2`, `glass-3`): three steps of near-black for idle tiles, raised surfaces (fields, posts, quiet buttons) and pressed or selected states.
 - **Filament Hairline** (`hair`, `hair-2`): white at 7% and 13%, drawn as a 1px inset ring. This is the only border in the system.
 - **Warm Ink** (`ink`, `ink-2`, `ink-3`): primary text, secondary text, placeholders and meta.
 - **Light theme** (`light-stage`, `light-glass*`, `light-ink*`): white stage, warm paper glass, near-black ink. Used only where the host (Telegram) asks for light.
 
 ### Named Rules
-**The Light Means Work Rule.** A lamp glows only while its employee works (`warming`) or holds a result (`on`, `you`). Idle is dark glass. Never light a tile, a card or a section for decoration, and never give a non-lamp surface a coloured glow.
+**The Light Means Work Rule.** A lamp glows only while its employee works (`warming`) or holds a result (`on`, `you`). Idle is dark glass. Never light a tile, a card or a section for decoration, and never give a non-lamp surface a coloured glow. A lit lamp's light reaches the room only next to its own tile: on the wall above the panel for the top row, on the floor below for the bottom row. A standby ember in the filament means the employee is ready, not working; its light stays inside the filament slot.
+
+**The No Halo Rule.** No black shadow, halo, plate or scrim at the text or the LED of a lit lamp. Contrast comes from where the text stands: under the bulb.
 
 **The Owner's Hand Rule.** Lime marks owner actions only, with one enabled lime action per screen. Lime is never a lamp hue, never a chart colour, never decoration.
 
@@ -273,11 +276,12 @@ Flat glass in the dark world. Depth comes from tone (stage → glass → glass-2
 ### Shadow Vocabulary
 - **Hairline ring** (`box-shadow: inset 0 0 0 1px var(--hair)`): every tile, card, post, quiet button and segmented control.
 - **Lamp spill** (`background: var(--hue); filter: blur(28px)`, inset 22% 8% -12% 8%): only under a working or finished lamp.
-- **Lamp highlight** (`inset 0 1px 0 rgb(255 255 255 / 0.4), inset 0 0 0 1px rgb(255 255 255 / 0.1)`): the glass lip of a lit lamp.
+- **Lamp highlight** (`inset 0 1px 0 rgb(255 255 255 / 0.22)`): the glass lip of a lit lamp, only on top. On a computer there is no ring around the tile, so no grey frame circles a dark bottom (mini-lamps included).
+- **Panel housing** (`#12110f`, radius 34, padding 12, `inset 0 1px 0 rgb(255 255 255 / .05), inset 0 0 0 1px rgb(255 255 255 / .035)`): the ten lamps as one recessed instrument on a computer (start, the run, Bo‘lim, the landing). No occlusion shadow.
 - **Light-theme paper** (`0 1px 2px rgb(10 10 15 / 0.08), 0 8px 24px -12px rgb(10 10 15 / 0.18)`): Telegram posts and deck edges on the white stage only.
 
 ### Named Rules
-**The Only Lamps Emit Rule.** Drop shadows and coloured glows belong to lit lamps (and the LED's own dot glow). Every other surface is flat with a hairline.
+**The Only Lamps Emit Rule.** Drop shadows and coloured glows belong to lit lamps (and the LED's own dot glow). Every other surface is flat with a hairline. The light on the wall and the floor around the housing, the spots under the hub's glass and a picture's light are the lamps' and the pictures' own light, not new sources.
 
 ## Shapes
 
@@ -314,6 +318,8 @@ Soft, generous and consistent. Every control is a pill (999px): buttons, the lin
 - **Tabs (Studio):** Kanal · Postlar · Video, a 2px ink underline on the active tab, sticky under the header.
 
 ### Lamp Tile (signature)
+On a computer (`.desk`): tiles 160 px (104 on Start, where they never light), the words start at 52 px under the bulb, and the glow's radii are fixed in pixels (bulb `55% 45px`, light `120% 125px`), so a taller tile never stretches the hot zone under the text. Off: a hardware body and an ember of the lamp's colour in the filament (26×3 at 60%); a valid link arms the embers to hot filaments. In the sample the Dizayner says "namunada rasmsiz", not "tez orada".
+
 One employee, one lamp. Dark glass, filament hairline, name at the bottom, result in the middle. States: `off` (dark, title 450 ink-2), `warming` (glass pulses 0.34 ↔ 0.70 every 2.4s, filament hot), `on` (full glow with flicker-in, result fades in 260ms later), `you` (lit, with a lime dot and "sizni kutmoqda": waiting for the owner), `error` (glow 16% desaturated, red filament). Results show the lamp's measured number in the LED matrix printed in the lamp's own ink, or a short phrase.
 
 ### LED Readout (signature)
@@ -331,6 +337,7 @@ The owner's unit of work drawn close to Telegram's bubble: the picture full-blee
 - **Pipeline step:** each next lamp lights faster, 420ms down to 170ms.
 - **Numbers** settle on a spring (stiffness 170, damping 18) with a slight overshoot; they never jump.
 - **Spektr** (the signature moment, the first run of a page only): the LED sign with the owner's channel squeezes to a white-hot point (380ms), charges, drops onto the panel, splits into ten hue beams 22ms apart; each lamp flashes once as its beam lands (a power-on lamp test), then only working employees stay lit. About 1.9s, on WAAPI. Retries do not replay it.
+- **Ready:** nothing moves except the "your turn" dot by Postlar in the hub (1 ↔ .45 over 4.8 s) and a Dizayner at work. The run's start (computer): Spektr, then every available lamp's light on the room flares for 0.9 s.
 - **Reduced motion:** no flicker, no Spektr, no running line; lamps fade over 150ms and the state still reads.
 
 ## Do's and Don'ts

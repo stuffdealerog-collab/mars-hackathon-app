@@ -91,7 +91,7 @@ function Row({ post, script, active, onPick }: { post: PostDraft; script: Script
       </span>
       <span className="min-w-0 flex-1">
         <span className={`block truncate text-[14px] leading-tight ${active ? "text-ink" : "text-ink-2"}`}>{first}</span>
-        {when && <span className="tnum mt-0.5 block truncate text-[12px] text-ink-3">{fmt(c.queue.suggest, { when })}</span>}
+        {when && <span className={`tnum mt-0.5 block truncate text-[12px] ${active ? "text-ink-2" : "text-ink-3"}`}>{fmt(c.queue.suggest, { when })}</span>}
       </span>
       {post.status === "draft" && <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-lime shadow-[0_0_8px_var(--lime)]" />}
     </div>
