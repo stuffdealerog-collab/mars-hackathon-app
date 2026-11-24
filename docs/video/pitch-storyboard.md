@@ -104,7 +104,8 @@ Use royalty-free music only (YouTube Audio Library, Pixabay, Uppbeat, or Artlist
 
 ## Open decisions (founder)
 
-1. **The reference video** you mentioned. Send it, and the look of AI-A1/A2 and the edit rhythm will be matched to it.
-2. **The demo channel** for SR0–SR9: whose channel is it, and do we have their consent?
-3. **The interview quotes:** show them as "(по смыслу)", or get the exact wording approved?
-4. **The VO voice:** a generated voice (runbook §5) or the founder's own Russian voice. A real voice is warmer and has zero AI risk.
+*Decided 24 Nov: no reference video. The look comes from our own look bible (runbook §3, LOOK-H / LOOK-A) and the Blender renders in `public/media/3d`. The edit rhythm comes from the music beats (rulebook §5).*
+
+1. **The demo channel** for SR0–SR9: whose channel is it, and do we have their consent?
+2. **The interview quotes:** show them as "(по смыслу)", or get the exact wording approved?
+3. **The VO voice:** a generated voice (runbook §6) or the founder's own Russian voice. A real voice is warmer and has zero AI risk.

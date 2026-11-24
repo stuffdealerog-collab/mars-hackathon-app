@@ -49,7 +49,6 @@ Attach these to the chat and upload them with `media_upload` / `media_confirm`, 
 | R2 | `public/media/3d/orbs/orb-core.png` | the lime core orb, locked |
 | R3 | `public/media/3d/clay-push-in.mp4` | **@Clay Render**: camera path and timing for AI-A1 |
 | R4 | `public/media/3d/constellation-push-in.mp4` | fallback/reference: the same move, already rendered |
-| R5 | the founder's reference video (when it arrives) | style and rhythm reference for AI-A1/A2 only |
 
 ---
 
