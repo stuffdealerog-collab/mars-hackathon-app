@@ -1,6 +1,7 @@
 import "server-only";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
+import { recordUsage } from "@/lib/uslub/context";
 import { getAnthropic, LlmError } from "@/lib/uslub/llm";
 
 /** Drops lone UTF-16 surrogates (e.g. an emoji cut in half), which make the request body invalid JSON. */
@@ -22,9 +23,11 @@ export async function brainJson<S extends z.ZodType>(opts: {
   effort: "low" | "medium" | "high";
   maxTokens?: number;
   timeoutMs?: number;
+  purpose?: string;
 }): Promise<z.infer<S>> {
   const anthropic = getAnthropic();
   const sonnet = opts.model === SONNET;
+  const t0 = Date.now();
   const response = await anthropic.beta.messages
     .parse(
       {
@@ -41,6 +44,7 @@ export async function brainJson<S extends z.ZodType>(opts: {
       console.error("[brain/llm]", opts.model, err instanceof Error ? err.message : err);
       throw new LlmError("AI request failed", 502);
     });
+  recordUsage(response.model ?? opts.model, response.usage, t0, opts.purpose ?? "brain");
   if (response.stop_reason === "refusal") throw new LlmError("AI declined this request", 422);
   if (response.stop_reason === "max_tokens") throw new LlmError("AI answer was cut off", 502);
   if (response.parsed_output == null) throw new LlmError("AI returned an unexpected format", 502);

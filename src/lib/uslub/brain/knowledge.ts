@@ -4,6 +4,7 @@ import { lookup as lookupAll } from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
 import { isIP, type LookupFunction } from "node:net";
+import { recordUsage } from "@/lib/uslub/context";
 import { getAnthropic } from "@/lib/uslub/llm";
 import {
   capText,
@@ -188,6 +189,7 @@ Write table rows as one line each, cells separated by " — ". Do not summarise,
 export async function transcribePdf(bytes: Uint8Array): Promise<{ text: string; truncated: boolean }> {
   if (bytes.length > PDF_MAX_BYTES || pdfPageCount(bytes) > PDF_MAX_PAGES) throw new KnowledgeError("TOO_LARGE", MSG.tooLarge);
   let response;
+  const t0 = Date.now();
   try {
     response = await getAnthropic().messages.create(
       {
@@ -210,6 +212,7 @@ export async function transcribePdf(bytes: Uint8Array): Promise<{ text: string; 
     console.warn("[brain/knowledge] pdf transcription failed", err instanceof Error ? err.message : err);
     throw new KnowledgeError("PDF_FAILED", MSG.pdfFailed);
   }
+  recordUsage(response.model ?? "claude-haiku-5-5", response.usage, t0, "pdf_transcribe");
   if (response.stop_reason === "refusal") throw new KnowledgeError("PDF_FAILED", MSG.pdfFailed);
   const text = response.content
     .filter((b) => b.type === "text")

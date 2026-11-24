@@ -55,7 +55,7 @@ export async function extractFacts(kb: string): Promise<Fact[]> {
 }
 
 async function extractFactsUncached(kb: string): Promise<Fact[]> {
-  const res = await brainJson({ schema: FactsSchema, model: HAIKU, effort: "low", maxTokens: 5000, timeoutMs: 14_000, system: D0, prompt: `KNOWLEDGE BASE:\n${kb.slice(0, 12000)}` });
+  const res = await brainJson({ schema: FactsSchema, model: HAIKU, effort: "low", maxTokens: 5000, timeoutMs: 14_000, purpose: "facts", system: D0, prompt: `KNOWLEDGE BASE:\n${kb.slice(0, 12000)}` });
   const norm = ws(kb);
   return res.facts
     .filter((f) => f.quote.trim() && norm.includes(ws(f.quote)))
@@ -233,6 +233,27 @@ const OQ: Record<Lang, Record<string, string>> = {
   },
 };
 
+const OWNER_TEXT: Record<Lang, { needInput: string; blocked: string; unknownWhere: string; weakDiff: string }> = {
+  uz: {
+    needInput: "Egasidan ma'lumot kerak",
+    blocked: "Taklif tuzish uchun narx kerak: asosiy mahsulot yoki xizmatlaringiz narxini yuboring.",
+    unknownWhere: "Hali noma'lum: mijozlar qayerda ekanini «Mijoz radar» qidiradi.",
+    weakDiff: "Raqobatchilardan farqingiz aniq emas: bitta aniq misol yozing — siz nimani boshqalardan boshqacha qilasiz?",
+  },
+  ru: {
+    needInput: "Нужно от владельца",
+    blocked: "Для предложения нужна цена: пришлите цены на основные товары или услуги.",
+    unknownWhere: "Пока неизвестно: где ваши клиенты, найдёт «Радар клиентов».",
+    weakDiff: "Неясно, чем вы отличаетесь от конкурентов: напишите один конкретный пример.",
+  },
+  en: {
+    needInput: "Needed from the owner",
+    blocked: "We need a price to build the offer: send the prices of your main products or services.",
+    unknownWhere: "Not known yet: the customer radar will look for where your customers are.",
+    weakDiff: "It's not clear how you differ from competitors: write one concrete example.",
+  },
+};
+
 /** Content words (≥4 letters, first 5 letters as a crude Uzbek stem) for near-duplicate hooks. */
 const words = (s: string) => new Set(normApos(s).toLowerCase().split(/[^\p{L}']+/u).filter((w) => w.length >= 4).map((w) => w.slice(0, 5)));
 
@@ -386,6 +407,7 @@ export async function buildStrategy(inp: StrategyInput) {
     if (web.length) emit({ stage: "web", sources: web.map(({ id, url, display }) => ({ id, url, display })) });
     const d2 = await brainJson({
       schema: StrategySchema,
+      purpose: "strategist",
       model: SONNET,
       effort: "low",
       maxTokens: 6000,
@@ -433,6 +455,7 @@ export async function buildStrategy(inp: StrategyInput) {
     try {
       const cr = await brainJson({
         schema: CriticSchema,
+        purpose: "critic",
         model: HAIKU,
         effort: "low",
         maxTokens: 3000,
@@ -450,6 +473,7 @@ export async function buildStrategy(inp: StrategyInput) {
   const draftCall = (slots: Slot[], repair: boolean) =>
     brainJson({
       schema: PlanSchema,
+      purpose: repair ? "slot_repair" : "slot_writer",
       model: SONNET,
       effort: "medium",
       maxTokens: repair ? 6000 : 8000,
@@ -523,7 +547,7 @@ export async function buildStrategy(inp: StrategyInput) {
     const hard = fails.filter((f) => ["GROUNDED", "PRICE", "URGENCY"].includes(f.check));
     if (hard.length) {
       if (groundedCheck(hook, ledgerMap, it?.factIds ?? []).length) hook = "";
-      brief = `Egasidan ma'lumot kerak: ${hard.map((f) => `${f.quote} — ${f.reason}`).join("; ")}`;
+      brief = `${OWNER_TEXT[lang].needInput}: ${hard.map((f) => `${f.quote} — ${f.reason}`).join("; ")}`;
       ownerQuestions.push(`${s.day} ${s.time}: ${hard[0].reason} («${hard[0].quote}»)`);
       reasons.push(`critic:${hard[0].check}`);
     } else if (fails.length) reasons.push(`critic:${fails[0].check}`);
@@ -539,7 +563,8 @@ export async function buildStrategy(inp: StrategyInput) {
     hook = stripIds(hook);
     cta = stripIds(cta);
     const link = s.link ?? "";
-    cta = s.goal === "reach" ? cta.replace(/\{\{LINK\}\}/g, "").trim() : link ? cta.replace("{{LINK}}", link) : cta;
+    // No tracked link (reach slot, or no BOT_USERNAME): the placeholder never reaches the owner.
+    cta = s.goal !== "reach" && link ? cta.replace("{{LINK}}", link) : cta.replace(/\s*\{\{LINK\}\}/g, "").replace(/[\s:–—-]+$/, "").trim();
     const evIds = [...new Set([...s.evidence, ...(it?.factIds ?? [])])];
     const tsLabel = s.timeSource === "prior" ? "taxminiy" : s.timeSource;
     const meta = `— Dalil: ${evIds.join(" · ") || "-"} | Vaqt: ${tsLabel} | Tasdiq: ${[...new Set(reasons)].join(", ") || "autopilot"}${s.exp ? ` | exp:${s.exp}` : ""}`;
@@ -551,8 +576,10 @@ export async function buildStrategy(inp: StrategyInput) {
       format: s.format,
       hook,
       cta,
-      brief: `${brief}\n${meta}`,
+      brief: ownerText(stripIds(brief), lang),
       metric: s.metric,
+      // extras: where the slot's time/goal came from (ids for the UI's evidence chips)
+      briefMeta: meta,
       needsApproval: reasons.length > 0,
       // extras for the UI
       slot: s.slot,
@@ -611,7 +638,7 @@ export async function buildStrategy(inp: StrategyInput) {
   if (d2) {
     const posIds = extractIds(d2.positioning);
     if (!posIds.some((i) => /^F\d+$/.test(i)) || claims.some((c) => ws(d2.positioning).includes(c.phrase))) {
-      risks.unshift(`Weak differentiation — ask the owner what they do that competitors don't [${firedRules[0]?.id ?? "R.TRUST_GAP"}]`);
+      risks.unshift(OWNER_TEXT[lang].weakDiff);
       ownerQuestions.push(q.diff);
     }
   }
@@ -622,9 +649,9 @@ export async function buildStrategy(inp: StrategyInput) {
       pains: a.pains.filter((p) => extractIds(p).length > 0),
       whereTheyAre: a.whereTheyAre.filter((w) => extractIds(w).length > 0 || w.startsWith("UNKNOWN")).length
         ? a.whereTheyAre.filter((w) => extractIds(w).length > 0 || w.startsWith("UNKNOWN"))
-        : ["UNKNOWN — Mijoz radar search needed"],
+        : [OWNER_TEXT[lang].unknownWhere],
     })),
-    offer: priceFacts.length ? (d2?.offer ?? "") : `BLOCKED — price needed [${firedRules.find((r) => r.id === "R.HIDDEN_PRICE")?.id ?? "R.TRUST_GAP"}]`,
+    offer: priceFacts.length ? (d2?.offer ?? "") : OWNER_TEXT[lang].blocked,
     proofPoints: (d2?.proofPoints ?? []).filter((p) => extractIds(p).some((i) => /^[FW]\d+$/.test(i))),
     pillars: (["reach", "trust", "sale"] as Goal[])
       .filter((g) => pillar.final[g] > 0)
@@ -632,8 +659,9 @@ export async function buildStrategy(inp: StrategyInput) {
     kpis,
     risks: risks.slice(0, 6),
   };
+  ownerFacing(strategy, lang);
   emit({ stage: "strategy", strategy, ok: Boolean(d2), elapsedMs: elapsed() });
-  const rationale = [...(analysis?.learn?.changes ?? []), ...(d2?.rationale ?? []).filter((l) => extractIds(l).length > 0 && !groundedCheck(l, ledgerMap).length)];
+  const rationale = [...(analysis?.learn?.changes ?? []), ...(d2?.rationale ?? []).filter((l) => extractIds(l).length > 0 && !groundedCheck(l, ledgerMap).length)].map(stripIds);
   const plan: ContentPlan = { weekOf: sk.weekOf, items, rationale: rationale.join("\n") };
   const criticReport = items.map((i) => ({ slot: i.slot as number, status: i.critic as CriticStatus, fails: i.fails as CheckFail[] }));
 
@@ -688,6 +716,39 @@ export async function buildStrategy(inp: StrategyInput) {
     promptVersion: PROMPT_VERSION,
     elapsedMs: elapsed(),
   };
+}
+
+/** The owner reads the strategy as is: ledger ids (kept for the grounding checks above) are removed in place. */
+/**
+ * After ids are stripped, a few model habits still point at the ledger: "shart F'da ko'rsatilmagan",
+ * "Faktlar: [F3]." -> "Faktlar:.". They are reworded for the owner (pure string fixes).
+ */
+export function ownerText(t: string, lang: Lang): string {
+  const ref = { uz: "ma’lumotlaringiz", ru: "ваших данных", en: "your details" }[lang];
+  return t
+    .replace(/\bF['’‘`]?(da|dan|ga)\b/g, (_m, suf: string) => `${ref}${lang === "uz" ? suf : ""}`)
+    .replace(/\b(в|из) F\b/g, `$1 ${ref}`)
+    .replace(/\b(in|from) F\b/g, `$1 ${ref}`)
+    .replace(/\b(Faktlar|Факты|Facts)\s*:\s*(?=[.;,]|$)[.;,]?\s*/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function ownerFacing(st: Strategy, lang: Lang): void {
+  const clean = (t: string) => (/^UNKNOWN\b/i.test(t.trim()) ? OWNER_TEXT[lang].unknownWhere : ownerText(stripIds(t), lang));
+  st.positioning = clean(st.positioning);
+  st.offer = clean(st.offer);
+  st.proofPoints = st.proofPoints.map(clean);
+  st.risks = st.risks.map(clean);
+  st.audiences = st.audiences.map((a) => ({
+    ...a,
+    name: clean(a.name),
+    job: clean(a.job),
+    pains: a.pains.map(clean),
+    triggers: a.triggers.map(clean),
+    whereTheyAre: a.whereTheyAre.map(clean),
+  }));
+  st.pillars = st.pillars.map((p) => ({ ...p, name: clean(p.name), examples: p.examples.map(clean) }));
 }
 
 /** Rules for a brand with no channel history. */

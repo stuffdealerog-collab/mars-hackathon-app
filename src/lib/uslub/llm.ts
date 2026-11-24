@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import { getEnv } from "@/lib/env";
+import { recordUsage } from "./context";
 
 /** Quality model for copy, brand DNA and research; fast model for cheap steps. */
 export const MODEL_QUALITY = "claude-sonnet-5-5";
@@ -59,9 +60,12 @@ export async function llmJson<S extends z.ZodType>(opts: {
   effort?: Effort;
   maxTokens?: number;
   timeoutMs?: number;
+  /** Short label for usage logs, e.g. "copywriter". */
+  purpose?: string;
 }): Promise<z.infer<S>> {
   const anthropic = getAnthropic();
   const model = opts.model ?? MODEL_QUALITY;
+  const t0 = Date.now();
   try {
     const response = await anthropic.beta.messages.parse(
       {
@@ -74,6 +78,7 @@ export async function llmJson<S extends z.ZodType>(opts: {
       },
       { timeout: opts.timeoutMs ?? 55_000 },
     );
+    recordUsage(response.model ?? model, response.usage, t0, opts.purpose);
     if (response.stop_reason === "refusal") throw new LlmError("AI declined this request", 422);
     if (response.stop_reason === "max_tokens") throw new LlmError("AI answer was cut off", 502);
     const parsed = response.parsed_output;
@@ -94,6 +99,7 @@ export async function llmWebResearch(opts: {
   maxUses?: number;
   model?: string;
   timeoutMs?: number;
+  purpose?: string;
 }): Promise<{ text: string; sources: { url: string; title: string }[] }> {
   const anthropic = getAnthropic();
   const model = opts.model ?? MODEL_QUALITY;
@@ -102,6 +108,7 @@ export async function llmWebResearch(opts: {
   const texts: string[] = [];
   try {
     for (let turn = 0; turn < 3; turn++) {
+      const t0 = Date.now();
       const response = await anthropic.beta.messages.create(
         {
           model,
@@ -114,6 +121,7 @@ export async function llmWebResearch(opts: {
         },
         { timeout: opts.timeoutMs ?? 55_000 },
       );
+      recordUsage(response.model ?? model, response.usage, t0, opts.purpose ?? "web_research");
       for (const block of response.content) {
         if (block.type === "text") texts.push(block.text);
         if (block.type === "web_search_tool_result" && Array.isArray(block.content)) {

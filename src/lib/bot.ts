@@ -8,6 +8,9 @@ import { parseSource, safeLogEvent, track } from "./track";
 import { learnFor } from "./uslub/brain/learn-run";
 import { latestPlanForOwner, ORDER_BUCKETS, planByTag, recordOutcome } from "./uslub/brain/memory";
 import { scrapeChannelData } from "./uslub/brain/scrape";
+import { answerPendingChannel, publishFromButton, startPublish, switchScript } from "./uslub/botpublish";
+import { CALLBACK_RE, parseCallback } from "./uslub/botpublish-core";
+import { flushUsage, runWithContext } from "./uslub/context";
 import {
   classifyOnboardText,
   gateMessage,
@@ -72,6 +75,11 @@ function registerHandlers(b: Bot) {
     const locale = pickLocale(from.language_code);
     const payload = typeof ctx.match === "string" ? ctx.match.trim() : "";
     await track(from, "start", { payload: payload.slice(0, 64) || null }, { source: parseSource(payload) });
+
+    // The Studio's "Kanalga joylash": t.me/<bot>?start=publish_<postId>[_<script>] — show the post, then publish.
+    if (payload.startsWith("publish_")) {
+      if (await startPublish(ctx.api, ctx.chat.id, from, locale, payload)) return;
+    }
 
     // A customer who tapped a tracked link in a plan post (src_<planTag>_<slot>): not an owner, no onboarding.
     const planLink = PLAN_LINK_RE.exec(payload);
@@ -143,6 +151,8 @@ function registerHandlers(b: Bot) {
       return;
     }
     await track(from, "message", { length: text.length });
+    // The bot asked "which channel?" for a post (publish flow): a channel name answers that, not onboarding.
+    if ((!/\s/.test(text.trim()) || /@|t\.me\//i.test(text)) && (await answerPendingChannel(ctx.api, ctx.chat.id, from, locale, text))) return;
     const input = classifyOnboardText(text.slice(0, 4000));
     if (!input) {
       await ctx.reply(ONBOARD_PROMPT);
@@ -171,13 +181,17 @@ function registerHandlers(b: Bot) {
     }
     const api = ctx.api;
     const chatId = ctx.chat.id;
-    await runLater(async () => {
-      try {
-        await runOnboarding(api, chatId, from.id, input);
-      } finally {
-        onboardGate.leave(from.id);
-      }
-    });
+    await runLater(() =>
+      // Usage of the onboarding's Claude calls is logged as one llm_usage event (route "bot/onboard").
+      runWithContext({ route: "bot/onboard", lang: locale, telegramId: from.id }, async () => {
+        try {
+          await runOnboarding(api, chatId, from.id, input);
+        } finally {
+          onboardGate.leave(from.id);
+          await flushUsage();
+        }
+      }),
+    );
   });
 
   // "📢 Publish" under a generated post. ctx.from is trusted (comes from Telegram).
@@ -185,6 +199,17 @@ function registerHandlers(b: Bot) {
     await ctx.answerCallbackQuery({ text: "E’lon qilinyapti…" }).catch(() => undefined);
     const message = await publishFromBot(ctx.match[1], ctx.from.id);
     await ctx.reply(message, { link_preview_options: { is_disabled: true } });
+  });
+
+  // Publish flow buttons: "pb" = Kanalga joylash (authorize/claim, then publish), "pv" = show in another script.
+  b.callbackQuery(CALLBACK_RE, async (ctx) => {
+    const data = parseCallback(ctx.callbackQuery.data ?? "");
+    const chatId = ctx.chat?.id ?? ctx.from.id;
+    const locale = pickLocale(ctx.from.language_code);
+    if (!data) return void (await ctx.answerCallbackQuery().catch(() => undefined));
+    await ctx.answerCallbackQuery(data.kind === "pb" ? { text: t(locale, "pub.publishing") } : {}).catch(() => undefined);
+    if (data.kind === "pb") await publishFromButton(ctx.api, chatId, ctx.from, locale, data.postId, data.script);
+    else await switchScript(ctx.api, chatId, ctx.from, locale, data.postId, data.script);
   });
 
   // Customer agreed to share their contact: tell the owner (one lead), with a "Sotildi" button for them.

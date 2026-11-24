@@ -49,7 +49,7 @@ const errMsg = (r: PromiseSettledResult<unknown>) =>
 export const POST = handle(async (req) => {
   rateLimit(req, "department", 4);
   const body = await readJson(req, Body);
-  if (!body.channel && !body.knowledge?.trim()) throw new HttpError(400, "Send a channel or knowledge");
+  if (!body.channel && !body.knowledge?.trim()) throw new HttpError(400, "Send a channel or knowledge", "knowledge_needed");
   const include = new Set(body.include ?? ["posts", "radar", "video"]);
   const started = Date.now();
 

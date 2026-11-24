@@ -1,35 +1,26 @@
 import "server-only";
-import { HttpError, json } from "@/lib/uslub/http";
-import { LlmError } from "@/lib/uslub/llm";
+import { currentContext, flushUsage } from "@/lib/uslub/context";
+import { errorBody, json } from "@/lib/uslub/http";
 import type { Stage } from "./audit";
-import { BrainScrapeError } from "./scrape";
 
-/** Maps Brain errors to HttpError so `handle` renders `{ error }` with the right status. */
+/** Kept for callers that rethrow Brain errors: `handle` now maps BrainScrapeError itself. */
 export function toHttp(err: unknown): unknown {
-  if (err instanceof BrainScrapeError) return new HttpError(err.status, err.message);
   return err;
 }
 
-export function errorMessage(err: unknown): { status: number; error: string } {
-  const e = toHttp(err);
-  if (e instanceof HttpError) return { status: e.status, error: e.message };
-  if (e instanceof LlmError) return { status: e.status, error: e.message };
-  console.error("[brain/api]", err instanceof Error ? err.message : err);
-  return { status: 500, error: "Internal error" };
+/** Owner-safe `{ status, error, code, ... }` for any error (localized to the request language). */
+export function errorMessage(err: unknown): { status: number; error: string; code: string } & Record<string, unknown> {
+  const { status, body } = errorBody(err);
+  return { status, ...body };
 }
 
 /**
  * Runs `work` as plain JSON, or as an NDJSON stream of `{stage, ...}` events
- * followed by `{stage:"result", ...result}` (or `{stage:"error", error}`).
+ * followed by `{stage:"result", ...result}` (or `{stage:"error", error, code}`).
  */
 export async function respond<T extends object>(stream: boolean, work: (emit: (e: Stage) => void) => Promise<T>): Promise<Response> {
-  if (!stream) {
-    try {
-      return json(await work(() => {}));
-    } catch (err) {
-      throw toHttp(err);
-    }
-  }
+  if (!stream) return json(await work(() => {}));
+  const ctx = currentContext();
   const enc = new TextEncoder();
   const body = new ReadableStream({
     async start(controller) {
@@ -40,6 +31,7 @@ export async function respond<T extends object>(stream: boolean, work: (emit: (e
       } catch (err) {
         send({ stage: "error", ...errorMessage(err) });
       } finally {
+        await flushUsage(ctx);
         controller.close();
       }
     },

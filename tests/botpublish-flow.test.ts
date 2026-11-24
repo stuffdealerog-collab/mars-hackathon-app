@@ -1,0 +1,129 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// The bot flow runs against the in-memory store (no DATABASE_URL) and a fake Telegram API.
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/db", () => ({ isDbConfigured: () => false, getSql: () => { throw new Error("no db in tests"); } }));
+vi.mock("@/lib/track", () => ({ safeLogEvent: async () => {} }));
+vi.mock("@/lib/i18n", async () => await import("../src/lib/i18n"));
+const publishPost = vi.fn(async (args: { postId: string; userId: number | null; chat: string }) => ({ ok: true, status: 200, url: `https://t.me/${args.chat.replace("@", "")}/42` }));
+vi.mock("../src/lib/uslub/publish", () => ({ publishPost, addBotAsAdminLink: () => "https://t.me/test_bot?startchannel&admin=post_messages" }));
+
+const { startPublish, publishFromButton, answerPendingChannel } = await import("../src/lib/uslub/botpublish");
+const store = await import("../src/lib/uslub/store");
+import type { BrandDNA, PostDraft } from "../src/lib/uslub/contract";
+
+const BOT_ID = 999;
+type Member = { status: string; can_post_messages?: boolean } | null;
+
+function fakeApi(members: Record<string, Record<number, Member>>) {
+  const sent: { method: string; text?: string; photo?: string; opts?: Record<string, unknown> }[] = [];
+  const api = {
+    getMe: async () => ({ id: BOT_ID }),
+    getChatMember: async (chat: string, userId: number) => {
+      const m = members[chat.toLowerCase()]?.[userId];
+      if (!m) {
+        const { GrammyError } = await import("grammy");
+        throw new GrammyError("Bad Request: member list is inaccessible", { ok: false, error_code: 400, description: "member list is inaccessible" }, "getChatMember", {});
+      }
+      return { ...m, user: { id: userId } };
+    },
+    sendMessage: async (_chat: number, text: string, opts?: Record<string, unknown>) => {
+      sent.push({ method: "sendMessage", text, opts });
+      return { message_id: sent.length };
+    },
+    sendPhoto: async (_chat: number, photo: string, opts?: Record<string, unknown>) => {
+      sent.push({ method: "sendPhoto", photo, opts });
+      return { message_id: sent.length };
+    },
+  };
+  return { api: api as never, sent };
+}
+
+const buttons = (opts?: Record<string, unknown>) =>
+  ((opts?.reply_markup as { inline_keyboard?: { text: string; callback_data?: string; url?: string }[][] } | undefined)?.inline_keyboard ?? []).flat();
+
+const dna = { name: "Test", languages: ["uz_latn"] } as unknown as BrandDNA;
+
+async function makePost(channel: string | undefined, owner: number | null, image?: PostDraft["image"]) {
+  const brand = await store.saveBrand({ channel, knowledge: "Uyda tort pishiraman, Chilonzor.", samplePosts: [], dna, mode: channel ? "channel" : "fresh" }, owner, "custom");
+  const post: PostDraft = {
+    id: crypto.randomUUID(),
+    brandId: brand.id,
+    brief: "b",
+    variants: { uz_latn: "Bento-tort 150 000 so‘mdan.", uz_cyrl: "Бенто-торт 150 000 сўмдан.", ru: "Бенто-торт от 150 000 сум.", en: "Bento cake from 150,000 sum." },
+    neuroHits: {},
+    humanScore: 90,
+    status: "draft",
+    ...(image ? { image } : {}),
+    createdAt: new Date().toISOString(),
+  };
+  await store.savePosts([post]);
+  return { brand, post };
+}
+
+describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
+  beforeEach(() => {
+    publishPost.mockClear();
+  });
+
+  it("shows the post with its picture and claims an unowned web brand for the channel's creator", async () => {
+    const { brand, post } = await makePost("tortlar_uz", null, { status: "ready", url: "https://cdn.example/p.jpg", refsUsed: 2 });
+    const { api, sent } = fakeApi({ "@tortlar_uz": { 7: { status: "creator" }, [BOT_ID]: { status: "administrator", can_post_messages: true } } });
+
+    expect(await startPublish(api, 7, { id: 7 }, "uz", `publish_${post.id}_ru`)).toBe(true);
+    const photo = sent.find((m) => m.method === "sendPhoto");
+    expect(photo?.photo).toBe("https://cdn.example/p.jpg");
+    expect(photo?.opts?.caption).toBe("Бенто-торт от 150 000 сум.");
+    expect(buttons(photo?.opts).some((b) => b.callback_data === `pb:${post.id}:r`)).toBe(true);
+
+    await publishFromButton(api, 7, { id: 7 }, "uz", post.id, "ru");
+    expect((await store.getBrand(brand.id))?.ownerTelegramId).toBe(7);
+    expect(publishPost).toHaveBeenCalledWith({ postId: post.id, script: "ru", chat: "tortlar_uz", userId: 7 });
+    expect(sent.at(-1)?.text).toContain("https://t.me/tortlar_uz/42");
+  });
+
+  it("never lets a non-admin claim or publish", async () => {
+    const { brand, post } = await makePost("tortlar2_uz", null);
+    const { api, sent } = fakeApi({ "@tortlar2_uz": { 8: { status: "member" }, [BOT_ID]: { status: "administrator", can_post_messages: true } } });
+    await publishFromButton(api, 8, { id: 8 }, "ru", post.id, "uz_latn");
+    expect(publishPost).not.toHaveBeenCalled();
+    expect((await store.getBrand(brand.id))?.ownerTelegramId).toBeNull();
+    expect(sent.at(-1)?.text).toMatch(/не владелец и не админ/);
+  });
+
+  it("asks to add the bot first when it cannot post (and does not claim)", async () => {
+    const { brand, post } = await makePost("tortlar3_uz", null);
+    const { api, sent } = fakeApi({ "@tortlar3_uz": { 7: { status: "creator" } } });
+    await publishFromButton(api, 7, { id: 7 }, "en", post.id, "uz_latn");
+    expect(publishPost).not.toHaveBeenCalled();
+    expect((await store.getBrand(brand.id))?.ownerTelegramId).toBeNull();
+    expect(sent.at(-1)?.text).toMatch(/Make the bot an admin/);
+    expect(buttons(sent.at(-1)?.opts).some((b) => b.url?.includes("startchannel"))).toBe(true);
+  });
+
+  it("does not show someone else's post", async () => {
+    const { post } = await makePost("tortlar4_uz", 100);
+    const { api, sent } = fakeApi({});
+    await startPublish(api, 7, { id: 7 }, "uz", `publish_${post.id}`);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].text).toMatch(/boshqa foydalanuvchining/);
+    expect(sent[0].text).not.toContain("Bento");
+  });
+
+  it("fresh brand without a channel: asks for it, verifies rights, links it and offers the button", async () => {
+    const { brand, post } = await makePost(undefined, null);
+    const { api, sent } = fakeApi({ "@yangi_tortlar": { 7: { status: "administrator", can_post_messages: true }, [BOT_ID]: { status: "administrator", can_post_messages: true } } });
+    await startPublish(api, 7, { id: 7 }, "uz", `publish_${post.id}`);
+    expect(sent.at(-1)?.text).toMatch(/qaysi kanalga/);
+
+    // A non-channel answer keeps the question open; the right channel links it.
+    expect(await answerPendingChannel(api, 7, { id: 7 }, "uz", "salom qalaysiz")).toBe(true);
+    expect(await answerPendingChannel(api, 7, { id: 7 }, "uz", "@yangi_tortlar")).toBe(true);
+    const linked = await store.getBrand(brand.id);
+    expect(linked?.channel).toBe("yangi_tortlar");
+    expect(linked?.ownerTelegramId).toBe(7);
+    expect(buttons(sent.at(-1)?.opts).some((b) => b.callback_data === `pb:${post.id}:l`)).toBe(true);
+    // Nothing pending any more: the next channel link is onboarding again.
+    expect(await answerPendingChannel(api, 7, { id: 7 }, "uz", "@boshqa_kanal")).toBe(false);
+  });
+});

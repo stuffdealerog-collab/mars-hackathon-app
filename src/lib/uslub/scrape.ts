@@ -19,14 +19,30 @@ export interface ScrapedChannel {
   posts: ScrapedPost[];
 }
 
+export type ScrapeErrorCode = "channel_invalid" | "channel_empty" | "telegram_unavailable" | "knowledge_needed";
+
 export class ScrapeError extends Error {
   constructor(
     message: string,
     readonly status = 422,
+    readonly code: ScrapeErrorCode = status === 400 ? "channel_invalid" : "telegram_unavailable",
+    readonly details: { channel?: string; reason?: "few_posts" | "no_preview"; postsFound?: number } = {},
   ) {
     super(message);
   }
+  get channel() {
+    return this.details.channel;
+  }
+  get reason() {
+    return this.details.reason;
+  }
+  get postsFound() {
+    return this.details.postsFound;
+  }
 }
+
+/** A channel with fewer posts than this is treated as empty (fresh mode): there is no voice to learn yet. */
+export const MIN_CHANNEL_POSTS = 5;
 
 const USERNAME_RE = /^[A-Za-z][A-Za-z0-9_]{3,31}$/;
 
@@ -108,10 +124,13 @@ export function parseChannelHtml(username: string, html: string): ScrapedChannel
 }
 
 /** Fetches the last ~20-40 posts of a public channel. Throws ScrapeError with a user-facing message. */
-export async function scrapeChannel(input: string, opts: { timeoutMs?: number; maxPosts?: number } = {}): Promise<ScrapedChannel> {
+export async function scrapeChannel(
+  input: string,
+  opts: { timeoutMs?: number; maxPosts?: number; /** fewer text posts than this → ScrapeError "channel_empty" (default 1) */ minPosts?: number } = {},
+): Promise<ScrapedChannel> {
   const username = parseChannelUsername(input);
   if (!username) {
-    throw new ScrapeError("Kanal havolasi noto‘g‘ri. Misol: @kanal_nomi yoki https://t.me/kanal_nomi", 400);
+    throw new ScrapeError("Kanal havolasi noto‘g‘ri. Misol: @kanal_nomi yoki https://t.me/kanal_nomi", 400, "channel_invalid");
   }
   let res: Response;
   try {
@@ -130,13 +149,21 @@ export async function scrapeChannel(input: string, opts: { timeoutMs?: number; m
   }
   // t.me/s/<name> redirects to t.me/<name> when there is no public preview (private, bot, user, or missing).
   if (res.status >= 300 && res.status < 400) {
-    throw new ScrapeError(`@${username} ochiq kanal emas yoki mavjud emas. Ochiq kanal havolasini yuboring.`, 404);
+    throw new ScrapeError(`@${username} ochiq kanal emas yoki mavjud emas. Ochiq kanal havolasini yuboring.`, 422, "channel_empty", {
+      channel: username,
+      reason: "no_preview",
+      postsFound: 0,
+    });
   }
   if (!res.ok) throw new ScrapeError(`Telegram ${res.status} qaytardi`, 502);
   const html = await res.text();
   const channel = parseChannelHtml(username, html);
-  if (channel.posts.length === 0) {
-    throw new ScrapeError(`@${username} kanalida ochiq postlar topilmadi.`, 404);
+  if (channel.posts.length < (opts.minPosts ?? 1)) {
+    throw new ScrapeError(`@${username} kanalida ochiq postlar kam (${channel.posts.length}).`, 422, "channel_empty", {
+      channel: username,
+      reason: channel.posts.length === 0 && !channel.title ? "no_preview" : "few_posts",
+      postsFound: channel.posts.length,
+    });
   }
   const max = opts.maxPosts ?? 30;
   channel.posts = channel.posts.slice(-max); // newest are at the end of the page
