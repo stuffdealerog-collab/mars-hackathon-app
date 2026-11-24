@@ -29,8 +29,15 @@ export interface CaptionCue {
 
 export interface MediaJobInput {
   kind: MediaKind;
-  /** https URL of the product photo, or a data:image/...;base64 URL (small uploads). */
-  imageUrl: string;
+  /**
+   * https URL of the product photo, or a data:image/...;base64 URL (small uploads).
+   * Required for video. For images it is optional: the product to keep unchanged, sent first.
+   */
+  imageUrl?: string;
+  /** Style references (e.g. the channel's own past photos), sent after the product photo. Images only. */
+  referenceUrls?: string[];
+  /** A ready prompt (post pictures build their own from the brand's visual style); skips the preset. */
+  customPrompt?: { prompt: string; negativePrompt?: string };
   productName?: string; // "handmade ceramic piala", "non (tandir bread)" — what must stay unchanged
   brief?: string; // optional extra direction from the owner
   presetId: StylePresetId;
@@ -61,7 +68,9 @@ export interface MediaJob {
   seconds: number;
   prompt: string;
   negativePrompt: string;
-  imageRef: string; // the https URL, or "inline-upload" for data URLs (never stored)
+  imageRef: string; // the https URL, "inline-upload" for data URLs (never stored), or "none" (text-to-image)
+  /** How many reference images went to the model (product photo included). */
+  refCount?: number;
   captions: CaptionCue[];
   brandId?: string;
   /** Who pays from which quota: "tg:<telegram id>" or "anon" (all anonymous web callers share one pool). Never sent to clients. */

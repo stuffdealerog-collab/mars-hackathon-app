@@ -12,7 +12,8 @@ export interface SubmitRequest {
   kind: MediaKind;
   prompt: string;
   negativePrompt: string;
-  imageUrl: string; // https URL or data: URL
+  imageUrl?: string; // https URL or data: URL; the product photo (required for video)
+  referenceUrls?: string[]; // style references for images, after the product photo
   aspect: Aspect;
   seconds: number;
   /** Our job id: sent as the provider's idempotency key so a retried submit never bills twice. */
@@ -51,6 +52,13 @@ export interface MediaProvider {
   submit(req: SubmitRequest): Promise<SubmitResult>;
   poll(ref: ProviderRef): Promise<PollResult>;
   cancel?(ref: ProviderRef): Promise<void>;
+}
+
+/** All input images of a request in order: the product photo first, then the references, no duplicates. */
+export function inputImages(req: Pick<SubmitRequest, "imageUrl" | "referenceUrls">): string[] {
+  const out: string[] = [];
+  for (const u of [req.imageUrl, ...(req.referenceUrls ?? [])]) if (u && !out.includes(u)) out.push(u);
+  return out;
 }
 
 /** Error from a provider call. `message` must never contain credentials. */

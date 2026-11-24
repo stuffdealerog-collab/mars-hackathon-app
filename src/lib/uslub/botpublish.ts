@@ -231,9 +231,8 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
     return;
   }
   // expectedText / expectedImageUrl: publish.ts (images) re-checks them right before sending and answers 409 when
-  // they changed. Passed as a plain object so this also compiles against a publishPost that predates them.
-  const publishArgs = { postId: post.id, script, chat: brand.channel, userId: user.id, expectedText: shownText(fresh, script), expectedImageUrl: shownPhoto(fresh) };
-  const res = await publishPost(publishArgs);
+  // they changed. A direct object literal, so every field name is type-checked against publishPost.
+  const res = await publishPost({ postId: post.id, script, chat: brand.channel, userId: user.id, expectedText: shownText(fresh, script), expectedImageUrl: shownPhoto(fresh) });
   if (res.ok) {
     await api.sendMessage(chatId, t(locale, "pub.done", { url: res.url ?? "" }), { link_preview_options: { is_disabled: true } });
     return;
