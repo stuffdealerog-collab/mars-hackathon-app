@@ -1,6 +1,6 @@
-# Uslub Brain v1: implementable spec
+# Mercat Brain v1: implementable spec
 
-> Implementation map (branch `worktree-wf_fd930d6e-629-5`): `src/lib/uslub/brain/` —
+> Implementation map: `src/lib/uslub/brain/` —
 > `types.ts` (§0 primitives), `scrape.ts` (A1.1 t.me/s scraper), `stats.ts` (§B features + metrics),
 > `rules.ts` (§C rules, ledger, pillar shares), `audit.ts` (A1 pipeline + D1), `skeleton.ts` (A3 + A4),
 > `strategy.ts` (A2 pipeline: D0, D2, D3, critic, repair), `lint.ts` (§E code checks), `calendar.ts` (§F),

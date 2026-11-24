@@ -1,6 +1,5 @@
 # Mercat video: Higgsfield production plan (scouting only, nothing spent)
 
-> **Update 24 Nov evening.** For the pitch film, use `docs/video/higgsfield-runbook.md` (shots, exact prompts, cost check) and `docs/video/pitch-storyboard.md`. This file is kept for the trial findings below. Note: the 16:55 schedule in §7 was for today's MVP deadline and is obsolete. Also, Higgsfield's help center says MCP generations always cost credits, which conflicts with the live API message below, so the runbook checks cost before every batch.
 
 ## Blocker: the free generations don't work from Claude Code
 
@@ -139,4 +138,3 @@ I didn't open the Marketing Studio gallery (`get_presets`), because doing so ope
 - Render queues may be slow at peak times. Keep shots at 8 or fewer and use the parallel slots.
 - AI-generated UI text gets garbled, so show the product UI only through real recordings.
 
-No files were written. A scratch helper script is at `/private/tmp/claude-501/-Users-latif--claude-spares-spare-r8grLk/0d098c34-26d0-45d8-a2ce-8d9851fad634/scratchpad/s/sum.py`.
