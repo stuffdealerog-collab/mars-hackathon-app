@@ -1,9 +1,23 @@
 import "server-only";
+import { after } from "next/server";
 import { Bot, InlineKeyboard } from "grammy";
-import { askClaude, isAiConfigured } from "./ai";
+import { isAiConfigured } from "./ai";
 import { getEnv, getPublicUrl } from "./env";
 import { pickLocale, t } from "./i18n";
 import { parseSource, safeLogEvent, track } from "./track";
+import { classifyOnboardText, ONBOARD_PROMPT, runOnboarding } from "./uslub/onboard";
+
+/**
+ * Runs slow work after the webhook has answered Telegram (no retries on slow
+ * AI calls). Outside a Next request scope, falls back to awaiting it.
+ */
+async function runLater(task: () => Promise<void>): Promise<void> {
+  try {
+    after(task);
+  } catch {
+    await task();
+  }
+}
 
 /**
  * The bot is built lazily on the first webhook request, so `next build`
@@ -41,13 +55,14 @@ function registerHandlers(b: Bot) {
     } else {
       await ctx.reply(t(locale, "bot.greeting_no_app", { name }));
     }
+    await ctx.reply(ONBOARD_PROMPT);
   });
 
   pm.command("help", async (ctx) => {
     await ctx.reply(t(pickLocale(ctx.from?.language_code), "bot.help"));
   });
 
-  // Any other private text: answer with Claude (or a friendly fallback).
+  // Any other private text: Uslub onboarding (channel link or business description).
   pm.on("message:text", async (ctx) => {
     const from = ctx.from;
     if (!from) return;
@@ -58,14 +73,24 @@ function registerHandlers(b: Bot) {
       return;
     }
     await track(from, "message", { length: text.length });
+    const input = classifyOnboardText(text.slice(0, 4000));
+    if (!input) {
+      await ctx.reply(ONBOARD_PROMPT);
+      return;
+    }
     if (!isAiConfigured()) {
       await ctx.reply(t(locale, "bot.ai_unavailable"));
       return;
     }
+    await ctx.reply(
+      "channel" in input
+        ? `Ishlayapman… @${input.channel} kanalini o‘qiyapman va brendingiz DNK-sini tuzyapman (taxminan 40 soniya).`
+        : "Ishlayapman… brendingiz DNK-sini tuzyapman va postlar yozyapman (taxminan 40 soniya).",
+    );
     await ctx.replyWithChatAction("typing").catch(() => undefined);
-    const answer = await askClaude(text.slice(0, 2000), { fallbackText: t(locale, "bot.error") });
-    await ctx.reply(answer.text.slice(0, 4000));
-    if (answer.ok) await safeLogEvent(from.id, "ai_reply");
+    const api = ctx.api;
+    const chatId = ctx.chat.id;
+    await runLater(() => runOnboarding(api, chatId, from.id, input));
   });
 
   // Telegram Business: log connections (the bot was added to a business account).
