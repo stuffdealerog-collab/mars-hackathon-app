@@ -23,7 +23,8 @@ export type AgentRole =
   | "designer" //   Dizayner — covers and images
   | "video" //      Videograf — Reels/TikTok script + video
   | "publisher" //  SMM-menejer — Telegram now; Instagram/YouTube later
-  | "radar"; //     Mijoz radar — where the customers are
+  | "radar" //      Mijoz radar — where the customers are
+  | "analyst"; //   Analitik — audits real channel numbers, competitors, learns from results
 
 export interface BrandDNA {
   name: string;
@@ -94,6 +95,63 @@ export interface VideoPlan {
   videoUrl?: string; // filled when a provider renders it
 }
 
+/* ------------------------------------------- marketing brain (analysis) */
+/* Rule: every finding, proof point and KPI baseline must come from real data
+ * (channel stats, the owner's knowledge base, cited web sources) — never invented. */
+
+export type Goal = "reach" | "trust" | "sale";
+
+export interface ChannelAudit {
+  channel: string; // @username
+  title?: string;
+  subscribers?: number;
+  postsAnalyzed: number;
+  postsPerWeek: number;
+  avgViews?: number;
+  reachRate?: number; // avgViews / subscribers (0..1)
+  bestHours: number[]; // local hours (UTC+5) with the highest median views
+  bestWeekdays: number[]; // 0 = Monday
+  formatMix: Record<string, number>; // text / photo / video / album -> share 0..1
+  topPosts: { url: string; views?: number; why: string }[];
+  findings: { kind: "strength" | "problem" | "opportunity"; text: string; evidence: string }[];
+  benchmark?: {
+    channel: string;
+    subscribers?: number;
+    avgViews?: number;
+    reachRate?: number;
+    postsPerWeek: number;
+  }[];
+}
+
+export interface Strategy {
+  positioning: string; // For <audience> who <need>, <brand> is <category> that <benefit>, unlike <alternative>
+  audiences: { name: string; job: string; pains: string[]; triggers: string[]; whereTheyAre: string[] }[];
+  offer: string;
+  proofPoints: string[]; // only from the knowledge base or data
+  pillars: { name: string; goal: Goal; share: number; examples: string[] }[];
+  kpis: { metric: string; baseline?: number; target: number; how: string }[];
+  risks: string[];
+}
+
+export interface PlanItem {
+  day: string; // ISO date
+  time: string; // "19:00"
+  goal: Goal;
+  pillar: string;
+  format: string;
+  hook: string;
+  cta: string;
+  brief: string; // ready to hand to the copywriter
+  metric: string;
+  needsApproval: boolean; // promos, prices, video, first posts
+}
+
+export interface ContentPlan {
+  weekOf: string; // ISO date of Monday
+  items: PlanItem[];
+  rationale: string;
+}
+
 /* ----------------------------------------------------------- node graph */
 
 export type NodeKind = AgentRole | "input" | "approval";
@@ -136,6 +194,9 @@ export type NodeStatus = "idle" | "running" | "done" | "error" | "needs_approval
  *                          -> { ok: boolean; url?: string; error?: string }
  * POST /api/uslub/plan     { brandId: string; task: string } -> { flow: Flow }
  *                          ("delegate a task": the strategist assembles a node graph)
+ * POST /api/uslub/analyze  { channel: string; competitors?: string[] } -> { audit: ChannelAudit }
+ * POST /api/uslub/strategy { brandId: string; audit?: ChannelAudit; goal?: string }
+ *                          -> { strategy: Strategy; plan: ContentPlan }
  */
 
 export type ApiError = { error: string };
