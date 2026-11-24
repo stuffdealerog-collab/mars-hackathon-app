@@ -173,18 +173,23 @@ const PROTECTED =
 // A Latin word: letters, with apostrophes allowed inside or right after o/g.
 const WORD = new RegExp(`[A-Za-z](?:[A-Za-z]|[${APOSTROPHES}](?=[A-Za-z])|(?<=[OoGg])[${APOSTROPHES}])*`, "g");
 
-/** Uzbek Latin -> Uzbek Cyrillic. Non-Latin text passes through unchanged. */
-export function latinToCyrillic(text: string): string {
+/**
+ * Uzbek Latin -> Uzbek Cyrillic. Non-Latin text passes through unchanged.
+ * `keep`: words to leave in Latin (brand names), matched case-insensitively.
+ */
+export function latinToCyrillic(text: string, keep: string[] = []): string {
   if (!text) return text;
+  const kept = new Set(keep.map((w) => w.toLowerCase()));
+  const tr = (w: string) => (kept.has(w.toLowerCase()) ? w : transliterateWord(w));
   let out = "";
   let last = 0;
   for (const m of text.matchAll(PROTECTED)) {
     const start = m.index ?? 0;
-    out += text.slice(last, start).replace(WORD, transliterateWord);
+    out += text.slice(last, start).replace(WORD, tr);
     out += m[0];
     last = start + m[0].length;
   }
-  out += text.slice(last).replace(WORD, transliterateWord);
+  out += text.slice(last).replace(WORD, tr);
   return out;
 }
 
