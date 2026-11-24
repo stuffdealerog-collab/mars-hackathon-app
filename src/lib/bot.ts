@@ -221,6 +221,7 @@ function registerHandlers(b: Bot) {
     const locale = pickLocale(ctx.from.language_code);
     await ctx.answerCallbackQuery({ text: t(locale, "pub.publishing") }).catch(() => undefined);
     const result = await publishFromBot(ctx.match[1], ctx.from.id, locale);
+    if (!result) return; // a repeat press while the first one is still sending: that one reports
     await ctx.reply(result.text, {
       link_preview_options: { is_disabled: true },
       ...(result.addAdminUrl
