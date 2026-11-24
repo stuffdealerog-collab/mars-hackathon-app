@@ -79,6 +79,8 @@ export interface VisualStyle {
   /** One paragraph ready to append to an image prompt. */
   prompt: string;
   learnedAt: string; // ISO
+  /** The same style in the owner's languages, for display (the English `prompt` stays for the image model). */
+  ownerText?: Partial<Record<"uz" | "ru" | "en", { summary: string; light: string; composition: string; mood: string; avoid: string[] }>>;
 }
 
 /** The plan item a post was written from (so plan and posts stay connected). */
