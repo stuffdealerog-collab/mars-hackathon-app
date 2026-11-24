@@ -57,4 +57,11 @@ describe("the brand's latest plan survives a reload (E7)", () => {
     expect((await call("GET", `/api/uslub/strategy?brandId=${b.id}`)).status).toBe(403);
     expect((await (await call("GET", `/api/uslub/strategy?brandId=${b.id}`, undefined, "tma 31337")).json()).planTag).toBe("ab12cd");
   });
+
+  it("nobody else can replace an owned brand's plan (403 before any Claude call)", async () => {
+    const b = await store.saveBrand({ channel: "safiabakery", knowledge: "", samplePosts: ["a", "b", "c", "d", "e"], dna: { name: "Safia" } as unknown as BrandDNA, mode: "channel" }, 4040, "channel_only");
+    expect((await call("POST", "/api/uslub/strategy", { brandId: b.id })).status).toBe(403);
+    expect((await call("POST", "/api/uslub/strategy", { brandId: b.id }, "tma 777")).status).toBe(403);
+    expect((await (await call("GET", `/api/uslub/strategy?brandId=${b.id}`, undefined, "tma 4040")).json()).plan).toBeNull();
+  });
 });
