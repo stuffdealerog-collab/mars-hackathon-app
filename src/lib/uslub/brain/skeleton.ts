@@ -336,8 +336,9 @@ export const HOOK_TYPES = ["number", "price", "question", "local", "before_after
 
 const HOOK_POOL: Record<Goal, string[]> = {
   sale: ["price", "product_spotlight", "number", "question"],
-  trust: ["behind_scenes", "local", "number", "question", "myth_fact"],
-  reach: ["myth_fact", "question", "local", "number", "behind_scenes", "product_spotlight"],
+  trust: ["behind_scenes", "local", "number", "question", "product_spotlight"],
+  // myth_fact last: forced "myths" read as machine-made (eval 24 Nov: NATURAL = 1 on most of them).
+  reach: ["question", "product_spotlight", "local", "number", "behind_scenes", "myth_fact"],
 };
 
 /** Hook type of a real post's first line (regex only), to know what the channel already does. */

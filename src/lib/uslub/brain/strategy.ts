@@ -10,6 +10,7 @@ import type { StoredPlanItem } from "./learn";
 import { extractIds, groundedCheck, jaccard, lintItem, trigrams, type CheckFail, type LintItem } from "./lint";
 import { brainJson, GROUNDING, HAIKU, SONNET } from "./llm";
 import { newPlanTag, savePlan } from "./memory";
+import { ctaAngle, stripIds } from "./copy";
 import { cycleOf, pillarShares, ruleLedger, runRules, type KbSignals } from "./rules";
 import { assignFocus, assignHookTypes, buildKpis, buildSkeleton, HOOK_TYPES, type Slot } from "./skeleton";
 import { features, LEXICON, median, normApos } from "./stats";
@@ -57,7 +58,8 @@ export function postsAsKb(data: ChannelData, now: number, max = 12): string {
   const recent = data.posts
     .filter((p) => !p.isForward && !features(p).isAd && p.text.trim().length > 40 && now - Date.parse(p.postedAt) <= 45 * 86_400_000)
     .slice(0, max);
-  return recent.length ? `Kanal postlari (@${data.channel}):\n${recent.map((p) => p.text.trim()).join("\n\n")}` : "";
+  // Each post carries its date so the planner can tell a standing fact (price, address) from an old event.
+  return recent.length ? `Kanal postlari (@${data.channel}):\n${recent.map((p) => `[${p.postedAt.slice(0, 10)}] ${p.text.trim()}`).join("\n\n")}` : "";
 }
 
 const factLedger = (facts: Fact[]): LedgerEntry[] =>
@@ -154,10 +156,11 @@ FOR EACH SLOT:
   number = a number from F up front; price = product + F price; question = the customer's real question (pain from F); local = district/landmark from F; behind_scenes = how it is made/done at the business (from F); myth_fact = a common belief vs an F fact; product_spotlight = one product from F, concrete detail; before_after = needs customer consent.
 - hook = the first line, ≤90 chars (aim for ≤70), in slot.lang. It must contain at least one specific from F (number, price, product name, district/landmark, real question). No greetings ("Assalomu alaykum", "Hurmatli mijozlar", "Здравствуйте", "Dear"). No hype. Never mention the bot, the link or "write to us" in the hook: the hook is about the customer and the product. Never invent a fact that is not in F.
   Bad: "Sizni ajoyib takliflarimiz kutmoqda!" (no specific, cliché, would fit anyone).
-- cta: one action. sale/trust: the link opens our Telegram bot, which passes the customer's message to the owner, who answers personally. So: verb + concrete reason + the token {{LINK}} exactly once ("Buyurtma uchun shu yerga yozing — o'zimiz javob beramiz: {{LINK}}"). Never promise that the bot itself sends menus or prices. reach: one forward or save line, no link.
+- cta: one action in the slot's ctaAngle (fixed by code). sale/trust: the link opens our Telegram bot, which passes the customer's message to the owner, who answers personally. So: verb + concrete reason tied to this post + the token {{LINK}} exactly once. Never promise that the bot itself sends menus or prices. reach: one forward or save line naming who to send it to, no link. Word every CTA differently: no two CTAs in a week may start with the same words, and never use the stock line "shu yerga yozing — o'zimiz javob beramiz".
 - brief (for Kopirayter and Dizayner): 1 sentence of angle and which audience pain; the facts to use [F..]; what to photograph or film AT THE BUSINESS (real, never stock; for video, a ≤60-second phone shot list in 3 steps).
 - sale slot: include the product's F price in the hook or brief. Urgency only with an F deadline or capacity fact.
-- factIds: every F id you used.
+- factIds: every F id you used. hook and cta are the customer-facing post: never put ids, brackets or ledger codes in them (ids go only in factIds and the brief).
+- Facts quoted from the channel's own posts carry the post date [YYYY-MM-DD]. Prices, products, addresses, hours and processes are standing facts. Dated events, promotions, deadlines and "new branch" announcements older than 14 days are history: never present them as current, and never tie a fact to a calendar event unless the fact itself names that event.
 VOICE: match the fingerprint — address form, words per sentence, emoji ≤ min(3, fingerprint emojiPer100 +50%), exclamations only if the owner uses them. Copy the anchors' manner, never their sentences. Never reuse competitor wording.
 Return JSON {items:[{slot, hook, cta, brief, factIds}]}.`;
 
@@ -347,7 +350,10 @@ export async function buildStrategy(inp: StrategyInput) {
   const statsForLlm = ledger.filter((e) => e.source !== "post" || e.id.startsWith(`P.${analysis?.data.channel}`)).map(({ id, label, display, n, prior }) => ({ id, label, display, n, prior }));
   const factsForLlm = facts.map(({ id, type, quote }) => ({ id, type, quote }));
   const slotsForLlm = new Map(
-    sk.slots.map((s) => [s.slot, { slot: s.slot, day: s.day, time: s.time, goal: s.goal, format: s.format, lang: slotLang, hookType: s.hookType, focus: s.focus, exp: s.exp, calendarEvent: s.calendarEvent }]),
+    sk.slots.map((s, i) => [
+      s.slot,
+      { slot: s.slot, day: s.day, time: s.time, goal: s.goal, format: s.format, lang: slotLang, hookType: s.hookType, ctaAngle: ctaAngle(s.goal, i), focus: s.focus, exp: s.exp, calendarEvent: s.calendarEvent },
+    ]),
   );
 
   // 5. strategist: waits for the web context (≤12 s), runs in parallel with the slot writers
@@ -506,6 +512,9 @@ export async function buildStrategy(inp: StrategyInput) {
     if (/mijoz(imiz)? fikri|otziv|отзыв|before_after/i.test(`${text} ${s.hookType ?? ""}`)) reasons.push("mijoz");
     // A language the channel never uses needs approval; a "mixed" channel already uses Uzbek and Russian.
     if (usedLangs.size && !usedLangs.has(slotLang) && !(usedLangs.has("mixed") && /^(uz-Latn|uz-Cyrl|ru)$/.test(slotLang))) reasons.push("til");
+    // Ids are for the checks and the brief; the customer never sees "[F3]".
+    hook = stripIds(hook);
+    cta = stripIds(cta);
     const link = s.link ?? "";
     cta = s.goal === "reach" ? cta.replace(/\{\{LINK\}\}/g, "").trim() : link ? cta.replace("{{LINK}}", link) : cta;
     const evIds = [...new Set([...s.evidence, ...(it?.factIds ?? [])])];
@@ -550,8 +559,14 @@ export async function buildStrategy(inp: StrategyInput) {
     emit({ stage: "item", item, elapsedMs: elapsed() });
   }
 
-  // Cross-item check the per-group writers could not see: near-duplicate hooks.
+  // Cross-item checks the per-group writers could not see: near-duplicate hooks, CTAs that open the same way.
   const items = [...finished].sort((a, b) => (a.slot as number) - (b.slot as number));
+  const ctaHead = (c: string) => normApos(c).toLowerCase().split(/\s+/).slice(0, 3).join(" ");
+  for (let i = 1; i < items.length; i++)
+    if (items[i].cta && items.slice(0, i).some((x) => x.cta && ctaHead(x.cta) === ctaHead(items[i].cta))) {
+      (items[i].approvalReasons as string[]).push("critic:CTA");
+      items[i].needsApproval = true;
+    }
   for (let i = 1; i < items.length; i++)
     for (let j = 0; j < i; j++)
       if (items[i].hook && items[j].hook && (jaccard(trigrams(items[i].hook), trigrams(items[j].hook)) >= 0.5 || jaccard(words(items[i].hook), words(items[j].hook)) >= 0.5)) {
@@ -562,7 +577,7 @@ export async function buildStrategy(inp: StrategyInput) {
   // 8. strategy (await with whatever time is left)
   let strategyOut: { d2: z.infer<typeof StrategySchema>; web: LedgerEntry[] } | null = null;
   try {
-    strategyOut = (await Promise.race([strategistP, sleep(Math.max(1_000, DEADLINE + 2_000 - elapsed())).then(() => null)])) ?? null;
+    strategyOut = (await Promise.race([strategistP, sleep(Math.max(500, DEADLINE - elapsed())).then(() => null)])) ?? null;
   } catch (err) {
     console.warn("[brain/strategy] strategist failed", err instanceof Error ? err.message : err);
   }
