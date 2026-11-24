@@ -354,7 +354,6 @@ function ChannelSheet({ leaving, postId }: { leaving: boolean; postId: string })
   const [busy, setBusy] = useState(false);
   const close = useNav((s) => s.closeSheet);
   const say = useNav((s) => s.say);
-  const lang = useLang((s) => s.lang);
   const post = useStudio((s) => s.posts.find((p) => p.id === postId));
   const { script } = usePostScript();
   const input = useRef<HTMLInputElement>(null);
@@ -372,30 +371,26 @@ function ChannelSheet({ leaving, postId }: { leaving: boolean; postId: string })
     }
     haptic.press();
     setBusy(true);
-    const s = scriptOf(post, script);
-    const r = await api.publishPost(post.id, s, `@${name}`, lang);
+    // The store publishes to the typed channel and keeps it as this brand's channel on success.
+    const r = await useStudio.getState().publish(post.id, scriptOf(post, script), `@${name}`);
     setBusy(false);
-    // Remember the channel for the next posts of this brand.
-    useStudio.setState({ input: { ...useStudio.getState().input, channel: name } });
-    if (r.ok && r.data.ok) {
-      useStudio.setState({ posts: useStudio.getState().posts.map((p) => (p.id === post.id ? { ...p, status: "published", publishedUrl: r.data.url } : p)) });
+    if (r.ok) {
       haptic.success();
       say(m.post.publishedToast, "ok");
       close();
       return;
     }
-    const admin = r.ok ? r.data.addAdminUrl : r.addAdminUrl;
-    const text = r.ok ? (r.data.error ?? c.error.generic) : problemOf(r).message;
-    useStudio.setState({ postNote: { ...useStudio.getState().postNote, [post.id]: { text, href: admin, tone: "bad" } } });
     haptic.error();
     close();
+    const text = r.message || c.error.generic;
+    const admin = r.adminUrl;
     if (!popup(text, admin ? { text: m.admin.open, onPress: () => openLink(admin) } : undefined)) say(text, "bad");
   };
 
   useBottomButtons("sheet", PRIORITY.sheet, !leaving, { text: m.channel.go, onClick: () => void go(), active: value.trim().length > 0, progress: busy });
 
   return (
-    <Sheet title={m.channel.title} leaving={leaving}>
+    <Sheet title={c.posts.channelAsk} leaving={leaving}>
       <form
         noValidate
         className="mt-3"
