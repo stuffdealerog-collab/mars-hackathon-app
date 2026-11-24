@@ -20,7 +20,8 @@ export function useHotkeys(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      // A key something else already handled (the palette's Enter, a control's own key) is not ours.
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
       const st = useStudio.getState();
       const desk = useDesk.getState();
       if (st.phase !== "ready" || st.tab !== "posts" || !st.pro || desk.editingId) return;

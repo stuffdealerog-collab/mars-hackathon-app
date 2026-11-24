@@ -25,6 +25,8 @@ const uz = {
       "Ertalab 7:00 dan issiq patir bor 🫓\n\nKatta patir — 12 000 so‘m, kichigi — 7 000 so‘m. Chilonzor 9-kvartal, bozor yonida.\n\nOldindan buyurtma uchun adminga yozing, soat 7 ga tayyorlab qo‘yamiz.",
     price: "7 kun bepul, keyin 149 000 so‘m/oy",
     beta: "beta",
+    ledSample: "namuna",
+    ledOff: "LED o‘chiq: hali havola yo‘q",
     footer: "Mercat · Toshkent, 2026",
   },
 
@@ -91,6 +93,8 @@ const uz = {
     avgViews: "o‘rtacha ko‘rish",
     reach: "obunachilar postni ko‘radi",
     perWeek: "haftasiga post",
+    perWeekForms: ["haftasiga post", "haftasiga post", "haftasiga post"],
+    perWeekFraction: "haftasiga post",
     findingsTitle: "Nimani tuzatish kerak",
     findingsNone: "Aniq muammo topilmadi.",
     more: "Batafsil",
@@ -164,11 +168,12 @@ const uz = {
     noImage: "Namunada rasm chizilmaydi",
   },
 
-  reopen: { loading: "Yuklanmoqda…", noPlan: "Haftalik reja bu qurilmada yo‘q", buildPlan: "Rejani tuzish" },
+  reopen: { loading: "Yuklanmoqda…", noPlan: "Haftalik reja saqlanmagan", buildPlan: "Rejani tuzish" },
 
+  notFound: { title: "Bunday sahifa yo‘q", text: "Havola eskirgan yoki xato yozilgan. Bosh sahifaga qayting yoki kanalingiz havolasini Studiyada qo‘ying.", home: "Bosh sahifa", studio: "Studiyani ochish" },
   tg: {
     outsideTitle: "Bu ekran Telegram ichida ochiladi",
-    outsideText: "Botni oching va «Ochish» tugmasini bosing yoki Studiyani brauzerda oching.",
+    outsideText: "Botni oching va «Ilovani ochish» tugmasini bosing yoki Studiyani brauzerda oching.",
     openBot: "Botni ochish",
     openWeb: "Brauzerda ochish",
     loading: "Yuklanmoqda…",
@@ -345,11 +350,13 @@ const ru: Copy = {
     exampleFinding: "Цена указана только в 1 из 12 продающих постов.",
     exampleFix: "Пишите цену прямо в посте. Вопросов «сколько стоит?» станет меньше, заказы пойдут быстрее.",
     examplePostLabel: "Готовый пост",
-    examplePostName: "Тандир нон",
+    examplePostName: "Тандыр нон",
     examplePost:
       "С 7:00 утра горячие лепёшки 🫓\n\nБольшой патыр — 12 000 сум, маленький — 7 000 сум. Чиланзар, 9-й квартал, рядом с базаром.\n\nЗаказ заранее: напишите админу, приготовим к 7 утра.",
     price: "7 дней бесплатно, затем 149 000 сум/мес",
     beta: "бета",
+    ledSample: "sample",
+    ledOff: "Табло выключено: ссылки ещё нет",
     footer: "Mercat · Ташкент, 2026",
   },
 
@@ -416,6 +423,9 @@ const ru: Copy = {
     avgViews: "просмотров в среднем",
     reach: "подписчиков видят посты",
     perWeek: "постов в неделю",
+    // 1 пост, 2 поста, 5 постов; after a fraction (2,5) Russian takes «поста».
+    perWeekForms: ["пост в неделю", "поста в неделю", "постов в неделю"],
+    perWeekFraction: "поста в неделю",
     findingsTitle: "Что исправить",
     findingsNone: "Явных проблем не нашли.",
     more: "Подробнее",
@@ -489,11 +499,12 @@ const ru: Copy = {
     noImage: "В образце картинки не рисуются",
   },
 
-  reopen: { loading: "Загрузка…", noPlan: "Плана недели на этом устройстве нет", buildPlan: "Составить план" },
+  reopen: { loading: "Загрузка…", noPlan: "План недели не сохранился", buildPlan: "Составить план" },
 
+  notFound: { title: "Такой страницы нет", text: "Ссылка устарела или набрана с ошибкой. Вернитесь на главную или вставьте ссылку на канал в Студии.", home: "На главную", studio: "Открыть Студию" },
   tg: {
     outsideTitle: "Этот экран открывается внутри Telegram",
-    outsideText: "Откройте бота и нажмите «Открыть» или откройте Студию в браузере.",
+    outsideText: "Откройте бота и нажмите «Открыть приложение» или откройте Студию в браузере.",
     openBot: "Открыть бота",
     openWeb: "Открыть в браузере",
     loading: "Загрузка…",
@@ -607,20 +618,20 @@ const ru: Copy = {
   },
   queue: {
     waiting: "Ждут вас",
-    approved: "Одобрены",
+    approved: "Утверждены",
     published: "Опубликованы",
     suggest: "рекомендуем: {when}",
-    notAuto: "Сам пост не выйдет: вы одобряете и публикуете.",
+    notAuto: "Сам пост не выйдет: вы утверждаете и публикуете.",
     empty: "Постов пока нет. В разделе «Канал» выберите день плана и нажмите «Написать пост».",
     toChannel: "Перейти в канал",
-    allDone: "Всё одобрено. Теперь опубликуйте в Telegram",
+    allDone: "Всё утверждено. Теперь опубликуйте в Telegram",
   },
   approve: {
-    toast: "Одобрено",
+    toast: "Утверждено",
     undo: "Отменить",
-    failed: "Не одобрено: {why}",
+    failed: "Не утверждено: {why}",
     show: "Показать",
-    next: "Одобрено. Следующий: {when}",
+    next: "Утверждено. Следующий: {when}",
   },
   publish: {
     toTelegram: "Опубликовать в Telegram",
@@ -633,7 +644,7 @@ const ru: Copy = {
     image: "Картинка",
     brief: "Задание",
     natural: "Естественность {n}/100",
-    cyrlStale: "Кириллица обновится при одобрении",
+    cyrlStale: "Кириллица обновится при утверждении",
   },
   refs: {
     channel: "По фото вашего канала ({n})",
@@ -646,7 +657,7 @@ const ru: Copy = {
     forbidden: "Этот канал привязан к вашему аккаунту Telegram. Откройте его через бота.",
     expired: "Ссылка устарела. Откройте Студию из бота ещё раз.",
   },
-  keys: { hint: "Enter одобрить · E править · J/K посты · 1–4 язык" },
+  keys: { hint: "Enter утвердить · E править · J/K посты · 1–4 язык" },
   problem: { dismiss: "Закрыть" },
   palette: { title: "Команды", placeholder: "Раздел или команда…", empty: "Ничего не найдено", langTo: "Язык: {lang}", names: { uz: "O‘zbekcha", ru: "Русский", en: "English" } },
 
@@ -672,6 +683,8 @@ const en: Copy = {
       "Hot flatbread from 7:00 in the morning 🫓\n\nLarge patir — 12,000 UZS, small — 7,000 UZS. Chilonzor, block 9, next to the bazaar.\n\nOrder ahead: message the admin and we’ll have it ready by 7.",
     price: "7 days free, then 149,000 UZS a month",
     beta: "beta",
+    ledSample: "sample",
+    ledOff: "The sign is off: no link yet",
     footer: "Mercat · Tashkent, 2026",
   },
 
@@ -738,6 +751,8 @@ const en: Copy = {
     avgViews: "average views",
     reach: "of subscribers see a post",
     perWeek: "posts a week",
+    perWeekForms: ["post a week", "posts a week", "posts a week"],
+    perWeekFraction: "posts a week",
     findingsTitle: "What to fix",
     findingsNone: "No clear problems found.",
     more: "More",
@@ -811,11 +826,12 @@ const en: Copy = {
     noImage: "The sample has no pictures",
   },
 
-  reopen: { loading: "Loading…", noPlan: "No week plan on this device", buildPlan: "Build the plan" },
+  reopen: { loading: "Loading…", noPlan: "The week plan was not saved", buildPlan: "Build the plan" },
 
+  notFound: { title: "There is no such page", text: "The link is old or has a typo. Go back to the home page, or paste your channel link in the Studio.", home: "Home page", studio: "Open the Studio" },
   tg: {
     outsideTitle: "This screen opens inside Telegram",
-    outsideText: "Open the bot and tap “Open”, or open the Studio in your browser.",
+    outsideText: "Open the bot and tap “Open app”, or open the Studio in your browser.",
     openBot: "Open the bot",
     openWeb: "Open in browser",
     loading: "Loading…",

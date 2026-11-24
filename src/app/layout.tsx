@@ -1,17 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import { onest } from "@/components/ui/font";
+import { META, ogImage } from "@/components/ui/meta";
 import "./globals.css";
 
+// Defaults for every page (Uzbek); / and /studio give their own per ?lang= (generateMetadata).
+// The share card is the brand kit's public/brand/og-<lang>.png, set here and per page, not as a
+// file-based opengraph-image, which would override the per-language ones.
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.PUBLIC_URL ?? "https://mercat-ai.vercel.app"),
-  title: { default: "Mercat — Telegram kanalingiz uchun postlar", template: "%s · Mercat" },
-  description:
-    "Telegram kanalingiz havolasini qo‘ying: Mercat kanalni o‘qiydi, nimani tuzatish kerakligini raqamlar bilan ko‘rsatadi va bir haftalik postlarni rasmlari bilan tayyorlaydi. Siz faqat tasdiqlaysiz.",
-  openGraph: {
-    title: "Mercat — kanalingizga postlarni Mercat yozadi",
-    description: "Havolani qo‘ying: kanal tahlili, haftalik reja va rasmli postlar. Siz faqat tasdiqlaysiz.",
-    // The image is src/app/opengraph-image.png (brand kit): Next adds it to every page.
-  },
+  title: { default: META.uz.landing.title, template: "%s · Mercat" },
+  description: META.uz.landing.description,
+  openGraph: { title: META.uz.landing.ogTitle, description: META.uz.landing.ogDescription, images: [ogImage("uz")], siteName: "Mercat" },
+  twitter: { card: "summary_large_image", title: META.uz.landing.ogTitle, description: META.uz.landing.ogDescription, images: [ogImage("uz")] },
 };
 
 // The browser's own chrome matches what the page shows: the warm graphite room on a computer

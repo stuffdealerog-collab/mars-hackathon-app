@@ -40,7 +40,7 @@ function commands(c: Copy): Command[] {
     const post = s.tab === "posts" ? (order.find((p) => p.id === desk.focusedPostId) ?? order[0]) : undefined;
     if (post) {
       const script = s.postScript && post.variants[s.postScript]?.trim() ? s.postScript : "uz_latn";
-      if (post.status === "draft" && !s.pendingApprove[post.id]) add("approve", c.posts.approve, `${all((cc) => cc.posts.approve)} approve одобрить`, () => void approveWithUndo(post.id, true));
+      if (post.status === "draft" && !s.pendingApprove[post.id]) add("approve", c.posts.approve, `${all((cc) => cc.posts.approve)} approve утвердить одобрить`, () => void approveWithUndo(post.id, true));
       if (post.status === "approved" && !s.sample) add("publish", c.publish.toTelegram, `${all((cc) => cc.publish.toTelegram)} joylash publish`, () => publishStep(post, s.postScript));
       if (post.status === "draft" && !s.sample && desk.imageHandle && !pictureBusy(post.id, post.image)) add("image", c.tools.otherImage, all((cc) => cc.tools.otherImage), () => desk.imageHandle?.regenerate());
       add("copy", c.tools.copyText, all((cc) => cc.tools.copyText), () => void copyText(post.variants[script] ?? "").then((ok) => ok && desk.toast({ text: c.tools.copied, ms: 2200 })));
@@ -87,7 +87,9 @@ export function CommandPalette() {
   };
   const hide = () => {
     setOpen(false);
-    back.current?.focus?.({ preventScroll: true });
+    // Back to where the owner was; nowhere (not body) if that element is gone.
+    const to = back.current;
+    if (to && to !== document.body && to.isConnected) to.focus({ preventScroll: true });
   };
 
   useEffect(() => {
@@ -155,10 +157,14 @@ export function CommandPalette() {
               e.preventDefault();
               if (shown.length) setActive((at + (e.key === "ArrowDown" ? 1 : shown.length - 1)) % shown.length);
             } else if (e.key === "Enter") {
+              // The palette's Enter is the palette's alone: without stopPropagation it went on to the
+              // window's hotkeys after the palette closed and approved (or published) the post in focus.
               e.preventDefault();
+              e.stopPropagation();
               if (!e.repeat) run(shown[at]);
             } else if (e.key === "Escape") {
               e.preventDefault();
+              e.stopPropagation();
               hide();
             } else if (e.key === "Tab") e.preventDefault(); // the field is the dialog's only stop
           }}

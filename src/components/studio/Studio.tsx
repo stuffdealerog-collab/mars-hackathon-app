@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Led } from "../lamp/Led";
 import { WORK_LIGHT } from "../lamp/lamps";
 import { decideIntro, forcedByUrl, localIntro, Onboarding } from "@/components/onboarding";
-import { fmt, useCopy, useInitLang, useLang } from "../ui/lang";
+import { fmt, useCopy, useInitLang, useLang, useTabTitle } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel, useStageVariant } from "../ui/parts";
 import { ChannelSign } from "./ChannelSign";
 import { CommandPalette } from "./CommandPalette";
@@ -29,6 +29,7 @@ const EASE_OUT = [0.16, 1, 0.3, 1] as const;
  */
 export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: string; inTelegram?: boolean; theme?: Theme; langHint?: string | null }) {
   useInitLang(langHint);
+  useTabTitle("studio");
   const phase = useStudio((s) => s.phase);
   const sample = useStudio((s) => s.sample);
   const entry = useStudio((s) => s.entry);
@@ -90,7 +91,7 @@ export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: stri
   if (desktop && !inTelegram) return <DesktopStudio theme={theme} />;
 
   return (
-    <div data-theme={theme} className="flex min-h-dvh flex-col bg-paper text-ink">
+    <div data-theme={theme} className="flex min-h-dvh flex-col overflow-x-clip bg-paper text-ink">
       <header className="mx-auto flex w-full max-w-[760px] items-center justify-between gap-3 px-4 pb-2 pt-3 sm:px-6 sm:pt-5">
         <Logo href={inTelegram ? null : "/"} />
         <span className="flex items-center gap-2">
@@ -138,6 +139,8 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
   const side = useHub((s) => s.side);
   const collapsed = useHub((s) => s.collapsed);
   const intro = useHub((s) => s.intro);
+  const tab = useStudio((s) => s.tab);
+  const pro = useStudio((s) => s.pro);
   const lang = useLang((s) => s.lang);
   // The first-run intro: once for a newcomer; never for an owner with saved channels; not over a
   // link that already says what to do (?brand=, ?channel=); always with ?intro=1. Remembered here.
@@ -155,7 +158,7 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
       {/* The canvas takes the width beside the hub: a pro tool, not a phone column. Reading
           screens (start, the run) keep a reading measure; the ready workspace spreads out. */}
       <main
-        className="relative z-10 w-full px-10 pb-24 pt-6 transition-[padding] duration-300"
+        className="relative z-10 w-full overflow-x-clip px-10 pb-24 pt-6 transition-[padding] duration-300"
         style={side === "left" ? { paddingLeft: gutter + 8 } : { paddingRight: gutter + 8 }}
       >
         {/* The channel's numbers on an LED sign that runs under the glass to the window's edge. */}
@@ -170,7 +173,13 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
           {phase === "ready" && <Ready inTelegram={false} desktop />}
         </div>
       </main>
-      <Toasts inset={side === "left" ? gutter : -gutter} />
+      <Toasts
+        inset={side === "left" ? gutter : -gutter}
+        // Postlar: never over the next post's buttons. Pro anchors under the queue (the canvas's
+        // start), Oddiy beside its single column (the end).
+        align={phase === "ready" && tab === "posts" ? (pro ? "start" : "end") : "center"}
+        edge={(pro ? side === "left" : side === "right") ? gutter + 8 : 40}
+      />
       <CommandPalette />
       <Onboarding
         open={intro}

@@ -14,6 +14,8 @@ import { useStudio } from "./store";
 
 const MAX_PHOTOS = 5;
 const MIN_DESC = 40;
+/** What the server takes for a description; the field stops there and counts toward it. */
+const MAX_DESC = 8000;
 
 /** Shrinks a photo to ≤1024 px JPEG so the request stays small on a phone network. */
 async function toDataUrl(file: File): Promise<string> {
@@ -265,16 +267,22 @@ function FreshForm({ onBack }: { onBack: () => void }) {
             className="input min-h-[150px]"
             placeholder={keepNumbers(c.fresh.descPh)}
             value={desc}
+            maxLength={MAX_DESC}
             aria-invalid={descBad || undefined}
-            aria-describedby={`${id}-dh`}
+            aria-describedby={`${id}-dh ${id}-dn`}
             onChange={(e) => {
               setDesc(e.target.value);
               if (descBad) setDescBad(false);
             }}
           />
-          <p id={`${id}-dh`} role={descBad ? "alert" : undefined} className={`mt-2 text-[14px] leading-relaxed ${descBad ? "text-bad" : "text-ink-3"}`}>
-            {descBad ? c.fresh.descShort : c.fresh.descHint}
-          </p>
+          <div className="mt-2 flex items-baseline justify-between gap-4">
+            <p id={`${id}-dh`} role={descBad ? "alert" : undefined} className={`text-[14px] leading-relaxed ${descBad ? "text-bad" : "text-ink-3"}`}>
+              {descBad ? c.fresh.descShort : c.fresh.descHint}
+            </p>
+            <span id={`${id}-dn`} className={`tnum shrink-0 text-[13px] ${desc.length >= MAX_DESC ? "text-bad" : "text-ink-3"}`}>
+              {desc.length} / {MAX_DESC}
+            </span>
+          </div>
         </div>
 
         <div>

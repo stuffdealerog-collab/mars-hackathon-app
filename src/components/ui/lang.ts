@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { tabTitle } from "./meta";
 import { create } from "zustand";
 import { COPY, type Copy } from "./copy";
 
@@ -53,6 +54,15 @@ export function useInitLang(hint?: string | null) {
       document.documentElement.lang = pick;
     } else useLang.setState({ ready: true });
   }, [hint]);
+}
+
+/** The browser tab's title in the page's language (the server set it for ?lang=; a switch updates it). */
+export function useTabTitle(page: "landing" | "studio") {
+  const lang = useLang((s) => s.lang);
+  const ready = useLang((s) => s.ready);
+  useEffect(() => {
+    if (ready) document.title = tabTitle(page, lang);
+  }, [page, lang, ready]);
 }
 
 export function useCopy(): Copy {

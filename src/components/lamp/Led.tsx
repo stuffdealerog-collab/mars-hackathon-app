@@ -134,6 +134,7 @@ export function LedStrip({
   gap = 2,
   className = "",
   label,
+  offLabel = "LED o‘chiq: hali havola yo‘q",
   run = false,
 }: {
   text?: string;
@@ -141,6 +142,8 @@ export function LedStrip({
   gap?: number;
   className?: string;
   label?: string;
+  /** what a screen reader hears while the strip is dark, in the page's language */
+  offLabel?: string;
   /** scroll the text through the strip, like a shop's running line */
   run?: boolean;
 }) {
@@ -150,7 +153,7 @@ export function LedStrip({
   return (
     <div
       role="img"
-      aria-label={text ? (label ?? text) : "LED o‘chiq: hali havola yo‘q"}
+      aria-label={text ? (label ?? text) : offLabel}
       className={`led-well flex items-center overflow-hidden rounded-[12px] bg-[var(--led-well,var(--stage))] px-3 ${className}`}
       style={{ boxShadow: "inset 0 0 0 1px var(--hair)", height: h + 22 }}
     >

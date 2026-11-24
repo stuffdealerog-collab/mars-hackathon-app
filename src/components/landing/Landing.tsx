@@ -10,7 +10,7 @@ import { LAMP_ORDER, WORK_LIGHT, type LampState } from "../lamp/lamps";
 import { lampsFrom, Panel, sampleSnapshot, type Lamps } from "../studio/Department";
 import { SAMPLE_CHANNEL, sampleBrand } from "../studio/sample";
 import { ChannelField } from "../ui/ChannelField";
-import { keepNumbers, useCopy, useInitLang, useLang } from "../ui/lang";
+import { keepNumbers, useCopy, useInitLang, useLang, useTabTitle } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel, Steps, useStageVariant } from "../ui/parts";
 
 /** Roles that do nothing for the owner yet stay dark with "tez orada" (see Studio/Department). */
@@ -19,6 +19,7 @@ const DARK: Lamps = { state: Object.fromEntries(LAMP_ORDER.map((r) => [r, "off"]
 
 export function Landing({ bot }: { bot: string }) {
   useInitLang();
+  useTabTitle("landing");
   const c = useCopy();
   const botUrl = `https://t.me/${bot}`;
   const [armed, setArmed] = useState(false);
@@ -125,16 +126,16 @@ function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
   return (
     <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-x-10">
       {/* Phones: the shop sign stays dark until there is a real channel to read, then spells it. */}
-      <LedStrip text={typed ? `@${typed}` : undefined} dot={3} gap={1.5} className="mb-7 max-w-[460px] lg:hidden" label={typed ? `@${typed}` : undefined} />
+      <LedStrip text={typed ? `@${typed}` : undefined} dot={3} gap={1.5} className="mb-7 max-w-[460px] lg:hidden" label={typed ? `@${typed}` : undefined} offLabel={c.landing.ledOff} />
       {/* Computers: the department under it is the lit sample, so the sign names the sample's
           channel (marked "namuna"); a typed channel takes its place. */}
       <div className="hidden lg:col-span-5 lg:col-start-8 lg:row-start-1 lg:mb-6 lg:block lg:self-end">
         {/* The full "namuna · @namuna" fits from 1280; narrower, the channel alone. */}
         <div className="xl:hidden">
-          <LedStrip text={typed ? `@${typed}` : SAMPLE_CHANNEL} dot={3} gap={1.5} label={typed ? `@${typed}` : `${c.sample.chip} · ${SAMPLE_CHANNEL}`} />
+          <LedStrip text={typed ? `@${typed}` : SAMPLE_CHANNEL} dot={3} gap={1.5} label={typed ? `@${typed}` : `${c.sample.chip} · ${SAMPLE_CHANNEL}`} offLabel={c.landing.ledOff} />
         </div>
         <div className="hidden xl:block">
-          <LedStrip text={typed ? `@${typed}` : `namuna · ${SAMPLE_CHANNEL}`} dot={3} gap={1.5} label={typed ? `@${typed}` : `${c.sample.chip} · ${SAMPLE_CHANNEL}`} />
+          <LedStrip text={typed ? `@${typed}` : `${c.landing.ledSample} · ${SAMPLE_CHANNEL}`} dot={3} gap={1.5} label={typed ? `@${typed}` : `${c.sample.chip} · ${SAMPLE_CHANNEL}`} offLabel={c.landing.ledOff} />
         </div>
       </div>
 

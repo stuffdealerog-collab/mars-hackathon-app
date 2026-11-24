@@ -51,11 +51,11 @@ const FINDINGS: { kind: "problem" | "opportunity"; text: L3; evidence: L3 }[] = 
 ];
 
 const PLAN: { day: number; time: string; goal: Goal; hook: L3 }[] = [
-  { day: 0, time: "07:30", goal: "sale", hook: { uz: "Ertalabki patir: narxi va manzili", ru: "Утренняя патыр: цена и адрес", en: "Morning patir: price and address" } },
+  { day: 0, time: "07:30", goal: "sale", hook: { uz: "Ertalabki patir: narxi va manzili", ru: "Утренний патыр: цена и адрес", en: "Morning patir: price and address" } },
   { day: 1, time: "08:00", goal: "trust", hook: { uz: "Tandirni soat 5 da yoqamiz", ru: "Мы разжигаем тандыр в 5 утра", en: "We light the tandir at 5 a.m." } },
   { day: 2, time: "07:30", goal: "sale", hook: { uz: "Oldindan buyurtma, navbatsiz", ru: "Заказ заранее, без очереди", en: "Order ahead, skip the queue" } },
   { day: 3, time: "12:00", goal: "reach", hook: { uz: "Qaysi non nimaga mos", ru: "Какой хлеб к чему", en: "Which bread goes with what" } },
-  { day: 4, time: "07:30", goal: "sale", hook: { uz: "Juma oshiga katta patir", ru: "Большая патыр к пятничному плову", en: "A large patir for Friday plov" } },
+  { day: 4, time: "07:30", goal: "sale", hook: { uz: "Juma oshiga katta patir", ru: "Большой патыр к пятничному плову", en: "A large patir for Friday plov" } },
   { day: 5, time: "09:00", goal: "trust", hook: { uz: "Novvoyimiz Akmal aka bilan tanishing", ru: "Знакомьтесь: наш пекарь Акмаль-ака", en: "Meet our baker, Akmal aka" } },
   { day: 6, time: "10:00", goal: "reach", hook: { uz: "Yakshanba nonushtasi: 3 ta g‘oya", ru: "Воскресный завтрак: 3 идеи", en: "Sunday breakfast: 3 ideas" } },
 ];
@@ -110,8 +110,8 @@ export function sampleBrand(lang: Lang): BrandProfile {
     samplePosts: [],
     createdAt: new Date().toISOString(),
     dna: {
-      name: "Tandir non",
-      oneLiner: L({ uz: "Chilonzordagi tandir non va patir do‘koni", ru: "Пекарня тандырного хлеба и патыр на Чиланзаре", en: "A tandir bread and patir bakery in Chilonzor" }),
+      name: L({ uz: "Tandir non", ru: "Тандыр нон", en: "Tandir non" }),
+      oneLiner: L({ uz: "Chilonzordagi tandir non va patir do‘koni", ru: "Пекарня тандырного хлеба и патыров на Чиланзаре", en: "A tandir bread and patir bakery in Chilonzor" }),
       audience: L({ uz: "atrofdagi oilalar, ertalab ishga ketayotganlar", ru: "семьи по соседству и те, кто утром идёт на работу", en: "families nearby and people on their way to work" }),
       tone: L({ uz: "iliq, qisqa, uydagidek", ru: "тёплый, короткий, по-домашнему", en: "warm, short, homely" }),
       address: "siz",
@@ -131,7 +131,7 @@ export function sampleBrand(lang: Lang): BrandProfile {
 export function sampleAudit(lang: Lang): ChannelAudit {
   return {
     channel: SAMPLE_CHANNEL,
-    title: "Tandir non",
+    title: lang === "ru" ? "Тандыр нон" : "Tandir non",
     subscribers: 2140,
     postsAnalyzed: 60,
     postsPerWeek: 3.2,
