@@ -37,10 +37,14 @@ export const POST = handle(async (req) => {
   let brandName = body.brandName;
   const userId = telegramUserId(req);
   let brandId: string | undefined;
+  let ownerVerified = false;
   if (body.brandId) {
     try {
       const brand = await loadBrandFor(body.brandId, userId);
       brandId = brand.id;
+      const requested = (body.channel ?? body.audit?.channel)?.replace(/^@/, "").toLowerCase();
+      ownerVerified =
+        brand.source === "custom" && brand.ownerTelegramId != null && brand.ownerTelegramId === userId && (!requested || !brand.channel || requested === brand.channel.toLowerCase());
       // Brand memory: what the owner gave us (docs, site, PDF, price list) comes first.
       const owner = await loadKnowledge(brand.id).catch(() => ({ text: "" }));
       knowledge = [owner.text, brand.knowledge, knowledge].filter(Boolean).join("\n\n");
@@ -63,6 +67,7 @@ export const POST = handle(async (req) => {
       brandName,
       brandId,
       ownerTelegramId: userId,
+      ownerVerified,
       approvedPosts: body.approvedPosts,
       onStage,
     }),

@@ -23,14 +23,18 @@ export const POST = handle(async (req) => {
   let channel = body.channel ? normalizeChannel(body.channel) : null;
   let owner = false;
   if (body.brandId) {
-    const brand = await loadBrandFor(body.brandId, telegramUserId(req));
-    channel ??= brand.channel ? normalizeChannel(brand.channel) : null;
-    owner = brand.source === "custom" && brand.ownerTelegramId != null;
+    const userId = telegramUserId(req);
+    const brand = await loadBrandFor(body.brandId, userId);
+    const brandChannel = brand.channel ? normalizeChannel(brand.channel) : null;
+    if (channel && brandChannel && channel.toLowerCase() !== brandChannel.toLowerCase()) throw new HttpError(400, "channel does not match the brand's channel");
+    channel ??= brandChannel;
+    // Owner reports only for the verified owner of a custom brand (loadBrandFor already matched the Telegram user).
+    owner = brand.source === "custom" && brand.ownerTelegramId != null && brand.ownerTelegramId === userId;
   }
   if (!channel) throw new HttpError(400, "Provide channel or a brandId with a linked channel");
   try {
     const data = await scrapeChannelData(channel);
-    const r = await learnFor(data.channel, data.posts, Date.now(), body.lang ?? "uz", { brandId: body.brandId, ownerReports: owner });
+    const r = await learnFor(data.channel, data.posts, Date.now(), body.lang ?? "uz", { brandId: owner ? body.brandId : undefined, ownerReports: owner });
     // Owner-reported orders are private: only the verified owner of the brand sees them.
     const plans = owner ? r.plans : r.plans.map((p) => ({ ...p, weekOrders: undefined }));
     const outcomes = owner ? r.outcomes : r.outcomes.map((o) => ({ ...o, sold: undefined }));

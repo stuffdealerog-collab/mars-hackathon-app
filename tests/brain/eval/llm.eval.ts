@@ -90,6 +90,35 @@ async function judge(fx: Fixture, facts: { id: string; quote: string }[], items:
   return res.parsed_output.items;
 }
 
+type JudgedItem = PlanItemOut & { judge?: z.infer<typeof JudgeSchema>["items"][number] };
+type RunRow = { items: JudgedItem[]; metrics: { hardFails: number; emptyHook: boolean; neuroHits: number; humanScore: number; critic: string }[]; pipelineMs: number };
+
+function summarizeRun(results: Record<string, unknown>[], promptVersion: string) {
+  const ok = results.filter((r) => !r.error) as unknown as RunRow[];
+  const judgedItems = ok.flatMap((r) => r.items.filter((i) => i.judge));
+  const mean = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : null);
+  const allMetrics = ok.flatMap((r) => r.metrics);
+  const secs = ok.map((r) => r.pipelineMs / 1000).sort((a, b) => a - b);
+  return {
+    promptVersion,
+    runAt: new Date().toISOString(),
+    channels: results.map((r) => r.handle as string),
+    errors: results.filter((r) => r.error).map((r) => `${r.handle}: ${r.error}`),
+    items: allMetrics.length,
+    judged: judgedItems.length,
+    judge: Object.fromEntries(CRITERIA.map((c) => [c, mean(judgedItems.map((i) => i.judge!.scores[c]))])) as Record<Criterion, number | null>,
+    anyOne: judgedItems.length ? Math.round((judgedItems.filter((i) => CRITERIA.some((c) => i.judge!.scores[c] <= 1)).length / judgedItems.length) * 100) / 100 : null,
+    allThree: judgedItems.length ? Math.round((judgedItems.filter((i) => CRITERIA.every((c) => i.judge!.scores[c] >= 3)).length / judgedItems.length) * 100) / 100 : null,
+    machineMade: judgedItems.length ? Math.round((judgedItems.filter((i) => i.judge!.machine_made).length / judgedItems.length) * 100) / 100 : null,
+    residualHardFails: allMetrics.reduce((a, m) => a + m.hardFails, 0),
+    emptyHooks: allMetrics.filter((m) => m.emptyHook).length,
+    neuroHits: allMetrics.reduce((a, m) => a + m.neuroHits, 0),
+    meanHumanScore: mean(allMetrics.map((m) => m.humanScore)),
+    critic: Object.fromEntries(["passed", "fixed", "owner_input", "timeout"].map((st) => [st, allMetrics.filter((m) => m.critic === st).length])),
+    pipelineSeconds: { median: secs.length ? secs[Math.floor((secs.length - 1) / 2)] : null, max: secs.length ? secs[secs.length - 1] : null },
+  };
+}
+
 function pickChannels(all: Fixture[]): Fixture[] {
   const want = process.env.EVAL_CHANNELS?.split(",").map((s) => s.trim().toLowerCase());
   if (want?.length) return all.filter((f) => want.includes(f.handle.toLowerCase()));
@@ -111,6 +140,8 @@ describe.skipIf(!process.env.BRAIN_EVAL)("Brain LLM eval", () => {
     const chosen = pickChannels(all);
     expect(chosen.length).toBeGreaterThan(0);
     const summaries = all.map((f) => summarize(computeStats(f.data, Date.parse(f.capturedAt)), f.niche, f.capturedAt));
+    if (process.env.EVAL_JOBS_OUT)
+      writeFileSync(process.env.EVAL_JOBS_OUT, JSON.stringify(chosen.map((fx) => ({ handle: fx.handle, category: NICHE_LABEL[fx.niche].en, brandName: fx.data.title, knowledge: kbFromPosts(fx.data) }))));
 
     const results: Record<string, unknown>[] = [];
     const queue = [...chosen];
@@ -168,30 +199,7 @@ describe.skipIf(!process.env.BRAIN_EVAL)("Brain LLM eval", () => {
     };
     await Promise.all(Array.from({ length: Number(process.env.EVAL_CONCURRENCY ?? 2) }, worker));
 
-    // aggregate
-    type R = { items: (PlanItemOut & { judge?: z.infer<typeof JudgeSchema>["items"][number] })[]; metrics: { hardFails: number; emptyHook: boolean; neuroHits: number; humanScore: number; critic: string }[]; pipelineMs: number };
-    const ok = results.filter((r) => !r.error) as unknown as R[];
-    const judgedItems = ok.flatMap((r) => r.items.filter((i) => i.judge));
-    const mean = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : null);
-    const allMetrics = ok.flatMap((r) => r.metrics);
-    const summary = {
-      promptVersion: PROMPT_VERSION,
-      runAt: new Date().toISOString(),
-      channels: results.map((r) => r.handle),
-      errors: results.filter((r) => r.error).map((r) => `${r.handle}: ${r.error}`),
-      items: allMetrics.length,
-      judged: judgedItems.length,
-      judge: Object.fromEntries(CRITERIA.map((c) => [c, mean(judgedItems.map((i) => i.judge!.scores[c]))])),
-      anyOne: judgedItems.length ? Math.round((judgedItems.filter((i) => CRITERIA.some((c) => i.judge!.scores[c] <= 1)).length / judgedItems.length) * 100) / 100 : null,
-      machineMade: judgedItems.length ? Math.round((judgedItems.filter((i) => i.judge!.machine_made).length / judgedItems.length) * 100) / 100 : null,
-      residualHardFails: allMetrics.reduce((a, m) => a + m.hardFails, 0),
-      emptyHooks: allMetrics.filter((m) => m.emptyHook).length,
-      neuroHits: allMetrics.reduce((a, m) => a + m.neuroHits, 0),
-      meanHumanScore: mean(allMetrics.map((m) => m.humanScore)),
-      critic: Object.fromEntries(["passed", "fixed", "owner_input", "timeout"].map((s) => [s, allMetrics.filter((m) => m.critic === s).length])),
-      pipelineSeconds: { median: mean([...ok.map((r) => r.pipelineMs)].sort((a, b) => a - b).slice(Math.floor((ok.length - 1) / 2), Math.floor(ok.length / 2) + 1).map((x) => x / 1000)), max: ok.length ? Math.max(...ok.map((r) => r.pipelineMs)) / 1000 : null },
-    };
-
+    const summary = summarizeRun(results, PROMPT_VERSION);
     const dir = new URL("../../../docs/brain/eval-results/", import.meta.url);
     mkdirSync(dir, { recursive: true });
     const stamp = `${summary.runAt.slice(0, 16).replace(/[:T]/g, "")}-${PROMPT_VERSION}`;
@@ -199,8 +207,9 @@ describe.skipIf(!process.env.BRAIN_EVAL)("Brain LLM eval", () => {
 
     // Founder's label sheet (judge scores are NOT in it, so the labels stay blind).
     const esc = (s: string) => `"${s.replace(/"/g, '""').replace(/\n/g, " ")}"`;
+    const ok = results.filter((r) => !r.error) as unknown as RunRow[];
     const rows = ["id,channel,slot,goal,format,hook,cta,brief,SPECIFIC,GROUNDED,NATURAL,ACTIONABLE,GOAL_FIT,MACHINE_MADE,COMMENT"];
-    for (const r of ok as unknown as ({ handle: string } & R)[])
+    for (const r of ok as unknown as ({ handle: string } & RunRow)[])
       for (const it of r.items) rows.push([esc(`${r.handle}#${it.slot}`), r.handle, it.slot, it.goal, it.format, esc(it.hook), esc(it.cta), esc(it.brief.split("\n— Dalil")[0].slice(0, 300)), "", "", "", "", "", "", ""].join(","));
     writeFileSync(new URL("../../../docs/brain/eval-labels.csv", import.meta.url), `${rows.join("\n")}\n`);
     writeFileSync(new URL("latest.json", dir), `${JSON.stringify({ file: `${stamp}.json`, summary }, null, 1)}\n`);
@@ -217,5 +226,39 @@ describe.skipIf(!process.env.BRAIN_EVAL)("Brain LLM eval", () => {
       }
     }
     expect(summary.errors.length).toBeLessThan(chosen.length);
+  });
+});
+
+/** Judges Brain v1 plans (dumped by the v1 worktree runner) with the same judge and rubric, for the v1 vs v2 table. */
+describe.skipIf(!process.env.EVAL_V1_FILE)("Brain v1 judged with the same rubric", () => {
+  it("judges v1 plans", async () => {
+    const { analyzeNeuro } = await import("../../../src/lib/uslub/neuro");
+    const v1 = JSON.parse(readFileSync(process.env.EVAL_V1_FILE as string, "utf8")) as { handle: string; error?: string; pipelineMs?: number; facts?: { id: string; quote: string }[]; items?: PlanItemOut[]; criticReport?: { slot: number; status: string; fails: { check: string }[] }[] }[];
+    const fixtures = new Map(loadFixtures().map((f) => [f.handle.toLowerCase(), f]));
+    const rows: Record<string, unknown>[] = [];
+    for (const r of v1) {
+      const fx = fixtures.get(r.handle.toLowerCase());
+      if (r.error || !fx || !r.items) {
+        rows.push({ handle: r.handle, error: r.error ?? "no fixture" });
+        continue;
+      }
+      const items = r.items.map((it) => ({ ...it, critic: r.criticReport?.find((c) => c.slot === it.slot)?.status ?? "?", fails: r.criticReport?.find((c) => c.slot === it.slot)?.fails ?? [] }));
+      const judged = await judge(fx, r.facts ?? [], items).catch(() => []);
+      rows.push({
+        handle: r.handle,
+        pipelineMs: r.pipelineMs,
+        items: items.map((it) => ({ ...it, judge: judged.find((j) => j.slot === it.slot) })),
+        metrics: items.map((it) => {
+          const neuro = analyzeNeuro(`${it.hook}\n${it.cta}`, "uz_latn");
+          return { slot: it.slot, critic: it.critic, hardFails: it.fails.filter((f) => ["GROUNDED", "PRICE", "URGENCY"].includes(f.check)).length, emptyHook: !it.hook, hookLen: it.hook.length, neuroHits: neuro.hits.length, humanScore: neuro.humanScore };
+        }),
+      });
+      console.log(`v1 judged ${r.handle}: ${judged.length}/${items.length}`);
+    }
+    const summary = summarizeRun(rows, "v1@fbf9bb7");
+    const dir = new URL("../../../docs/brain/eval-results/", import.meta.url);
+    writeFileSync(new URL(`${summary.runAt.slice(0, 16).replace(/[:T]/g, "")}-v1.json`, dir), `${JSON.stringify({ summary, results: rows }, null, 1)}\n`);
+    console.log(JSON.stringify(summary, null, 1));
+    expect(summary.items).toBeGreaterThan(0);
   });
 });

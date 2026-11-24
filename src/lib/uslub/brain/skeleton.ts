@@ -67,7 +67,7 @@ export function isoWeek(d: Date): { year: number; week: number } {
 export function postCount(stats: ChannelStats | undefined, rules: RuleResult[]): number {
   if (!stats || stats.postsInWindow === 0) return 3;
   const ppw = stats.postsPerWeek;
-  if (fired(rules, "R.OVERPOSTING")) return Math.max(5, Math.round(0.7 * ppw));
+  if (fired(rules, "R.OVERPOSTING")) return Math.min(10, Math.max(5, Math.round(0.7 * ppw))); // cap: a 40-posts-a-week channel got 28 slots in v1
   if (fired(rules, "R.INCONSISTENT")) return clamp(Math.round(ppw) + 1, 3, 4);
   if (ppw >= 7) return Math.min(Math.round(ppw), 10);
   const n = clamp(Math.round(ppw) + Math.max(1, Math.round(0.3 * ppw)), 3, 7);

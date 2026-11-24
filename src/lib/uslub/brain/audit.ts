@@ -61,6 +61,8 @@ export async function analyzeDeterministic(input: {
   kbAddress?: string;
   lang?: Lang;
   brandId?: string;
+  /** True only when the caller is the verified Telegram owner of brandId and the channel is the brand's own. */
+  ownerVerified?: boolean;
   now?: number;
   onStage?: OnStage;
   /** Frozen channel data (eval harness): no network, no learning, no recording. */
@@ -115,7 +117,7 @@ export async function analyzeDeterministic(input: {
   const niche = nicheOf(category, own.title);
   const [summaries, learn] = await Promise.all([
     input.preloaded?.summaries ?? (live ? loadSummaries(now).catch(() => [] as ChannelSummary[]) : Promise.resolve([] as ChannelSummary[])),
-    live ? learnFor(own.channel, own.posts, now, lang, { brandId: input.brandId, ownerReports: Boolean(input.brandId) }).catch(() => undefined) : Promise.resolve(undefined),
+    live ? learnFor(own.channel, own.posts, now, lang, { brandId: input.ownerVerified ? input.brandId : undefined, ownerReports: Boolean(input.ownerVerified && input.brandId) }).catch(() => undefined) : Promise.resolve(undefined),
   ]);
   const bench = benchmarkFor(summaries, niche, own.channel);
   emit({ stage: "bench", niche, n: bench?.n ?? 0, scope: bench?.scope ?? null, reachMedian: bench?.reachRate?.median ?? null });

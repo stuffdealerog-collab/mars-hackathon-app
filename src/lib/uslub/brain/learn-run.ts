@@ -28,13 +28,16 @@ export async function learnFor(
   lang: Lang,
   opts: { brandId?: string; ownerReports?: boolean } = {},
 ): Promise<LearnReport> {
-  const plans: StoredPlan[] = await loadPlans({ channel, brandId: opts.brandId, limit: 6 }).catch(() => []);
+  // Owner reports (orders) are private: then only this brand's own plans are measured. Without them, any plan
+  // for the channel is measured from public signals only, and matchPosts ignores plans whose links never appear in it.
+  const ownerMode = Boolean(opts.ownerReports && opts.brandId);
+  const plans: StoredPlan[] = await loadPlans(ownerMode ? { brandId: opts.brandId, limit: 6 } : { channel, limit: 6 }).catch(() => []);
   const srcs = plans.flatMap((p) => p.items.map((i) => i.src).filter((s): s is string => Boolean(s)));
   const [snapshots, starts, owner] = await Promise.all([
     loadSnapshots(channel, posts.map((p) => p.id)).catch(() => new Map()),
     startsBySrc(srcs).catch(() => new Map<string, number>()),
     // Owner-reported orders are private: only used when the caller proved brand ownership.
-    (opts.ownerReports ? loadOutcomes(plans) : Promise.reject(new Error("skip"))).catch(() => ({ weekOrders: new Map<string, number>(), sold: new Map<string, number>() })),
+    (ownerMode ? loadOutcomes(plans) : Promise.reject(new Error("skip"))).catch(() => ({ weekOrders: new Map<string, number>(), sold: new Map<string, number>() })),
   ]);
   const outcomes = measure({ plans, posts, now, snapshots, starts, sold: owner.sold });
   const scores = scoreTags(outcomes);

@@ -46,8 +46,8 @@ async function customerFromPlanLink(ctx: { reply: (text: string, other?: object)
     await ctx.reply("Rahmat! Bu havola hozir faol emas. Kanaldagi telefon yoki manzil orqali bog‘laning.");
     return;
   }
-  const where = plan.channel ? `@${plan.channel}` : "kanal";
-  await ctx.reply(`Siz ${where} postidagi havola orqali keldingiz. Egasi sizga o‘zi javob berishi uchun ismingiz va Telegram profilingizni unga yuboraymi?`, {
+  // The plan's channel is not verified, so the customer is never told which brand is behind the link.
+  await ctx.reply("Siz post ichidagi havola orqali keldingiz. Post muallifi sizga o‘zi javob berishi uchun ismingiz va Telegram profilingizni unga yuboraymi?", {
     reply_markup: new InlineKeyboard().text("✅ Ha, yuboring", `lead:${tag}:${slot}`),
   });
 }

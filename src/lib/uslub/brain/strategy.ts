@@ -184,6 +184,8 @@ export interface StrategyInput {
   brandName?: string;
   brandId?: string;
   ownerTelegramId?: number | null;
+  /** The caller is the verified Telegram owner of brandId (custom brand) and `channel` is the brand's channel. */
+  ownerVerified?: boolean;
   approvedPosts?: number;
   now?: number;
   onStage?: OnStage;
@@ -248,7 +250,7 @@ export async function buildStrategy(inp: StrategyInput) {
   const webP = live && inp.web !== false ? webContext({ brandName, category, channel, competitors: inp.competitors, now }) : Promise.resolve([] as LedgerEntry[]);
   const analysisP =
     channel || inp.preloaded
-      ? analyzeDeterministic({ channel: channel as string, competitors: inp.competitors, category, now, lang, brandId: inp.brandId, preloaded: inp.preloaded, onStage: emit })
+      ? analyzeDeterministic({ channel: channel as string, competitors: inp.competitors, category, now, lang, brandId: inp.brandId, ownerVerified: inp.ownerVerified, preloaded: inp.preloaded, onStage: emit })
       : Promise.resolve(null);
   // A thin knowledge base ("just a channel link") is topped up with the owner's own recent posts:
   // facts are still quote-checked against that text, so nothing outside the owner's words gets in.
@@ -616,6 +618,7 @@ export async function buildStrategy(inp: StrategyInput) {
     planId = await savePlan({
       tag: planTag,
       brandId: inp.brandId,
+      // Leads from this plan's links go to this Telegram user; the bot never claims the channel's identity to customers.
       ownerTelegramId: inp.ownerTelegramId,
       channel,
       weekOf: sk.weekOf,
