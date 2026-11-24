@@ -51,10 +51,15 @@ const mixRgb = (a: string, b: string, t: number) => {
 const mix = (a: string, b: string, t: number) => `rgb(${mixRgb(a, b, t).map(Math.round).join(", ")})`;
 /** How much dimmer a tile's glow is than its bulb, so the words on it read (0.15 = 15% toward black). */
 const GLOW_DIM = 0.15;
-const dim = (c: number[], a = 1) => {
-  const [r, g, b] = c.map((v) => Math.round(v * (1 - GLOW_DIM)));
+const dimBy = (k: number) => (c: number[], a = 1) => {
+  const [r, g, b] = c.map((v) => Math.round(v * (1 - k)));
   return a === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a})`;
 };
+const dim = dimBy(GLOW_DIM);
+/** Computer screens: the warmer stage made lit tiles read brighter; their glow sits 8% lower. */
+const deskDim = dimBy(GLOW_DIM + 0.08);
+/** Computer screens: the hub's 40 px mini-lamps, glass with a falloff, a fifth dimmer than the bulb. */
+const miniDim = dimBy(0.2);
 
 /** Soft light that falls off over nine steps: two stops leave a visible disc edge. */
 const FALL = [
@@ -93,6 +98,14 @@ const varsOf = (role: AgentRole) => {
     "--g-deep-a": dim(rgb(l.deep), 0.55),
     // Computer screens: the standby ember in the filament, its light only around the slot, and
     // the lamp's light on the room (wall above the panel, floor under it).
+    "--d-core": deskDim(rgb(l.core)),
+    "--d-hue": deskDim(rgb(l.hue)),
+    "--d-mid": deskDim(mixRgb(l.hue, l.deep, 0.45)),
+    "--d-deep-a": deskDim(rgb(l.deep), 0.55),
+    "--x-core": miniDim(rgb(l.core)),
+    "--x-hue": miniDim(rgb(l.hue)),
+    "--x-mid": miniDim(mixRgb(l.hue, l.deep, 0.45)),
+    "--x-deep": miniDim(rgb(l.deep)),
     "--ember": rgba(l.hue, 0.6),
     "--ember-glow": rgba(l.hue, 0.45),
     "--room": light(l.hue, 0.5),
@@ -100,3 +113,10 @@ const varsOf = (role: AgentRole) => {
 };
 const VARS = Object.fromEntries(LAMP_ORDER.map((r) => [r, varsOf(r)])) as Record<AgentRole, React.CSSProperties>;
 export const lampVars = (role: AgentRole) => VARS[role];
+
+/**
+ * Computer screens: the one work light over the headline and the department, a warm cone with
+ * darker sides, so the room has a visible source. Its peak sits at the top edge; the hint lines
+ * (ink-3) stand where it has fallen off, at 4.5:1 or more.
+ */
+export const WORK_LIGHT = light("#ffcf9a", 0.2, "55% 50%", "50% 0%");

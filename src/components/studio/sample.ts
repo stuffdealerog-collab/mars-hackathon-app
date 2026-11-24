@@ -98,6 +98,9 @@ function monday(): Date {
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+/** The sample bakery's channel: the Studio's sample and the landing's sign. */
+export const SAMPLE_CHANNEL = "@namuna";
+
 export function sampleBrand(lang: Lang): BrandProfile {
   const L = <T,>(v: Record<Lang, T>) => v[lang];
   return {
@@ -127,7 +130,7 @@ export function sampleBrand(lang: Lang): BrandProfile {
 
 export function sampleAudit(lang: Lang): ChannelAudit {
   return {
-    channel: "@namuna",
+    channel: SAMPLE_CHANNEL,
     title: "Tandir non",
     subscribers: 2140,
     postsAnalyzed: 60,

@@ -3,6 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Led } from "../lamp/Led";
+import { WORK_LIGHT } from "../lamp/lamps";
 import { fmt, useCopy, useInitLang } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel, useStageVariant } from "../ui/parts";
 import { ChannelSign } from "./ChannelSign";
@@ -133,7 +134,8 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
   const introGate = useStudio((s) => s.introGate);
   const lamps = useLamps(introGate);
   useStageVariant();
-  const { side, collapsed } = useHub();
+  const side = useHub((s) => s.side);
+  const collapsed = useHub((s) => s.collapsed);
   const gutter = (collapsed ? RAIL_W : HUB_W) + 36;
   return (
     <div data-theme={theme} className="desk relative min-h-dvh bg-stage text-ink">
@@ -147,7 +149,9 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
       >
         {/* The channel's numbers on an LED sign that runs under the glass to the window's edge. */}
         {phase === "ready" && <ChannelSign bleed={gutter + 8} side={side} />}
-        <div className={phase === "ready" ? "mx-auto max-w-[1280px]" : "mx-auto max-w-[880px]"}>
+        <div className={phase === "ready" ? "mx-auto max-w-[1280px]" : "relative mx-auto max-w-[880px]"}>
+          {/* The one work light over the headline and the department (start, the run). */}
+          {phase !== "ready" && <div aria-hidden className="work-light" style={{ background: WORK_LIGHT }} />}
           {sample && <SampleBanner flush />}
           {phase === "start" && <Start key={`${entry.view}:${entry.channel}`} initialView={entry.view} initialChannel={entry.channel} />}
           {phase === "working" && <Working />}
@@ -299,7 +303,7 @@ function Working() {
         <span ref={ledRef} className="inline-flex min-h-10 min-w-0 items-center truncate rounded-full bg-glass-2 px-4 text-[15px] font-medium shadow-[inset_0_0_0_1px_var(--hair-2)]">
           {source}
         </span>
-        <span className="shrink-0 rounded-[12px] bg-[var(--led-well,var(--stage))] px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
+        <span className="led-well shrink-0 rounded-[12px] bg-[var(--led-well,var(--stage))] px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
           <ElapsedLed />
         </span>
       </div>

@@ -151,7 +151,14 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
             />
           )}
         </AnimatePresence>
-        {sample ? (
+        {sample && desktop ? (
+          // Computers: the sample's picture slot is a short strip of the Dizayner's lamp, its
+          // ember lit and a little of its light, with why there is no picture.
+          <div className="sample-strip" style={lampVars("designer")}>
+            <span aria-hidden className="sample-strip__filament" />
+            <p className="text-[13px] text-ink-2">{c.sample.noImage}</p>
+          </div>
+        ) : sample ? (
           // The sample draws no pictures; the Dizayner's slot says so instead of pretending.
           // One quiet line instead of an empty 4:5 frame (which reads as broken): the Dizayner's
           // filament, dark, and why there is no picture.

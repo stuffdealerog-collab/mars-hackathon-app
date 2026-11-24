@@ -119,7 +119,11 @@ const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 export function Hub({ lamps }: { lamps: Lamps }) {
   const c = useCopy();
   const reduce = useReducedMotion() ?? false;
-  const { side, collapsed, setSide, setCollapsed } = useHub();
+  // Selectors, not the whole store: spots change on every measure and would re-render the hub.
+  const side = useHub((s) => s.side);
+  const collapsed = useHub((s) => s.collapsed);
+  const setSide = useHub((s) => s.setSide);
+  const setCollapsed = useHub((s) => s.setCollapsed);
   const phase = useStudio((s) => s.phase);
   const tab = useStudio((s) => s.tab);
   const setTab = useStudio((s) => s.setTab);
@@ -146,34 +150,45 @@ export function Hub({ lamps }: { lamps: Lamps }) {
   // The footer gets its own glass only when the hub scrolls under it; otherwise it is clear.
   const [scrolls, setScrolls] = useState(false);
   const tipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { checking, blink } = useHub();
+  const checking = useHub((s) => s.checking);
+  const blink = useHub((s) => s.blink);
 
-  // Where every mini-lamp is, so the stage can light exactly behind it.
+  // Where every mini-lamp is, so the stage can light exactly behind it. At most once a frame,
+  // and the store changes only when a lamp actually moved.
+  const raf = useRef(0);
   const measure = useCallback(() => {
+    raf.current = 0;
     const ul = grid.current;
     if (!ul) return;
     const spots: Partial<Record<AgentRole, Spot>> = {};
     ul.querySelectorAll<HTMLElement>("[data-role]").forEach((el) => {
       const r = el.getBoundingClientRect();
-      spots[el.dataset.role as AgentRole] = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      spots[el.dataset.role as AgentRole] = { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
     });
-    useHub.setState({ spots });
+    const prev = useHub.getState().spots;
+    const moved = LAMP_ORDER.some((r) => prev[r]?.x !== spots[r]?.x || prev[r]?.y !== spots[r]?.y);
+    if (moved) useHub.setState({ spots });
     const el = aside.current;
     if (el) setScrolls(el.scrollHeight > el.clientHeight + 1);
   }, []);
   useEffect(() => {
+    const soon = () => {
+      if (!raf.current) raf.current = requestAnimationFrame(measure);
+    };
     measure();
-    const ro = new ResizeObserver(measure);
+    const ro = new ResizeObserver(soon);
     if (grid.current) ro.observe(grid.current);
-    window.addEventListener("resize", measure);
+    window.addEventListener("resize", soon);
     const el = aside.current;
-    el?.addEventListener("transitionend", measure);
-    el?.addEventListener("scroll", measure, { passive: true });
+    el?.addEventListener("transitionend", soon);
+    el?.addEventListener("scroll", soon, { passive: true });
     return () => {
+      cancelAnimationFrame(raf.current);
+      raf.current = 0;
       ro.disconnect();
-      window.removeEventListener("resize", measure);
-      el?.removeEventListener("transitionend", measure);
-      el?.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", soon);
+      el?.removeEventListener("transitionend", soon);
+      el?.removeEventListener("scroll", soon);
     };
   }, [measure, side, collapsed]);
 
@@ -612,7 +627,7 @@ export function StageLight({ lamps }: { lamps: Lamps }) {
   const blink = useHub((s) => s.blink);
   const level = (r: AgentRole) => (lamps.state[r] === "warming" ? 0.7 : lamps.state[r] === "on" || lamps.state[r] === "you" ? 1 : 0);
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 isolate" style={{ clipPath: clip }}>
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 isolate transition-[clip-path] duration-300 ease-out" style={{ clipPath: clip }}>
       {LAMP_ORDER.map((r, i) => {
         const at = spots[r];
         if (!at) return null;

@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import { LedStrip } from "../lamp/Led";
 import { LampTile } from "../lamp/LampTile";
-import { LAMP_ORDER, type LampState } from "../lamp/lamps";
+import { LAMP_ORDER, WORK_LIGHT, type LampState } from "../lamp/lamps";
 import { lampsFrom, Panel, sampleSnapshot, type Lamps } from "../studio/Department";
-import { sampleBrand } from "../studio/sample";
+import { SAMPLE_CHANNEL, sampleBrand } from "../studio/sample";
 import { ChannelField } from "../ui/ChannelField";
 import { keepNumbers, useCopy, useInitLang, useLang } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel, Steps, useStageVariant } from "../ui/parts";
@@ -39,7 +39,9 @@ export function Landing({ bot }: { bot: string }) {
         {/* First viewport: the promise and the one field. Phones: the department below, dark.
             Computers: the department in its housing as the screen's main object, lit with the
             sample bakery's honest results until the owner types their own channel. */}
-        <section className="mx-auto w-full max-w-[1180px] px-4 pb-4 pt-8 sm:px-8 sm:pt-14 lg:pt-10">
+        <section className="relative isolate mx-auto w-full max-w-[1180px] px-4 pb-4 pt-8 sm:px-8 sm:pt-14 lg:pt-10">
+          {/* Computers: the work light over the headline and the department. */}
+          <div aria-hidden className="work-light hidden lg:block" style={{ background: WORK_LIGHT }} />
           <Hero onTyped={setArmed} />
           <div className="mt-12 lg:hidden">
             <DarkPanel />
@@ -122,14 +124,13 @@ function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
   // twelve columns); the sign and the field on the right, ending level with the headline's foot.
   return (
     <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-x-10">
-      {/* The shop sign stays dark until there is a real channel to read: then it spells it. */}
-      <LedStrip
-        text={typed ? `@${typed}` : undefined}
-        dot={3}
-        gap={1.5}
-        className="mb-7 max-w-[460px] lg:col-span-5 lg:col-start-8 lg:row-start-1 lg:mb-6 lg:max-w-none lg:self-end"
-        label={typed ? `@${typed}` : undefined}
-      />
+      {/* Phones: the shop sign stays dark until there is a real channel to read, then spells it. */}
+      <LedStrip text={typed ? `@${typed}` : undefined} dot={3} gap={1.5} className="mb-7 max-w-[460px] lg:hidden" label={typed ? `@${typed}` : undefined} />
+      {/* Computers: the department under it is the lit sample, so the sign names the sample's
+          channel (marked "namuna"); a typed channel takes its place. */}
+      <div className="hidden lg:col-span-5 lg:col-start-8 lg:row-start-1 lg:mb-6 lg:block lg:self-end">
+        <LedStrip text={typed ? `@${typed}` : `namuna · ${SAMPLE_CHANNEL}`} dot={3} gap={1.5} label={typed ? `@${typed}` : `${c.sample.chip} · ${SAMPLE_CHANNEL}`} />
+      </div>
 
       <h1 className="max-w-[18ch] text-balance text-[34px] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-[56px] sm:leading-[1] lg:col-span-7 lg:row-span-2 lg:row-start-1 lg:max-w-[16ch] lg:self-end lg:text-[60px] lg:leading-[0.98] lg:tracking-[-0.038em] [@media(min-width:1024px)_and_(max-height:819px)]:text-[48px]">
         {c.landing.h1}

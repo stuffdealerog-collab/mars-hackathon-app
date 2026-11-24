@@ -865,8 +865,67 @@
   }
   .desk:not([data-theme="light"]) .lamp:not(.lamp--xs) .lamp__glow {
     background:
-      radial-gradient(55% 45px at 50% 0%, var(--g-core) 0%, transparent 100%),
-      radial-gradient(120% 125px at 50% -10px, var(--g-hue) 0%, var(--g-mid) 34%, var(--g-deep-a) 62%, transparent 88%);
+      radial-gradient(55% 45px at 50% 0%, var(--d-core) 0%, transparent 100%),
+      radial-gradient(120% 125px at 50% -10px, var(--d-hue) 0%, var(--d-mid) 34%, var(--d-deep-a) 62%, transparent 88%);
+  }
+  /* The hub's mini-lamps: glass with a falloff, hot core at the top, the hue, then the deep tone
+     to the foot (no dark bottom), a fifth dimmer than the bulb: lights, not candy. */
+  .desk:not([data-theme="light"]) .lamp--xs .lamp__glow {
+    background:
+      radial-gradient(60% 34% at 50% 0%, var(--x-core) 0%, transparent 100%),
+      radial-gradient(140% 115% at 50% -12%, var(--x-hue) 0%, var(--x-mid) 42%, var(--x-deep) 88%);
+  }
+  /* The LED wells (the sign, the landing's strip, the run's clock): the darkest objects, set
+     into the wall with a soft inner shadow, never a flat black band. */
+  .desk .led-well {
+    box-shadow:
+      inset 0 2px 6px rgb(0 0 0 / 0.45),
+      inset 0 0 0 1px var(--hair);
+  }
+  /* The sample's picture slot on a computer: a short strip of the Dizayner's lamp. */
+  .desk .sample-strip {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    align-items: flex-end;
+    min-height: 76px;
+    margin: 6px 6px 0;
+    padding: 30px 14px 12px;
+    border-radius: 17px;
+    overflow: hidden;
+    background: var(--glass-2);
+  }
+  .desk .sample-strip::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(55% 30px at 50% 0%, var(--d-core) 0%, transparent 100%),
+      radial-gradient(120% 90px at 50% -8px, var(--d-hue) 0%, var(--d-mid) 34%, var(--d-deep-a) 62%, transparent 88%);
+    opacity: 0.32;
+  }
+  .desk .sample-strip__filament {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    width: 26px;
+    height: 3px;
+    margin-left: -13px;
+    border-radius: 3px;
+    background: var(--ember);
+    box-shadow: 0 0 8px var(--ember-glow);
+  }
+  /* The work light: static, behind the canvas's content. */
+  .desk .work-light {
+    position: absolute;
+    left: 50%;
+    top: -24px;
+    z-index: -1;
+    width: min(1180px, 130%);
+    height: 900px;
+    transform: translateX(-50%);
+    pointer-events: none;
   }
   /* Only the glass lip on top: no ring around the tile, so no grey frame circles a dark bottom. */
   .desk .lamp__glow::after {
@@ -893,7 +952,7 @@
     --hair: rgb(255 240 220 / 0.07);
     --hair-2: rgb(255 240 220 / 0.13);
     --ink-3: #948f87;
-    --led-well: #0d0c0a;
+    --led-well: #0f0d0b;
     --paper: var(--stage);
     --card: var(--glass);
     --tint: var(--glass-2);
@@ -1026,7 +1085,12 @@
     background: #0f0e0c;
     box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.6);
   }
-  /* Armed: a valid link is typed; the embers heat one after another, still no light in the room. */
+  /* Armed: a valid link is typed. The embers heat and each ready tile takes a still 18% of its
+     own light, one after another, readable from arm's length; nothing in the room yet. */
+  .desk .panel-stage[data-armed] .lamp[data-state="off"]:not(.lamp--soon) .lamp__glow {
+    opacity: 0.18;
+    transition: opacity 200ms var(--ease-out) calc(var(--i, 0) * 70ms);
+  }
   .desk .panel-stage[data-armed] .lamp[data-state="off"]:not(.lamp--soon) .lamp__filament {
     background: var(--core);
     box-shadow:
@@ -1047,12 +1111,14 @@
     }
   }
   @media (prefers-contrast: more) {
-    .desk .room-light {
+    .desk .room-light,
+    .desk .work-light {
       display: none;
     }
   }
   @media (forced-colors: active) {
-    .desk .room-light {
+    .desk .room-light,
+    .desk .work-light {
       display: none;
     }
     .desk .lamp:is([data-state="on"], [data-state="you"], [data-state="warming"]) .lamp__filament {
