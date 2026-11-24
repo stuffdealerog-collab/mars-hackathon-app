@@ -57,9 +57,11 @@ export async function buildBrand(input: BuildBrandInput): Promise<BuildBrandResu
         return { brand: await buildFresh(input.channel, knowledge, owner, lang), cached: false, switchedToFresh: true };
       throw err;
     }
-    if (scraped.posts.length + given.length < MIN_CHANNEL_POSTS) {
+    // Empty = few messages of ANY kind (albums and reels without captions count). The voice is then learned from
+    // the captioned subset; a channel of pictures only is described from its title and description.
+    if (scraped.totalMessages + given.length < MIN_CHANNEL_POSTS) {
       if (knowledge.length >= MIN_DESCRIPTION) return { brand: await buildFresh(scraped.username, knowledge, owner, lang), cached: false, channel: scraped, switchedToFresh: true };
-      throw emptyChannel(scraped.username, scraped.posts.length);
+      throw emptyChannel(scraped.username, scraped.totalMessages);
     }
     const cached = source === "channel_only" ? await findChannelOnlyBrand(scraped.username) : null;
     const cachedLang = (cached?.dna as { proseLang?: string } | undefined)?.proseLang ?? "uz";
@@ -78,7 +80,7 @@ export async function buildBrand(input: BuildBrandInput): Promise<BuildBrandResu
   }
 
   const samplePosts = [...given, ...(scraped?.posts.map((p) => p.text) ?? [])].slice(-30);
-  if (!samplePosts.length) {
+  if (!samplePosts.length && !scraped) {
     // No channel and no samples: a business description alone is a fresh brand.
     if (knowledge.length >= MIN_DESCRIPTION) return { brand: await buildFresh(undefined, knowledge, owner, lang), cached: false };
     throw new ScrapeError("knowledge needed", 400, "knowledge_needed");

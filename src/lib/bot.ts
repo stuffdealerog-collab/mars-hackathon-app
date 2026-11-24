@@ -195,8 +195,13 @@ function registerHandlers(b: Bot) {
   b.callbackQuery(/^pub:([0-9a-f-]{36})$/, async (ctx) => {
     const locale = pickLocale(ctx.from.language_code);
     await ctx.answerCallbackQuery({ text: t(locale, "pub.publishing") }).catch(() => undefined);
-    const message = await publishFromBot(ctx.match[1], ctx.from.id, locale);
-    await ctx.reply(message, { link_preview_options: { is_disabled: true } });
+    const result = await publishFromBot(ctx.match[1], ctx.from.id, locale);
+    await ctx.reply(result.text, {
+      link_preview_options: { is_disabled: true },
+      ...(result.addAdminUrl
+        ? { reply_markup: new InlineKeyboard().url(t(locale, "pub.add_bot"), result.addAdminUrl).row().text(t(locale, "pub.button_retry"), ctx.match[0]) }
+        : {}),
+    });
   });
 
   // Publish flow buttons: "pb" = Kanalga joylash (authorize/claim, then publish), "pv" = show in another script.

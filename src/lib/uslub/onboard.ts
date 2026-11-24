@@ -3,6 +3,7 @@ import { InlineKeyboard, type Api } from "grammy";
 import { getPublicUrl } from "@/lib/env";
 import { type Locale, type MessageKey, t } from "@/lib/i18n";
 import { safeLogEvent } from "@/lib/track";
+import { publishError } from "./botpublish";
 import { pickScript } from "./botpublish-core";
 import { buildBrand } from "./brand";
 import type { BrandProfile } from "./contract";
@@ -40,13 +41,15 @@ export function gateMessage(result: Exclude<GateResult, { ok: true }>, locale: L
  * "📢 Publish" button in the bot. `userId` is the trusted ctx.from.id; the same
  * authorization path as /api/uslub/publish (owner + own channel + admin checks).
  */
-export async function publishFromBot(postId: string, userId: number, locale: Locale = "uz"): Promise<string> {
+export async function publishFromBot(postId: string, userId: number, locale: Locale = "uz"): Promise<{ text: string; addAdminUrl?: string }> {
   const post = await getPost(postId);
   const brand = post ? await getBrand(post.brandId) : null;
-  if (!post || !brand?.channel) return t(locale, "bot.need_channel");
+  if (!post || !brand?.channel) return { text: t(locale, "bot.need_channel") };
   const script = pickScript(post.variants, undefined, brand.dna?.languages);
   const res = await publishPost({ postId, script, chat: brand.channel, userId });
-  return res.ok ? t(locale, "pub.done", { url: res.url ?? "" }) : t(locale, "pub.failed", { error: res.error ?? "" });
+  if (res.ok) return { text: t(locale, "pub.done", { url: res.url ?? "" }) };
+  // Same localized reasons as the publish link; a missing bot admin comes with the "add the bot" button.
+  return { text: t(locale, "pub.failed", { error: publishError(locale, res.status, res.error, res.addAdminUrl, brand.channel) }), addAdminUrl: res.addAdminUrl };
 }
 
 /** Decides whether a private message is a channel link, a business description, or neither. */

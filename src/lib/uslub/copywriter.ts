@@ -113,7 +113,8 @@ export async function generatePosts(brand: BrandProfile, brief: string, count = 
     model: MODEL_QUALITY,
     effort: opts.effort ?? "low",
     maxTokens: 12000,
-    timeoutMs: Math.max(20_000, Math.min(75_000, left() - 15_000)),
+    // ≤45 s, and 15 s before the deadline: what is left goes to the translation fill and the editor (both skippable).
+    timeoutMs: Math.max(20_000, Math.min(opts.deadline ? 45_000 : 75_000, left() - 15_000)),
     purpose: "copywriter",
     // With a deadline there is no time for an SDK retry after a timeout.
     ...(opts.deadline ? { maxRetries: 0 } : {}),

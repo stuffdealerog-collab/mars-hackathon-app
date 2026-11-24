@@ -9,12 +9,15 @@ import {
   otherScripts,
   parsePublishPayload,
   pickScript,
+  shownHash,
+  shownPhoto,
+  shownText,
   splitForPhoto,
-  textHash,
   type ClaimDecision,
 } from "./botpublish-core";
 import type { PostDraft, Script } from "./contract";
-import { codeForStatus, type ErrorCode, errorText } from "./errors";
+import { errorText } from "./errors";
+import { publishErrorCode } from "./publish-errors";
 import { addBotAsAdminLink, publishPost } from "./publish";
 import { parseChannelUsername } from "./scrape";
 import {
@@ -61,8 +64,13 @@ async function authorize(api: Api, brand: StoredBrand, channel: string, user: Us
   return owner === user.id ? { ok: true, claim: true } : { ok: false, reason: "not_owner" };
 }
 
+/**
+ * Why the user cannot publish here. With `retry` (a button press) a missing bot admin offers the button again;
+ * without it (the user typed a channel name) the text asks them to send the channel name again instead.
+ */
 function refusal(api: Api, chatId: number, locale: Locale, reason: Exclude<ClaimDecision, { ok: true }>["reason"], channel: string, retry?: string) {
-  const key = reason === "not_owner" ? "pub.not_yours" : reason === "user_not_admin" ? "pub.user_not_admin" : reason === "user_cannot_post" ? "pub.user_cannot_post" : "pub.bot_not_admin";
+  const botKey = retry ? "pub.bot_not_admin" : "pub.bot_not_admin_send";
+  const key = reason === "not_owner" ? "pub.not_yours" : reason === "user_not_admin" ? "pub.user_not_admin" : reason === "user_cannot_post" ? "pub.user_cannot_post" : botKey;
   const kb = new InlineKeyboard();
   if (reason === "bot_not_admin") {
     kb.url(t(locale, "pub.add_bot"), addBotAsAdminLink()).row();
@@ -71,11 +79,8 @@ function refusal(api: Api, chatId: number, locale: Locale, reason: Exclude<Claim
   return api.sendMessage(chatId, t(locale, key, { channel }), reason === "bot_not_admin" ? { reply_markup: kb } : {});
 }
 
-/** The text of a variant as the bot shows and publishes it. */
-const shownText = (post: PostDraft, script: Script) => post.variants[script]?.trim() || post.variants.uz_latn;
-
-/** "Kanalga joylash" button bound to the text the owner is looking at (see publishFromButton). */
-const publishData = (post: PostDraft, script: Script) => callbackData("pb", post.id, script, textHash(shownText(post, script)));
+/** "Kanalga joylash" button bound to the text and picture the owner is looking at (see publishFromButton). */
+const publishData = (post: PostDraft, script: Script) => callbackData("pb", post.id, script, shownHash(post, script));
 
 function publishKeyboard(locale: Locale, post: PostDraft, script: Script, channel?: string): InlineKeyboard {
   const kb = new InlineKeyboard();
@@ -88,7 +93,7 @@ function publishKeyboard(locale: Locale, post: PostDraft, script: Script, channe
 async function sendPreview(api: Api, chatId: number, locale: Locale, post: PostDraft, script: Script, channel?: string) {
   const text = shownText(post, script);
   const kb = publishKeyboard(locale, post, script, channel);
-  const photo = post.image?.status === "ready" && post.image.url?.startsWith("https://") ? post.image.url : null;
+  const photo = shownPhoto(post);
   if (photo) {
     const { caption, rest } = splitForPhoto(text);
     try {
@@ -102,10 +107,15 @@ async function sendPreview(api: Api, chatId: number, locale: Locale, post: PostD
   await api.sendMessage(chatId, text.slice(0, 4096), { reply_markup: kb, link_preview_options: { is_disabled: true } });
 }
 
-/** publishPost's own messages are Uzbek (some carry Telegram's English error); other languages get our sentence. */
-function publishError(locale: Locale, status: number, error?: string): string {
-  if (locale === "uz" && error && !/Telegram xatosi|Bad Request|Forbidden/i.test(error)) return error;
-  const code: ErrorCode = status === 401 ? "auth_required" : status === 404 ? "post_not_found" : status >= 500 ? "telegram_unavailable" : codeForStatus(status);
+/**
+ * Why a publish failed, in the user's language. publishPost's own messages are Uzbek (some carry Telegram's
+ * English error), so the code behind them picks the sentence; the bot's own wording is used where it has one.
+ */
+export function publishError(locale: Locale, status: number, error: string | undefined, addAdminUrl: string | undefined, channel: string): string {
+  const code = publishErrorCode(status, error, addAdminUrl);
+  if (code === "bot_not_admin") return t(locale, "pub.bot_not_admin", { channel });
+  if (code === "channel_admin_required") return t(locale, "pub.user_not_admin", { channel });
+  if (code === "brand_forbidden") return t(locale, "pub.not_yours");
   return errorText(code, locale);
 }
 
@@ -151,15 +161,18 @@ export async function switchScript(api: Api, chatId: number, user: User, locale:
   const brand = post ? await getBrand(post.brandId) : null;
   if (!post || !brand) return void (await api.sendMessage(chatId, t(locale, "pub.not_found")));
   if (brand.ownerTelegramId != null && brand.ownerTelegramId !== user.id) return void (await api.sendMessage(chatId, t(locale, "pub.not_yours")));
-  await sendPreview(api, chatId, locale, post, pickScript(post.variants, script, brand.dna?.languages), brand.channel);
+  const chosen = pickScript(post.variants, script, brand.dna?.languages);
+  // A brand still waiting for its channel remembers the script the owner switched to.
+  if (!brand.channel && (await getPendingPublish(user.id))?.postId === post.id) await setPendingPublish(user.id, post.id, chosen);
+  await sendPreview(api, chatId, locale, post, chosen, brand.channel);
 }
 
 /**
  * "pb" button ("Kanalga joylash"): authorize (claim an unowned brand), then publish through publishPost.
- * The button carries a hash of the text the owner saw; if the stored text changed since (an edit in the Studio),
- * nothing is published — the bot shows the new version with a fresh button instead.
+ * The button carries a hash of the text and picture the owner saw; if either changed since (an edit in the Studio,
+ * a new picture), nothing is published — the bot shows the new version with a fresh button instead.
  */
-export async function publishFromButton(api: Api, chatId: number, user: User, locale: Locale, postId: string, wanted: Script, shownHash?: string): Promise<void> {
+export async function publishFromButton(api: Api, chatId: number, user: User, locale: Locale, postId: string, wanted: Script, seenHash?: string): Promise<void> {
   const post = await getPost(postId);
   const brand = post ? await getBrand(post.brandId) : null;
   if (!post || !brand) return void (await api.sendMessage(chatId, t(locale, "pub.not_found")));
@@ -175,8 +188,8 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
     await api.sendMessage(chatId, t(locale, "pub.ask_channel"), { reply_markup: new InlineKeyboard().url(t(locale, "pub.add_bot"), addBotAsAdminLink()) });
     return;
   }
-  if (shownHash !== textHash(shownText(post, script))) {
-    // Never publish a text the owner has not seen in Telegram.
+  if (seenHash !== shownHash(post, script)) {
+    // Never publish a text or picture the owner has not seen in Telegram.
     await api.sendMessage(chatId, t(locale, "pub.changed"));
     await sendPreview(api, chatId, locale, post, script, brand.channel);
     return;
@@ -186,7 +199,7 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
   // The rights checks above take a few Telegram round trips: read the post again right before sending, so an edit
   // made meanwhile is caught too. (publishPost reads it once more; that last gap is milliseconds.)
   const fresh = await getPost(post.id);
-  if (!fresh || shownHash !== textHash(shownText(fresh, script))) {
+  if (!fresh || seenHash !== shownHash(fresh, script)) {
     await api.sendMessage(chatId, t(locale, "pub.changed"));
     if (fresh) await sendPreview(api, chatId, locale, fresh, script, brand.channel);
     return;
@@ -197,7 +210,7 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
     return;
   }
   const kb = res.addAdminUrl ? new InlineKeyboard().url(t(locale, "pub.add_bot"), res.addAdminUrl).row().text(t(locale, "pub.button", { channel: brand.channel }), publishData(post, script)) : undefined;
-  await api.sendMessage(chatId, t(locale, "pub.failed", { error: publishError(locale, res.status, res.error) }), {
+  await api.sendMessage(chatId, t(locale, "pub.failed", { error: publishError(locale, res.status, res.error, res.addAdminUrl, brand.channel) }), {
     ...(kb ? { reply_markup: kb } : {}),
     link_preview_options: { is_disabled: true },
   });
@@ -261,8 +274,9 @@ export async function answerPendingChannel(api: Api, chatId: number, user: User,
   }
   await clearPendingPublish(user.id);
   await safeLogEvent(user.id, "brand_channel_linked", { brand_id: brand.id, channel });
-  await api.sendMessage(chatId, t(locale, "pub.channel_linked", { channel }), {
-    reply_markup: new InlineKeyboard().text(t(locale, "pub.button", { channel }), publishData(post, pickScript(post.variants, pending.script, brand.dna?.languages))),
-  });
+  // A fresh, full preview (text + picture) in the script the owner chose, with a button bound to exactly that.
+  await api.sendMessage(chatId, t(locale, "pub.channel_linked", { channel }));
+  const current = (await getPost(post.id)) ?? post;
+  await sendPreview(api, chatId, locale, current, pickScript(current.variants, pending.script, brand.dna?.languages), channel);
   return true;
 }

@@ -49,9 +49,49 @@ export function canAccessBrand(brand: Pick<BrandAccessInfo, "ownerTelegramId" | 
   return userId != null && userId === brand.ownerTelegramId;
 }
 
+/** Stable codes for refusals (the owner-facing sentence per language lives in errors.ts). */
+export type AccessCode =
+  | "auth_required"
+  | "post_not_found"
+  | "brand_unowned"
+  | "brand_forbidden"
+  | "channel_invalid"
+  | "channel_mismatch"
+  | "channel_admin_required"
+  | "bot_not_admin";
+
 export type AccessDecision =
   | { ok: true; linkChannel: boolean } // linkChannel: first publish links this chat to the brand
-  | { ok: false; status: 401 | 403 | 404; error: string };
+  | { ok: false; status: 401 | 403 | 404; error: string; code: AccessCode };
+
+const MSG = {
+  auth: "Telegram orqali e’lon qiling: botni oching va «E’lon qilish» tugmasini bosing.",
+  notFound: "Post yoki brend topilmadi",
+  unowned: "Bu brend hech kimga biriktirilmagan. Brendni Telegram bot orqali yarating.",
+  notYours: "Bu post sizning brendingizga tegishli emas.",
+  badChannel: "Kanal nomi noto‘g‘ri. Misol: @kanal_nomi",
+  onlyOwnChannel: "Faqat brendingiz kanaliga e’lon qilish mumkin: @",
+  notAdmin: "Siz bu kanalning egasi yoki admini emassiz. / Вы не владелец и не админ этого канала.",
+  noPostRight: "Sizda bu kanalda post yozish huquqi yo‘q. / У вас нет права публиковать в этом канале.",
+  botNotAdmin: "Botni kanalga admin qiling va «Post yozish» huquqini bering: ",
+} as const;
+
+/**
+ * The code behind a refusal message from this module. publishPost (publish.ts) passes only the message on, so the
+ * publish route and the bot map it back to a code and show the owner's language instead of this Uzbek text.
+ */
+export function accessErrorCode(error: string | undefined): AccessCode | undefined {
+  if (!error) return undefined;
+  if (error === MSG.auth) return "auth_required";
+  if (error === MSG.notFound) return "post_not_found";
+  if (error === MSG.unowned) return "brand_unowned";
+  if (error === MSG.notYours) return "brand_forbidden";
+  if (error === MSG.badChannel) return "channel_invalid";
+  if (error.startsWith(MSG.onlyOwnChannel)) return "channel_mismatch";
+  if (error === MSG.notAdmin || error === MSG.noPostRight) return "channel_admin_required";
+  if (error.startsWith(MSG.botNotAdmin)) return "bot_not_admin";
+  return undefined;
+}
 
 const sameChat = (a: string, b: string) => a.replace(/^@/, "").toLowerCase() === b.replace(/^@/, "").toLowerCase();
 
@@ -61,19 +101,13 @@ export function checkPublishAccess(args: {
   brand: Pick<BrandAccessInfo, "ownerTelegramId" | "channel"> | null;
   chat: string | null; // normalized "@username"
 }): AccessDecision {
-  if (args.userId == null) {
-    return { ok: false, status: 401, error: "Telegram orqali e’lon qiling: botni oching va «E’lon qilish» tugmasini bosing." };
-  }
-  if (!args.brand) return { ok: false, status: 404, error: "Post yoki brend topilmadi" };
-  if (args.brand.ownerTelegramId == null) {
-    return { ok: false, status: 403, error: "Bu brend hech kimga biriktirilmagan. Brendni Telegram bot orqali yarating." };
-  }
-  if (args.brand.ownerTelegramId !== args.userId) {
-    return { ok: false, status: 403, error: "Bu post sizning brendingizga tegishli emas." };
-  }
-  if (!args.chat) return { ok: false, status: 403, error: "Kanal nomi noto‘g‘ri. Misol: @kanal_nomi" };
+  if (args.userId == null) return { ok: false, status: 401, error: MSG.auth, code: "auth_required" };
+  if (!args.brand) return { ok: false, status: 404, error: MSG.notFound, code: "post_not_found" };
+  if (args.brand.ownerTelegramId == null) return { ok: false, status: 403, error: MSG.unowned, code: "brand_unowned" };
+  if (args.brand.ownerTelegramId !== args.userId) return { ok: false, status: 403, error: MSG.notYours, code: "brand_forbidden" };
+  if (!args.chat) return { ok: false, status: 403, error: MSG.badChannel, code: "channel_invalid" };
   if (args.brand.channel && !sameChat(args.brand.channel, args.chat)) {
-    return { ok: false, status: 403, error: `Faqat brendingiz kanaliga e’lon qilish mumkin: @${args.brand.channel.replace(/^@/, "")}` };
+    return { ok: false, status: 403, error: `${MSG.onlyOwnChannel}${args.brand.channel.replace(/^@/, "")}`, code: "channel_mismatch" };
   }
   return { ok: true, linkChannel: !args.brand.channel };
 }
@@ -85,27 +119,15 @@ const canPost = (m: MemberInfo) =>
   m?.status === "creator" || (m?.status === "administrator" && m.can_post_messages === true);
 
 /**
- * Step 2 (after getChatMember): the caller must be allowed to post in the channel
- * themselves (no privilege escalation through the bot), and so must the bot.
+ * Step 2 (after getChatMember): the bot must be able to post in the channel, and so must the caller
+ * themselves (no privilege escalation through the bot). The bot is checked FIRST: without admin rights it cannot
+ * even read the channel's members, so the caller would look like a non-admin and get the wrong advice.
  */
 export function checkChatRights(user: MemberInfo, bot: MemberInfo, addAdminUrl: string): AccessDecision {
+  if (!canPost(bot)) return { ok: false, status: 403, error: `${MSG.botNotAdmin}${addAdminUrl}`, code: "bot_not_admin" };
   if (!user || (user.status !== "creator" && user.status !== "administrator")) {
-    return { ok: false, status: 403, error: "Siz bu kanalning egasi yoki admini emassiz. / Вы не владелец и не админ этого канала." };
+    return { ok: false, status: 403, error: MSG.notAdmin, code: "channel_admin_required" };
   }
-  if (!canPost(user)) {
-    return {
-      ok: false,
-      status: 403,
-      error: "Sizda bu kanalda post yozish huquqi yo‘q. / У вас нет права публиковать в этом канале.",
-    };
-  }
-  const botCanPost = canPost(bot);
-  if (!botCanPost) {
-    return {
-      ok: false,
-      status: 403,
-      error: `Botni kanalga admin qiling va «Post yozish» huquqini bering: ${addAdminUrl}`,
-    };
-  }
+  if (!canPost(user)) return { ok: false, status: 403, error: MSG.noPostRight, code: "channel_admin_required" };
   return { ok: true, linkChannel: false };
 }

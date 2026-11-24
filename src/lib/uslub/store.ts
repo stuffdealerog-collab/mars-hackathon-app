@@ -253,6 +253,29 @@ export async function getPost(id: string): Promise<PostDraft | null> {
   return rows[0] ? toPost(rows[0]) : null;
 }
 
+/**
+ * A post already written for this brand's plan slot (same day and time) in the last `minutes`: a retried
+ * /posts request (client timeout, Retry button) returns it instead of writing and billing the slot again.
+ */
+export async function findRecentSlotPost(brandId: string, day: string, time: string, minutes = 10): Promise<PostDraft | null> {
+  if (!isUuid(brandId)) return null;
+  const since = Date.now() - minutes * 60_000;
+  if (!isDbConfigured()) {
+    const hits = [...mem.posts.values()].filter(
+      (p) => p.brandId === brandId && p.slot?.day === day && p.slot?.time === time && Date.parse(p.createdAt) >= since,
+    );
+    return hits.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
+  }
+  const rows = (await getSql()`
+    SELECT id, brand_id, brief, variants, neuro_hits, human_score, status, published_url, slot, image, approved_at, created_at
+    FROM posts
+    WHERE brand_id = ${brandId} AND slot->>'day' = ${day} AND slot->>'time' = ${time}
+      AND created_at >= ${new Date(since).toISOString()}
+    ORDER BY created_at DESC LIMIT 1
+  `) as PostRow[];
+  return rows[0] ? toPost(rows[0]) : null;
+}
+
 /** The brand's posts, newest first (drafts, approved and published). */
 export async function listPosts(brandId: string, limit = 50): Promise<PostDraft[]> {
   if (!isUuid(brandId)) return [];

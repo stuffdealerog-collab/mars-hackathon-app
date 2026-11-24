@@ -341,7 +341,10 @@ export function runRules(s: ChannelStats, ctx: RuleCtx): RuleResult[] {
     Object.keys(s.hourLift).length === 0 && !concentrated ? "insufficient" : Boolean(hWin || concentrated),
   );
 
-  const langs = Object.entries(s.langLift).filter(([, b]) => b.value != null && b.n >= MIN_N).sort((a, b) => (b[1].value as number) - (a[1].value as number));
+  // "unknown" is posts whose language could not be detected, not a language to recommend.
+  const langs = Object.entries(s.langLift)
+    .filter(([k, b]) => k !== "unknown" && b.value != null && b.n >= MIN_N)
+    .sort((a, b) => (b[1].value as number) - (a[1].value as number));
   const lw = langs.length >= 2 && (langs[0][1].value as number) / (langs[langs.length - 1][1].value as number) >= 1.25;
   add(
     {

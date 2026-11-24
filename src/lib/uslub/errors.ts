@@ -30,6 +30,9 @@ export type ErrorCode =
   | "ai_refused"
   | "ai_failed"
   | "bot_not_configured"
+  | "brand_unowned"
+  | "channel_admin_required"
+  | "bot_not_admin"
   | "internal";
 
 type Msg = Record<ApiLang, string>;
@@ -139,6 +142,21 @@ const MESSAGES: Record<ErrorCode, Msg> = {
     uz: "Telegram bot hozircha ulanmagan.",
     ru: "Telegram-бот пока не подключён.",
     en: "The Telegram bot is not connected yet.",
+  },
+  brand_unowned: {
+    uz: "Bu brend hali Telegram akkauntingizga ulanmagan. Postni bot orqali joylang — bot kanal egasini tekshirib, brendni sizga biriktiradi.",
+    ru: "Этот бренд ещё не привязан к вашему Telegram. Опубликуйте пост через бота — он проверит владельца канала и привяжет бренд к вам.",
+    en: "This brand is not linked to your Telegram yet. Post through the bot: it checks the channel owner and links the brand to you.",
+  },
+  channel_admin_required: {
+    uz: "Postni faqat kanal egasi yoki post yozish huquqi bor admin joylay oladi.",
+    ru: "Публиковать может только владелец канала или админ с правом публикации.",
+    en: "Only the channel's owner or an admin who can post may publish there.",
+  },
+  bot_not_admin: {
+    uz: "Botni kanalga admin qiling va «Post yozish» huquqini bering, keyin qayta urinib ko‘ring.",
+    ru: "Сделайте бота админом канала с правом «Публикация сообщений» и попробуйте ещё раз.",
+    en: "Make the bot an admin of the channel with the \"Post messages\" right, then try again.",
   },
   internal: {
     uz: "Kutilmagan xatolik. Qayta urinib ko‘ring.",

@@ -19,6 +19,15 @@ export interface SufficiencyItem {
 }
 
 type L = Record<Lang, string>;
+
+/** Owner words for a post format key (text / photo / album / video / other). */
+const FORMAT_NAME: Record<string, L> = {
+  text: { uz: "matnli postlar", ru: "текстовые посты", en: "text posts" },
+  photo: { uz: "suratli postlar", ru: "посты с фото", en: "photo posts" },
+  album: { uz: "albomlar (bir nechta surat)", ru: "альбомы", en: "albums" },
+  video: { uz: "video postlar", ru: "видео", en: "videos" },
+  other: { uz: "boshqa turdagi postlar", ru: "другие посты", en: "other posts" },
+};
 const tx = (l: L, lang: Lang, v: Record<string, string | number> = {}) => l[lang].replace(/\{(\w+)\}/g, (_, k: string) => String(v[k] ?? ""));
 
 const M = {
@@ -26,7 +35,7 @@ const M = {
   timeBench: { uz: "Eng yaxshi vaqt: o'z postlaringiz hali kam — hozircha o'xshash kanallar bo'yicha {bucket}; bu hafta bitta postni boshqa vaqtda sinab ko'ramiz", ru: "Лучшее время: своих постов пока мало — ориентируемся на похожие каналы: {bucket}; на этой неделе один пост выйдет в другое время для проверки", en: "Best time: too few posts of your own yet — similar channels point to {bucket}; this week one post goes out at another time to test" },
   timeFlat: { uz: "Eng yaxshi vaqt: hech bir vaqt boshqalaridan aniq yaxshi emas — taxminiy vaqtlar 08:40 / 12:40 / 20:40 va bitta sinov", ru: "Лучшее время: ни одно время заметно не лучше других — ориентиры 08:40 / 12:40 / 20:40 и одна проверка", en: "Best time: no time clearly beats the others — rule-of-thumb 08:40 / 12:40 / 20:40 plus one test" },
   timePrior: { uz: "Eng yaxshi vaqt: ma'lumot hali kam — taxminiy vaqtlar 08:40 / 12:40 / 20:40 va bitta sinov", ru: "Лучшее время: данных пока мало — ориентиры 08:40 / 12:40 / 20:40 и одна проверка", en: "Best time: not enough data yet — rule-of-thumb 08:40 / 12:40 / 20:40 plus one test" },
-  formatData: { uz: "Post turi: «{fmt}» postlar boshqalaridan ko'proq ko'riladi ({n} ta post asosida)", ru: "Формат: посты «{fmt}» набирают больше просмотров (по {n} постам)", en: "Format: {fmt} posts get more views (based on {n} posts)" },
+  formatData: { uz: "Post turi: {fmt} boshqalaridan ko'proq ko'riladi ({n} ta post asosida)", ru: "Формат: {fmt} набирают больше просмотров (по {n} постам)", en: "Format: {fmt} get more views (based on {n} posts)" },
   formatNone: { uz: "Post turi: hali aniq g'olib yo'q — turli xil postlarni aralashtirib, natijani kuzatamiz", ru: "Формат: явного победителя пока нет — чередуем форматы и смотрим на результат", en: "Format: no clear winner yet — we mix formats and watch the results" },
   trendOk: { uz: "Ko'rishlar o'zgarishi: hisoblandi ({n} ta post asosida)", ru: "Динамика просмотров: посчитана (по {n} постам)", en: "View trend: computed (based on {n} posts)" },
   trendNo: { uz: "Ko'rishlar o'zgarishi: postlar hali kam ({n} ta, kerak kamida 20 ta)", ru: "Динамика просмотров: постов пока мало ({n}, нужно хотя бы 20)", en: "View trend: not enough posts yet ({n}, need at least 20)" },
@@ -62,7 +71,7 @@ export function sufficiency(
   else out.push({ key: "bestTime", status: "prior", n: maxN(s?.hourLift), need: 3, text: tx(maxN(s?.hourLift) >= 3 ? M.timeFlat : M.timePrior, lang, { n: maxN(s?.hourLift) }) });
 
   const fw = s ? Object.entries(s.formatLift).filter(([, b]) => isWinner(b)).sort((a, b) => (b[1].value ?? 0) - (a[1].value ?? 0))[0] : undefined;
-  out.push(fw && !s?.coldStart ? { key: "format", status: "data", n: fw[1].n, need: 3, text: tx(M.formatData, lang, { fmt: fw[0], n: fw[1].n }) } : { key: "format", status: "insufficient", n: maxN(s?.formatLift), need: 3, text: tx(M.formatNone, lang) });
+  out.push(fw && !s?.coldStart ? { key: "format", status: "data", n: fw[1].n, need: 3, text: tx(M.formatData, lang, { fmt: (FORMAT_NAME[fw[0]] ?? FORMAT_NAME.other)[lang], n: fw[1].n }) } : { key: "format", status: "insufficient", n: maxN(s?.formatLift), need: 3, text: tx(M.formatNone, lang) });
 
   const mature = s?.maturePosts ?? 0;
   out.push(s?.viewTrend != null ? { key: "trend", status: "data", n: mature, need: 20, text: tx(M.trendOk, lang, { n: mature }) } : { key: "trend", status: "insufficient", n: mature, need: 20, text: tx(M.trendNo, lang, { n: mature }) });

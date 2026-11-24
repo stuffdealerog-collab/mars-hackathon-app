@@ -37,7 +37,8 @@ export const POST = handle(async (req) => {
     owned: ownerTelegramId != null,
     mode: brand.mode ?? "channel",
     ...(switchedToFresh ? { switchedToFresh: true } : {}),
-    channelInfo: channel ? { title: channel.title, subscribers: channel.subscribers, postsRead: channel.posts.length } : undefined,
+    // postsRead = every message read on the channel page (albums and reels without captions included).
+    channelInfo: channel ? { title: channel.title, subscribers: channel.subscribers, postsRead: channel.totalMessages } : undefined,
   });
 });
 

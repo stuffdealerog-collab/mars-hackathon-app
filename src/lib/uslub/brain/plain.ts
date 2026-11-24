@@ -86,7 +86,10 @@ function tagText(tag: string, lang: Lang): string {
           ? { uz: "uzun matn (800 belgidan ko‘p)", ru: "длинный текст (больше 800 знаков)", en: "long text (over 800 characters)" }
           : { uz: "o‘rtacha uzunlik (300–800 belgi)", ru: "средняя длина (300–800 знаков)", en: "medium length (300–800 characters)" },
     );
-  if (k === "lang") return pick(lang, { uz: `${langName(v).uz.toLowerCase()} tilida`, ru: `на ${langName(v).ruPrep}`, en: `in ${langName(v).en}` });
+  if (k === "lang") {
+    if (!LANG_NAME[v]) return ""; // "unknown" (undetected language) is never shown to the owner
+    return pick(lang, { uz: `${langName(v).uz.toLowerCase()} tilida`, ru: `на ${langName(v).ruPrep}`, en: `in ${langName(v).en}` });
+  }
   if (k === "hour") return pick(lang, { uz: `${timeRange(v)} oralig‘ida chiqqan`, ru: `вышли в ${timeRange(v)}`, en: `posted ${timeRange(v)}` });
   const flags: Record<string, T3> = {
     hasPrice: { uz: "narx yozilgan", ru: "указана цена", en: "a price is shown" },
@@ -186,6 +189,9 @@ export function templateFinding(rule: RuleResult, s: ChannelStats, lang: Lang, c
     case "R.DECLINING": {
       if (s.viewTrend == null) return null;
       const drop = lessPct(s.viewTrend);
+      // Same split as stats.ts: 15 vs 15 from 30 posts on, otherwise the two halves of what there is.
+      const recent = s.maturePosts >= 30 ? 15 : Math.floor(s.maturePosts / 2);
+      const earlier = s.maturePosts >= 30 ? 15 : s.maturePosts - recent;
       const cause = String(rule.data?.cause ?? "");
       const fm = /^format (\w+)/.exec(cause);
       const hr = /^hour ([\d-]+)/.exec(cause);
@@ -198,9 +204,9 @@ export function templateFinding(rule: RuleResult, s: ChannelStats, lang: Lang, c
             : null;
       return (
         L({
-          uz: `Oxirgi 15 ta post oldingi 15 tadan ${drop}% kam ko‘rilgan.`,
-          ru: `Последние 15 постов набрали на ${drop}% меньше просмотров, чем 15 до них.`,
-          en: `The last 15 posts got ${drop}% fewer views than the 15 before them.`,
+          uz: `Oxirgi ${recent} ta post oldingi ${earlier} tadan ${drop}% kam ko‘rilgan.`,
+          ru: `Последние ${recent} постов набрали на ${drop}% меньше просмотров, чем ${earlier} до них.`,
+          en: `The last ${recent} posts got ${drop}% fewer views than the ${earlier} before them.`,
         }) +
         (causeText
           ? L({
@@ -333,7 +339,7 @@ export function templateFinding(rule: RuleResult, s: ChannelStats, lang: Lang, c
       const [a, b] = rule.ids.map((id) => id.replace(/^S\.langLift\./, ""));
       const va = v(rule.ids[0]);
       const vb = v(rule.ids[1]);
-      if (!a || !b || va == null || vb == null || vb <= 0) return null;
+      if (!a || !b || !LANG_NAME[a] || !LANG_NAME[b] || va == null || vb == null || vb <= 0) return null;
       const more = morePct(va / vb);
       const A = langName(a);
       const B = langName(b);
@@ -344,7 +350,7 @@ export function templateFinding(rule: RuleResult, s: ChannelStats, lang: Lang, c
       });
     }
     case "R.REPLICATE_WINNERS": {
-      const tags = ((rule.data?.features as string[] | undefined) ?? []).map((t) => tagText(t, lang));
+      const tags = ((rule.data?.features as string[] | undefined) ?? []).map((t) => tagText(t, lang)).filter(Boolean);
       if (!tags.length) return null;
       return L({
         uz: `Eng ko‘p ko‘rilgan 5 ta postning kamida 3 tasida umumiy jihat bor: ${tags.join(", ")}; eng kam ko‘rilganlarda bu deyarli yo‘q. Bu hafta 2 ta postda shu usulni takrorlaymiz.`,

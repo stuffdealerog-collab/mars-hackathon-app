@@ -75,7 +75,9 @@ export const GROWTH_IDEAS = [
   "a reason to join: something only channel subscribers get (first to see new items, a small bonus on the first order)",
 ];
 
-const PRICE_RE = /\d[\d\s.,]*\s*(so['‘’ʻ`]?m|sum|сум|ming|тыс|k\b|000)/i;
+// A price is a number followed by a currency word (not any number: years and customer counts are not prices).
+// Unicode look-arounds instead of \b, which ignores Cyrillic.
+const PRICE_RE = /\d[\d\s.,]*\s*(?:ming\s+)?(?:so['‘’ʻ`]?m|sum|сум|сўм|тыс(?:\.|яч\w*)?\s*сум|usd|долл\w*|\$)(?![\p{L}\d])/iu;
 const ADDRESS_RE = /(ko['‘’ʻ`]?cha|mahalla|tuman|rayon|улиц|район|массив|mavze|kvartal|orientir|mo['‘’ʻ`]?ljal|chilonzor|yunusobod|sergeli|yakkasaroy|mirobod|olmazor|uchtepa|shayxontohur|bektemir|yashnobod|mirzo|ulug['‘’ʻ`]?bek|chirchiq|samarqand|buxoro|farg['‘’ʻ`]?ona|andijon|namangan|xorazm|toshkent|ташкент|address|street|юнусабад|чиланзар|мирзо|улугбек|сергел|яккасара|мирабад|алмазар|учтеп|шайхантах|бектемир|яшнабад|чирчик|самарканд|бухар|фергана|андижан|наманган|хорезм)/i;
 const CONTACT_RE = /(\+?998[\s-]?\d{2}|\b\d{2}[\s-]\d{3}[\s-]\d{2}[\s-]\d{2}\b|@[A-Za-z][\w]{3,}|t\.me\/|instagram)/i;
 
@@ -162,7 +164,7 @@ const K: Record<Lang, { posts: string; subs: string; orders: string; howPosts: s
     orders: "Kanal orqali kelgan buyurtmalar",
     howPosts: "Kanalni o‘qib sanaymiz",
     howSubs: "Kanal sahifasidagi obunachilar soni, 14-kuni",
-    howOrders: "Botda «Sotildi» tugmasi yoki /natija",
+    howOrders: "Kanal orqali kelgan har bir buyurtmani o‘zingiz yozib boring (masalan, telefon eslatmasida)",
   },
   ru: {
     posts: "Постов за 2 недели",
@@ -170,7 +172,7 @@ const K: Record<Lang, { posts: string; subs: string; orders: string; howPosts: s
     orders: "Заказы из канала",
     howPosts: "Считаем по каналу",
     howSubs: "Число подписчиков на странице канала на 14-й день",
-    howOrders: "Кнопка «Sotildi» в боте или /natija",
+    howOrders: "Записывайте каждый заказ, пришедший из канала (например, в заметках телефона)",
   },
   en: {
     posts: "Posts published in 2 weeks",
@@ -178,7 +180,7 @@ const K: Record<Lang, { posts: string; subs: string; orders: string; howPosts: s
     orders: "Orders from the channel",
     howPosts: "Counted from the channel",
     howSubs: "Subscriber count on the channel page on day 14",
-    howOrders: "The «Sotildi» button in the bot or /natija",
+    howOrders: "Note down every order that came from the channel (for example in your phone's notes)",
   },
 };
 

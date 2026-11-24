@@ -72,6 +72,21 @@ export function claimDecision(args: { ownerTelegramId: number | null; userId: nu
   return { ok: false, reason: "user_cannot_post" };
 }
 
+type Shown = { variants: Partial<Record<Script, string>> & { uz_latn: string }; image?: { url?: string } };
+
+/** The text of a variant as the bot shows and publishes it. */
+export const shownText = (post: Shown, script: Script) => post.variants[script]?.trim() || post.variants.uz_latn;
+
+/**
+ * The post's visible picture (policy shared with the images session): `image.url` when it is an https URL. While a
+ * new variant renders or fails, images keeps `url` = the last ready picture, so this is what the owner sees and
+ * what publishPost sends.
+ */
+export const shownPhoto = (post: Shown) => (post.image?.url?.startsWith("https://") ? post.image.url : null);
+
+/** What the owner saw — the text and the picture. The "Kanalga joylash" button is bound to this hash. */
+export const shownHash = (post: Shown, script: Script) => textHash(`${shownText(post, script)}\n--picture--\n${shownPhoto(post) ?? ""}`);
+
 /** Telegram limits: photo caption 1024 chars, message 4096. */
 export function splitForPhoto(text: string): { caption?: string; rest?: string } {
   const t = text.trim();

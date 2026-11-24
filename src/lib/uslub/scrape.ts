@@ -16,7 +16,13 @@ export interface ScrapedChannel {
   title?: string;
   description?: string;
   subscribers?: string; // e.g. "12.3K subscribers"
+  /** Posts with text (photo captions included): what the brand voice is learned from. */
   posts: ScrapedPost[];
+  /**
+   * Every real message on the page, with or without text (albums, reels and photos without a caption count;
+   * service messages do not). Whether a channel is "empty" is decided on this, not on `posts`.
+   */
+  totalMessages: number;
 }
 
 export type ScrapeErrorCode = "channel_invalid" | "channel_empty" | "telegram_unavailable" | "knowledge_needed";
@@ -98,8 +104,14 @@ export function parseChannelHtml(username: string, html: string): ScrapedChannel
   const subs = counters.find((m) => /subscriber|member|подпис/i.test(m[2]));
 
   const posts: ScrapedPost[] = [];
+  let totalMessages = 0;
   const blocks = html.split(/<div class="tgme_widget_message_wrap/).slice(1);
   for (const block of blocks) {
+    // Same rule as brain/scrape.ts: a real message has a data-post id and is not a service message.
+    const head = /<div class="(tgme_widget_message[^"]*)"[^>]*data-post="[^"]+"/.exec(block);
+    // Service messages ("Channel created", "photo updated") are neither posts nor brand voice.
+    if (head && /service_message/.test(head[1])) continue;
+    if (head) totalMessages++;
     const textHtml = block.match(/<div class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/);
     if (!textHtml) continue;
     const text = htmlToText(textHtml[1]);
@@ -120,13 +132,14 @@ export function parseChannelHtml(username: string, html: string): ScrapedChannel
     description,
     subscribers: subs ? `${subs[1].trim()} ${subs[2].trim()}` : undefined,
     posts,
+    totalMessages: Math.max(totalMessages, posts.length),
   };
 }
 
 /** Fetches the last ~20-40 posts of a public channel. Throws ScrapeError with a user-facing message. */
 export async function scrapeChannel(
   input: string,
-  opts: { timeoutMs?: number; maxPosts?: number; /** fewer text posts than this → ScrapeError "channel_empty" (default 1) */ minPosts?: number } = {},
+  opts: { timeoutMs?: number; maxPosts?: number; /** fewer messages (any kind) than this → ScrapeError "channel_empty" (default 1) */ minPosts?: number } = {},
 ): Promise<ScrapedChannel> {
   const username = parseChannelUsername(input);
   if (!username) {
@@ -158,11 +171,12 @@ export async function scrapeChannel(
   if (!res.ok) throw new ScrapeError(`Telegram ${res.status} qaytardi`, 502);
   const html = await res.text();
   const channel = parseChannelHtml(username, html);
-  if (channel.posts.length < (opts.minPosts ?? 1)) {
-    throw new ScrapeError(`@${username} kanalida ochiq postlar kam (${channel.posts.length}).`, 422, "channel_empty", {
+  // Empty = few messages of any kind. A shop whose last posts are albums or reels without captions is not empty.
+  if (channel.totalMessages < (opts.minPosts ?? 1)) {
+    throw new ScrapeError(`@${username} kanalida ochiq postlar kam (${channel.totalMessages}).`, 422, "channel_empty", {
       channel: username,
-      reason: channel.posts.length === 0 && !channel.title ? "no_preview" : "few_posts",
-      postsFound: channel.posts.length,
+      reason: channel.totalMessages === 0 && !channel.title ? "no_preview" : "few_posts",
+      postsFound: channel.totalMessages,
     });
   }
   const max = opts.maxPosts ?? 30;
