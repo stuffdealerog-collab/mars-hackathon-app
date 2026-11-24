@@ -444,6 +444,15 @@ html.ma-html body {
 .ma-chip:active {
   transform: scale(0.96);
 }
+/* The chip looks 36 px tall; its touch target is 44. */
+.ma-chip {
+  position: relative;
+}
+.ma-chip::after {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
+}
 
 .ma-field {
   display: flex;
