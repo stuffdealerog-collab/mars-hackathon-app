@@ -16,7 +16,7 @@ import { LampTile } from "../lamp/LampTile";
 import { LAMP_ORDER, LAMPS, light } from "../lamp/lamps";
 import { fmt, LANGS, useCopy, useLang } from "../ui/lang";
 import { LangSwitch, Logo } from "../ui/parts";
-import type { Lamps } from "./Department";
+import { offWord, type Lamps } from "./Department";
 import { recentBrands, useStudio, type RecentBrand, type Tab } from "./store";
 import { Tools } from "./Tools";
 
@@ -329,7 +329,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
             {LAMP_ORDER.map((r, i) => {
               const st = lamps.state[r];
               const radar = r === "radar";
-              const label = `${c.lamps[r].name}: ${lamps.soon.has(r) && st === "off" ? c.lampState.soon : c.lampState[st]}`;
+              const label = `${c.lamps[r].name}: ${lamps.soon.has(r) && st === "off" ? offWord(lamps, r, c.lampState.soon) : c.lampState[st]}`;
               return (
                 <li key={r} className="relative">
                   <LampTile
@@ -428,7 +428,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
             <span className="font-semibold">{c.lamps[tip.role].name}</span>
             <span className="text-ink-2">
               {" "}
-              · {lamps.soon.has(tip.role) && lamps.state[tip.role] === "off" ? c.lampState.soon : c.lampState[lamps.state[tip.role]]}
+              · {lamps.soon.has(tip.role) && lamps.state[tip.role] === "off" ? offWord(lamps, tip.role, c.lampState.soon) : c.lampState[lamps.state[tip.role]]}
               {lamps.words[tip.role] ? ` · ${lamps.words[tip.role]}` : ""}
             </span>
           </div>,

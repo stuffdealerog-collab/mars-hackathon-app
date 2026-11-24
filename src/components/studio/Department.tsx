@@ -6,8 +6,9 @@ import { Led } from "../lamp/Led";
 import { LampTile } from "../lamp/LampTile";
 import { LAMP_ORDER, lampVars, type LampState } from "../lamp/lamps";
 import { plural } from "../ui/format";
-import { fmt, useCopy, useLang } from "../ui/lang";
-import { useStudio, type StepKey } from "./store";
+import { fmt, useCopy, useLang, type Lang } from "../ui/lang";
+import { sampleAudit, sampleBrand, samplePlan, samplePosts } from "./sample";
+import { POSTS_PER_RUN, useStudio, type Step, type StepKey } from "./store";
 
 // Professional rejim only, loaded on demand.
 const LampDrawer = dynamic(() => import("./pro/ProDetails").then((m) => m.LampDrawer), { ssr: false });
@@ -17,13 +18,49 @@ export const SOON_ROLES: readonly AgentRole[] = ["video", "radar"];
 const SOON = SOON_ROLES;
 const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
 
-/** `result`: what each lamp shows; `words`: the same in plain text (tooltips, aria labels). */
+/**
+ * `result`: what each lamp shows; `words`: the same in plain text (tooltips, aria labels);
+ * `quiet`: what a dark lamp says when "tez orada" would be wrong (pictures in the sample).
+ */
 export type Lamps = {
   state: Record<AgentRole, LampState>;
   soon: Set<AgentRole>;
   result: Partial<Record<AgentRole, React.ReactNode>>;
   words: Partial<Record<AgentRole, string>>;
+  quiet?: Partial<Record<AgentRole, string>>;
 };
+
+/** The word under a dark lamp's name: "tez orada", or why it is dark here. */
+export const offWord = (lamps: Lamps, r: AgentRole, soonWord: string) => lamps.quiet?.[r] ?? soonWord;
+
+/** What the lamps are computed from: the run's state, the store's or the sample's. */
+export type LampSnapshot = {
+  steps: Step[];
+  mode: "channel" | "fresh";
+  sample: boolean;
+  brand: ReturnType<typeof useStudio.getState>["brand"];
+  audit: ReturnType<typeof useStudio.getState>["audit"];
+  postsRead: number | null;
+  plan: ReturnType<typeof useStudio.getState>["plan"];
+  progress: ReturnType<typeof useStudio.getState>["planProgress"];
+  posts: ReturnType<typeof useStudio.getState>["posts"];
+};
+
+/** The sample bakery after a finished run: what the landing's lit department shows. */
+export function sampleSnapshot(lang: Lang): LampSnapshot {
+  const done = (key: StepKey, n?: number): Step => ({ key, status: "done", n });
+  return {
+    steps: [done("read", 60), done("voice"), done("plan", 7), done("posts", POSTS_PER_RUN), { key: "images", status: "skip" }],
+    mode: "channel",
+    sample: true,
+    brand: sampleBrand(lang),
+    audit: sampleAudit(lang),
+    postsRead: 60,
+    plan: samplePlan(lang),
+    progress: null,
+    posts: samplePosts(lang),
+  };
+}
 
 function Num({ n, word }: { n: number | string; word: string }) {
   return (
@@ -44,21 +81,31 @@ export function useLamps(gate = false): Lamps {
   const lang = useLang((s) => s.lang);
   const steps = useStudio((s) => s.steps);
   const mode = useStudio((s) => s.mode);
+  const sample = useStudio((s) => s.sample);
   const brand = useStudio((s) => s.brand);
   const audit = useStudio((s) => s.audit);
   const postsRead = useStudio((s) => s.postsRead);
   const plan = useStudio((s) => s.plan);
   const progress = useStudio((s) => s.planProgress);
   const posts = useStudio((s) => s.posts);
+  return useMemo(
+    () => lampsFrom({ steps, mode, sample, brand, audit, postsRead, plan, progress, posts }, c, lang, gate),
+    [gate, steps, mode, sample, brand, audit, postsRead, plan, progress, posts, c, lang],
+  );
+}
 
-  return useMemo(() => {
+/** The same rules as a plain function of a snapshot (the landing feeds it the sample). */
+export function lampsFrom(snap: LampSnapshot, c: ReturnType<typeof useCopy>, lang: Lang, gate = false): Lamps {
+  const { steps, mode, sample, brand, audit, postsRead, plan, progress, posts } = snap;
+  {
     const status = (k: StepKey) => steps.find((s) => s.key === k)?.status;
     const by = (held: boolean, k: StepKey): LampState => (held ? "on" : status(k) === "run" ? "warming" : status(k) === "fail" ? "error" : "off");
     const state = Object.fromEntries(LAMP_ORDER.map((r) => [r, "off"])) as Record<AgentRole, LampState>;
     const soon = new Set<AgentRole>(SOON);
     const result: Lamps["result"] = {};
     const words: Lamps["words"] = {};
-    if (gate) return { state, soon, result, words };
+    const quiet: NonNullable<Lamps["quiet"]> = {};
+    if (gate) return { state, soon, result, words, quiet };
 
     state.brand = by(!!brand, "voice");
     if (brand) {
@@ -123,7 +170,12 @@ export function useLamps(gate = false): Lamps {
       words.designer = say(c.lampResult.pictures, ready);
     } else if (images.length) state.designer = "error";
     else if (imgStep === "run") state.designer = "warming"; // studying the channel's photos first
-    else if (imgStep === "skip") soon.add("designer");
+    else if (imgStep === "skip") {
+      soon.add("designer");
+      // Pictures are a working feature: in the sample the Dizayner is dark because the sample
+      // draws none, not because it is coming soon.
+      if (sample) quiet.designer = c.lampState.noPicturesSample;
+    }
 
     const published = posts.filter((p) => p.status === "published").length;
     if (published) {
@@ -132,8 +184,8 @@ export function useLamps(gate = false): Lamps {
       words.publisher = say(c.lampResult.published, published);
     } else if (written) state.publisher = "you";
 
-    return { state, soon, result, words };
-  }, [gate, steps, mode, brand, audit, postsRead, plan, progress, posts, c, lang]);
+    return { state, soon, result, words, quiet };
+  }
 }
 
 type PanelProps = {
@@ -147,12 +199,19 @@ type PanelProps = {
   armed?: boolean;
   /** Start: lamps that never light there and print only a name stand shorter. */
   compact?: boolean;
+  /** Lamps light by a plain 720 ms fade, without the flicker (the landing: nothing moves there). */
+  calm?: boolean;
+  /** Lit lamps open nothing (the landing's sample). */
+  readOnly?: boolean;
   /** Drawn inside the stage, over the lamps (Spektr). */
   children?: React.ReactNode;
 };
 
 /** The full panel: ten lamps in pipeline order. */
-export const Panel = forwardRef<HTMLUListElement, PanelProps>(function Panel({ lamps, size = "sm", showJob = false, className = "", housing = false, armed = false, compact = false, children }, ref) {
+export const Panel = forwardRef<HTMLUListElement, PanelProps>(function Panel(
+  { lamps, size = "sm", showJob = false, className = "", housing = false, armed = false, compact = false, calm = false, readOnly = false, children },
+  ref,
+) {
   const c = useCopy();
   const pro = useStudio((s) => s.pro);
   const [open, setOpen] = useState<AgentRole | null>(null);
@@ -162,7 +221,7 @@ export const Panel = forwardRef<HTMLUListElement, PanelProps>(function Panel({ l
           const soon = lamps.soon.has(r) && lamps.state[r] === "off";
           const st = lamps.state[r];
           // In Professional rejim a lit lamp opens what that employee did.
-          const tappable = pro && st !== "off";
+          const tappable = pro && !readOnly && st !== "off";
           return (
             // --i staggers the embers when they arm (set here: LampTile's style holds its colours).
             <li key={r} className="flex" style={{ ["--i" as string]: i }}>
@@ -174,7 +233,7 @@ export const Panel = forwardRef<HTMLUListElement, PanelProps>(function Panel({ l
                 name={c.lamps[r].name}
                 job={showJob ? c.lamps[r].job : undefined}
                 // A dark lamp says nothing; only "tez orada" roles explain themselves.
-                stateText={soon ? c.lampState.soon : st === "off" ? undefined : c.lampState[st]}
+                stateText={soon ? offWord(lamps, r, c.lampState.soon) : st === "off" ? undefined : c.lampState[st]}
                 className={`w-full ${soon ? "lamp--soon" : ""} ${tappable ? "cursor-pointer transition-transform duration-150 active:scale-[0.97]" : ""}`}
                 {...(tappable ? { type: "button", onClick: () => setOpen(r), "aria-haspopup": "dialog" } : {})}
               >
@@ -188,7 +247,7 @@ export const Panel = forwardRef<HTMLUListElement, PanelProps>(function Panel({ l
   return (
     <>
       {housing ? (
-        <div className="panel-stage" data-armed={armed || undefined} data-compact={compact || undefined}>
+        <div className="panel-stage" data-armed={armed || undefined} data-compact={compact || undefined} data-calm={calm || undefined}>
           {/* Each lit lamp's own light on the room, next to its tile: the top row on the wall above
               the housing, the bottom row on the floor below. Never averaged, never a rainbow. */}
           {LAMP_ORDER.map((r, i) => {

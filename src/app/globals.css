@@ -1057,4 +1057,11 @@
       border: 1px solid CanvasText;
     }
   }
+
+  /* The landing's sample: lamps go out with the usual 1000 ms and come back with a plain 720 ms
+     fade, never the power-on flicker. */
+  .desk .panel-stage[data-calm] .lamp:is([data-state="on"], [data-state="you"]) .lamp__glow {
+    animation: none;
+    transition: opacity var(--t-on) var(--ease-out);
+  }
 } /* end .desk */
