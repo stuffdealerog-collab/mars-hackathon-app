@@ -256,7 +256,7 @@ function Style() {
           lang={lang}
           pro={pro}
           autoLearn={false}
-          initData={api.tgInitData()}
+          authorization={api.authHeader()}
           onChange={(visual) => {
             const b = useStudio.getState().brand;
             if (b?.id === brand.id) useStudio.setState({ brand: { ...b, visual } });
