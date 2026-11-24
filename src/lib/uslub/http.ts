@@ -180,6 +180,11 @@ export function handle(fn: (req: Request) => Promise<Response>) {
       try {
         return await fn(req);
       } catch (err) {
+        // A refusal thrown before the body was read (the rate limit) still answers in the body's language.
+        if (err instanceof HttpError && err.status === 429 && !req.bodyUsed) {
+          const bodyLang = await req.json().then((b: unknown) => (b as { lang?: unknown } | null)?.lang, () => undefined);
+          if (isApiLang(bodyLang)) setContextLang(bodyLang);
+        }
         const { status, body } = errorBody(err);
         return json(body, status);
       } finally {

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { loadKnowledge, saveKnowledge } from "@/lib/uslub/brain/kbstore";
 import { ingestSources } from "@/lib/uslub/brain/knowledge";
+import { spendClaude } from "@/lib/uslub/budget";
 import { handle, HttpError, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import type { StoredBrand } from "@/lib/uslub/store";
 
@@ -44,12 +45,14 @@ function assertWritable(brand: StoredBrand) {
 export const POST = handle(async (req) => {
   rateLimit(req, "brain-knowledge", 6);
   const body = await readJson(req, Body);
-  const brand = await loadBrandFor(body.brandId, telegramUserId(req, body.initData));
+  const userId = telegramUserId(req, body.initData);
+  const brand = await loadBrandFor(body.brandId, userId);
   assertWritable(brand);
   const hasInput =
     Boolean(body.urls?.length || body.products?.length || body.text?.trim()) ||
     [body.address, body.landmark, body.hours, body.phone, body.delivery].some((v) => v?.trim());
   if (!hasInput) throw new HttpError(400, "Havola, mahsulot/narx yoki manzil yuboring", "knowledge_needed");
+  await spendClaude(req, userId, "knowledge");
   const sources = await ingestSources(body);
   const saved = await saveKnowledge(brand.id, sources);
   const kb = await loadKnowledge(brand.id);

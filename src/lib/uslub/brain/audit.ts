@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { channelEmpty } from "@/lib/uslub/http";
 import { MIN_CHANNEL_POSTS } from "@/lib/uslub/scrape";
@@ -9,7 +10,7 @@ import { extractIds, groundedCheck } from "./lint";
 import { brainJson, GROUNDING, SONNET } from "./llm";
 import { type Benchmark, benchLedger, benchmarkFor, type ChannelSummary, type Niche, nicheOf } from "./bench";
 import { funnelLedger, learnFor, type LearnReport } from "./learn-run";
-import { recordAnalysis, loadSummaries } from "./memory";
+import { loadBrainCache, recordAnalysis, loadSummaries, saveBrainCache } from "./memory";
 import { keyId, postLedger, ruleLedger, runRules, statsLedger, type KbSignals } from "./rules";
 import { BrainScrapeError, normalizeChannel, scrapeChannelData } from "./scrape";
 import { sufficiency } from "./sufficiency";
@@ -279,12 +280,53 @@ export function assembleAudit(a: Analysis, findings: Finding[], lang: Lang = "uz
   };
 }
 
-export async function runAudit(input: { channel: string; competitors?: string[]; lang?: Lang; category?: string; brandId?: string; onStage?: OnStage }) {
+/** Written findings are reused this long for the same channel, language, competitors and newest post. */
+export const AUDIT_CACHE_MS = 12 * 3600_000;
+
+/** Cache key of an audit's written findings: a new post on the channel (or other competitors) makes a new key. */
+export function auditCacheKey(a: Pick<Analysis, "data">, input: { competitors?: string[]; category?: string }, lang: Lang): string {
+  const newest = a.data.posts.reduce((m, p) => Math.max(m, p.id), 0);
+  const comps = [...(input.competitors ?? [])].map((c) => normalizeChannel(c) ?? c.toLowerCase()).sort();
+  const raw = JSON.stringify(["v1", a.data.channel.toLowerCase(), lang, newest, comps, (input.category ?? "").trim().toLowerCase()]);
+  return `audit:${createHash("sha256").update(raw).digest("hex").slice(0, 32)}`;
+}
+
+export async function runAudit(input: {
+  channel: string;
+  competitors?: string[];
+  lang?: Lang;
+  category?: string;
+  brandId?: string;
+  onStage?: OnStage;
+  /** true = write the findings again even if this channel was explained in the last 12 h. */
+  refresh?: boolean;
+  /** Runs right before the paid Claude step (not on a cache hit): the route takes its daily budget unit here. */
+  beforeLlm?: () => Promise<void>;
+}) {
+  const lang = input.lang ?? "uz";
   const a = await analyzeDeterministic(input);
   // An empty channel has nothing to audit: the Studio switches to fresh mode (launch plan from the owner's description).
   if (a.data.posts.length < MIN_CHANNEL_POSTS) throw channelEmpty(a.data.channel, a.data.posts.length ? "few_posts" : "no_preview", a.data.posts.length);
-  const findings = await writeFindings(a, input.lang ?? "uz", input.onStage);
-  const audit = assembleAudit(a, findings, input.lang ?? "uz");
+  // Nothing in the last 90 days, or not a real business channel (stale, renamed "for sale"): no findings from 0 posts.
+  if (a.stats.postsInWindow === 0 || !a.validity.ok) {
+    const reason = a.validity.code === "no_preview" ? "no_preview" : a.validity.code === "stale" || a.stats.postsInWindow === 0 ? "stale" : "few_posts";
+    throw channelEmpty(a.data.channel, reason, a.stats.postsInWindow);
+  }
+  // The written findings (one Sonnet call) are reused while the channel has no new post; the numbers stay live.
+  const key = auditCacheKey(a, input, lang);
+  const cached = input.refresh ? null : await loadBrainCache<Finding[]>(key, AUDIT_CACHE_MS).catch(() => null);
+  let findings: Finding[];
+  if (cached?.length) {
+    findings = cached;
+    input.onStage?.({ stage: "findings", cached: true });
+    for (const f of findings) input.onStage?.({ stage: "findings", finding: f });
+  } else {
+    await input.beforeLlm?.();
+    findings = await writeFindings(a, lang, input.onStage);
+    // Template fallbacks (the LLM failed) are not kept: the next open tries the real explanation again.
+    if (findings.some((f) => !f.template)) void saveBrainCache(key, findings);
+  }
+  const audit = assembleAudit(a, findings, lang);
   input.onStage?.({ stage: "done" });
   return {
     audit,

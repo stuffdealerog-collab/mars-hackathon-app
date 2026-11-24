@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { safeLogEvent } from "@/lib/track";
 import { buildBrand } from "@/lib/uslub/brand";
+import { spendClaude } from "@/lib/uslub/budget";
 import { generatePosts } from "@/lib/uslub/copywriter";
 import { errorBody, handle, HttpError, json, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import type { RadarLead } from "@/lib/uslub/contract";
@@ -53,7 +54,10 @@ export const POST = handle(async (req) => {
   const include = new Set(body.include ?? ["posts", "radar", "video"]);
   const started = Date.now();
 
-  const { brand, cached } = await buildBrand({ channel: body.channel, knowledge: body.knowledge, ownerTelegramId: telegramUserId(req, body.initData) });
+  const ownerTelegramId = telegramUserId(req, body.initData);
+  // The whole department (brand, posts, radar, video) is one run of several calls.
+  await spendClaude(req, ownerTelegramId, "department", { weight: 2 });
+  const { brand, cached } = await buildBrand({ channel: body.channel, knowledge: body.knowledge, ownerTelegramId });
   const brief = body.brief?.trim() || "Kanal uchun bu haftaning eng foydali postlari: mahsulot, mijozlar savoli va taklif";
 
   // Everything must answer within ~55 s of the request; slow parts (usually radar) are

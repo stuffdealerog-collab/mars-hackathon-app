@@ -19,6 +19,8 @@ import { sufficiency } from "./sufficiency";
 import type { ChannelData, ChannelStats, Goal, Lang, LedgerEntry, RuleResult } from "./types";
 import { webContext } from "./web";
 import { clip } from "../text";
+import { dotted, pastDatesIn } from "../dates";
+import { type Duplicate, duplicateItems, isBlockedMarker, ownerFacing, pastFacts } from "./plan-checks";
 
 /* ------------------------------------------------------------------ D0 facts */
 
@@ -173,6 +175,7 @@ FOR EACH SLOT:
 - sale slot: include the product's F price in the hook or brief. Urgency only with an F deadline or capacity fact.
 - factIds: every F id you used. hook and cta are the customer-facing post: never put ids, brackets or ledger codes in them (ids go only in factIds and the brief).
 - Facts quoted from the channel's own posts carry the post date [YYYY-MM-DD]. Prices, products, addresses, hours and processes are standing facts. Dated events, promotions, deadlines and "new branch" announcements older than 14 days are history: never present them as current, and never tie a fact to a calendar event unless the fact itself names that event.
+- A fact with past:true is already over on the slot's day (an opening, a promotion, an event): never announce it as coming or happening now ("ochilmoqda", "скоро", "opening soon"), never build a hook on it, never write a date before slot.day as upcoming. A standing detail inside it (the branch address, the product) may be used in the present tense.
 VOICE: match the fingerprint — address form, words per sentence, emoji ≤ min(3, fingerprint emojiPer100 +50%), exclamations only if the owner uses them. Copy the anchors' manner, never their sentences. Never reuse competitor wording.
 Return JSON {items:[{slot, hookType, hook, cta, brief, factIds}]}.`;
 
@@ -274,9 +277,6 @@ const HARD_REASON: Record<Lang, Record<string, string>> = {
   },
 };
 
-/** Content words (≥4 letters, first 5 letters as a crude Uzbek stem) for near-duplicate hooks. */
-const words = (s: string) => new Set(normApos(s).toLowerCase().split(/[^\p{L}']+/u).filter((w) => w.length >= 4).map((w) => w.slice(0, 5)));
-
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, Math.max(0, ms)));
 const chunk = <T,>(xs: T[], groups: number): T[][] => {
   const size = Math.max(1, Math.ceil(xs.length / groups));
@@ -339,9 +339,14 @@ export async function buildStrategy(inp: StrategyInput) {
   if (thinKb && facts.length) emit({ stage: "facts", source: "channel_posts" });
   emit({ stage: "facts", facts: facts.map((f) => ({ id: f.id, type: f.type, quote: f.quote })), elapsedMs: elapsed() });
 
+  // Facts about an event that is over by the plan's first day (the plan starts tomorrow, Tashkent time).
+  const firstDay = new Date(now + 5 * 3600_000 + 86_400_000).toISOString().slice(0, 10);
+  const past = pastFacts(facts, knowledge, firstDay);
+  if (past.size) emit({ stage: "facts", past: [...past.keys()] });
   const has = (...types: Fact["type"][]) => facts.filter((f) => types.includes(f.type));
+  const current = (xs: Fact[]) => xs.filter((f) => !past.has(f.id));
   const priceFacts = has("price");
-  const offerFacts = has("offer");
+  const offerFacts = current(has("offer"));
   const proof = has("year", "number", "review", "certificate");
   const kb: KbSignals = { hasPrices: priceFacts.length > 0, hasProducts: has("product").length > 0 || priceFacts.length > 0, hasOffer: offerFacts.length > 0, proofFacts: proof.length };
 
@@ -401,7 +406,7 @@ export async function buildStrategy(inp: StrategyInput) {
     supported: learned?.supported.filter((x) => x.tag === "hookType").map((x) => x.value),
     dropped: learned?.dropped.filter((x) => x.tag === "hookType").map((x) => x.value),
   });
-  assignFocus(sk.slots, facts, rules);
+  assignFocus(sk.slots, current(facts), rules);
   const kpis = buildKpis(stats, rules, sk.slots.length, sk.slots, lang);
   const claims = competitorClaims(analysis?.competitors ?? []);
   const voice = voiceFingerprint(stats, knowledge);
@@ -412,7 +417,7 @@ export async function buildStrategy(inp: StrategyInput) {
   const common = GROUNDING(lang, voice.apostropheStyle, LEXICON);
   const competitorTexts = (analysis?.competitors ?? []).flatMap((c) => c.data.posts.map((p) => p.text));
   const statsForLlm = ledger.filter((e) => e.source !== "post" || e.id.startsWith(`P.${analysis?.data.channel}`)).map(({ id, label, display, n, prior }) => ({ id, label, display, n, prior }));
-  const factsForLlm = facts.map(({ id, type, quote }) => ({ id, type, quote }));
+  const factsForLlm = facts.map(({ id, type, quote }) => ({ id, type, quote, ...(past.has(id) ? { past: true, ...(past.get(id) ? { postedAt: past.get(id) } : {}) } : {}) }));
   const slotsForLlm = new Map(
     sk.slots.map((s) => [
       s.slot,
@@ -454,7 +459,7 @@ export async function buildStrategy(inp: StrategyInput) {
   const lintCtx = {
     ledger: ledgerMap,
     priceFacts: factLedger(priceFacts),
-    deadlineFacts: has("deadline").length + has("offer").filter((f) => /\d/.test(f.quote)).length,
+    deadlineFacts: current(has("deadline")).length + offerFacts.filter((f) => /\d/.test(f.quote)).length,
     recentHooks,
     competitorTexts,
     emojiCap,
@@ -469,6 +474,15 @@ export async function buildStrategy(inp: StrategyInput) {
     return { slot: s.slot, goal: s.goal, hook: it?.hook ?? "", cta: it?.cta ?? "", brief: it?.brief ?? "", factIds: it?.factIds ?? [] };
   };
   const failsOf = (slot: number) => [...(codeFails.get(slot) ?? []), ...(criticFails.get(slot) ?? [])];
+  // Code checks per item: the shared lint, plus a date that is already history on the slot's day.
+  const lintSlot = (s: Slot): CheckFail[] => {
+    const it = asLint(s);
+    const pastDates = pastDatesIn(`${it.hook}\n${it.cta}\n${it.brief}`, s.day);
+    return [
+      ...lintItem(it, lintCtx),
+      ...pastDates.map((d) => ({ check: "PAST", quote: dotted(d), reason: `${dotted(d)} is before this post's day (${dotted(s.day)}): that event is over — do not announce it; use another fact` })),
+    ];
+  };
   const criticSystem = CRITIC(brandName, category, compStats.map((c) => `@${c.channel}`).join(", ") || "-", JSON.stringify({ address: voice.address, emojiPer100: voice.emojiPer100 }));
   const runCritic = async (slots: Slot[]) => {
     if (elapsed() > DEADLINE - 6_000) return false;
@@ -522,7 +536,7 @@ export async function buildStrategy(inp: StrategyInput) {
     } catch (err) {
       console.warn("[brain/strategy] slot draft failed", err instanceof Error ? err.message : err);
     }
-    for (const s of group) codeFails.set(s.slot, drafts.has(s.slot) ? lintItem(asLint(s), lintCtx) : [{ check: "PLAN_SHAPE", quote: "", reason: "missing item" }]);
+    for (const s of group) codeFails.set(s.slot, drafts.has(s.slot) ? lintSlot(s) : [{ check: "PLAN_SHAPE", quote: "", reason: "missing item" }]);
     const drafted = group.filter((s) => drafts.has(s.slot));
     const criticRan = drafted.length ? await runCritic(drafted) : false;
     if (!criticRan) emit({ stage: "critic", slots: drafted.map((s) => s.slot), status: "skipped" });
@@ -536,7 +550,7 @@ export async function buildStrategy(inp: StrategyInput) {
           const s = failing.find((x) => x.slot === it.slot);
           if (!s) continue;
           drafts.set(it.slot, it);
-          codeFails.set(it.slot, lintItem(asLint(s), lintCtx));
+          codeFails.set(it.slot, lintSlot(s));
           criticFails.delete(it.slot);
           fixed.push(s);
         }
@@ -629,20 +643,50 @@ export async function buildStrategy(inp: StrategyInput) {
     emit({ stage: "item", item, elapsedMs: elapsed() });
   }
 
-  // Cross-item checks the per-group writers could not see: near-duplicate hooks, CTAs that open the same way.
-  const items = [...finished].sort((a, b) => (a.slot as number) - (b.slot as number));
+  // Cross-item checks the per-group writers could not see. Two slots on one topic (the same fact, or a near-identical
+  // hook) are one post twice: the later one is rewritten once about another fact; if that fails, it waits for the owner.
+  let items = [...finished].sort((a, b) => (a.slot as number) - (b.slot as number));
+  const factType = new Map(facts.map((f) => [f.id, f.type]));
+  const dups = duplicateItems(items, factType);
+  if (dups.size && elapsed() < DEADLINE - 15_000) {
+    const redo = sk.slots.filter((s) => dups.has(s.slot) && drafts.has(s.slot));
+    for (const s of redo) {
+      const d = dups.get(s.slot) as Duplicate;
+      codeFails.set(s.slot, [
+        ...(codeFails.get(s.slot) ?? []),
+        { check: "DUPLICATE", quote: drafts.get(s.slot)?.hook ?? "", reason: `same topic as slot ${d.of} («${d.hook}»): write about a different fact${d.facts.length ? `, without ${d.facts.join(", ")}` : ""}` },
+      ]);
+    }
+    try {
+      const fix = redo.length ? await draftCall(redo, true) : { items: [] };
+      const fixed = new Set<number>();
+      for (const it of fix.items) {
+        const s = redo.find((x) => x.slot === it.slot);
+        if (!s) continue;
+        drafts.set(it.slot, it);
+        codeFails.set(it.slot, lintSlot(s));
+        criticFails.delete(it.slot);
+        status.set(it.slot, failsOf(it.slot).length ? "owner_input" : "fixed");
+        fixed.add(it.slot);
+      }
+      items = items.map((it) => (fixed.has(it.slot as number) ? finalize(sk.slots.find((s) => s.slot === it.slot) as Slot) : it));
+      if (fixed.size) emit({ stage: "dedupe", slots: [...fixed] });
+    } catch {
+      emit({ stage: "dedupe", status: "failed", slots: redo.map((s) => s.slot) });
+    }
+  }
+  for (const [slot] of duplicateItems(items, factType)) {
+    const it = items.find((x) => x.slot === slot);
+    if (!it) continue;
+    (it.approvalReasons as string[]).push("critic:HOOK");
+    it.needsApproval = true;
+  }
   const ctaHead = (c: string) => normApos(c).toLowerCase().split(/\s+/).slice(0, 3).join(" ");
   for (let i = 1; i < items.length; i++)
     if (items[i].cta && items.slice(0, i).some((x) => x.cta && ctaHead(x.cta) === ctaHead(items[i].cta))) {
       (items[i].approvalReasons as string[]).push("critic:CTA");
       items[i].needsApproval = true;
     }
-  for (let i = 1; i < items.length; i++)
-    for (let j = 0; j < i; j++)
-      if (items[i].hook && items[j].hook && (jaccard(trigrams(items[i].hook), trigrams(items[j].hook)) >= 0.5 || jaccard(words(items[i].hook), words(items[j].hook)) >= 0.5)) {
-        (items[i].approvalReasons as string[]).push("critic:HOOK");
-        items[i].needsApproval = true;
-      }
 
   // 8. strategy (await with whatever time is left)
   let strategyOut: { d2: z.infer<typeof StrategySchema>; web: LedgerEntry[] } | null = null;
@@ -662,6 +706,10 @@ export async function buildStrategy(inp: StrategyInput) {
       ownerQuestions.push(q.diff);
     }
   }
+  // "BLOCKED — price needed" is the strategist's internal marker, never an offer the owner reads: the offer stays
+  // empty and the owner is asked for the price in their language.
+  const offerBlocked = isBlockedMarker(d2?.offer ?? "");
+  if (offerBlocked) ownerQuestions.push(q.price);
   const strategy: Strategy = {
     positioning: d2?.positioning ?? "",
     audiences: (d2?.audiences ?? []).slice(0, 3).map((a) => ({
@@ -671,7 +719,7 @@ export async function buildStrategy(inp: StrategyInput) {
         ? a.whereTheyAre.filter((w) => extractIds(w).length > 0 || w.startsWith("UNKNOWN"))
         : [OWNER_TEXT[lang].unknownWhere],
     })),
-    offer: priceFacts.length ? (d2?.offer ?? "") : OWNER_TEXT[lang].blocked,
+    offer: !priceFacts.length ? OWNER_TEXT[lang].blocked : offerBlocked ? "" : (d2?.offer ?? ""),
     proofPoints: (d2?.proofPoints ?? []).filter((p) => extractIds(p).some((i) => /^[FW]\d+$/.test(i))),
     pillars: (["reach", "trust", "sale"] as Goal[])
       .filter((g) => pillar.final[g] > 0)
@@ -679,7 +727,7 @@ export async function buildStrategy(inp: StrategyInput) {
     kpis,
     risks: risks.slice(0, 6),
   };
-  ownerFacing(strategy, lang);
+  ownerFacing(strategy, lang, OWNER_TEXT[lang].unknownWhere);
   emit({ stage: "strategy", strategy, ok: Boolean(d2), elapsedMs: elapsed() });
   const rationale = [...(analysis?.learn?.changes ?? []), ...(d2?.rationale ?? []).filter((l) => extractIds(l).length > 0 && !groundedCheck(l, ledgerMap).length)].map(stripIdsAll);
   const plan: ContentPlan = { weekOf: sk.weekOf, items, rationale: rationale.join("\n") };
@@ -736,24 +784,6 @@ export async function buildStrategy(inp: StrategyInput) {
     promptVersion: PROMPT_VERSION,
     elapsedMs: elapsed(),
   };
-}
-
-/** The owner reads the strategy as is: ledger ids (kept for the grounding checks above) are removed in place. */
-function ownerFacing(st: Strategy, lang: Lang): void {
-  const clean = (t: string) => (/^UNKNOWN\b/i.test(t.trim()) ? OWNER_TEXT[lang].unknownWhere : ownerText(stripIdsAll(t), lang));
-  st.positioning = clean(st.positioning);
-  st.offer = clean(st.offer);
-  st.proofPoints = st.proofPoints.map(clean);
-  st.risks = st.risks.map(clean);
-  st.audiences = st.audiences.map((a) => ({
-    ...a,
-    name: clean(a.name),
-    job: clean(a.job),
-    pains: a.pains.map(clean),
-    triggers: a.triggers.map(clean),
-    whereTheyAre: a.whereTheyAre.map(clean),
-  }));
-  st.pillars = st.pillars.map((p) => ({ ...p, name: clean(p.name), examples: p.examples.map(clean) }));
 }
 
 /** Rules for a brand with no channel history. */

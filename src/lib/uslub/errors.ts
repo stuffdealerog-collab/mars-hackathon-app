@@ -21,6 +21,7 @@ export type ErrorCode =
   | "publish_in_progress"
   | "own_brand_needed"
   | "rate_limited"
+  | "budget_exhausted"
   | "channel_invalid"
   | "channel_empty"
   | "channel_mismatch"
@@ -99,6 +100,11 @@ const MESSAGES: Record<ErrorCode, Msg> = {
     uz: "Juda ko‘p so‘rov. {seconds} soniyadan keyin qayta urinib ko‘ring.",
     ru: "Слишком много запросов. Попробуйте через {seconds} с.",
     en: "Too many requests. Try again in {seconds} s.",
+  },
+  budget_exhausted: {
+    uz: "Bugungi limit tugadi. Ertaga qayta urinib ko‘ring yoki Telegram’da {bot} boti orqali davom eting.",
+    ru: "Дневной лимит исчерпан. Попробуйте завтра или продолжите в Telegram через бота {bot}.",
+    en: "Today's limit is used up. Try again tomorrow, or continue in Telegram with {bot}.",
   },
   channel_invalid: {
     uz: "Kanal havolasi noto‘g‘ri. Misol: @kanal_nomi yoki https://t.me/kanal_nomi",

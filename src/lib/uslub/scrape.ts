@@ -29,7 +29,8 @@ export interface ScrapedChannel {
 export type ScrapeErrorCode = "channel_invalid" | "channel_empty" | "telegram_unavailable" | "knowledge_needed";
 
 /** Why a channel counts as empty: too few messages, no public preview, or pictures only with nothing to learn from. */
-export type ChannelEmptyReason = "few_posts" | "no_preview" | "no_text";
+/** few_posts / no_text: too little to read; no_preview: not public; private: an invite link; stale: nothing in 90 days. */
+export type ChannelEmptyReason = "few_posts" | "no_preview" | "no_text" | "private" | "stale";
 
 export class ScrapeError extends Error {
   constructor(

@@ -3,6 +3,7 @@ import { loadKnowledge } from "@/lib/uslub/brain/kbstore";
 import { buildLaunchStrategy } from "@/lib/uslub/brain/launch";
 import { respond } from "@/lib/uslub/brain/route-utils";
 import { buildStrategy } from "@/lib/uslub/brain/strategy";
+import { spendClaude } from "@/lib/uslub/budget";
 import { HttpError, handle, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 
 // Node.js runtime is the default (an explicit `runtime` export is rejected with cacheComponents).
@@ -68,6 +69,8 @@ export const POST = handle(async (req) => {
     }
   }
   if (!knowledge.trim() && !channel) throw new HttpError(400, "Provide brandId, knowledge or channel", "knowledge_needed");
+  if (fresh && knowledge.trim().length < 30) throw new HttpError(400, "fresh mode needs the owner's description", "knowledge_needed");
+  await spendClaude(req, userId, "strategy");
   if (fresh) {
     if (knowledge.trim().length < 30) throw new HttpError(400, "fresh mode needs the owner's description", "knowledge_needed");
     return respond(Boolean(body.stream), (onStage) =>

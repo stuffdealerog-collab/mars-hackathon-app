@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getSql, isDbConfigured } from "@/lib/db";
 import { safeLogEvent } from "@/lib/track";
 import { BRAND_CACHE_MAX_AGE_HOURS, type BrandSource } from "./access";
+import { adoptBrandPlans } from "./brain/memory";
 import type { BrandDNA, BrandMode, BrandProfile, Flow, NeuroHit, PlanSlot, PostDraft, PostImage, Script, VisualStyle } from "./contract";
 
 /**
@@ -194,6 +195,7 @@ export async function claimBrand(brandId: string, telegramId: number): Promise<n
     if (b.ownerTelegramId == null) {
       mem.brands.set(brandId, { ...b, ownerTelegramId: telegramId });
       memClaimed.add(brandId);
+      await adoptBrandPlans(brandId, telegramId);
     }
     return mem.brands.get(brandId)?.ownerTelegramId ?? null;
   }
@@ -202,7 +204,8 @@ export async function claimBrand(brandId: string, telegramId: number): Promise<n
   `) as { id: string }[];
   if (claimed.length) {
     memClaimed.add(brandId);
-    await safeLogEvent(telegramId, "brand_claimed", { brand_id: brandId });
+    // Plans made on the web before the claim: their tracked links now pass leads to the new owner.
+    await Promise.all([safeLogEvent(telegramId, "brand_claimed", { brand_id: brandId }), adoptBrandPlans(brandId, telegramId)]);
   }
   const rows = (await getSql()`SELECT owner_telegram_id FROM brands WHERE id = ${brandId}`) as { owner_telegram_id: string | number | null }[];
   const owner = rows[0]?.owner_telegram_id;
