@@ -86,7 +86,15 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
 
     await publishFromButton(api, 7, { id: 7 }, "uz", post.id, "ru", data?.hash);
     expect((await store.getBrand(brand.id))?.ownerTelegramId).toBe(7);
-    expect(publishPost).toHaveBeenCalledWith({ postId: post.id, script: "ru", chat: "tortlar_uz", userId: 7 });
+    expect(publishPost).toHaveBeenCalledWith({
+      postId: post.id,
+      script: "ru",
+      chat: "tortlar_uz",
+      userId: 7,
+      // publish.ts re-checks exactly what the owner saw right before sending.
+      expectedText: "Бенто-торт от 150 000 сум.",
+      expectedImageUrl: "https://cdn.example/p.jpg",
+    });
     expect(sent.at(-1)?.text).toContain("https://t.me/tortlar_uz/42");
 
     // The web Studio that created the brand (anonymous, holds the id) keeps working after the claim.

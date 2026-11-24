@@ -204,9 +204,19 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
     if (fresh) await sendPreview(api, chatId, locale, fresh, script, brand.channel);
     return;
   }
-  const res = await publishPost({ postId: post.id, script, chat: brand.channel, userId: user.id });
+  // expectedText / expectedImageUrl: publish.ts (images) re-checks them right before sending and answers 409 when
+  // they changed. Passed as a plain object so this also compiles against a publishPost that predates them.
+  const publishArgs = { postId: post.id, script, chat: brand.channel, userId: user.id, expectedText: shownText(fresh, script), expectedImageUrl: shownPhoto(fresh) };
+  const res = await publishPost(publishArgs);
   if (res.ok) {
     await api.sendMessage(chatId, t(locale, "pub.done", { url: res.url ?? "" }), { link_preview_options: { is_disabled: true } });
+    return;
+  }
+  if (res.status === 409) {
+    // Changed in the last milliseconds before sending: show the new version, publish nothing.
+    const latest = await getPost(post.id);
+    await api.sendMessage(chatId, t(locale, "pub.changed"));
+    if (latest) await sendPreview(api, chatId, locale, latest, script, brand.channel);
     return;
   }
   const kb = res.addAdminUrl ? new InlineKeyboard().url(t(locale, "pub.add_bot"), res.addAdminUrl).row().text(t(locale, "pub.button", { channel: brand.channel }), publishData(post, script)) : undefined;
