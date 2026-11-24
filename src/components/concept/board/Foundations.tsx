@@ -3,7 +3,8 @@ import { LAMPS, LAMP_ORDER } from "@/components/lamp/lamps";
 import { Led } from "@/components/lamp/Led";
 import { Section } from "./Sections";
 
-const geist = Geist({ subsets: ["latin", "latin-ext", "cyrillic", "cyrillic-ext"], variable: "--font-geist", display: "swap" });
+// Only for the side-by-side comparison on the internal board: never preloaded, so other pages do not pay for it.
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap", preload: false });
 
 const NEUTRALS = [
   ["stage", "#000000", "Сцена. Настоящий чёрный: на нём свет ламп читается как свет"],

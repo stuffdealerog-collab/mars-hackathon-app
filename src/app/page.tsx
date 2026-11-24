@@ -31,7 +31,7 @@ export default function Home() {
       <header className="mx-auto flex w-full max-w-[1180px] items-center justify-between gap-4 px-4 py-4 sm:px-8 sm:py-6">
         <Mark />
         <nav aria-label="Asosiy" className="flex items-center gap-1.5">
-          <Link href="/studio" className="inline-flex min-h-11 items-center rounded-full px-3.5 text-[14px] font-medium text-[var(--ink-2)] transition-colors duration-200 hover:text-[var(--ink)]">
+          <Link href="/studio" prefetch={false} className="inline-flex min-h-11 items-center rounded-full px-3.5 text-[14px] font-medium text-[var(--ink-2)] transition-colors duration-200 hover:text-[var(--ink)]">
             Studiya
           </Link>
           <a href={TG_BOT_URL} target="_blank" rel="noreferrer" aria-label="Telegram bot" className="btn-quiet !min-h-11 !px-3.5 !text-[14px]">

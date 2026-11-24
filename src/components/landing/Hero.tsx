@@ -109,6 +109,7 @@ export function Hero() {
             value={value}
             aria-invalid={error || undefined}
             aria-describedby={error ? `${id}-err` : undefined}
+            onFocus={() => router.prefetch("/studio")}
             onChange={(e) => {
               setValue(e.target.value);
               if (error) setError(false);
@@ -125,7 +126,7 @@ export function Hero() {
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-2 text-[13.5px]">
         <span className="text-[var(--ink-3)]">{c.price}</span>
-        <Link href="/studio?demo=bir-havola&mock=1" className="inline-flex min-h-11 items-center text-[var(--ink)] underline decoration-[var(--hair-2)] underline-offset-4 hover:decoration-[var(--ink-2)]">
+        <Link href="/studio?demo=bir-havola&mock=1" prefetch={false} className="inline-flex min-h-11 items-center text-[var(--ink)] underline decoration-[var(--hair-2)] underline-offset-4 hover:decoration-[var(--ink-2)]">
           {c.sample}
         </Link>
       </div>
