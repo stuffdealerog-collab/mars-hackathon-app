@@ -96,11 +96,17 @@ interface StudioState {
   handTick: number;
   /** Sample: back to /studio without ?mock (a reset would run the next channel under the bakery). */
   newChannel: () => void;
+  /** The Telegram account whose bot link key is on this device (user id), or null. */
+  deviceKey: string | null;
+  /** A shared computer: forget the bot's link key and the recent channels, back to the start. */
+  signOutDevice: () => void;
   /** Re-reads the brand's posts (status, link, picture) after publishing through the bot. */
   refreshPosts: () => Promise<void>;
   undoApprove: (id: string) => void;
   /** Sends every waiting approval now (page hide, or publish of that post). */
   flushApprovals: () => void;
+  /** Sends one post's waiting approval now (the bot link opens before the undo window ends). */
+  flushApproval: (id: string) => void;
   setPostScript: (s: Script) => void;
   writeSlot: (item: PlanItem) => Promise<void>;
   /** Writes the missed slots again, in one call. */
@@ -314,7 +320,10 @@ export const useStudio = create<StudioState>((set, get) => {
 
   /** Starts a picture for every post that has none, then polls until all are ready or failed. */
   const pictures = async (my: number) => {
-    const posts = get().posts.filter((p) => !p.image || p.image.status === "failed");
+    // Drafts only: a redrawn approved post would no longer match what the owner approved (and the
+    // bot refuses to publish it). A failed attempt that still has a picture keeps it; the owner can
+    // ask for another one from the card.
+    const posts = get().posts.filter((p) => p.status === "draft" && (!p.image || (p.image.status === "failed" && !p.image.url)));
     if (!posts.length && !get().posts.some((p) => p.image?.status === "queued" || p.image?.status === "running")) {
       countImages();
       return;
@@ -329,7 +338,10 @@ export const useStudio = create<StudioState>((set, get) => {
           step("images", { status: "skip" });
           return;
         }
-        setPostImage(p.id, { status: "failed", refsUsed: 0, error: problemOf(r).message });
+        // The answer was lost, not necessarily the picture: the route may still be drawing it
+        // (it can take up to 150 s on a brand whose style is learned first). Poll for it.
+        if (lostAnswer(r)) setPostImage(p.id, { status: "queued", refsUsed: 0 });
+        else setPostImage(p.id, { status: "failed", refsUsed: 0, error: problemOf(r).message });
         continue;
       }
       setPostImage(p.id, r.data.image);
@@ -574,7 +586,19 @@ export const useStudio = create<StudioState>((set, get) => {
         /* ignore */
       }
       if (forced != null) pro = forced;
-      set({ bot, pro, approveDelayMs, sample: api.sampleMode(), entry: { view: p.get("mode") === "fresh" ? "fresh" : "link", channel: "" } });
+      set({ bot, pro, approveDelayMs, deviceKey: api.handoffUser(), sample: api.sampleMode(), entry: { view: p.get("mode") === "fresh" ? "fresh" : "link", channel: "" } });
+    },
+
+    deviceKey: null,
+    signOutDevice: () => {
+      api.saveHandoff(null);
+      try {
+        localStorage.removeItem(RECENT);
+      } catch {
+        /* nothing kept */
+      }
+      set({ deviceKey: null });
+      get().reset();
     },
 
     newChannel: () => {
@@ -608,6 +632,13 @@ export const useStudio = create<StudioState>((set, get) => {
     undoApprove: (id) => {
       const w = waiting.get(id);
       if (w) w.settle("undo");
+    },
+
+    flushApproval: (id) => {
+      const w = waiting.get(id);
+      if (!w) return;
+      void api.approvePost(id, lang(), get().edited[id], true);
+      w.settle("flushed");
     },
 
     flushApprovals: () => {
@@ -739,22 +770,28 @@ export const useStudio = create<StudioState>((set, get) => {
         postNote: {},
         missed: [],
         writingSlot: {},
+        // Run-scoped facts of the previous channel must not show on this one.
+        postsRead: null,
+        emptyChannel: null,
       });
       const L = lang();
       const [b, p] = await Promise.all([api.getBrand(brandId, L), api.listPosts(brandId, L)]);
       if (my !== runId) return;
-      if (!b.ok) {
-        // brand_forbidden (a bot brand opened without its link key) keeps its code and ?brand= for
-        // the 403 screen, which sends the owner to the bot with this very brand.
-        set({ phase: "start", problem: problemOf(b) });
-        if (b.code !== "brand_forbidden") rememberBrand(null);
+      // Either call refused: brand_forbidden (a bot brand opened without its link key, the brand
+      // itself may be public) is the 403 screen and keeps ?brand=. Anything else is said with a
+      // retry; never an empty workspace that invites a new paid run on an existing brand.
+      const failed = !b.ok ? b : !p.ok ? p : null;
+      if (failed) {
+        set({ phase: "start", problem: problemOf(failed) });
+        if (failed.code === "brand_not_found" || failed.code === "not_found") rememberBrand(null);
         return;
       }
+      if (!b.ok || !p.ok) return;
       const brand = b.data.brand;
       rememberBrand(brand.id);
       rememberRecent(brand);
       const mode: Mode = brand.mode === "fresh" ? "fresh" : "channel";
-      const posts = p.ok ? p.data.posts.slice(0, 12) : [];
+      const posts = p.data.posts.slice(0, 12);
       set({
         brand,
         mode,
@@ -762,7 +799,9 @@ export const useStudio = create<StudioState>((set, get) => {
         posts,
         phase: "ready",
         tab: posts.length ? "posts" : "channel",
-        steps: stepsFor(mode, false).map((s) => (s.key === "read" || s.key === "voice" || (s.key === "posts" && posts.length) ? { ...s, status: "done" } : s)),
+        steps: stepsFor(mode, false).map((s) =>
+          s.key === "read" || s.key === "voice" ? { ...s, status: "done" } : s.key === "posts" && posts.length ? { ...s, status: "done", n: posts.length } : s,
+        ),
       });
       if (mode === "channel" && brand.channel) {
         void api.analyzeChannel(brand.channel, L).then((a) => {
@@ -771,9 +810,9 @@ export const useStudio = create<StudioState>((set, get) => {
           else set({ auditProblem: problemOf(a) });
         });
       }
-      // A run cut short (tab closed mid-way) leaves posts without a picture: finish them now,
+      // A run cut short (tab closed mid-way) leaves drafts without a picture: finish them now,
       // so no slot waits for a picture nobody is drawing.
-      if (posts.some((x) => !x.image)) void pictures(my);
+      if (posts.some((x) => x.status === "draft" && !x.image)) void pictures(my);
       else if (posts.some((x) => isOpen(x.image))) void poll(my);
     },
 
@@ -784,6 +823,8 @@ export const useStudio = create<StudioState>((set, get) => {
       set({ planProgress: { n: 0, m: 0 }, auditProblem: get().auditProblem });
       step("plan", { status: "run" });
       const r = await api.buildStrategy(brand.id, lang(), (e) => {
+        // Another channel opened meanwhile: this plan's progress is not its business.
+        if (my !== runId) return;
         if (e.stage === "skeleton" && Array.isArray(e.slots)) set({ planProgress: { n: 0, m: e.slots.length } });
         else if (e.stage === "item") {
           const p = get().planProgress;
@@ -796,7 +837,14 @@ export const useStudio = create<StudioState>((set, get) => {
         set({ planProgress: null, problem: problemOf(r) });
         return;
       }
-      set({ plan: r.data.plan, strategy: r.data.strategy, launch: r.data.launch?.tactics?.length ? r.data.launch : null, planProgress: null, problem: null });
+      set({
+        plan: r.data.plan,
+        strategy: r.data.strategy,
+        launch: r.data.launch?.tactics?.length ? r.data.launch : null,
+        sufficiency: Array.isArray(r.data.sufficiency) ? r.data.sufficiency : null,
+        planProgress: null,
+        problem: null,
+      });
       step("plan", { status: "done", n: r.data.plan.items.length });
     },
 
@@ -864,6 +912,7 @@ export const useStudio = create<StudioState>((set, get) => {
         })();
         waiting.set(id, { timer, settle, done });
         const first = await done;
+        if (flushed) pending(false); // sent with keepalive already
         if (!first.ok || flushed) return first;
       }
 

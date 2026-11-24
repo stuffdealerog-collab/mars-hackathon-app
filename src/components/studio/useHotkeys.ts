@@ -82,6 +82,7 @@ function publishStep(post: PostDraft, picked: Script | null) {
   const desk = useDesk.getState();
   const script = picked && post.variants[picked]?.trim() ? picked : "uz_latn";
   if (!handoffKey()) {
+    st.flushApproval(post.id);
     window.open(botPublishUrl(st.bot, post.id, script), "_blank", "noopener");
     return;
   }

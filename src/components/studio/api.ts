@@ -69,6 +69,12 @@ export function handoffKey(): string | undefined {
   return k && expiresAt(k) > Date.now() ? k : undefined;
 }
 
+/** The Telegram user id a key on this device was signed for (readable, not secret), or null. */
+export function handoffUser(): string | null {
+  const id = storedHandoff()?.split(".")[0];
+  return id && /^\d+$/.test(id) ? id : null;
+}
+
 /** none: no key on this device; valid; expired: the owner should open the Studio from the bot again. */
 export function handoffState(): "none" | "valid" | "expired" {
   const k = storedHandoff();
@@ -157,7 +163,7 @@ export function createBrand(input: { channel?: string; knowledge?: string; mode?
   return call<{ brand: BrandProfile; channelInfo?: ChannelInfo }>(
     "/brand",
     { method: "POST", body: { ...input, initData: tgInitData() } },
-    65_000,
+    95_000,
   );
 }
 
@@ -168,7 +174,7 @@ export function getBrand(id: string, lang: Lang) {
 /* --------------------------------------------------------------- analysis */
 
 export function analyzeChannel(channel: string, lang: Lang) {
-  return call<{ audit: ChannelAudit }>("/analyze", { method: "POST", body: { channel, lang } }, 65_000);
+  return call<{ audit: ChannelAudit }>("/analyze", { method: "POST", body: { channel, lang } }, 95_000);
 }
 
 /* --------------------------------------------------------------- strategy */
@@ -212,7 +218,7 @@ export async function buildStrategy(
   brandId: string,
   lang: Lang,
   onEvent: (e: StrategyEvent) => void,
-  timeoutMs = 75_000,
+  timeoutMs = 95_000,
 ): Promise<Res<StrategyResult>> {
   const ctrl = new AbortController();
   let timedOut = false;
@@ -303,11 +309,11 @@ export function approvePost(postId: string, lang: Lang, variants?: Partial<Recor
 
 /** Learns the brand's picture style from channel photos and/or the owner's photos (data: URLs). */
 export function learnVisual(brandId: string, ownerImages: string[] | undefined, lang: Lang) {
-  return call<{ visual: VisualStyle }>("/visual", { method: "POST", body: { brandId, ownerImages, lang } }, 65_000);
+  return call<{ visual: VisualStyle }>("/visual", { method: "POST", body: { brandId, ownerImages, lang } }, 125_000);
 }
 
 export function startPostImage(postId: string, lang: Lang) {
-  return call<{ image: PostImage }>("/media/post-image", { method: "POST", body: { postId, lang } }, 30_000);
+  return call<{ image: PostImage }>("/media/post-image", { method: "POST", body: { postId, lang } }, 155_000);
 }
 
 export function getPostImage(postId: string, lang: Lang) {

@@ -5,7 +5,7 @@ import { useId, useRef, useState } from "react";
 import { LampTile } from "../lamp/LampTile";
 import { LAMP_ORDER } from "../lamp/lamps";
 import { ChannelField } from "../ui/ChannelField";
-import { keepNumbers, useCopy } from "../ui/lang";
+import { keepNumbers, useCopy, fmt } from "../ui/lang";
 import { parseChannel, Steps } from "../ui/parts";
 import { handoffState } from "./api";
 import { useStudio } from "./store";
@@ -40,6 +40,8 @@ export function Start({ initialView = "link", initialChannel = "" }: { initialVi
   const emptyChannel = useStudio((s) => s.emptyChannel);
   const problem = useStudio((s) => s.problem);
   const [view, setView] = useState<"link" | "fresh">(emptyChannel ? "fresh" : initialView);
+  const c = useCopy();
+  const reopenId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("brand") : null;
   if (problem?.code === "brand_forbidden") return <Forbidden />;
   return (
     <div className="pt-6 sm:pt-12">
@@ -49,9 +51,15 @@ export function Start({ initialView = "link", initialChannel = "" }: { initialVi
         <FreshForm onBack={() => setView("link")} />
       )}
       {problem && view === "link" && (
-        <p role="alert" className="mt-4 rounded-xl bg-bad-soft px-4 py-3 text-[15px] text-bad">
-          {problem.message}
-        </p>
+        <div role="alert" className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-bad-soft px-4 py-3 text-[15px] text-bad">
+          <p className="mr-auto">{problem.message}</p>
+          {/* A saved brand that did not open (network, server): try that brand again. */}
+          {reopenId && (
+            <button type="button" className="btn-2 !min-h-9 !px-4 !text-[14px]" onClick={() => void useStudio.getState().reopen(reopenId)}>
+              {c.error.retry}
+            </button>
+          )}
+        </div>
       )}
       {/* Once the owner chose the description path, the overview is behind them. */}
       {view === "link" && <HowItWorks />}
@@ -66,6 +74,8 @@ export function Start({ initialView = "link", initialChannel = "" }: { initialVi
 function Forbidden() {
   const c = useCopy();
   const bot = useStudio((s) => s.bot);
+  const deviceKey = useStudio((s) => s.deviceKey);
+  const signOutDevice = useStudio((s) => s.signOutDevice);
   const brand = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("brand") : null;
   return (
     <div className="max-w-[560px] pt-6 sm:pt-12">
@@ -79,6 +89,15 @@ function Forbidden() {
           {c.hub.newChannel}
         </a>
       </div>
+      {deviceKey && (
+        // A shared computer: the old key and the recent channels go, nothing else is kept.
+        <p className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] text-ink-3">
+          {fmt(c.hub.keyOwner, { id: deviceKey })}
+          <button type="button" className="link text-ink-2" onClick={signOutDevice}>
+            {c.hub.signOut}
+          </button>
+        </p>
+      )}
     </div>
   );
 }

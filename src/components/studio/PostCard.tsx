@@ -268,7 +268,14 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
                 </div>
               ) : (
                 // No link key: the bot publishes; the status catches up when the owner comes back.
-                <a href={botPublishUrl(bot, post.id, script)} target="_blank" rel="noreferrer" className="btn w-full @md:w-auto @md:self-start">
+                <a
+                  href={botPublishUrl(bot, post.id, script)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn w-full @md:w-auto @md:self-start"
+                  // Approved a moment ago: the approval (and the owner's edits) leave before the bot opens.
+                  onClick={() => useStudio.getState().flushApproval(post.id)}
+                >
                   {c.publish.toTelegram}
                 </a>
               )}

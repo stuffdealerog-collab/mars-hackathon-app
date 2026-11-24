@@ -102,8 +102,25 @@ export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: stri
         {phase === "reopening" && <Reopening />}
         {phase === "ready" && <Ready inTelegram={inTelegram} />}
       </main>
+      {!inTelegram && <DeviceKeyLine />}
       <Toasts />
     </div>
+  );
+}
+
+/** Phones in a browser: whose Telegram key is on this device, and the way to forget it. */
+function DeviceKeyLine() {
+  const c = useCopy();
+  const deviceKey = useStudio((s) => s.deviceKey);
+  const signOutDevice = useStudio((s) => s.signOutDevice);
+  if (!deviceKey) return null;
+  return (
+    <p className="mx-auto flex w-full max-w-[760px] flex-wrap items-center gap-x-3 gap-y-1 px-4 pb-6 text-[13px] text-ink-3 sm:px-6">
+      {fmt(c.hub.keyOwner, { id: deviceKey })}
+      <button type="button" className="link text-ink-2" onClick={signOutDevice}>
+        {c.hub.signOut}
+      </button>
+    </p>
   );
 }
 

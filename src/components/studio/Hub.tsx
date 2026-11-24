@@ -6,7 +6,7 @@
  * Phones never render this: they keep the one-column Studio and the Mini App.
  */
 import type { AgentRole } from "@/lib/uslub/contract";
-import { BarChart3, Check, ChevronRight, ChevronsLeft, ChevronsRight, Clapperboard, ExternalLink, GripVertical, Newspaper, PanelLeft, PanelRight, Plus } from "lucide-react";
+import { BarChart3, Check, ChevronRight, ChevronsLeft, ChevronsRight, Clapperboard, ExternalLink, GripVertical, LogOut, Newspaper, PanelLeft, PanelRight, Plus } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -127,6 +127,8 @@ export function Hub({ lamps }: { lamps: Lamps }) {
   const pro = useStudio((s) => s.pro);
   const setPro = useStudio((s) => s.setPro);
   const handTick = useStudio((s) => s.handTick);
+  const deviceKey = useStudio((s) => s.deviceKey);
+  const signOutDevice = useStudio((s) => s.signOutDevice);
   const lang = useLang((s) => s.lang);
   const setLang = useLang((s) => s.setLang);
   const ready = phase === "ready";
@@ -276,7 +278,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
                 key={key}
                 type="button"
                 disabled={!ready}
-                title={!ready ? c.hub.soonNav : c.tabs[key]}
+                title={phase === "start" ? c.hub.soonNav : !ready ? c.dept.working : c.tabs[key]}
                 aria-label={collapsed ? c.tabs[key] : undefined}
                 aria-current={active ? "page" : undefined}
                 onClick={() => setTab(key)}
@@ -357,12 +359,17 @@ export function Hub({ lamps }: { lamps: Lamps }) {
                 type="button"
                 className="hub-icon mx-auto !w-12 text-[12.5px] font-semibold"
                 aria-pressed={pro}
-                aria-label={pro ? c.mode.simple : c.mode.pro}
-                title={pro ? c.mode.simple : c.mode.pro}
+                aria-label={c.pro.label}
+                title={`${c.pro.label}: ${pro ? c.mode.pro : c.mode.simple}`}
                 onClick={() => setPro(!pro)}
               >
-                {pro ? "Pro" : "Odd"}
+                {pro ? c.mode.pro : c.mode.simpleShort}
               </button>
+              {deviceKey && (
+                <button type="button" className="hub-icon mx-auto" aria-label={c.hub.signOut} title={`${fmt(c.hub.keyOwner, { id: deviceKey })} · ${c.hub.signOut}`} onClick={signOutDevice}>
+                  <LogOut className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
+                </button>
+              )}
               <button
                 type="button"
                 className="hub-icon mx-auto !w-12 text-[12.5px] font-semibold uppercase"
@@ -374,6 +381,15 @@ export function Hub({ lamps }: { lamps: Lamps }) {
               </button>
             </>
           ) : (
+            <>
+            {deviceKey && (
+              <div className="flex items-center justify-between gap-2 px-1 text-[12.5px]">
+                <span className="truncate text-ink-3">{fmt(c.hub.keyOwner, { id: deviceKey })}</span>
+                <button type="button" className="link shrink-0 text-ink-2" onClick={signOutDevice}>
+                  {c.hub.signOut}
+                </button>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-2">
               <div className="seg" role="group" aria-label={c.pro.label}>
                 <button type="button" aria-pressed={!pro} onClick={() => setPro(false)}>
@@ -385,6 +401,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
               </div>
               <LangSwitch />
             </div>
+            </>
           )}
         </div>
       </motion.aside>
