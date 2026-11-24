@@ -11,7 +11,7 @@
 What we add that Lovio doesn't have: **a story** (the sleeping owner) and **one hero VFX moment** (the studio bursting out of the phone and returning to it).
 
 **Previs (Blender, grey-box):** `docs/video/ad/previs/A*.mp4`, with start/end frames `A*_start.jpg` / `A*_end.jpg`. Rebuild with `build_previs.py`.
-**Animatic:** `docs/video/ad/animatic/mercat-ad-animatic.mp4`. Rebuild with `build_animatic.py`. Drop final shots into `docs/video/ad/shots/<id>.mp4` and re-run: the animatic becomes the rough cut.
+**Animatic:** `docs/video/ad/animatic/mercat-ad-animatic.mp4`. Rebuild with `assemble.py`. Drop final shots into `docs/video/ad/shots/<id>.mp4` and re-run: the animatic becomes the rough cut.
 **Generation steps and prompts:** `docs/video/ad/runbook.md`.
 
 ---
@@ -41,7 +41,7 @@ What we add that Lovio doesn't have: **a story** (the sleeping owner) and **one 
 3. **The physics line goes into every prompt:** "rigid objects flying along arcs, no melting, no morphing, no stretching".
 4. **No readable face.** The owner is seen from behind, in shadow, or under the blanket.
 5. **Every phone screen is solid green** in the AI shots. The real UI and the real Telegram posts are composited in.
-6. **No AI text.** The supers and the end card are the PNGs from `build_animatic.py` (in the final version, Inter replaces SF Pro).
+6. **No AI text.** The supers and the end card are the PNGs from `assemble.py` (in the final version, Inter replaces SF Pro).
 
 ## Open decisions (founder)
 

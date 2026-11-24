@@ -1,4 +1,4 @@
-# Drop final shots here, then run `python3 docs/video/ad/build_animatic.py`
+# Drop final shots here, then run `python3 docs/video/ad/assemble.py`
 
 The builder uses a file here if it exists and falls back to the Blender previs otherwise.
 
