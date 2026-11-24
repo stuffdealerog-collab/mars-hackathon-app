@@ -18,7 +18,7 @@ export class MediaError extends Error {
   constructor(
     readonly status: number,
     message: string,
-    readonly code: "not_configured" | "bad_input" | "limit" | "not_found" | "login_required",
+    readonly code: "not_configured" | "bad_input" | "limit" | "guest_limit" | "not_found" | "login_required",
   ) {
     super(message);
     this.name = "MediaError";
@@ -33,8 +33,9 @@ export interface MediaJobsDeps {
   dailyLimit?: number; // jobs per rolling 24 h, whole app (protects the API balance)
   userDailyLimit?: number; // per verified Telegram user
   anonDailyLimit?: number; // shared by ALL anonymous web callers; 0 = Telegram login required
+  anonActorDailyLimit?: number; // per anonymous caller (hashed IP) inside that shared pool
   /** Pictures have their own pools (see config.ts); the fields above are for videos. */
-  image?: { dailyLimit?: number; anonDailyLimit?: number; userDailyLimit?: number; brandDailyLimit?: number };
+  image?: { dailyLimit?: number; anonDailyLimit?: number; anonActorDailyLimit?: number; userDailyLimit?: number; brandDailyLimit?: number };
   pollIntervalMs?: number;
   timeoutMs?: number; // a job still not done after this is failed
   /** Copies a finished result to our own storage; return the new result, or undefined to keep the provider URL. */
@@ -47,7 +48,8 @@ export const MEDIA_DEFAULTS = {
   dailyLimit: 30,
   userDailyLimit: 5,
   anonDailyLimit: 5,
-  image: { dailyLimit: 150, anonDailyLimit: 100, userDailyLimit: 60, brandDailyLimit: 24 },
+  anonActorDailyLimit: 2,
+  image: { dailyLimit: 150, anonDailyLimit: 100, anonActorDailyLimit: 30, userDailyLimit: 60, brandDailyLimit: 24 },
   pollIntervalMs: 4_000,
   timeoutMs: 20 * 60_000,
   minSeconds: 3,
@@ -92,13 +94,14 @@ export class MediaJobs {
   }
 
   /** The caps for a kind: videos use the original pools, pictures their own (plus a per-brand cap). */
-  limits(kind: MediaKind): { global: number; anon: number; user: number; brand?: number } {
+  limits(kind: MediaKind): { global: number; anon: number; anonActor: number; user: number; brand?: number } {
     if (kind === "image") {
       const d = MEDIA_DEFAULTS.image;
       const i = this.deps.image ?? {};
       return {
         global: i.dailyLimit ?? d.dailyLimit,
         anon: i.anonDailyLimit ?? d.anonDailyLimit,
+        anonActor: i.anonActorDailyLimit ?? d.anonActorDailyLimit,
         user: i.userDailyLimit ?? d.userDailyLimit,
         brand: i.brandDailyLimit ?? d.brandDailyLimit,
       };
@@ -106,14 +109,16 @@ export class MediaJobs {
     return {
       global: this.deps.dailyLimit ?? MEDIA_DEFAULTS.dailyLimit,
       anon: this.deps.anonDailyLimit ?? MEDIA_DEFAULTS.anonDailyLimit,
+      anonActor: this.deps.anonActorDailyLimit ?? MEDIA_DEFAULTS.anonActorDailyLimit,
       user: this.deps.userDailyLimit ?? MEDIA_DEFAULTS.userDailyLimit,
     };
   }
 
   /**
-   * @param actor verified Telegram user id, or null for an anonymous web caller.
-   * Spend is capped per user, in one shared anonymous pool, per brand (pictures) and app-wide,
-   * separately for pictures and videos.
+   * @param actor verified Telegram user id, or null for an anonymous web caller (with `ipKey`, the
+   * caller's hashed IP, when the route knows it).
+   * Spend is capped per user, in one shared anonymous pool (and per anonymous caller inside it, so one
+   * IP cannot use up everyone's pool), per brand (pictures) and app-wide, separately for pictures and videos.
    */
   async create(input: MediaJobInput, actor: Actor = ANON): Promise<MediaJob> {
     if (input.kind === "video" && !input.imageUrl) {
@@ -132,6 +137,7 @@ export class MediaJobs {
     const caps = this.limits(input.kind);
     const ownerKey = ownerKeyOf(actor);
     if (ownerKey === "anon" && caps.anon <= 0 && provider.id !== "demo") throw loginRequired();
+    const actorKey = anonActorKeyOf(actor);
 
     const seconds = input.kind === "video" ? clamp(Math.round(input.seconds), MEDIA_DEFAULTS.minSeconds, MEDIA_DEFAULTS.maxSeconds) : 0;
     const { prompt, negativePrompt } = input.customPrompt
@@ -160,6 +166,7 @@ export class MediaJobs {
       captions: normalizeCues(input.captions ?? [], seconds || 10),
       brandId: input.brandId,
       ownerKey,
+      ...(actorKey ? { actorKey } : {}),
       polls: 0,
       createdAt: at,
       updatedAt: at,
@@ -170,15 +177,10 @@ export class MediaJobs {
       global: free ? Infinity : caps.global,
       owner: free ? Infinity : ownerKey === "anon" ? caps.anon : caps.user,
       brand: free || caps.brand === undefined ? undefined : caps.brand,
+      actor: free || !actorKey ? undefined : caps.anonActor,
     });
     if (quota !== "ok") {
-      throw new MediaError(
-        429,
-        quota === "owner" && ownerKey === "anon"
-          ? "Mehmonlar uchun bugungi limit tugadi. Telegram bot orqali kiring. / Гостевой лимит на сегодня исчерпан — войдите через Telegram."
-          : "Bugungi limit tugadi. Ertaga qayta urinib ko‘ring. / Дневной лимит генераций исчерпан.",
-        "limit",
-      );
+      throw (quota === "owner" || quota === "actor") && ownerKey === "anon" ? guestLimit() : dailyLimit();
     }
 
     try {
@@ -229,11 +231,13 @@ export class MediaJobs {
     const ownerKey = ownerKeyOf(actor);
     if (ownerKey === "anon" && caps.anon <= 0) throw loginRequired();
     if (!this.deps.repo.countSince) return;
-    const used = await this.deps.repo.countSince(new Date(this.now() - 24 * 3600_000).toISOString(), kind, ownerKey, brandId);
-    const ownerCap = ownerKey === "anon" ? caps.anon : caps.user;
+    const actorKey = anonActorKeyOf(actor);
+    const used = await this.deps.repo.countSince(new Date(this.now() - 24 * 3600_000).toISOString(), kind, { ownerKey, brandId, actorKey });
+    const ownerFull = used.owner >= (ownerKey === "anon" ? caps.anon : caps.user);
     const brandFull = brandId !== undefined && caps.brand !== undefined && used.brand >= caps.brand;
-    if (used.total >= caps.global || used.owner >= ownerCap || brandFull) {
-      throw new MediaError(429, "Bugungi limit tugadi. / Дневной лимит исчерпан.", "limit");
+    const actorFull = actorKey !== undefined && used.actor >= caps.anonActor;
+    if (used.total >= caps.global || ownerFull || brandFull || actorFull) {
+      throw (ownerFull || actorFull) && ownerKey === "anon" ? guestLimit() : dailyLimit();
     }
   }
 
@@ -324,8 +328,11 @@ export class MediaJobs {
   }
 }
 
-/** The caller: a verified Telegram user id, or null for an anonymous web caller. */
-export type Actor = { telegramId: number | null };
+/**
+ * The caller: a verified Telegram user id, or null for an anonymous web caller. `ipKey` is an
+ * anonymous caller's hashed IP ("ip:<16 hex>", see visual/service.ts actorKey; never the raw IP).
+ */
+export type Actor = { telegramId: number | null; ipKey?: string };
 export type AccessOpts = { authorized?: boolean };
 
 /** Anonymous use of this kind is switched off (its anonymous cap is 0): sign in through the bot. */
@@ -333,6 +340,17 @@ const loginRequired = () =>
   new MediaError(401, "Telegram bot orqali kiring. / Войдите через Telegram-бота.", "login_required");
 const ANON: Actor = { telegramId: null };
 const ownerKeyOf = (a: Actor) => (a.telegramId != null ? `tg:${a.telegramId}` : "anon");
+/** The per-caller key inside the anonymous pool; verified users have their own pool instead. */
+const anonActorKeyOf = (a: Actor) => (a.telegramId == null && a.ipKey?.startsWith("ip:") ? a.ipKey : undefined);
+/** The anonymous pool, or this caller's share of it, is used up: a Telegram sign-in gets a pool of one's own. */
+const guestLimit = () =>
+  new MediaError(
+    429,
+    "Mehmonlar uchun bugungi limit tugadi. Telegram bot orqali kiring. / Гостевой лимит на сегодня исчерпан — войдите через Telegram.",
+    "guest_limit",
+  );
+const dailyLimit = () =>
+  new MediaError(429, "Bugungi limit tugadi. Ertaga qayta urinib ko‘ring. / Дневной лимит генераций исчерпан.", "limit");
 
 function refOf(job: MediaJob): ProviderRef {
   return {

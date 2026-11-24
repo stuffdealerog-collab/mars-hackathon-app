@@ -12,6 +12,7 @@ Every post gets a picture that looks like it came from the business's own channe
 1. **Learn the style** — `POST /api/uslub/visual { brandId, ownerImages?, refresh? } -> { visual, cached }` (`src/lib/uslub/visual/**`).
    Up to 10 recent photos are read from `t.me/s/<channel>` (two pages, at most two per album, video covers as a fallback), plus up to 5 owner photos (data: URLs resized by the browser, or https).
    Claude Sonnet 5.5 (vision, structured output, low effort) marks which images are real representative photos (maps, menus, text posters and screenshots are dropped) and writes palette, light, composition, props, mood, avoid and one English style paragraph.
+   The same call also writes the style for the owner in all three UI languages, `visual.ownerText.{uz,ru,en}` = `{ summary, light, composition, mood, avoid[] }` (`src/lib/uslub/visual/words.ts`, read it with `styleWords(visual, lang)`). `StyleRefs` (Pro) shows these rows: Uslub tavsifi, Yorug‘lik, Kompozitsiya, Kayfiyat, Rasmlarda bo‘lmaydi. Switching language needs no new analysis. The English paragraph and descriptors stay for the image model. A style saved before these words existed is learned again on its next `POST /visual`; until then the Pro card shows its English rows only in English.
    Up to 6 kept refs are copied to fal storage (`rest.fal.ai/storage/upload/initiate`, same `FAL_KEY`), because `telesco.pe` links can expire. Saved in `brands.visual`; reused for 12 h unless the owner adds photos or sends `refresh`.
    An empty channel ("fresh" brand) with no photos gets a style from the business description alone. About 15–30 s and ~$0.02–0.04 per analysis.
 2. **Make the picture** — `POST /api/uslub/media/post-image { postId, regenerate?, photo? } -> { image }`, `GET …?postId=` every ~4 s.
@@ -26,13 +27,15 @@ Every post gets a picture that looks like it came from the business's own channe
 **Guards (cheap checks before anything paid):**
 - **Writes:** need the brand owner's Telegram identity once a brand has an owner. Adding owner photos turns a shared `channel_only` brand `custom`.
 - **POST `/post-image` order:** access → fal configured (else 503) → existing/rendering picture returned as is → per-post cap (6) → daily media quota pre-check → only then the photo upload, the style analysis and the AI subject line.
+- **Guests:** anonymous callers share one pool, and each IP gets only part of it (`MEDIA_IMAGE_ANON_ACTOR_DAILY_LIMIT`, videos `MEDIA_ANON_ACTOR_DAILY_LIMIT`). The job stores a hashed IP (`actorKey` = `ip:<16 hex>`, never the raw address, never sent to clients) and the cap is checked in the same atomic insert as the others. Over it: 429 `guest_limit` ("sign in through the Telegram bot").
+- **POST `/media/jobs` with a `brandId`:** the same draft rule as the post pictures (`assertDraftAccess`): a brand owned by another Telegram user gets 403 before anything is billed.
 - **Style analyses:** a DB slot (`events` type `visual_analysis`) is written before each Claude call; the first N rows win.
   - Caps: `MEDIA_VISUAL_DAILY_LIMIT` 60 app-wide, `MEDIA_VISUAL_BRAND_DAILY_LIMIT` 8 per brand, `MEDIA_VISUAL_ACTOR_DAILY_LIMIT` 12 per Telegram user or hashed IP.
   - Parallel first loads run ONE analysis; the others give their slot back and wait for it.
 - **Owner links:** downloaded only from Telegram's and fal's CDNs (uploads come as data: URLs), so there is no SSRF surface.
 - **Errors:** `{ error, code }` in `lang` (uz | ru | en; body or `?lang=`, default uz). Codes:
   - input and access: `bad_input`, `bad_image`, `too_large`, `not_found`, `forbidden`, `login_required`;
-  - limits: `rate_limited`, `daily_limit`, `post_limit`, `style_limit`;
+  - limits: `rate_limited`, `daily_limit`, `guest_limit`, `post_limit`, `style_limit`;
   - failures: `not_configured`, `storage_failed`, `ai_failed`, `generation_failed`, `internal`.
 
 **Model choice (tested 24 Nov on @Safiabakery and @lifesmileuz, same prompt and refs):** `fal-ai/nano-banana-2/edit` ($0.08 per 1K image, up to 14 refs, ~10–15 s) over `bytedance/seedream/v5.5/edit` ($0.03 + $0.012 per ref = $0.066–0.10 with 3–6 refs, ~30–35 s).
@@ -63,9 +66,11 @@ Add keys to `.env.local` locally and to Vercel env vars. Never commit them, and 
 | `MEDIA_DAILY_LIMIT` | app-wide jobs per rolling 24 h (default 30) |
 | `MEDIA_USER_DAILY_LIMIT` | per verified Telegram user (default 5) |
 | `MEDIA_ANON_DAILY_LIMIT` | one shared pool for every anonymous web caller (default 5). **0 means a Telegram login is required.** |
+| `MEDIA_ANON_ACTOR_DAILY_LIMIT` | videos per anonymous caller (hashed IP) inside that pool (default 2) |
 | `MEDIA_DEMO` | `1` turns on the offline demo provider, which returns the pre-rendered `/media/3d/…` files labelled as a sample |
 | `MEDIA_IMAGE_DAILY_LIMIT` | post pictures per rolling 24 h, whole app: the spend ceiling (default 150 ≈ $12) |
 | `MEDIA_IMAGE_ANON_DAILY_LIMIT` | pictures shared by all anonymous web callers (default 100). **0 means a Telegram login is required** (401 `login_required`). |
+| `MEDIA_IMAGE_ANON_ACTOR_DAILY_LIMIT` | pictures per anonymous caller (hashed IP) inside the guests' pool (default 30: four 7-post runs, or two with a few "another version"). Office and mobile-carrier NAT put many people on one IP, so keep it well above one run. |
 | `MEDIA_IMAGE_USER_DAILY_LIMIT` | pictures per verified Telegram user (default 60) |
 | `MEDIA_IMAGE_BRAND_DAILY_LIMIT` | pictures per brand (default 24 = 7 posts with ~2 more versions each), so one brand cannot drain the shared pool |
 | `MEDIA_VISUAL_DAILY_LIMIT` / `_BRAND_` / `_ACTOR_` | style analyses (Claude vision) app-wide / per brand / per caller (defaults 60 / 8 / 12) |

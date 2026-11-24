@@ -38,7 +38,7 @@ describe("picture route errors", async () => {
   it("every code has uz, ru and en text", () => {
     const codes = [
       "bad_input", "bad_image", "too_large", "not_found", "forbidden", "login_required", "rate_limited",
-      "daily_limit", "post_limit", "style_limit", "not_configured", "storage_failed", "ai_failed", "generation_failed", "internal",
+      "daily_limit", "guest_limit", "post_limit", "style_limit", "not_configured", "storage_failed", "ai_failed", "generation_failed", "internal",
     ] as const;
     for (const c of codes) for (const l of ["uz", "ru", "en"] as const) expect(pictureErrorText(c, l).length, `${c}/${l}`).toBeGreaterThan(5);
   });

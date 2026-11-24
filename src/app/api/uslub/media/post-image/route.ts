@@ -82,15 +82,18 @@ export async function POST(req: Request): Promise<Response> {
     const plan = planPostImageStart(post.image, Boolean(body.regenerate || body.photo));
     if (plan === "existing") return json({ image: publicPostImage(post.image!) });
     if (plan === "limit") throw new PictureError(429, "post_limit");
-    await deps.jobs.assertRoom({ telegramId }, "image", brand.id); // daily picture caps, before paying for the preparation
+    // Anonymous callers also have a per-IP share of the guests' pool (hashed, never the raw IP).
+    const ip = clientIp(req);
+    const actor = { telegramId, ipKey: actorKey(null, ip) };
+    await deps.jobs.assertRoom(actor, "image", brand.id); // daily picture caps, before paying for the preparation
 
     const productUrl = body.photo ? await hostProductPhoto(body.photo, post.id) : undefined;
-    const visual = await ensureVisual(brand, actorKey(telegramId, clientIp(req)));
+    const visual = await ensureVisual(brand, actorKey(telegramId, ip));
     const image = await startPostImage(
       {
         post,
         brand: { id: brand.id, name: brand.dna.name, oneLiner: brand.dna.oneLiner, products: brand.dna.products ?? [], visual },
-        actor: { telegramId },
+        actor,
         regenerate: body.regenerate,
         productUrl,
       },

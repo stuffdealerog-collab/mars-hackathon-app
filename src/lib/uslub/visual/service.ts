@@ -9,6 +9,7 @@ import { downloadImage, ImageInputError } from "./images";
 import { learnVisualStyle, VisualFetchError, type LearnDeps } from "./learn";
 import { getBrandVisualInfo, releaseVisualAnalysis, reserveVisualAnalysis, saveBrandVisual } from "./repo";
 import { falUpload } from "./storage";
+import { styleWords } from "./words";
 
 export class VisualLimitError extends Error {
   constructor() {
@@ -68,7 +69,8 @@ export async function learnAndSaveVisual(
 ): Promise<{ visual: VisualStyle; cached: boolean }> {
   const info = await getBrandVisualInfo(brand.id);
   const ownerChange = opts.ownerImages !== undefined; // an explicit owner list, even an empty one
-  const fresh = info.visual && Date.now() - Date.parse(info.visual.learnedAt) < VISUAL_TTL_MS;
+  // A style from before the owner's words existed (English-only descriptors) is learned again once.
+  const fresh = info.visual && Date.now() - Date.parse(info.visual.learnedAt) < VISUAL_TTL_MS && styleWords(info.visual, "uz") !== null;
   if (info.visual && fresh && !opts.refresh && !ownerChange) return { visual: info.visual, cached: true };
 
   // Every analysis is a paid Claude vision call: reserve a slot first (fails closed), then check caps.

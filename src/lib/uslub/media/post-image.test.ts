@@ -17,6 +17,7 @@ import type { FetchLike, MediaProvider, PollResult, SubmitRequest } from "./prov
 import { falInput, falModelFor, falProvider, falTextModel } from "./providers/fal";
 import { MemoryMediaJobRepo } from "./repo";
 import { CAPTION_LIMIT, planPostMessages, publishableImageUrl } from "./telegram-post";
+import { publicJob } from "./types";
 
 /* ---------------------------------------------------------------- helpers */
 
@@ -368,7 +369,7 @@ describe("deciding before paying, and publishing the right picture", () => {
     const jobs = new MediaJobs({ repo: new MemoryMediaJobRepo(), providers: [provider], image: { anonDailyLimit: 1, dailyLimit: 10 } });
     await jobs.assertRoom(anon, "image");
     await jobs.create({ kind: "image", presetId: "paper-studio", aspect: "4:5", seconds: 0, customPrompt: { prompt: "x" } });
-    await expect(jobs.assertRoom(anon, "image")).rejects.toMatchObject({ status: 429, code: "limit" });
+    await expect(jobs.assertRoom(anon, "image")).rejects.toMatchObject({ status: 429, code: "guest_limit" });
     await expect(jobs.assertRoom({ telegramId: 5 }, "image")).resolves.toBeUndefined();
   });
 });
@@ -413,6 +414,39 @@ describe("picture quotas", () => {
     const jobs = new MediaJobs({ repo: new MemoryMediaJobRepo(), providers: [refusing], image: { anonDailyLimit: 1 } });
     await expect(jobs.create(imageInput())).resolves.toMatchObject({ status: "failed" });
     await expect(jobs.create(imageInput())).resolves.toMatchObject({ status: "failed" }); // still room: nothing billed
+  });
+
+  it("one guest IP gets only its share of the guests' pool; other IPs and signed-in users keep theirs", async () => {
+    const { provider } = scriptedProvider();
+    const jobs = new MediaJobs({ repo: new MemoryMediaJobRepo(), providers: [provider], image: { anonDailyLimit: 10, anonActorDailyLimit: 2 } });
+    const ipA = { telegramId: null, ipKey: "ip:aaaaaaaaaaaaaaaa" };
+    const ipB = { telegramId: null, ipKey: "ip:bbbbbbbbbbbbbbbb" };
+    const first = await jobs.create(imageInput(), ipA);
+    expect(first.actorKey).toBe(ipA.ipKey);
+    expect(publicJob(first)).not.toHaveProperty("actorKey"); // never sent to clients
+    await jobs.create(imageInput(), ipA);
+    await expect(jobs.assertRoom(ipA, "image")).rejects.toMatchObject({ status: 429, code: "guest_limit" });
+    await expect(jobs.create(imageInput(), ipA)).rejects.toMatchObject({ status: 429, code: "guest_limit" });
+    await expect(jobs.assertRoom(ipB, "image")).resolves.toBeUndefined();
+    await expect(jobs.create(imageInput(), ipB)).resolves.toMatchObject({ actorKey: ipB.ipKey });
+    // a signed-in user on the same IP spends a pool of their own
+    const signedIn = await jobs.create(imageInput(), { telegramId: 7, ipKey: ipA.ipKey });
+    expect(signedIn.actorKey).toBeUndefined();
+  });
+
+  it("videos have their own per-guest cap, and a job refused at submit does not count toward it", async () => {
+    const { provider } = scriptedProvider();
+    const jobs = new MediaJobs({ repo: new MemoryMediaJobRepo(), providers: [provider], anonDailyLimit: 5, anonActorDailyLimit: 1 });
+    const ip = { telegramId: null, ipKey: "ip:cccccccccccccccc" };
+    const video = { kind: "video" as const, imageUrl: "https://cdn.example.com/p.jpg", presetId: "paper-studio" as const, aspect: "9:16" as const, seconds: 5 };
+    await jobs.create(video, ip);
+    await expect(jobs.create(video, ip)).rejects.toMatchObject({ status: 429, code: "guest_limit" });
+    await expect(jobs.create(imageInput(), ip)).resolves.toMatchObject({ kind: "image" }); // pictures: another pool
+
+    const refusing: MediaProvider = { ...provider, submit: async () => Promise.reject(new Error("bad request")) };
+    const strict = new MediaJobs({ repo: new MemoryMediaJobRepo(), providers: [refusing], image: { anonActorDailyLimit: 1 } });
+    await expect(strict.create(imageInput(), ip)).resolves.toMatchObject({ status: "failed" });
+    await expect(strict.create(imageInput(), ip)).resolves.toMatchObject({ status: "failed" }); // still room: nothing billed
   });
 
   it("an anonymous cap of 0 means a Telegram login is required (401), for create and the pre-check", async () => {
