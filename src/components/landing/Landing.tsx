@@ -18,7 +18,7 @@ export function Landing({ bot }: { bot: string }) {
   const c = useCopy();
   const botUrl = `https://t.me/${bot}`;
   return (
-    <div className="flex min-h-dvh flex-col overflow-x-clip bg-stage text-ink">
+    <div className="desk flex min-h-dvh flex-col overflow-x-clip bg-stage text-ink">
       <header className="mx-auto flex w-full max-w-[1180px] items-center justify-between gap-3 px-4 pt-3 sm:px-8 sm:pt-5">
         <Logo />
         <nav aria-label="Mercat" className="flex items-center gap-1 sm:gap-3">

@@ -134,7 +134,7 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
   const { side, collapsed } = useHub();
   const gutter = (collapsed ? RAIL_W : HUB_W) + 36;
   return (
-    <div data-theme={theme} className="relative min-h-dvh bg-stage text-ink">
+    <div data-theme={theme} className="desk relative min-h-dvh bg-stage text-ink">
       <StageLight lamps={lamps} />
       <Hub lamps={lamps} />
       {/* The canvas takes the width beside the hub: a pro tool, not a phone column. Reading

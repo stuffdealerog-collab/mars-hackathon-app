@@ -43,7 +43,7 @@ export const LAMPS: Record<AgentRole, Lamp> = {
 export type LampState = "off" | "warming" | "on" | "you" | "error";
 
 const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-const rgba = (hex: string, a: number) => `rgba(${rgb(hex).join(", ")}, ${a})`;
+export const rgba = (hex: string, a: number) => `rgba(${rgb(hex).join(", ")}, ${a})`;
 const mixRgb = (a: string, b: string, t: number) => {
   const [x, y] = [rgb(a), rgb(b)];
   return x.map((v, i) => v * (1 - t) + y[i] * t);
@@ -56,11 +56,27 @@ const dim = (c: number[], a = 1) => {
   return a === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a})`;
 };
 
+/** Soft light that falls off over nine steps: two stops leave a visible disc edge. */
+const FALL = [
+  [0, 1],
+  [12, 0.82],
+  [25, 0.6],
+  [38, 0.4],
+  [52, 0.24],
+  [66, 0.12],
+  [80, 0.05],
+  [90, 0.015],
+  [100, 0],
+] as const;
+export const light = (hex: string, a: number, size = "closest-side", at = "50% 50%") =>
+  `radial-gradient(${size} at ${at}, ${FALL.map(([p, k]) => `${rgba(hex, +(a * k).toFixed(3))} ${p}%`).join(", ")})`;
+
 /**
  * Per-lamp CSS variables. Mixed colours are computed here, not with CSS color-mix():
  * older Android WebViews (Telegram on Huawei / old MIUI) drop the whole background otherwise.
+ * Computed once per lamp for the module: some thirty tiles read them on every render.
  */
-export const lampVars = (role: AgentRole) => {
+const varsOf = (role: AgentRole) => {
   const l = LAMPS[role];
   return {
     "--hue": l.hue,
@@ -75,5 +91,12 @@ export const lampVars = (role: AgentRole) => {
     "--g-hue": dim(rgb(l.hue)),
     "--g-mid": dim(mixRgb(l.hue, l.deep, 0.45)),
     "--g-deep-a": dim(rgb(l.deep), 0.55),
+    // Computer screens: the standby ember in the filament, its light only around the slot, and
+    // the lamp's light on the room (wall above the panel, floor under it).
+    "--ember": rgba(l.hue, 0.6),
+    "--ember-glow": rgba(l.hue, 0.35),
+    "--room": light(l.hue, 0.5),
   } as React.CSSProperties;
 };
+const VARS = Object.fromEntries(LAMP_ORDER.map((r) => [r, varsOf(r)])) as Record<AgentRole, React.CSSProperties>;
+export const lampVars = (role: AgentRole) => VARS[role];
