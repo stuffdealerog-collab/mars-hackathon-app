@@ -486,14 +486,13 @@
     radial-gradient(55% 28% at 50% 0%, var(--core) 0%, transparent 100%),
     radial-gradient(120% 78% at 50% -6%, var(--hue) 0%, var(--mid) 34%, var(--deep-a) 62%, transparent 88%);
 }
-/* Tiles that print a result: the hot spot stays near the filament and the light settles into
-   the lamp's deep tone over the lower half, a gradient with no edge, so white text there reads
-   on dark glass. The 40 px mini-lamps in the hub keep the plain glow. */
+/* Tiles that print words glow 15% dimmer than the bulb itself (stops from lampVars, mixed toward
+   black), so the white text on them reads easily. The hub's 40 px mini-lamps carry no text and
+   keep full light. */
 .lamp:not(.lamp--xs) .lamp__glow {
   background:
-    linear-gradient(to bottom, transparent 20%, var(--deep-a) 52%, rgb(0 0 0 / 0.5) 100%),
-    radial-gradient(55% 22% at 50% 0%, var(--core) 0%, transparent 100%),
-    radial-gradient(120% 58% at 50% -6%, var(--hue) 0%, var(--mid) 30%, var(--deep-a) 56%, transparent 84%);
+    radial-gradient(55% 28% at 50% 0%, var(--g-core) 0%, transparent 100%),
+    radial-gradient(120% 78% at 50% -6%, var(--g-hue) 0%, var(--g-mid) 34%, var(--g-deep-a) 62%, transparent 88%);
 }
 .lamp__glow::after {
   content: "";
@@ -543,24 +542,23 @@
   gap: 8px;
   padding: 24px 13px 12px;
 }
-/* The result has no box of its own: it prints low in the tile, in the band where the glow has
-   settled into the lamp's deep tone, white with a soft halo. Measured on the rendered pixels in
-   Chromium and WebKit at 375 px: 4.5:1 or more on every lamp. The LED's dots carry a 1 px dark
-   outline instead, because a text-shadow does not reach an SVG. */
+/* The result sits in the middle of the tile, where the glow has already fallen to the lamp's
+   deep tone: white with a dark halo, no box. The LED's dots get the same halo as a drop-shadow,
+   because a text-shadow does not reach an SVG. */
 .lamp__result {
   display: flex;
   flex: 1;
-  align-items: flex-end;
+  align-items: center;
   min-height: 30px;
   color: #fff;
   text-shadow:
-    0 1px 2px rgb(0 0 0 / 0.6),
-    0 0 12px rgb(0 0 0 / 0.35);
+    0 1px 2px rgb(0 0 0 / 0.55),
+    0 0 14px rgb(0 0 0 / 0.45);
   opacity: 0;
   transition: opacity var(--t-panel) var(--ease-out);
 }
 .lamp__result svg {
-  filter: drop-shadow(0 0 1px rgb(0 0 0 / 0.8)) drop-shadow(0 1px 3px rgb(0 0 0 / 0.35));
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.55)) drop-shadow(0 0 7px rgb(0 0 0 / 0.45));
 }
 .lamp:is([data-state="on"], [data-state="you"], [data-state="warming"]) .lamp__result {
   opacity: 1;
@@ -645,12 +643,12 @@
   color: var(--ink);
   text-shadow: none;
 }
-/* On a light stage the glow is pale: the result gets its own light plate and prints in ink. */
+/* On a light stage the result prints in ink with a pale halo, no box; the glow keeps its full
+   light there, since dimming it would only cost the ink contrast. */
 [data-theme="light"] .lamp:not(.lamp--xs) .lamp__glow {
   background:
-    linear-gradient(to bottom, transparent 18%, rgb(255 255 255 / 0.55) 50%, rgb(255 255 255 / 0.85) 100%),
-    radial-gradient(55% 22% at 50% 0%, var(--core) 0%, transparent 100%),
-    radial-gradient(120% 58% at 50% -6%, var(--hue) 0%, var(--mid) 30%, var(--deep-a) 56%, transparent 84%);
+    radial-gradient(55% 28% at 50% 0%, var(--core) 0%, transparent 100%),
+    radial-gradient(120% 78% at 50% -6%, var(--hue) 0%, var(--mid) 34%, var(--deep-a) 62%, transparent 88%);
 }
 [data-theme="light"] .lamp__result {
   color: var(--ink);

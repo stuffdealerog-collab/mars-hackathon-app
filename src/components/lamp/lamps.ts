@@ -44,9 +44,16 @@ export type LampState = "off" | "warming" | "on" | "you" | "error";
 
 const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 const rgba = (hex: string, a: number) => `rgba(${rgb(hex).join(", ")}, ${a})`;
-const mix = (a: string, b: string, t: number) => {
+const mixRgb = (a: string, b: string, t: number) => {
   const [x, y] = [rgb(a), rgb(b)];
-  return `rgb(${x.map((v, i) => Math.round(v * (1 - t) + y[i] * t)).join(", ")})`;
+  return x.map((v, i) => v * (1 - t) + y[i] * t);
+};
+const mix = (a: string, b: string, t: number) => `rgb(${mixRgb(a, b, t).map(Math.round).join(", ")})`;
+/** How much dimmer a tile's glow is than its bulb, so the words on it read (0.15 = 15% toward black). */
+const GLOW_DIM = 0.15;
+const dim = (c: number[], a = 1) => {
+  const [r, g, b] = c.map((v) => Math.round(v * (1 - GLOW_DIM)));
+  return a === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a})`;
 };
 
 /**
@@ -63,5 +70,10 @@ export const lampVars = (role: AgentRole) => {
     "--deep-a": rgba(l.deep, 0.55),
     "--hue-a": rgba(l.hue, 0.7),
     "--hue-b": rgba(l.hue, 0.22),
+    // The glow behind a tile's words: the same stops, GLOW_DIM toward black.
+    "--g-core": dim(rgb(l.core)),
+    "--g-hue": dim(rgb(l.hue)),
+    "--g-mid": dim(mixRgb(l.hue, l.deep, 0.45)),
+    "--g-deep-a": dim(rgb(l.deep), 0.55),
   } as React.CSSProperties;
 };
