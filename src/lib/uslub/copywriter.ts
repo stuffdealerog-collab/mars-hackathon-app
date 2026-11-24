@@ -128,7 +128,7 @@ export async function generatePosts(
     const cleaned = await rewriteNeuroBatch(jobs);
     for (const d of drafts) {
       for (const script of ["uz_latn", "ru", "en"] as Script[]) {
-        const text = cleaned.get(`${d.id}:${script}`);
+        const text = cleaned.get(`${d.id}:${script}`)?.text;
         if (text) d.variants[script] = script === "uz_latn" ? polishUzLatin(text) : text;
       }
       d.variants.uz_cyrl = latinToCyrillic(d.variants.uz_latn, keep);

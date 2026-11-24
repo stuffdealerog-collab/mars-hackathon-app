@@ -40,6 +40,14 @@ const RU: Array<[string, string]> = [
   [`кажд${L} найд[её]т (?:что-то )?для себя`, "назовите, кому подойдёт"],
   [`(?:настоящ${L} )?шедевр${L}`, "уберите превосходную степень"],
   [`подар${L} (?:себе )?незабываем${L}`, "опишите конкретно"],
+  [`открыва${L} (?:для вас )?нов${L} горизонт${L}`, "скажите, что конкретно получит клиент"],
+  [`нов${L} горизонт${L}`, "скажите, что конкретно получит клиент"],
+  [`гаранти${L} качеств${L}`, "покажите факт: срок гарантии, материал"],
+  [`лучш${L} выбор${L}`, "скажите, кому и для чего подходит"],
+  [`специальн${L} для вас`, "уберите"],
+  [`непревзойд[её]нн${L}`, "уберите превосходную степень"],
+  [`беспрецедентн${L}`, "уберите превосходную степень"],
+  [`(?:высок${L} )?качеств${L} и надёжност${L}`, "покажите факт"],
 ];
 
 /* ------------------------------------------------------------------ EN */
@@ -75,6 +83,15 @@ const EN: Array<[string, string]> = [
   ["harness the power", "use"],
   ["(?:a )?world of", "be specific"],
   ["journey", "be specific"],
+  ["unlock(?:s|ed|ing)? new horizons", "say what the customer gets"],
+  ["(?:open(?:s|ing)? )?new horizons", "say what the customer gets"],
+  ["(?:a )?guarantee of quality", "show the fact: warranty, material"],
+  ["quality guaranteed", "show the fact: warranty, material"],
+  ["(?:the )?best choice", "say who it fits and why"],
+  ["(?:made |designed )?(?:especially|specially) for you", "cut"],
+  ["unforgettable", "describe the moment"],
+  ["(?:an )?unrivall?ed", "be specific"],
+  ["second to none", "be specific"],
 ];
 
 /* ------------------------------------------------------------------ UZ
@@ -115,6 +132,17 @@ const UZ: Array<[string, string]> = [
   ["betakror ta'm*", "ta'mni aniq tasvirlang"],
   ["betakror lazzat*", "ta'mni aniq tasvirlang"],
   ["haqiqiy san'at asari", "olib tashlang"],
+  ["yangi ufq* ochib ber*", "mijoz aniq nima olishini yozing"],
+  ["yangi ufq*", "mijoz aniq nima olishini yozing"],
+  ["sifat va ishonch kafolat*", "faktni yozing: kafolat muddati, material"],
+  ["sifat kafolat*", "faktni yozing: kafolat muddati, material"],
+  ["eng yaxshi tanlov*", "kimga va nima uchun mosligini yozing"],
+  ["siz uchun maxsus", "olib tashlang"],
+  ["beqiyos tajriba*", "aniq tajribani tasvirlang"],
+  ["beqiyos", "aniqroq so'z tanlang"],
+  ["tengsiz", "aniqroq so'z tanlang"],
+  ["yuqori sifat va ishonchlilik", "faktni yozing"],
+  ["orzuingizdagi*", "aniq nima ekanini yozing"],
 ];
 
 const APOS_RE = /['‘’ʻʼ`´]/g;
@@ -215,3 +243,73 @@ export const NEURO_LIST_SIZE: Record<Script, number> = {
   uz_latn: UZ.length + 1,
   uz_cyrl: UZ.length + 1,
 };
+
+/* ------------------------------------------------------- invented-fact guard
+ * An editor may only remove or soften clichés. Anything that looks like a new
+ * fact, offer or pressure (numbers, dates, weekdays, %, promo or urgency words)
+ * that is not already in the input means the rewrite made something up. */
+
+const FACT_PATTERNS: RegExp[] = [
+  /\d+(?:[.,]\d+)?/g, // numbers, prices, dates
+  /%/g,
+  // weekdays and months: uz (latn + cyrl), ru, en
+  /(?<![\p{L}])(dushanba|seshanba|chorshanba|payshanba|juma|shanba|yakshanba|душанба|сешанба|чоршанба|пайшанба|жума|шанба|якшанба|понедельник\p{L}*|вторник\p{L}*|сред[аеуы]|четверг\p{L}*|пятниц\p{L}*|суббот\p{L}*|воскресень\p{L}*|monday|tuesday|wednesday|thursday|friday|saturday|sunday|yanvar|fevral|mart|aprel|iyun|iyul|avgust|sentabr|sentyabr|oktabr|oktyabr|noyabr|dekabr|январ\p{L}*|феврал\p{L}*|март\p{L}*|апрел\p{L}*|ма[йя]|июн\p{L}*|июл\p{L}*|август\p{L}*|сентябр\p{L}*|октябр\p{L}*|ноябр\p{L}*|декабр\p{L}*|january|february|march|april|june|july|august|september|october|november|december|bugun|ertaga|сегодня|завтра|today|tomorrow)/giu,
+  // promo / offer words
+  /(aksiya|aktsiya|chegirma|bepul|tekin|sovg['ʻ’‘`]?a|bonus|keshbek|promokod|акци|скидк|бесплатн|подар|кешбэк|промокод|sale|discount|free|gift|cashback|promo)/giu,
+  // urgency / pressure
+  /(shoshiling|ulguring|tezroq|faqat bugun|cheklangan|спеши|успей|торопи|только сегодня|ограниченн|срочно|hurry|limited|last chance|only today)/giu,
+];
+
+function factTokens(text: string): Map<string, number> {
+  const counts = new Map<string, number>();
+  const norm = text.toLowerCase().replace(/['ʻ’‘`]/g, "'");
+  for (const re of FACT_PATTERNS) {
+    for (const m of norm.matchAll(re)) {
+      const key = m[0].replace(/\s+/g, " ");
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/** New fact-like tokens in `rewritten` that are not in `original` (empty = safe). */
+export function inventedFacts(original: string, rewritten: string): string[] {
+  const before = factTokens(original);
+  const out: string[] = [];
+  for (const [token, n] of factTokens(rewritten)) {
+    if (n > (before.get(token) ?? 0)) out.push(token);
+  }
+  return out;
+}
+
+const SENTENCE_RE = /[^.!?…\n]+[.!?…]*\s*|\n+/g;
+
+/**
+ * Minimal deletion-based edit (no new words): a cliché that opens a sentence
+ * ("Zamonaviy dunyoda, …") is cut; a sentence with a cliché anywhere else is
+ * dropped. If nothing would be left, the original text is returned unchanged.
+ */
+export function deletionEdit(text: string, hits: NeuroHit[]): string {
+  if (!hits.length) return text;
+  const parts = text.match(SENTENCE_RE) ?? [text];
+  let offset = 0;
+  const kept: string[] = [];
+  for (const part of parts) {
+    const start = offset;
+    const end = offset + part.length;
+    offset = end;
+    const inside = hits.filter((h) => h.index >= start && h.index < end);
+    if (!inside.length) {
+      kept.push(part);
+      continue;
+    }
+    const lead = part.length - part.trimStart().length;
+    const onlyLeading = inside.length === 1 && inside[0].index - start === lead;
+    if (!onlyLeading) continue; // drop the sentence
+    const rest = part.slice(lead + inside[0].phrase.length).replace(/^[\s,;:—–-]+/, "");
+    if ((rest.match(/\p{L}+/gu) ?? []).length < 2) continue;
+    kept.push(part.slice(0, lead) + rest.charAt(0).toUpperCase() + rest.slice(1));
+  }
+  const out = kept.join("").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  return out.length ? out : text;
+}
