@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #111114;
+  --muted: #5f6370;
+  --card: #f6f6f8;
+  --line: #e4e4e9;
+  --accent: #d9481f; /* Mars orange */
+  --bar: #2f6fdf;
+  --track: #e8ebf3;
+  --good: #1f9d55;
+  --bad: #c62828;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0d0d10;
+    --foreground: #f2f2f5;
+    --muted: #a1a5b3;
+    --card: #17171c;
+    --line: #2a2a31;
+    --accent: #ff7a4d;
+    --bar: #6c9cff;
+    --track: #252a36;
+    --good: #3ccf7f;
+    --bad: #ff6b6b;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-bar: var(--bar);
+  --color-track: var(--track);
+  --color-good: var(--good);
+  --color-bad: var(--bad);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Telegram Mini App: follow Telegram's theme params when they are injected. */
+.tg-app {
+  background: var(--tg-theme-bg-color, var(--background));
+  color: var(--tg-theme-text-color, var(--foreground));
+}
+.tg-hint {
+  color: var(--tg-theme-hint-color, var(--muted));
+}
+.tg-card {
+  background: var(--tg-theme-secondary-bg-color, var(--card));
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff;
+    color: #000000;
+  }
+}
