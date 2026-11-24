@@ -1,18 +1,7 @@
 /** Customer-facing copy helpers for the planner (pure). */
-import type { Goal } from "./types";
+const ID = String.raw`(?:S\.[A-Za-z_][\w-]*(?:\.[\w-]+)*|F\d+|W\d+|P\.\w+\/\d+|R\.[A-Z_]+)`;
+// Unambiguous: ids separated by commas, so the engine never backtracks between two ways to split a list.
+const ID_LIST = new RegExp(String.raw`\s*[[(]\s*${ID}(?:\s*,\s*${ID})*\s*[\])]`, "g");
 
-/** Removes ledger id citations ("[F3, F21]", "(S.reachRate)") from customer-facing copy. */
-export const stripIds = (t: string) =>
-  t
-    .replace(/\s*[[(](?:\s*(?:S\.[\w.-]+|F\d+|W\d+|P\.\w+\/\d+|R\.[A-Z_]+)\s*,?)+[\])]/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-
-/** CTA angle per slot, rotated by code so a week of posts doesn't end with the same line. */
-const CTA_ANGLES: Record<Goal, string[]> = {
-  sale: ["order now", "ask whether it is in stock and the exact price", "reserve or book"],
-  trust: ["ask a question about this topic", "come by in person (address or landmark from F)", "ask for advice on choosing"],
-  reach: ["forward to one specific person who needs it", "save it for later"],
-};
-export const ctaAngle = (goal: Goal, i: number) => CTA_ANGLES[goal][i % CTA_ANGLES[goal].length];
-
+/** Removes ledger id citations ("[F3, F21]", "(S.reachRate)") from customer-facing copy (input capped at 600 chars). */
+export const stripIds = (t: string) => Array.from(t).slice(0, 600).join("").replace(ID_LIST, "").replace(/\s{2,}/g, " ").trim();

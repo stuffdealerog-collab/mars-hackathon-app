@@ -24,7 +24,8 @@ export interface Slot {
   approvalReasons: string[];
   evidence: string[];
   src?: string; // deep-link payload in `link`
-  hookType?: string; // assigned by code (rotation, learn loop), the LLM writes it
+  hookType?: string; // suggested by code; the LLM picks the final one from hookOptions
+  hookOptions?: string[]; // hook types this slot may use (facts exist for them, not dropped by the learn loop)
   focus?: string[]; // F ids this slot must use (assigned by code)
   forecast?: Forecast;
 }
@@ -350,10 +351,6 @@ export function hookTypeOf(firstLine: string): string {
   return "product_spotlight";
 }
 
-/**
- * Code assigns each slot a hook type: rotation per goal, at most 2 of a type, types the learn loop
- * supported first, dropped types never, and for exp=hookType a type the channel has not used lately.
- */
 const NEEDS: Record<string, string[]> = {
   price: ["price"],
   local: ["address", "landmark", "district"],
@@ -361,6 +358,12 @@ const NEEDS: Record<string, string[]> = {
   product_spotlight: ["product", "price"],
 };
 
+/**
+ * Code narrows each slot's hook types (only types whose facts exist, never ones the learn loop dropped,
+ * learn-supported first, for exp=hookType only types the channel has not used lately) and suggests one
+ * by rotation (≤2 per type). The LLM makes the final pick: forcing a single shape read as machine-made
+ * in the 24 Nov judge eval.
+ */
 export function assignHookTypes(
   slots: Slot[],
   opts: { recentFirstLines?: string[]; supported?: string[]; dropped?: string[]; factTypes?: Set<string> } = {},
@@ -371,11 +374,16 @@ export function assignHookTypes(
   // A hook type needs the facts it is made of (no address fact -> no "local" hook).
   const possible = (h: string) => !opts.factTypes || !NEEDS[h] || NEEDS[h].some((t) => opts.factTypes?.has(t));
   for (const s of slots) {
-    let pool = [...(opts.supported ?? []).filter((h) => HOOK_POOL[s.goal].includes(h)), ...HOOK_POOL[s.goal]].filter((h) => !dropped.has(h) && possible(h));
-    if (s.exp === "hookType") pool = [...pool.filter((h) => !recent.has(h)), ...pool];
-    const pick = pool.find((h) => (used.get(h) ?? 0) < 2) ?? pool[0] ?? "question";
+    let pool = [...new Set([...(opts.supported ?? []).filter((h) => HOOK_POOL[s.goal].includes(h)), ...HOOK_POOL[s.goal]])].filter((h) => !dropped.has(h) && possible(h));
+    if (s.exp === "hookType") {
+      const fresh = pool.filter((h) => !recent.has(h));
+      if (fresh.length) pool = fresh;
+    }
+    if (!pool.length) pool = ["question"];
+    const pick = pool.find((h) => (used.get(h) ?? 0) < 2) ?? pool[0];
     used.set(pick, (used.get(pick) ?? 0) + 1);
     s.hookType = pick;
+    s.hookOptions = [pick, ...pool.filter((h) => h !== pick)].slice(0, 4);
   }
 }
 

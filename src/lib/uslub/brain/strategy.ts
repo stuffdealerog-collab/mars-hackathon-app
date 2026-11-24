@@ -10,7 +10,7 @@ import type { StoredPlanItem } from "./learn";
 import { extractIds, groundedCheck, jaccard, lintItem, trigrams, type CheckFail, type LintItem } from "./lint";
 import { brainJson, GROUNDING, HAIKU, SONNET } from "./llm";
 import { newPlanTag, savePlan } from "./memory";
-import { ctaAngle, stripIds } from "./copy";
+import { stripIds } from "./copy";
 import { cycleOf, pillarShares, ruleLedger, runRules, type KbSignals } from "./rules";
 import { assignFocus, assignHookTypes, buildKpis, buildSkeleton, HOOK_TYPES, type Slot } from "./skeleton";
 import { features, LEXICON, median, normApos } from "./stats";
@@ -121,7 +121,7 @@ const StrategySchema = z.object({
 });
 
 const PlanSchema = z.object({
-  items: z.array(z.object({ slot: z.number(), hook: z.string(), cta: z.string(), brief: z.string(), factIds: z.array(z.string()) })),
+  items: z.array(z.object({ slot: z.number(), hookType: z.string(), hook: z.string(), cta: z.string(), brief: z.string(), factIds: z.array(z.string()) })),
 });
 
 const CriticSchema = z.object({
@@ -148,21 +148,21 @@ Write every string in the output language (uz = Uzbek Latin, ru = Russian, en = 
 
 Return JSON matching the schema.`;
 
-export const D3 = `You are the content planner of Uslub AI. Code already fixed each slot's day, time, goal, format, link, approval, hookType and focus facts. You write the hook, the CTA and the brief for each slot.
-INPUT: slots [{slot, day, time, goal, format, lang, hookType, focus:[F ids], exp?, calendarEvent?}], facts F#, voice {fingerprint, anchors[3]}, recentHooks (own, last 30), competitorHooks, lexicon, firedRules.
+export const D3 = `You are the content planner of Uslub AI. Code already fixed each slot's day, time, goal, format, link and approval, and chose which facts each slot is about. You write the hook, the CTA and the brief for each slot.
+INPUT: slots [{slot, day, time, goal, format, lang, hookOptions, focus:[F ids], exp?, calendarEvent?}], facts F#, voice {fingerprint, anchors[3]}, recentHooks (own, last 30), competitorHooks, lexicon, firedRules.
 
 FOR EACH SLOT:
-- Use the slot's hookType (fixed by code) and build the post around its focus facts: use at least one focus fact.
+- hookType: pick the one from slot.hookOptions that sounds most natural for these facts (the first is a suggestion; for exp="hookType" stay inside the options). Build the post around the focus facts; use at least one of them unless it would sound forced, then use another F fact.
   number = a number from F up front; price = product + F price; question = the customer's real question (pain from F); local = district/landmark from F; behind_scenes = how it is made/done at the business (from F); myth_fact = a common belief vs an F fact; product_spotlight = one product from F, concrete detail; before_after = needs customer consent.
 - hook = the first line, ≤90 chars (aim for ≤70), in slot.lang. It must contain at least one specific from F (number, price, product name, district/landmark, real question). No greetings ("Assalomu alaykum", "Hurmatli mijozlar", "Здравствуйте", "Dear"). No hype. Never mention the bot, the link or "write to us" in the hook: the hook is about the customer and the product. Never invent a fact that is not in F.
   Bad: "Sizni ajoyib takliflarimiz kutmoqda!" (no specific, cliché, would fit anyone).
-- cta: one action in the slot's ctaAngle (fixed by code). sale/trust: the link opens our Telegram bot, which passes the customer's message to the owner, who answers personally. So: verb + concrete reason tied to this post + the token {{LINK}} exactly once. Never promise that the bot itself sends menus or prices. reach: one forward or save line naming who to send it to, no link. Word every CTA differently: no two CTAs in a week may start with the same words, and never use the stock line "shu yerga yozing — o'zimiz javob beramiz".
+- cta: one short action, the way the owner would say it. sale/trust: the link opens our Telegram bot, which passes the customer's message to the owner, who answers personally; so a short verb + reason tied to this post + the token {{LINK}} exactly once. Never promise that the bot itself sends menus or prices. reach: one short forward or save line, no link. Keep CTAs short (≤ 12 words before the link), vary them across slots, and never use the stock line "shu yerga yozing — o'zimiz javob beramiz".
 - brief (for Kopirayter and Dizayner): 1 sentence of angle and which audience pain; the facts to use [F..]; what to photograph or film AT THE BUSINESS (real, never stock; for video, a ≤60-second phone shot list in 3 steps).
 - sale slot: include the product's F price in the hook or brief. Urgency only with an F deadline or capacity fact.
 - factIds: every F id you used. hook and cta are the customer-facing post: never put ids, brackets or ledger codes in them (ids go only in factIds and the brief).
 - Facts quoted from the channel's own posts carry the post date [YYYY-MM-DD]. Prices, products, addresses, hours and processes are standing facts. Dated events, promotions, deadlines and "new branch" announcements older than 14 days are history: never present them as current, and never tie a fact to a calendar event unless the fact itself names that event.
 VOICE: match the fingerprint — address form, words per sentence, emoji ≤ min(3, fingerprint emojiPer100 +50%), exclamations only if the owner uses them. Copy the anchors' manner, never their sentences. Never reuse competitor wording.
-Return JSON {items:[{slot, hook, cta, brief, factIds}]}.`;
+Return JSON {items:[{slot, hookType, hook, cta, brief, factIds}]}.`;
 
 const REPAIR = `FIX ONLY these slots. For each, the failed checks and quoted reasons are given. Change only what the reasons require; keep everything else. If a needed fact does not exist, remove the claim instead of inventing it.`;
 
@@ -350,9 +350,9 @@ export async function buildStrategy(inp: StrategyInput) {
   const statsForLlm = ledger.filter((e) => e.source !== "post" || e.id.startsWith(`P.${analysis?.data.channel}`)).map(({ id, label, display, n, prior }) => ({ id, label, display, n, prior }));
   const factsForLlm = facts.map(({ id, type, quote }) => ({ id, type, quote }));
   const slotsForLlm = new Map(
-    sk.slots.map((s, i) => [
+    sk.slots.map((s) => [
       s.slot,
-      { slot: s.slot, day: s.day, time: s.time, goal: s.goal, format: s.format, lang: slotLang, hookType: s.hookType, ctaAngle: ctaAngle(s.goal, i), focus: s.focus, exp: s.exp, calendarEvent: s.calendarEvent },
+      { slot: s.slot, day: s.day, time: s.time, goal: s.goal, format: s.format, lang: slotLang, hookOptions: s.hookOptions, focus: s.focus, exp: s.exp, calendarEvent: s.calendarEvent },
     ]),
   );
 
@@ -415,7 +415,7 @@ export async function buildStrategy(inp: StrategyInput) {
         maxTokens: 3000,
         timeoutMs: Math.min(12_000, DEADLINE - 2_000 - elapsed()),
         system: criticSystem,
-        prompt: JSON.stringify({ items: slots.map((s) => ({ ...asLint(s), format: s.format, hookType: s.hookType })) }),
+        prompt: JSON.stringify({ items: slots.map((s) => ({ ...asLint(s), format: s.format, hookType: drafts.get(s.slot)?.hookType })) }),
       });
       const bySlot = new Map(cr.items.map((i) => [i.slot, i.fails.filter((f) => f.quote.trim())]));
       for (const s of slots) criticFails.set(s.slot, bySlot.get(s.slot) ?? []);
@@ -535,7 +535,7 @@ export async function buildStrategy(inp: StrategyInput) {
       slot: s.slot,
       timeSource: s.timeSource,
       exp: s.exp,
-      hookType: s.hookType,
+      hookType: it?.hookType && (s.hookOptions ?? []).includes(it.hookType) ? it.hookType : s.hookType,
       focus: s.focus,
       factIds: it?.factIds ?? [],
       approvalReasons: [...new Set(reasons)],
@@ -624,7 +624,7 @@ export async function buildStrategy(inp: StrategyInput) {
       weekday: s.weekday,
       goal: s.goal,
       format: s.format,
-      hookType: s.hookType,
+      hookType: (items.find((i) => i.slot === s.slot)?.hookType as string | undefined) ?? s.hookType,
       exp: s.exp,
       src: s.src,
       hook: items.find((i) => i.slot === s.slot)?.hook,
