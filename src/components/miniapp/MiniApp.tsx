@@ -16,6 +16,7 @@ import { FreshScreen, StartScreen } from "./screens/Start";
 import { VideoScreen } from "./screens/Video";
 import { EdgeBack, Layer, Skel, Toast } from "./Shell";
 import { SheetHost } from "./sheets/Sheets";
+import { launchTarget } from "./launch";
 import { useResume } from "./sync";
 import { cloud, haptic, tg } from "./tg";
 
@@ -70,27 +71,30 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
       setBooted(true);
       const s = useStudio.getState();
       if (s.sample) return; // ?mock=1: the start screen runs the made-up bakery
-      const p = new URLSearchParams(window.location.search);
-      const startParam = tg()?.initDataUnsafe?.start_param ?? "";
-      const fromLink = p.get("brand") ?? (startParam.startsWith("brand_") ? startParam.slice(6) : null);
-      const brand = fromLink || saved.brand || null;
-      const post = p.get("post") ?? (startParam.startsWith("post_") ? startParam.slice(5) : null);
-      if (brand) {
-        await s.reopen(brand);
-        const after = useStudio.getState();
+      // The link the app was opened with comes first (bot button, startapp=brand_<id> from the
+      // desktop Studio), then the brand this owner worked on last.
+      const target = launchTarget(window.location.search, tg()?.initDataUnsafe?.start_param);
+      const open = async (id: string) => {
+        await s.reopen(id);
+        return useStudio.getState().phase === "ready";
+      };
+      let opened = false;
+      if (target.brand) opened = await open(target.brand);
+      if (!opened && saved.brand && saved.brand !== target.brand) {
+        opened = await open(saved.brand);
         // A dead id (deleted, someone else's) must not open again at every launch.
-        if (after.phase !== "ready") {
-          cloud.remove("brand");
-          return;
-        }
-        if (post && after.posts.some((x) => x.id === post)) {
+        if (!opened) cloud.remove("brand");
+      } else if (!opened && saved.brand && saved.brand === target.brand) cloud.remove("brand");
+      if (opened) {
+        const after = useStudio.getState();
+        if (target.post && after.posts.some((x) => x.id === target.post)) {
           after.setTab("posts");
-          useNav.getState().push({ name: "post", id: post });
+          useNav.getState().push({ name: "post", id: target.post });
         }
         return;
       }
-      const channel = p.get("channel") ?? (startParam.startsWith("ch_") ? startParam.slice(3) : null);
-      const name = channel ? parseChannel(channel) : null;
+      if (target.brand || saved.brand) return; // a failed reopen leaves its message on the start screen
+      const name = target.channel ? parseChannel(target.channel) : null;
       if (name) s.startChannel(name);
     })();
   }, [bot]);
