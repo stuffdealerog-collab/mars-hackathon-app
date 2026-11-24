@@ -33,6 +33,8 @@ const uz = {
     publishedToast: "Kanalga joylandi",
     savedToast: "Matn saqlandi",
     edited: "tahrirlangan",
+    fill: "Bo‘sh joyni to‘ldirish",
+    blank: "Matnda siz to‘ldiradigan joy qoldi.",
   },
   edit: {
     title: "Matnni tahrirlash",
@@ -111,6 +113,8 @@ const ru: MiniCopy = {
     publishedToast: "Опубликовано в канал",
     savedToast: "Текст сохранён",
     edited: "изменён",
+    fill: "Заполнить пропуск",
+    blank: "В тексте осталось место, которое заполните вы.",
   },
   edit: {
     title: "Правка текста",
@@ -187,6 +191,8 @@ const en: MiniCopy = {
     publishedToast: "Published to the channel",
     savedToast: "Text saved",
     edited: "edited",
+    fill: "Fill in the blank",
+    blank: "The text has a blank only you can fill.",
   },
   edit: {
     title: "Edit the text",

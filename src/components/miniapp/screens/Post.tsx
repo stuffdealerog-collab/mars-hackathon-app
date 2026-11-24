@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { PostPicture } from "../../studio/PostPicture";
 import { useStudio } from "../../studio/store";
 import { fmt, keepNumbers, useCopy } from "../../ui/lang";
+import { blankNote, hasBlank } from "../blank";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons, useLatest, useNav, type BtnSpec } from "../nav";
 import { hasNativeSecondary } from "../native";
@@ -131,11 +132,15 @@ export function PostScreen({ start, active }: { start: number; active: boolean }
   const status = post ? statusOf(post) : "draft";
   const busy = post ? busyMap[post.id] : undefined;
   const nextOpen = posts.findIndex((p, i) => i !== index && statusOf(p) !== "published");
+  // A blank the writer could not fill (a price, a code): the owner fills it before approving.
+  const blank = useStudio((st) => !!post && hasBlank(post) && !st.edited[post.id]);
 
   let main: BtnSpec | null = null;
   let secondary: BtnSpec | null = null;
   if (post) {
-    if (status === "draft") {
+    if (status === "draft" && blank) {
+      main = { text: m.post.fill, onClick: () => (haptic.tap(), openSheet({ name: "edit", postId: post.id })) };
+    } else if (status === "draft") {
       main = { text: busy === "approve" ? c.posts.approving : c.posts.approve, onClick: () => void approve(post.id), progress: busy === "approve" };
       secondary = { text: c.posts.edit, onClick: () => (haptic.tap(), openSheet({ name: "edit", postId: post.id })) };
     } else if (status === "approved") {
@@ -188,6 +193,9 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
   const sample = useStudio((s) => s.sample);
   const edited = useStudio((s) => !!s.edited[post.id]?.[script]);
   const note = useStudio((s) => s.postNote[post.id]);
+  const blank = useStudio((s) => hasBlank(post) && !s.edited[post.id]);
+  // Reserve the 4:5 slot while pictures are on their way, so the post never jumps when one lands.
+  const picturesExpected = useStudio((s) => !s.sample && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")));
   const openSheet = useNav((s) => s.openSheet);
   const status = statusOf(post);
   const text = post.variants[script] ?? "";
@@ -205,9 +213,15 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
           )}
         </header>
 
+        {blank && status === "draft" && (
+          <p role="note" className="mb-3 rounded-2xl bg-[color-mix(in_oklab,var(--led)_14%,transparent)] px-4 py-3 text-[14.5px] leading-snug">
+            {blankNote(post) || m.post.blank}
+          </p>
+        )}
+
         {/* Drawn close to Telegram's own channel post, so the owner sees what subscribers will see. */}
         <div className="tgpost">
-          <PostPicture image={post.image} alt={c.posts.image.alt} onRetry={sample ? undefined : () => void retryImage(post.id)} />
+          <PostPicture image={post.image} alt={c.posts.image.alt} expected={picturesExpected} onRetry={sample ? undefined : () => void retryImage(post.id)} />
           <div className="px-4 pb-2.5 pt-3">
             <div className="mb-2 flex items-center gap-2.5">
               <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[14px] font-semibold text-white" style={{ background: "linear-gradient(160deg, #C86B3C, #6b3115)" }}>

@@ -2,8 +2,8 @@ import type { PostDraft, Script } from "@/lib/uslub/contract";
 import { Check, ChevronDown, ChevronRight, ImageOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { lampVars } from "../../lamp/lamps";
-import { useStudio } from "../../studio/store";
-import { weekday } from "../../ui/format";
+import { slotKey, useStudio } from "../../studio/store";
+import { plural, weekday } from "../../ui/format";
 import { fmt, useCopy, useLang, type Lang } from "../../ui/lang";
 import { useMiniCopy } from "../copy";
 import { useNav } from "../nav";
@@ -100,6 +100,8 @@ export function PostsScreen({ onOpen, active }: { onOpen: (index: number) => voi
             </ul>
           )}
 
+          <Missed />
+
           {posts.length > 0 && (
             <button
               type="button"
@@ -116,6 +118,34 @@ export function PostsScreen({ onOpen, active }: { onOpen: (index: number) => voi
         </div>
       </div>
     </>
+  );
+}
+
+/** Posts the run asked for but did not get: how many, and one tap to write them again. */
+function Missed() {
+  const c = useCopy();
+  const lang = useLang((s) => s.lang);
+  const missed = useStudio((s) => s.missed);
+  const writing = useStudio((s) => s.missed.some((it) => s.writingSlot[slotKey(it)]));
+  const writeMissed = useStudio((s) => s.writeMissed);
+  if (!missed.length) return null;
+  return (
+    <div className="ma-group mt-2.5 flex items-center gap-3 py-2 pl-4 pr-2">
+      <p className="min-w-0 flex-1 text-[14.5px] text-ink-2">
+        {missed.length} {plural(c.posts.missed, missed.length, lang)}
+      </p>
+      <button
+        type="button"
+        className="btn-2 !min-h-11 shrink-0 !px-4 !text-[15px]"
+        disabled={writing}
+        onClick={() => {
+          haptic.press();
+          void writeMissed();
+        }}
+      >
+        {writing ? <span className="breathe">{c.channel.writingSlot}</span> : c.posts.rewrite}
+      </button>
+    </div>
   );
 }
 
