@@ -3,11 +3,12 @@ import { z } from "zod";
 import type { AgentRole, BrandProfile, Flow, FlowEdge, FlowNode } from "./contract";
 import { llmJson, MODEL_FAST } from "./llm";
 
-const ROLES: AgentRole[] = ["brand", "strategist", "copywriter", "editor", "translator", "designer", "video", "publisher", "radar"];
+const ROLES: AgentRole[] = ["brand", "analyst", "strategist","copywriter", "editor", "translator", "designer", "video", "publisher", "radar"];
 
 const LABELS: Record<AgentRole | "input" | "approval", string> = {
   input: "Vazifa",
   brand: "Brend xotirasi",
+  analyst: "Analitik",
   strategist: "Strateg",
   copywriter: "Kopirayter",
   editor: "Muharrir",
@@ -31,7 +32,7 @@ Employees: copywriter (Telegram posts), editor (removes AI clichés), translator
 designer (cover images), video (Reels/TikTok script), publisher (posts to Telegram after approval), radar (finds where customers are).
 Pick only what the task needs. The title is a short Uzbek name for the task (max 6 words).`;
 
-/** Deterministic graph: input -> brand -> strategist -> [workers] -> approval -> publisher. */
+/** Deterministic graph: input -> brand -> analyst -> strategist -> [workers] -> approval -> publisher. */
 export function buildFlowGraph(roles: AgentRole[], notes: Record<string, string>, task: string): Pick<Flow, "nodes" | "edges"> {
   const want = new Set(roles.filter((r) => ROLES.includes(r)));
   const nodes: FlowNode[] = [];
@@ -43,9 +44,11 @@ export function buildFlowGraph(roles: AgentRole[], notes: Record<string, string>
 
   add("input", "input", { task });
   add("brand", "brand");
+  add("analyst", "analyst", cfg("analyst") ?? { task: "Kanal raqamlari va raqobatchilarni tahlil qilish" });
   add("strategist", "strategist", cfg("strategist"));
   link("input", "brand");
-  link("brand", "strategist");
+  link("brand", "analyst");
+  link("analyst", "strategist");
 
   // Text pipeline: copywriter -> editor -> translator
   let textTail: string | null = null;

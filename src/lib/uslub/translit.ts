@@ -76,7 +76,6 @@ const SINGLE: Record<string, string> = {
 type Chunk = { cyr: string; upper: boolean };
 
 const isUpper = (ch: string) => ch !== ch.toLowerCase() && ch === ch.toUpperCase();
-const isApos = (ch: string | undefined) => ch !== undefined && APOSTROPHES.includes(ch);
 
 /** Transliterates a single Latin word (letters and apostrophes only). */
 function transliterateWord(word: string): string {

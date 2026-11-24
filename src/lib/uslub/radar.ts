@@ -60,7 +60,8 @@ export async function findLeads(brand: BrandProfile, goal?: string): Promise<Rad
   const known = new Set(research.sources.map((s) => hostOf(s.url)));
   const notes = research.text;
   return leads.slice(0, 8).map((l) => {
-    const url = l.url.trim();
+    const raw = l.url.trim();
+    const url = raw && !/^https?:\/\//i.test(raw) ? `https://${raw.toLowerCase()}` : raw;
     const sourced = url && (known.has(hostOf(url)) || notes.includes(url) || /t\.me\//.test(url));
     const hint = l.audienceHint.trim();
     // Keep an audience number only if the same digits appear in the research notes.
