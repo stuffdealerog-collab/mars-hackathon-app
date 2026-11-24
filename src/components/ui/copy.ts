@@ -232,7 +232,7 @@ const uz = {
     log: "Ish jurnali",
   },
   pro: {
-    label: "Professional rejim",
+    label: "Pro rejim",
     hint: "Hamma xodimlar, strategiya va reja tafsilotlari",
     positioning: "Kimga va nima uchun",
     offer: "Taklif",
@@ -562,7 +562,7 @@ const ru: Copy = {
     log: "Журнал работы",
   },
   pro: {
-    label: "Профессиональный режим",
+    label: "Режим Pro",
     hint: "Все сотрудники, стратегия и детали плана",
     positioning: "Кому и почему",
     offer: "Предложение",
@@ -889,7 +889,7 @@ const en: Copy = {
     log: "Work log",
   },
   pro: {
-    label: "Professional mode",
+    label: "Pro mode",
     hint: "Every employee, the strategy and plan details",
     positioning: "Who and why",
     offer: "Offer",

@@ -190,7 +190,7 @@ export type Launch = { weeks?: number; tactics: { title: string; how: string; wh
 export type Sufficiency = { key: string; status: "data" | "benchmark" | "prior" | "insufficient"; n: number; need: number; text: string };
 export type StrategyResult = { strategy: Strategy; plan: ContentPlan; launch?: Launch; sufficiency?: Sufficiency[] };
 
-/** Extra fields the strategist puts on plan items beyond the contract (shown in Professional rejim). */
+/** Extra fields the strategist puts on plan items beyond the contract (shown in Pro rejim). */
 /**
  * Brain v2's forecast for a slot (lib/uslub/brain/forecast.ts): a views range when the data
  * allows one, and an owner-readable `display` either way. Older plans sent the range flat.
