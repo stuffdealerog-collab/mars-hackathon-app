@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { fmt, isMachineEvidence, keepNumbers, num, ownerText, parseChannel, plural, weekday } from "./format";
+import { fmt, isMachineEvidence, keepNumbers, num, ownerText, parseChannel, plural, rank, weekday } from "./format";
+
+describe("rank (the Ctrl K palette)", () => {
+  it("puts a prefix above a word start above letters in order", () => {
+    expect(rank("pos", "Postlar")).toBe(3);
+    expect(rank("tas", "Matnni nusxalash · Tasdiqlash")).toBe(2);
+    expect(rank("pst", "Postlar")).toBe(1);
+    expect(rank("xyz", "Postlar")).toBe(0);
+  });
+  it("finds Cyrillic and Uzbek words, ignores case and an empty query", () => {
+    expect(rank("одоб", "Tasdiqlash Одобрить approve")).toBe(2);
+    expect(rank("ko‘r", "Postlarni ko‘rish")).toBe(2);
+    expect(rank("POST", "postlar")).toBe(3);
+    expect(rank("  ", "anything")).toBe(1);
+  });
+});
 
 const NBSP = "\u00a0";
 

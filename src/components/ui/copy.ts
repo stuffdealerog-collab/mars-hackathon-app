@@ -324,6 +324,7 @@ const uz = {
   },
   keys: { hint: "Enter tasdiqlash · E tahrir · J/K postlar · 1–4 til" },
   problem: { dismiss: "Yopish" },
+  palette: { title: "Buyruqlar", placeholder: "Bo‘lim yoki buyruq…", empty: "Hech narsa topilmadi", langTo: "Til: {lang}", names: { uz: "O‘zbekcha", ru: "Русский", en: "English" } },
 
   weekdays: ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"],
 };
@@ -647,6 +648,7 @@ const ru: Copy = {
   },
   keys: { hint: "Enter одобрить · E править · J/K посты · 1–4 язык" },
   problem: { dismiss: "Закрыть" },
+  palette: { title: "Команды", placeholder: "Раздел или команда…", empty: "Ничего не найдено", langTo: "Язык: {lang}", names: { uz: "O‘zbekcha", ru: "Русский", en: "English" } },
 
   weekdays: ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"],
 };
@@ -968,6 +970,7 @@ const en: Copy = {
   },
   keys: { hint: "Enter approve · E edit · J/K posts · 1–4 language" },
   problem: { dismiss: "Dismiss" },
+  palette: { title: "Commands", placeholder: "A section or a command…", empty: "Nothing found", langTo: "Language: {lang}", names: { uz: "O‘zbekcha", ru: "Русский", en: "English" } },
 
   weekdays: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
 };

@@ -6,6 +6,7 @@ import { Led } from "../lamp/Led";
 import { fmt, useCopy, useInitLang } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel } from "../ui/parts";
 import { ChannelSign } from "./ChannelSign";
+import { CommandPalette } from "./CommandPalette";
 import { ChannelTab } from "./ChannelTab";
 import { Panel, SOON_ROLES, Strip, useLamps } from "./Department";
 import { Hub, HUB_W, RAIL_W, StageLight, useDesktop, useHub, useHubRestore } from "./Hub";
@@ -153,6 +154,7 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
         </div>
       </main>
       <Toasts inset={side === "left" ? gutter : -gutter} />
+      <CommandPalette />
     </div>
   );
 }
