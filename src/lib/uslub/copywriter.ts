@@ -30,7 +30,8 @@ Hard rules:
    ONE LANGUAGE PER VARIANT: even if the brand's posts mix Uzbek and Russian (e.g. separated by ***), uz_latn must contain only the Uzbek text and ru only the Russian text; the system combines them itself.
 6. NEW CONTENT: never re-tell or translate one of the example posts; write new posts in the same voice.
 7. Make each post a different angle (product, behind the scenes, customer question, offer, useful tip…) unless the brief asks otherwise.
-8. PHOTOS ARE NOT IN THE TEXT: a brief may say which photo or video to shoot — that note is for the owner, never write it into the post. Never describe a picture ("on the photo you can see…") and never claim the business did, tested or showed something unless the knowledge says so.`;
+8. LENGTH: keep every version under 950 characters, even if the brand's older posts are longer — the post goes out as a photo caption (Telegram's limit is 1024).
+9. PHOTOS ARE NOT IN THE TEXT: a brief may say which photo or video to shoot — that note is for the owner, never write it into the post. Never describe a picture ("on the photo you can see…") and never claim the business did, tested or showed something unless the knowledge says so.`;
 
 function brandContext(brand: BrandProfile): string {
   const { dna } = brand;
@@ -71,6 +72,7 @@ async function fillMissingVariants(drafts: { id: string; variants: Record<Script
       maxTokens: 8000,
       timeoutMs,
       purpose: "translate",
+      maxRetries: 0,
     });
     const byId = new Map(res.items.map((i) => [i.id, i.text.trim()] as const));
     for (const { d, s } of missing) {
@@ -113,6 +115,8 @@ export async function generatePosts(brand: BrandProfile, brief: string, count = 
     maxTokens: 12000,
     timeoutMs: Math.max(20_000, Math.min(75_000, left() - 15_000)),
     purpose: "copywriter",
+    // With a deadline there is no time for an SDK retry after a timeout.
+    ...(opts.deadline ? { maxRetries: 0 } : {}),
   });
 
   const createdAt = new Date().toISOString();
@@ -138,7 +142,7 @@ export async function generatePosts(brand: BrandProfile, brief: string, count = 
   }
   if (jobs.length) {
     // Near the deadline the editor falls back to deletion-only edits (no LLM call).
-    const cleaned = await rewriteNeuroBatch(jobs, { skipLlm: left() < 20_000, timeoutMs: Math.max(10_000, Math.min(40_000, left() - 8_000)) });
+    const cleaned = await rewriteNeuroBatch(jobs, { skipLlm: left() < 20_000, timeoutMs: Math.max(10_000, Math.min(40_000, left() - 8_000)), maxRetries: opts.deadline ? 0 : undefined });
     for (const d of drafts) {
       for (const script of ["uz_latn", "ru", "en"] as Script[]) {
         const text = cleaned.get(`${d.id}:${script}`)?.text;

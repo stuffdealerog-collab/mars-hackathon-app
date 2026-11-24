@@ -159,6 +159,28 @@ export async function linkBrandChannel(brandId: string, channel: string): Promis
   await getSql()`UPDATE brands SET channel = ${key} WHERE id = ${brandId} AND channel IS NULL`;
 }
 
+const memClaimed = new Set<string>();
+
+/**
+ * Was this brand created anonymously on the web and later claimed in the bot? Such a brand stays usable by the
+ * browser that holds its (unguessable) id — the claim adds publishing rights, it does not lock the Studio out.
+ * Brands created through the bot or the Mini App (owned from the start) are never in this set.
+ */
+export async function wasClaimed(brandId: string): Promise<boolean> {
+  if (!isUuid(brandId)) return false;
+  if (memClaimed.has(brandId)) return true;
+  if (!isDbConfigured()) return false;
+  try {
+    const rows = (await getSql()`
+      SELECT 1 AS ok FROM events WHERE type = 'brand_claimed' AND props->>'brand_id' = ${brandId} LIMIT 1
+    `) as { ok: number }[];
+    if (rows.length) memClaimed.add(brandId);
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Gives an unowned brand to a Telegram user. Atomic: only succeeds while owner_telegram_id is NULL, so two
  * people racing for one brand cannot both win. Callers must first verify that the user administers the
@@ -169,13 +191,19 @@ export async function claimBrand(brandId: string, telegramId: number): Promise<n
   if (!isDbConfigured()) {
     const b = mem.brands.get(brandId);
     if (!b) return null;
-    if (b.ownerTelegramId == null) mem.brands.set(brandId, { ...b, ownerTelegramId: telegramId });
+    if (b.ownerTelegramId == null) {
+      mem.brands.set(brandId, { ...b, ownerTelegramId: telegramId });
+      memClaimed.add(brandId);
+    }
     return mem.brands.get(brandId)?.ownerTelegramId ?? null;
   }
   const claimed = (await getSql()`
     UPDATE brands SET owner_telegram_id = ${telegramId} WHERE id = ${brandId} AND owner_telegram_id IS NULL RETURNING id
   `) as { id: string }[];
-  if (claimed.length) await safeLogEvent(telegramId, "brand_claimed", { brand_id: brandId });
+  if (claimed.length) {
+    memClaimed.add(brandId);
+    await safeLogEvent(telegramId, "brand_claimed", { brand_id: brandId });
+  }
   const rows = (await getSql()`SELECT owner_telegram_id FROM brands WHERE id = ${brandId}`) as { owner_telegram_id: string | number | null }[];
   const owner = rows[0]?.owner_telegram_id;
   return owner == null ? null : Number(owner);
@@ -248,18 +276,33 @@ export async function listPosts(brandId: string, limit = 50): Promise<PostDraft[
  * Marks a draft approved (persisted, survives a reload). Idempotent: an approved or published post comes back
  * unchanged. Returns null when the post does not exist.
  */
-export async function approvePost(id: string, telegramId: number | null = null): Promise<PostDraft | null> {
+export async function approvePost(
+  id: string,
+  telegramId: number | null = null,
+  /** The owner's edited text (merged variants), approved together with the post. Never applied to a published post. */
+  edited?: Pick<PostDraft, "variants" | "neuroHits" | "humanScore"> & { changed: string[] },
+): Promise<PostDraft | null> {
   if (!isUuid(id)) return null;
   if (!isDbConfigured()) {
     const p = mem.posts.get(id);
     if (!p) return null;
-    if (p.status === "draft") mem.posts.set(id, { ...p, status: "approved", approvedAt: new Date().toISOString() });
+    if (edited && p.status !== "published")
+      mem.posts.set(id, { ...p, variants: edited.variants, neuroHits: edited.neuroHits, humanScore: edited.humanScore, status: "approved", approvedAt: new Date().toISOString() });
+    else if (p.status === "draft") mem.posts.set(id, { ...p, status: "approved", approvedAt: new Date().toISOString() });
     return mem.posts.get(id) ?? null;
   }
-  const rows = (await getSql()`
-    UPDATE posts SET status = 'approved', approved_at = now() WHERE id = ${id} AND status = 'draft' RETURNING id
-  `) as { id: string }[];
-  if (rows.length) await safeLogEvent(telegramId, "post_approved", { post_id: id });
+  const rows = edited
+    ? ((await getSql()`
+        UPDATE posts SET status = 'approved', approved_at = now(),
+          variants = ${JSON.stringify(edited.variants)}::jsonb, neuro_hits = ${JSON.stringify(edited.neuroHits)}::jsonb,
+          human_score = ${edited.humanScore}
+        WHERE id = ${id} AND status IN ('draft', 'approved')
+        RETURNING id
+      `) as { id: string }[])
+    : ((await getSql()`
+        UPDATE posts SET status = 'approved', approved_at = now() WHERE id = ${id} AND status = 'draft' RETURNING id
+      `) as { id: string }[]);
+  if (rows.length) await safeLogEvent(telegramId, "post_approved", { post_id: id, edited: edited?.changed ?? [] });
   return getPost(id);
 }
 

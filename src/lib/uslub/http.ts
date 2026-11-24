@@ -10,7 +10,7 @@ import { type ApiLang, codeForStatus, type ErrorCode, errorText, isApiLang, pick
 import { RateLimiter } from "./limit";
 import { LlmError } from "./llm";
 import { ScrapeError } from "./scrape";
-import { getBrand, type StoredBrand } from "./store";
+import { getBrand, type StoredBrand, wasClaimed } from "./store";
 
 /**
  * Verified Telegram user id from the Mini App: `Authorization: tma <initData>`
@@ -34,12 +34,26 @@ export function telegramUserId(req: Request, initData?: string): number | null {
   return null;
 }
 
-/** Loads a brand the caller may use, or throws 404/403. */
+/**
+ * Loads a brand the caller may use, or throws 404/403. A brand created anonymously on the web and later claimed
+ * in the bot stays usable by whoever holds its id (the creating browser): the claim only adds publishing rights,
+ * which publishPost still checks against the Telegram owner.
+ */
 export async function loadBrandFor(brandId: string, userId: number | null): Promise<StoredBrand> {
   const brand = await getBrand(brandId);
   if (!brand) throw new HttpError(404, "Brand not found", "brand_not_found");
-  if (!canAccessBrand(brand, userId)) throw new HttpError(403, "This brand belongs to another Telegram user", "brand_forbidden");
+  if (!canAccessBrand(brand, userId) && !(await wasClaimed(brand.id))) throw new HttpError(403, "This brand belongs to another Telegram user", "brand_forbidden");
   return brand;
+}
+
+/**
+ * Drafts are private. Owner, unowned brand (id holder), or a web brand claimed in the bot (id holder) may read
+ * and approve them; nobody else, whatever the brand's source (channel_only rows are public data, drafts are not).
+ */
+export async function assertDraftAccess(brand: StoredBrand, userId: number | null): Promise<void> {
+  if (brand.ownerTelegramId == null || brand.ownerTelegramId === userId) return;
+  if (await wasClaimed(brand.id)) return;
+  throw new HttpError(403, "posts of another owner", "brand_forbidden");
 }
 
 /**

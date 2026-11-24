@@ -76,7 +76,7 @@ export const GROWTH_IDEAS = [
 ];
 
 const PRICE_RE = /\d[\d\s.,]*\s*(so['‘’ʻ`]?m|sum|сум|ming|тыс|k\b|000)/i;
-const ADDRESS_RE = /(ko['‘’ʻ`]?cha|mahalla|tuman|rayon|улиц|район|массив|mavze|kvartal|orientir|mo['‘’ʻ`]?ljal|chilonzor|yunusobod|sergeli|yakkasaroy|mirobod|olmazor|uchtepa|shayxontohur|bektemir|yashnobod|mirzo|ulug['‘’ʻ`]?bek|chirchiq|samarqand|buxoro|farg['‘’ʻ`]?ona|andijon|namangan|xorazm|toshkent|ташкент|address|street)/i;
+const ADDRESS_RE = /(ko['‘’ʻ`]?cha|mahalla|tuman|rayon|улиц|район|массив|mavze|kvartal|orientir|mo['‘’ʻ`]?ljal|chilonzor|yunusobod|sergeli|yakkasaroy|mirobod|olmazor|uchtepa|shayxontohur|bektemir|yashnobod|mirzo|ulug['‘’ʻ`]?bek|chirchiq|samarqand|buxoro|farg['‘’ʻ`]?ona|andijon|namangan|xorazm|toshkent|ташкент|address|street|юнусабад|чиланзар|мирзо|улугбек|сергел|яккасара|мирабад|алмазар|учтеп|шайхантах|бектемир|яшнабад|чирчик|самарканд|бухар|фергана|андижан|наманган|хорезм)/i;
 const CONTACT_RE = /(\+?998[\s-]?\d{2}|\b\d{2}[\s-]\d{3}[\s-]\d{2}[\s-]\d{2}\b|@[A-Za-z][\w]{3,}|t\.me\/|instagram)/i;
 
 export interface DescriptionSignals {

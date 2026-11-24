@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { ContentPlan, Goal, PlanItem, Strategy } from "@/lib/uslub/contract";
 import { inventedFacts } from "@/lib/uslub/neuro";
 import type { OnStage } from "./audit";
-import { stripIds } from "./copy";
+import { stripIds, stripIdsAll } from "./copy";
 import { GROWTH_IDEAS, KIND_BRIEF, descriptionSignals, launchKpis, launchQuestions, launchSkeleton, launchSufficiency, type LaunchSlot } from "./launch-plan";
 import { brainJson, SONNET } from "./llm";
 import { LEXICON } from "./stats";
@@ -123,13 +123,14 @@ export async function buildLaunchStrategy(inp: LaunchInput) {
   const slotsForLlm = slots.map((s) => ({ slot: s.slot, day: s.day, time: s.time, goal: s.goal, purpose: KIND_BRIEF[s.kind], pinned: s.pinned }));
 
   const [stratR, itemsR] = await Promise.allSettled([
-    brainJson({ schema: StrategySchema, model: SONNET, effort: "low", maxTokens: 6000, timeoutMs: 50_000, purpose: "launch_strategy", system: COMMON(lang), prompt: `${context}\n\n${STRATEGY_TASK}` }),
+    brainJson({ schema: StrategySchema, model: SONNET, effort: "low", maxTokens: 6000, timeoutMs: 50_000, maxRetries: 0, purpose: "launch_strategy", system: COMMON(lang), prompt: `${context}\n\n${STRATEGY_TASK}` }),
     brainJson({
       schema: ItemsSchema,
       model: SONNET,
       effort: "low",
       maxTokens: 6000,
       timeoutMs: 50_000,
+      maxRetries: 0,
       purpose: "launch_items",
       system: COMMON(lang),
       prompt: `${context}\n\nSLOTS:\n${JSON.stringify(slotsForLlm)}\n\n${ITEMS_TASK}`,
@@ -146,7 +147,7 @@ export async function buildLaunchStrategy(inp: LaunchInput) {
     const it = bySlot.get(s.slot);
     const hook = stripIds(it?.hook ?? "").slice(0, 160);
     const cta = stripIds(it?.cta ?? "");
-    const brief = stripIds(it?.brief ?? "");
+    const brief = stripIdsAll(it?.brief ?? "");
     const reasons: string[] = [];
     if (s.needsApproval) reasons.push(s.slot <= 3 ? "birinchi postlar" : "taklif");
     // Hook and CTA go into the post as written: any new number, date or promo word needs the owner. The brief only
@@ -179,7 +180,7 @@ export async function buildLaunchStrategy(inp: LaunchInput) {
 
   const shares = { reach: 0, trust: 0, sale: 0 } as Record<Goal, number>;
   for (const s of slots) shares[s.goal]++;
-  const clean = (x: string) => stripIds(x).trim();
+  const clean = (x: string) => stripIdsAll(x);
   const offerOk = d && d.offer.trim() && !unsupported(description, d.offer).length;
   const safeOffer = offerOk ? clean(d.offer) : OFFER_FALLBACK[lang];
   const strategy: Strategy = {

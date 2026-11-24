@@ -3,7 +3,7 @@ import { after } from "next/server";
 import { Bot, InlineKeyboard } from "grammy";
 import { isAiConfigured } from "./ai";
 import { getEnv, getPublicUrl } from "./env";
-import { pickLocale, t } from "./i18n";
+import { type Locale, pickLocale, t } from "./i18n";
 import { parseSource, safeLogEvent, track } from "./track";
 import { learnFor } from "./uslub/brain/learn-run";
 import { latestPlanForOwner, ORDER_BUCKETS, planByTag, recordOutcome } from "./uslub/brain/memory";
@@ -14,8 +14,8 @@ import { flushUsage, runWithContext } from "./uslub/context";
 import {
   classifyOnboardText,
   gateMessage,
-  ONBOARD_PROMPT,
   onboardGate,
+  onboardPrompt,
   publishFromBot,
   runOnboarding,
 } from "./uslub/onboard";
@@ -43,15 +43,15 @@ const PLAN_LINK_RE = /^src_([a-z0-9]{6})_(\d{1,2})$/;
 const escapeHtml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /** Customer tapped a plan post's link: ask before passing their contact to the business owner. */
-async function customerFromPlanLink(ctx: { reply: (text: string, other?: object) => Promise<unknown> }, tag: string, slot: number) {
+async function customerFromPlanLink(ctx: { reply: (text: string, other?: object) => Promise<unknown> }, tag: string, slot: number, locale: Locale) {
   const plan = await planByTag(tag);
   if (!plan?.ownerTelegramId) {
-    await ctx.reply("Rahmat! Bu havola hozir faol emas. Kanaldagi telefon yoki manzil orqali bog‘laning.");
+    await ctx.reply(t(locale, "bot.link_inactive"));
     return;
   }
   // The plan's channel is not verified, so the customer is never told which brand is behind the link.
-  await ctx.reply("Siz post ichidagi havola orqali keldingiz. Post muallifi sizga o‘zi javob berishi uchun ismingiz va Telegram profilingizni unga yuboraymi?", {
-    reply_markup: new InlineKeyboard().text("✅ Ha, yuboring", `lead:${tag}:${slot}`),
+  await ctx.reply(t(locale, "bot.link_ask"), {
+    reply_markup: new InlineKeyboard().text(t(locale, "bot.link_yes"), `lead:${tag}:${slot}`),
   });
 }
 
@@ -84,7 +84,7 @@ function registerHandlers(b: Bot) {
     // A customer who tapped a tracked link in a plan post (src_<planTag>_<slot>): not an owner, no onboarding.
     const planLink = PLAN_LINK_RE.exec(payload);
     if (planLink) {
-      await customerFromPlanLink(ctx, planLink[1], Number(planLink[2]));
+      await customerFromPlanLink(ctx, planLink[1], Number(planLink[2]), locale);
       return;
     }
 
@@ -97,16 +97,17 @@ function registerHandlers(b: Bot) {
     } else {
       await ctx.reply(t(locale, "bot.greeting_no_app", { name }));
     }
-    await ctx.reply(ONBOARD_PROMPT);
+    await ctx.reply(onboardPrompt(locale));
   });
 
   // /natija — the owner's weekly results for their latest plan + one-tap order count.
   pm.command("natija", async (ctx) => {
     const from = ctx.from;
     if (!from) return;
+    const locale = pickLocale(from.language_code);
     const plan = await latestPlanForOwner(from.id);
     if (!plan) {
-      await ctx.reply("Hali reja yo‘q. Studioda «Strategiya»ni ishga tushiring — reja postlaridagi havolalar natijani o‘lchaydi.");
+      await ctx.reply(t(locale, "bot.results_no_plan"));
       return;
     }
     await ctx.replyWithChatAction("typing").catch(() => undefined);
@@ -114,20 +115,20 @@ function registerHandlers(b: Bot) {
     if (plan.channel) {
       try {
         const data = await scrapeChannelData(plan.channel);
-        const r = await learnFor(data.channel, data.posts, Date.now(), "uz", { ownerReports: true });
+        const r = await learnFor(data.channel, data.posts, Date.now(), locale, { ownerReports: true });
         const mine = r.outcomes.filter((o) => o.planTag === plan.tag);
         const measured = mine.filter((o) => o.status === "final" || o.status === "early");
         const starts = mine.reduce((a, o) => a + o.starts, 0);
         lines = [
-          `Reja ${plan.weekOf}: ${plan.items.length} ta post, kanalda topildi: ${mine.filter((o) => o.status !== "not_found").length}, o‘lchandi: ${measured.length}.`,
-          `Botga o‘tganlar (reja havolalari): ${starts}.`,
+          t(locale, "bot.results_summary", { week: plan.weekOf, n: plan.items.length, found: mine.filter((o) => o.status !== "not_found").length, measured: measured.length }),
+          t(locale, "bot.results_starts", { n: starts }),
           ...r.changes.slice(0, 4).map((c) => `• ${c.replace(/\s*\[[^\]]*\]\s*$/, "")}`),
         ];
       } catch {
-        lines = [`Reja ${plan.weekOf}: kanalni hozir o‘qib bo‘lmadi, keyinroq qayta urinib ko‘ring.`];
+        lines = [t(locale, "bot.results_unreadable", { week: plan.weekOf })];
       }
     }
-    await ctx.reply([...lines, "", "Bu hafta reja postlaridan nechta buyurtma bo‘ldi?"].join("\n"), {
+    await ctx.reply([...lines, "", t(locale, "bot.results_question")].join("\n"), {
       reply_markup: new InlineKeyboard()
         .text("0", `ord:${plan.tag}:0`)
         .text("1–3", `ord:${plan.tag}:1`)
@@ -155,7 +156,7 @@ function registerHandlers(b: Bot) {
     if ((!/\s/.test(text.trim()) || /@|t\.me\//i.test(text)) && (await answerPendingChannel(ctx.api, ctx.chat.id, from, locale, text))) return;
     const input = classifyOnboardText(text.slice(0, 4000));
     if (!input) {
-      await ctx.reply(ONBOARD_PROMPT);
+      await ctx.reply(onboardPrompt(locale));
       return;
     }
     if (!isAiConfigured()) {
@@ -169,11 +170,7 @@ function registerHandlers(b: Bot) {
       return;
     }
     try {
-      await ctx.reply(
-        "channel" in input
-          ? `Ishlayapman… @${input.channel} kanalini o‘qiyapman va brendingiz DNK-sini tuzyapman (taxminan 40 soniya).`
-          : "Ishlayapman… brendingiz DNK-sini tuzyapman va postlar yozyapman (taxminan 40 soniya).",
-      );
+      await ctx.reply("channel" in input ? t(locale, "bot.working_channel", { channel: input.channel }) : t(locale, "bot.working_text"));
       await ctx.replyWithChatAction("typing").catch(() => undefined);
     } catch (err) {
       onboardGate.leave(from.id);
@@ -185,7 +182,7 @@ function registerHandlers(b: Bot) {
       // Usage of the onboarding's Claude calls is logged as one llm_usage event (route "bot/onboard").
       runWithContext({ route: "bot/onboard", lang: locale, telegramId: from.id }, async () => {
         try {
-          await runOnboarding(api, chatId, from.id, input);
+          await runOnboarding(api, chatId, from.id, input, locale);
         } finally {
           onboardGate.leave(from.id);
           await flushUsage();
@@ -196,8 +193,9 @@ function registerHandlers(b: Bot) {
 
   // "📢 Publish" under a generated post. ctx.from is trusted (comes from Telegram).
   b.callbackQuery(/^pub:([0-9a-f-]{36})$/, async (ctx) => {
-    await ctx.answerCallbackQuery({ text: "E’lon qilinyapti…" }).catch(() => undefined);
-    const message = await publishFromBot(ctx.match[1], ctx.from.id);
+    const locale = pickLocale(ctx.from.language_code);
+    await ctx.answerCallbackQuery({ text: t(locale, "pub.publishing") }).catch(() => undefined);
+    const message = await publishFromBot(ctx.match[1], ctx.from.id, locale);
     await ctx.reply(message, { link_preview_options: { is_disabled: true } });
   });
 
@@ -215,10 +213,11 @@ function registerHandlers(b: Bot) {
   // Customer agreed to share their contact: tell the owner (one lead), with a "Sotildi" button for them.
   b.callbackQuery(/^lead:([a-z0-9]{6}):(\d{1,2})$/, async (ctx) => {
     await ctx.answerCallbackQuery().catch(() => undefined);
+    const locale = pickLocale(ctx.from.language_code);
     const plan = await planByTag(ctx.match[1]);
     const slot = Number(ctx.match[2]);
     if (!plan?.ownerTelegramId) {
-      await ctx.reply("Kechirasiz, bu havola eskirgan.");
+      await ctx.reply(t(locale, "bot.link_expired"));
       return;
     }
     const u = ctx.from;
@@ -232,30 +231,31 @@ function registerHandlers(b: Bot) {
         { parse_mode: "HTML", reply_markup: new InlineKeyboard().text("✅ Sotildi", `sold:${plan.tag}:${slot}`) },
       );
       await safeLogEvent(u.id, "lead", { src: `src_${plan.tag}_${slot}` });
-      await ctx.editMessageText("Rahmat! Kontaktingiz yuborildi — tez orada sizga o‘zlari yozishadi.").catch(() => undefined);
+      await ctx.editMessageText(t(locale, "bot.link_sent")).catch(() => undefined);
     } catch {
-      await ctx.reply("Hozir yuborib bo‘lmadi. Kanaldagi telefon yoki manzil orqali bog‘laning.");
+      await ctx.reply(t(locale, "bot.link_failed"));
     }
   });
 
   // Owner taps "Sotildi" under a lead, or answers the weekly order question. Only the plan's owner may.
   b.callbackQuery(/^(sold|ord):([a-z0-9]{6}):(\d{1,2})$/, async (ctx) => {
     const [, kind, tag, n] = ctx.match;
+    const locale = pickLocale(ctx.from.language_code);
     const plan = await planByTag(tag);
     if (!plan || plan.ownerTelegramId !== ctx.from.id) {
-      await ctx.answerCallbackQuery({ text: "Bu reja sizniki emas." }).catch(() => undefined);
+      await ctx.answerCallbackQuery({ text: t(locale, "bot.not_your_plan") }).catch(() => undefined);
       return;
     }
     if (kind === "sold") {
       await recordOutcome(plan.id, Number(n), "sold", 1, ctx.from.id);
-      await ctx.answerCallbackQuery({ text: "Yozib qo‘ydim: +1 sotuv" }).catch(() => undefined);
-      await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard().text("✅ Sotildi (yana +1)", `sold:${tag}:${n}`) }).catch(() => undefined);
+      await ctx.answerCallbackQuery({ text: t(locale, "bot.sold_recorded") }).catch(() => undefined);
+      await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard().text(t(locale, "bot.sold_again"), `sold:${tag}:${n}`) }).catch(() => undefined);
       return;
     }
     const bucket = ORDER_BUCKETS[n];
     if (!bucket) return;
     await recordOutcome(plan.id, null, "orders_week", bucket.value, ctx.from.id);
-    await ctx.answerCallbackQuery({ text: `Yozib qo‘ydim: ${bucket.label}` }).catch(() => undefined);
+    await ctx.answerCallbackQuery({ text: t(locale, "bot.orders_recorded", { label: bucket.label }) }).catch(() => undefined);
     await ctx.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => undefined);
   });
 

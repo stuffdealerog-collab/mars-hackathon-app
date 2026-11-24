@@ -37,7 +37,7 @@ export type EditOutcome = { text: string; mode: "unchanged" | "rewrite" | "delet
  * numbers, dates, weekdays, %, promo or urgency words is discarded and replaced
  * by a deletion-only edit (deletionEdit), so the editor can never invent facts.
  */
-export async function rewriteNeuroBatch(jobs: EditJob[], opts: { skipLlm?: boolean; timeoutMs?: number } = {}): Promise<Map<string, EditOutcome>> {
+export async function rewriteNeuroBatch(jobs: EditJob[], opts: { skipLlm?: boolean; timeoutMs?: number; maxRetries?: number } = {}): Promise<Map<string, EditOutcome>> {
   const out = new Map<string, EditOutcome>(jobs.map((j) => [j.id, { text: j.text, mode: "unchanged" }] as const));
   const todo = jobs.filter((j) => j.hits.length > 0);
   if (!todo.length) return out;
@@ -63,6 +63,7 @@ export async function rewriteNeuroBatch(jobs: EditJob[], opts: { skipLlm?: boole
       effort: "low",
       maxTokens: 8000,
       timeoutMs: opts.timeoutMs,
+      maxRetries: opts.maxRetries,
       purpose: "editor",
     });
     rewrites = new Map(res.items.map((i) => [i.id, i.text.trim()] as const));

@@ -5,11 +5,14 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ isDbConfigured: () => false, getSql: () => { throw new Error("no db in tests"); } }));
 vi.mock("@/lib/track", () => ({ safeLogEvent: async () => {} }));
 vi.mock("@/lib/i18n", async () => await import("../src/lib/i18n"));
+vi.mock("@/lib/env", () => ({ getEnv: () => ({}), getPublicUrl: () => undefined }));
+vi.mock("@/lib/telegram-auth", () => ({ authenticateRequest: () => null, validateInitData: () => ({ ok: false }) }));
 const publishPost = vi.fn(async (args: { postId: string; userId: number | null; chat: string }) => ({ ok: true, status: 200, url: `https://t.me/${args.chat.replace("@", "")}/42` }));
 vi.mock("../src/lib/uslub/publish", () => ({ publishPost, addBotAsAdminLink: () => "https://t.me/test_bot?startchannel&admin=post_messages" }));
 
 const { startPublish, publishFromButton, answerPendingChannel } = await import("../src/lib/uslub/botpublish");
 const store = await import("../src/lib/uslub/store");
+const { assertDraftAccess, loadBrandFor } = await import("../src/lib/uslub/http");
 import type { BrandDNA, PostDraft } from "../src/lib/uslub/contract";
 
 const BOT_ID = 999;
@@ -80,6 +83,25 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
     expect((await store.getBrand(brand.id))?.ownerTelegramId).toBe(7);
     expect(publishPost).toHaveBeenCalledWith({ postId: post.id, script: "ru", chat: "tortlar_uz", userId: 7 });
     expect(sent.at(-1)?.text).toContain("https://t.me/tortlar_uz/42");
+
+    // The web Studio that created the brand (anonymous, holds the id) keeps working after the claim.
+    const claimed = await loadBrandFor(brand.id, null);
+    await expect(assertDraftAccess(claimed, null)).resolves.toBeUndefined();
+  });
+
+  it("keeps a brand created in the bot private to its owner", async () => {
+    const { brand } = await makePost("bot_brand_uz", 55);
+    await expect(loadBrandFor(brand.id, null)).rejects.toMatchObject({ status: 403, code: "brand_forbidden" });
+    await expect(assertDraftAccess(brand, 56)).rejects.toMatchObject({ status: 403 });
+    await expect(assertDraftAccess(brand, 55)).resolves.toBeUndefined();
+  });
+
+  it("falls back to a real variant when a button names an empty one", async () => {
+    const { post } = await makePost("tortlar5_uz", 7);
+    await store.approvePost(post.id, 7, { variants: { ...post.variants, en: "" }, neuroHits: {}, humanScore: 90, changed: ["en"] });
+    const { api } = fakeApi({});
+    await publishFromButton(api, 7, { id: 7 }, "en", post.id, "en");
+    expect(publishPost).toHaveBeenCalledWith(expect.objectContaining({ script: "uz_latn" }));
   });
 
   it("never lets a non-admin claim or publish", async () => {
@@ -116,8 +138,8 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
     await startPublish(api, 7, { id: 7 }, "uz", `publish_${post.id}`);
     expect(sent.at(-1)?.text).toMatch(/qaysi kanalga/);
 
-    // A non-channel answer keeps the question open; the right channel links it.
-    expect(await answerPendingChannel(api, 7, { id: 7 }, "uz", "salom qalaysiz")).toBe(true);
+    // Anything that is not "@name" or a t.me link is not an answer (it goes to normal onboarding); the right channel links it.
+    expect(await answerPendingChannel(api, 7, { id: 7 }, "uz", "salom")).toBe(false);
     expect(await answerPendingChannel(api, 7, { id: 7 }, "uz", "@yangi_tortlar")).toBe(true);
     const linked = await store.getBrand(brand.id);
     expect(linked?.channel).toBe("yangi_tortlar");

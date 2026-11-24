@@ -42,8 +42,16 @@ export function usageEntry(model: string, usage: unknown, ms: number, purpose?: 
   };
 }
 
+/** Price row for a model id; dated snapshots and fallback ids ("claude-haiku-5-5-2026…") match by prefix. */
+function priceFor(model: string): Price {
+  const key = Object.keys(PRICES)
+    .sort((a, b) => b.length - a.length)
+    .find((k) => model === k || model.startsWith(`${k}-`) || model.startsWith(`${k}@`));
+  return PRICES[key ?? ""] ?? (/haiku/i.test(model) ? PRICES["claude-haiku-5-5"] : /opus/i.test(model) ? PRICES["claude-opus-5-5"] : PRICES["claude-sonnet-5-5"]);
+}
+
 export function estimateUsd(e: UsageEntry): number {
-  const p = PRICES[e.model] ?? PRICES["claude-sonnet-5-5"];
+  const p = priceFor(e.model);
   return (e.input * p.input + e.output * p.output + e.cacheWrite * p.cacheWrite + e.cacheRead * p.cacheRead) / 1e6 + e.webSearches * WEB_SEARCH_USD;
 }
 

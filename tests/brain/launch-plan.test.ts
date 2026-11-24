@@ -28,6 +28,12 @@ describe("what the description gives us", () => {
     const bakery = "Uyda tort va pishiriqlar pishiraman, Chilonzor 9-kvartal. Napoleon torti 180 000 so‘m. Buyurtma: +998 90 123 45 67";
     expect(descriptionSignals(bakery)).toEqual({ hasPrice: true, hasAddress: true, hasContact: true });
     expect(descriptionSignals("Uyda tort pishiraman, buyurtma bilan ishlayman.")).toEqual({ hasPrice: false, hasAddress: false, hasContact: false });
+    // Seen live: a Russian description naming districts must not be asked "where are you?".
+    expect(descriptionSignals("Ремонт холодильников на дому в Юнусабаде и Мирзо-Улугбеке. Диагностика 50 000 сум. +998 93 555 12 34")).toEqual({
+      hasPrice: true,
+      hasAddress: true,
+      hasContact: true,
+    });
   });
 
   it("asks the owner for what is missing, in their language", () => {

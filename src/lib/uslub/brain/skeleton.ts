@@ -418,34 +418,37 @@ export function assignFocus(slots: Slot[], facts: FactRef[], rules: RuleResult[]
 
 const KPI_T: Record<Lang, Record<string, string>> = {
   uz: {
-    ppw: "Haftasiga postlar (reja bajarilishi)",
-    views: "72 soatdagi median ko'rishlar",
-    reach: "Qamrov (ko'rishlar / obunachilar), %",
-    starts: "Botga yozganlar / hafta",
-    ctr: "Sotuv postidan botga o'tish (CTR), % — taxminiy 1%",
-    howScrape: "har kuni t.me/s orqali hisoblanadi",
-    howTags: "src_ teglari hisoblagichi (botda)",
-    howCtr: "src_ teglari + egasining haftalik javobi (buyurtmalar)",
+    ppw: "Haftasiga chiqqan postlar (reja bajarilishi)",
+    views: "Bir post odatda necha marta ko‘riladi (3 kundan keyin)",
+    reach: "Postni ko‘radigan obunachilar ulushi, %",
+    starts: "Postdagi havola orqali botga yozganlar, haftasiga",
+    ctr: "Sotuv postini ko‘rib, havolani bosganlar, % (taxminiy maqsad 1%)",
+    weeks: "4 haftada",
+    howScrape: "kanalni har kuni o‘qib hisoblaymiz",
+    howTags: "post havolalarini bosganlar soni (botda)",
+    howCtr: "havolalarni bosganlar va sizning haftalik javobingiz (buyurtmalar)",
   },
   ru: {
     ppw: "Постов в неделю (выполнение плана)",
-    views: "Медиана просмотров через 72 ч",
-    reach: "Охват (просмотры / подписчики), %",
-    starts: "Переходы в бота / неделя",
-    ctr: "CTR продающих постов, % — ориентир 1%",
-    howScrape: "ежедневно по t.me/s",
-    howTags: "счётчик меток src_ в боте",
-    howCtr: "метки src_ + еженедельный ответ владельца (заказы)",
+    views: "Сколько обычно просматривают пост (через 3 дня)",
+    reach: "Доля подписчиков, которые видят пост, %",
+    starts: "Написали в бота по ссылке из поста, в неделю",
+    ctr: "Нажали на ссылку в продающем посте, % (ориентир 1%)",
+    weeks: "за 4 недели",
+    howScrape: "считаем по каналу каждый день",
+    howTags: "переходы по ссылкам из постов (в боте)",
+    howCtr: "переходы по ссылкам и ваш еженедельный ответ (заказы)",
   },
   en: {
-    ppw: "Posts per week kept",
-    views: "Median views at 72h",
-    reach: "Reach rate (views / subscribers), %",
-    starts: "Bot starts per week",
-    ctr: "Sale CTR (starts / views), % — 1% rule of thumb",
-    howScrape: "daily t.me/s scrape",
-    howTags: "src_ tag counter in the bot",
-    howCtr: "src_ tags + owner's weekly one-tap answer (orders)",
+    ppw: "Posts per week (plan kept)",
+    views: "Typical views per post (after 3 days)",
+    reach: "Share of subscribers who see a post, %",
+    starts: "People who wrote to the bot from a post link, per week",
+    ctr: "Clicked the link in a sale post, % (1% rule of thumb)",
+    weeks: "in 4 weeks",
+    howScrape: "counted from the channel every day",
+    howTags: "clicks on post links (in the bot)",
+    howCtr: "link clicks plus your weekly answer (orders)",
   },
 };
 
@@ -455,7 +458,7 @@ export function buildKpis(stats: ChannelStats | undefined, rules: RuleResult[], 
   k.push({ metric: t.ppw, baseline: stats ? Math.round(stats.postsPerWeek * 10) / 10 : undefined, target: n, how: t.howScrape });
   if (stats?.medianViews != null) {
     const up = fired(rules, "R.LOW_REACH") ? 1.2 : 1.15;
-    k.push({ metric: `${t.views} (+${Math.round((up - 1) * 100)}% / 4 hafta)`, baseline: Math.round(stats.medianViews), target: Math.round(stats.medianViews * up), how: t.howScrape });
+    k.push({ metric: `${t.views} (+${Math.round((up - 1) * 100)}% ${t.weeks})`, baseline: Math.round(stats.medianViews), target: Math.round(stats.medianViews * up), how: t.howScrape });
   }
   if (stats?.reachRate != null && stats.subscribers) {
     const lowBand = fired(rules, "R.LOW_REACH");

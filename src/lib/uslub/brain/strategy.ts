@@ -11,7 +11,7 @@ import { extractIds, groundedCheck, jaccard, lintItem, trigrams, type CheckFail,
 import { brainJson, GROUNDING, HAIKU, SONNET } from "./llm";
 import { loadFactsCache, newPlanTag, saveFactsCache, savePlan } from "./memory";
 import { scrapeChannelData } from "./scrape";
-import { stripIds } from "./copy";
+import { ownerText, stripIds, stripIdsAll } from "./copy";
 import { cycleOf, pillarShares, ruleLedger, runRules, type KbSignals } from "./rules";
 import { assignFocus, assignHookTypes, buildKpis, buildSkeleton, HOOK_TYPES, type Slot } from "./skeleton";
 import { features, LEXICON, median, normApos } from "./stats";
@@ -251,6 +251,25 @@ const OWNER_TEXT: Record<Lang, { needInput: string; blocked: string; unknownWher
     blocked: "We need a price to build the offer: send the prices of your main products or services.",
     unknownWhere: "Not known yet: the customer radar will look for where your customers are.",
     weakDiff: "It's not clear how you differ from competitors: write one concrete example.",
+  },
+};
+
+/** Why a plan item waits for the owner, in their words (the code checks GROUNDED / PRICE / URGENCY fired). */
+const HARD_REASON: Record<Lang, Record<string, string>> = {
+  uz: {
+    GROUNDED: "bu raqam yoki fakt sizning ma’lumotlaringizda yo‘q — to‘g‘rimi?",
+    PRICE: "sotuv posti uchun narx kerak — narxini yozing",
+    URGENCY: "shoshiltiruvchi gap bor, lekin muddat yoki cheklov aytilmagan — muddatini yozing",
+  },
+  ru: {
+    GROUNDED: "этой цифры или факта нет в ваших данных — это верно?",
+    PRICE: "для продающего поста нужна цена — напишите её",
+    URGENCY: "есть призыв поторопиться, но не указан срок или ограничение — напишите срок",
+  },
+  en: {
+    GROUNDED: "this number or fact is not in your details — is it right?",
+    PRICE: "a sale post needs a price — please add it",
+    URGENCY: "it urges people to hurry but gives no deadline or limit — add the deadline",
   },
 };
 
@@ -547,8 +566,8 @@ export async function buildStrategy(inp: StrategyInput) {
     const hard = fails.filter((f) => ["GROUNDED", "PRICE", "URGENCY"].includes(f.check));
     if (hard.length) {
       if (groundedCheck(hook, ledgerMap, it?.factIds ?? []).length) hook = "";
-      brief = `${OWNER_TEXT[lang].needInput}: ${hard.map((f) => `${f.quote} — ${f.reason}`).join("; ")}`;
-      ownerQuestions.push(`${s.day} ${s.time}: ${hard[0].reason} («${hard[0].quote}»)`);
+      brief = `${OWNER_TEXT[lang].needInput}: ${hard.map((f) => `«${stripIds(f.quote)}» — ${HARD_REASON[lang][f.check] ?? HARD_REASON[lang].GROUNDED}`).join("; ")}`;
+      ownerQuestions.push(`${s.day} ${s.time}: ${HARD_REASON[lang][hard[0].check] ?? HARD_REASON[lang].GROUNDED} («${stripIds(hard[0].quote)}»)`);
       reasons.push(`critic:${hard[0].check}`);
     } else if (fails.length) reasons.push(`critic:${fails[0].check}`);
     if (!it) reasons.push("critic:timeout");
@@ -564,7 +583,7 @@ export async function buildStrategy(inp: StrategyInput) {
     cta = stripIds(cta);
     const link = s.link ?? "";
     // No tracked link (reach slot, or no BOT_USERNAME): the placeholder never reaches the owner.
-    cta = s.goal !== "reach" && link ? cta.replace("{{LINK}}", link) : cta.replace(/\s*\{\{LINK\}\}/g, "").replace(/[\s:–—-]+$/, "").trim();
+    cta = s.goal !== "reach" && link ? cta.replaceAll("{{LINK}}", link) : cta.replace(/\s*\{\{LINK\}\}/g, "").replace(/[\s:–—-]+$/, "").trim();
     const evIds = [...new Set([...s.evidence, ...(it?.factIds ?? [])])];
     const tsLabel = s.timeSource === "prior" ? "taxminiy" : s.timeSource;
     const meta = `— Dalil: ${evIds.join(" · ") || "-"} | Vaqt: ${tsLabel} | Tasdiq: ${[...new Set(reasons)].join(", ") || "autopilot"}${s.exp ? ` | exp:${s.exp}` : ""}`;
@@ -576,7 +595,7 @@ export async function buildStrategy(inp: StrategyInput) {
       format: s.format,
       hook,
       cta,
-      brief: ownerText(stripIds(brief), lang),
+      brief: ownerText(stripIdsAll(brief), lang),
       metric: s.metric,
       // extras: where the slot's time/goal came from (ids for the UI's evidence chips)
       briefMeta: meta,
@@ -661,7 +680,7 @@ export async function buildStrategy(inp: StrategyInput) {
   };
   ownerFacing(strategy, lang);
   emit({ stage: "strategy", strategy, ok: Boolean(d2), elapsedMs: elapsed() });
-  const rationale = [...(analysis?.learn?.changes ?? []), ...(d2?.rationale ?? []).filter((l) => extractIds(l).length > 0 && !groundedCheck(l, ledgerMap).length)].map(stripIds);
+  const rationale = [...(analysis?.learn?.changes ?? []), ...(d2?.rationale ?? []).filter((l) => extractIds(l).length > 0 && !groundedCheck(l, ledgerMap).length)].map(stripIdsAll);
   const plan: ContentPlan = { weekOf: sk.weekOf, items, rationale: rationale.join("\n") };
   const criticReport = items.map((i) => ({ slot: i.slot as number, status: i.critic as CriticStatus, fails: i.fails as CheckFail[] }));
 
@@ -719,23 +738,8 @@ export async function buildStrategy(inp: StrategyInput) {
 }
 
 /** The owner reads the strategy as is: ledger ids (kept for the grounding checks above) are removed in place. */
-/**
- * After ids are stripped, a few model habits still point at the ledger: "shart F'da ko'rsatilmagan",
- * "Faktlar: [F3]." -> "Faktlar:.". They are reworded for the owner (pure string fixes).
- */
-export function ownerText(t: string, lang: Lang): string {
-  const ref = { uz: "ma’lumotlaringiz", ru: "ваших данных", en: "your details" }[lang];
-  return t
-    .replace(/\bF['’‘`]?(da|dan|ga)\b/g, (_m, suf: string) => `${ref}${lang === "uz" ? suf : ""}`)
-    .replace(/\b(в|из) F\b/g, `$1 ${ref}`)
-    .replace(/\b(in|from) F\b/g, `$1 ${ref}`)
-    .replace(/\b(Faktlar|Факты|Facts)\s*:\s*(?=[.;,]|$)[.;,]?\s*/gi, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-}
-
 function ownerFacing(st: Strategy, lang: Lang): void {
-  const clean = (t: string) => (/^UNKNOWN\b/i.test(t.trim()) ? OWNER_TEXT[lang].unknownWhere : ownerText(stripIds(t), lang));
+  const clean = (t: string) => (/^UNKNOWN\b/i.test(t.trim()) ? OWNER_TEXT[lang].unknownWhere : ownerText(stripIdsAll(t), lang));
   st.positioning = clean(st.positioning);
   st.offer = clean(st.offer);
   st.proofPoints = st.proofPoints.map(clean);

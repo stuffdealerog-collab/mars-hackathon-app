@@ -62,6 +62,8 @@ export async function llmJson<S extends z.ZodType>(opts: {
   timeoutMs?: number;
   /** Short label for usage logs, e.g. "copywriter". */
   purpose?: string;
+  /** SDK retries (client default 1). Deadline-bound calls pass 0: a retry after a timeout can outlive the route. */
+  maxRetries?: number;
 }): Promise<z.infer<S>> {
   const anthropic = getAnthropic();
   const model = opts.model ?? MODEL_QUALITY;
@@ -76,7 +78,7 @@ export async function llmJson<S extends z.ZodType>(opts: {
         system: opts.system,
         messages: [{ role: "user", content: opts.prompt }],
       },
-      { timeout: opts.timeoutMs ?? 55_000 },
+      { timeout: opts.timeoutMs ?? 55_000, ...(opts.maxRetries != null ? { maxRetries: opts.maxRetries } : {}) },
     );
     recordUsage(response.model ?? model, response.usage, t0, opts.purpose);
     if (response.stop_reason === "refusal") throw new LlmError("AI declined this request", 422);

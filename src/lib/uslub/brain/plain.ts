@@ -4,7 +4,7 @@
  * no variable names, no "n=", no "lift". Used for the keyless template fallback, for LLM findings that fail
  * the plain-language check, for evidence lines and for the "why" of top posts.
  */
-import { stripIds } from "./copy";
+import { stripIdsAll } from "./copy";
 import { features, reachBand } from "./stats";
 import type { ChannelStats, Lang, LedgerEntry, RawPost, RuleResult } from "./types";
 
@@ -433,7 +433,7 @@ const JARGON = /\b(slot\w*|CTA|KPI|funnel|engagement|benchmark|prior|awareness|c
 
 /** Strips ledger citations; returns null when the sentence still reads like a developer's log or mixes languages. */
 export function plainOrNull(text: string, lang: Lang = "uz"): string | null {
-  const t = stripIds(text.replace(/\s*\[[^\]]*\]\s*$/g, "")).trim();
+  const t = stripIdsAll(text.replace(/\s*\[[^\]]*\]\s*$/g, ""));
   if (t.length < 20) return null;
   if (TECH.some((re) => re.test(t)) || JARGON.test(t)) return null;
   // English glosses inside uz/ru text ("ориентир (rule of thumb)") read as machine output.
@@ -459,6 +459,12 @@ const LABEL: Record<string, T3> = {
   "S.priceShareInSale": { uz: "narxi yozilgan sotuv postlari", ru: "продающих постов с ценой", en: "sale posts with a price" },
   "S.hiddenPriceCount": { uz: "«narxi lichkada» postlar", ru: "постов «цена в личке»", en: '"price in DM" posts' },
   "S.trustCoverage": { uz: "ishonch belgilari (5 tadan)", ru: "признаков доверия (из 5)", en: "trust signals (of 5)" },
+  "S.viewTrend": { uz: "oxirgi postlar ko‘rishi / oldingilar", ru: "просмотры новых постов к прежним", en: "views of recent posts vs earlier ones" },
+  "S.emojiPer100": { uz: "emoji, 100 belgiga", ru: "эмодзи на 100 знаков", en: "emoji per 100 characters" },
+  "S.hashtagsPerPost": { uz: "heshteglar, bir postda", ru: "хештегов на пост", en: "hashtags per post" },
+  "S.relReach": { uz: "qamrov raqobatchilarga nisbatan", ru: "охват относительно конкурентов", en: "reach vs competitors" },
+  "S.bench.relReach": { uz: "qamrov o‘xshash kanallarga nisbatan", ru: "охват относительно похожих каналов", en: "reach vs similar channels" },
+  "S.hourConcentration": { uz: "bir vaqtda chiqqan postlar", ru: "постов в одно и то же время", en: "posts at the same time of day" },
 };
 
 /** "postni ko‘radigan obunachilar: 52.4% · 30 ta post" — plain evidence for a finding (ids the owner can't read are dropped). */
@@ -473,7 +479,13 @@ export function evidenceText(ids: string[], ledger: Map<string, LedgerEntry>, la
     }
     const label = LABEL[id];
     if (!label) continue;
-    const display = /%$/.test(e.display) && typeof e.value === "number" ? pctText(e.value, lang) : e.display;
+    const v = typeof e.value === "number" ? e.value : undefined;
+    const display =
+      v != null && /%$/.test(e.display)
+        ? pctText(v, lang)
+        : v != null && /×$/.test(e.display)
+          ? `${v >= 1 ? "+" : "−"}${Math.round(Math.abs(v - 1) * 100)}%` // ratios read as a change: 0.66× -> −34%
+          : e.display;
     out.push(`${pick(lang, label)}: ${display}`);
   }
   return [...new Set(out)].join(" · ");

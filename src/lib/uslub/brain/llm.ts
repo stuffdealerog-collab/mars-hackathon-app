@@ -24,6 +24,8 @@ export async function brainJson<S extends z.ZodType>(opts: {
   maxTokens?: number;
   timeoutMs?: number;
   purpose?: string;
+  /** SDK retries (client default 1); deadline-bound callers pass 0. */
+  maxRetries?: number;
 }): Promise<z.infer<S>> {
   const anthropic = getAnthropic();
   const sonnet = opts.model === SONNET;
@@ -38,7 +40,7 @@ export async function brainJson<S extends z.ZodType>(opts: {
         system: [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: wellFormed(opts.prompt) }],
       },
-      { timeout: opts.timeoutMs ?? 50_000 },
+      { timeout: opts.timeoutMs ?? 50_000, ...(opts.maxRetries != null ? { maxRetries: opts.maxRetries } : {}) },
     )
     .catch((err: unknown) => {
       console.error("[brain/llm]", opts.model, err instanceof Error ? err.message : err);

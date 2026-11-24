@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { PostDraft } from "@/lib/uslub/contract";
 import { generatePosts } from "@/lib/uslub/copywriter";
-import { errorBody, handle, HttpError, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
+import { assertDraftAccess, errorBody, handle, HttpError, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import { classifySensitivity } from "@/lib/uslub/sensitivity";
 import { slotBrief, slotSummary, toPlanSlot } from "@/lib/uslub/slots";
 import { countPublished, listPosts, savePosts } from "@/lib/uslub/store";
@@ -57,8 +57,17 @@ export const POST = handle(async (req) => {
   }
 
   const deadline = started + BUDGET_MS;
+  // One batch, one timestamp: GET lists the batch in plan order (day, time). Each post is saved as soon as it is
+  // written, so a slow slot (or a killed function) never loses the ones that finished.
+  const batchAt = new Date(started).toISOString();
   const settled = await Promise.allSettled(
-    body.slots.map((s) => generatePosts(brand, slotBrief(s), 1, { slot: toPlanSlot(s), storedBrief: slotSummary(s), deadline })),
+    body.slots.map(async (s) => {
+      const [post] = await generatePosts(brand, slotBrief(s), 1, { slot: toPlanSlot(s), storedBrief: slotSummary(s), deadline });
+      if (!post) return [];
+      post.createdAt = batchAt;
+      await savePosts([post]);
+      return [post];
+    }),
   );
   const posts: PostDraft[] = [];
   const failed: { index: number; day: string; time: string; error: string; code: string }[] = [];
@@ -74,10 +83,6 @@ export const POST = handle(async (req) => {
     const first = settled.find((r) => r.status === "rejected");
     throw first?.status === "rejected" ? first.reason : new HttpError(502, "no posts written", "ai_failed");
   }
-  // One batch, one timestamp: GET lists the batch in plan order (day, time).
-  const batchAt = new Date().toISOString();
-  for (const p of posts) p.createdAt = batchAt;
-  await savePosts(posts);
   return json({
     posts: posts.map((p) => withSensitivity(p, p.brief, published)),
     ...(failed.length ? { failed } : {}),
@@ -91,8 +96,7 @@ export const GET = handle(async (req) => {
   const brandId = url.searchParams.get("brandId") ?? "";
   const userId = telegramUserId(req);
   const brand = await loadBrandFor(brandId, userId);
-  // Drafts are private: an owned brand lists posts only for its owner (also for public channel_only rows).
-  if (brand.ownerTelegramId != null && brand.ownerTelegramId !== userId) throw new HttpError(403, "posts of another owner", "brand_forbidden");
+  await assertDraftAccess(brand, userId);
   const limit = Number(url.searchParams.get("limit") ?? 50);
   return json({ posts: await listPosts(brand.id, Number.isFinite(limit) ? limit : 50) });
 });

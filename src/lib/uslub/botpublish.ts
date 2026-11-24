@@ -13,6 +13,7 @@ import {
   type ClaimDecision,
 } from "./botpublish-core";
 import type { PostDraft, Script } from "./contract";
+import { codeForStatus, type ErrorCode, errorText } from "./errors";
 import { addBotAsAdminLink, publishPost } from "./publish";
 import { parseChannelUsername } from "./scrape";
 import {
@@ -94,6 +95,16 @@ async function sendPreview(api: Api, chatId: number, locale: Locale, post: PostD
   await api.sendMessage(chatId, text.slice(0, 4096), { reply_markup: kb, link_preview_options: { is_disabled: true } });
 }
 
+/** publishPost's own messages are Uzbek (some carry Telegram's English error); other languages get our sentence. */
+function publishError(locale: Locale, status: number, error?: string): string {
+  if (locale === "uz" && error && !/Telegram xatosi|Bad Request|Forbidden/i.test(error)) return error;
+  const code: ErrorCode = status === 401 ? "auth_required" : status === 404 ? "post_not_found" : status >= 500 ? "telegram_unavailable" : codeForStatus(status);
+  return errorText(code, locale);
+}
+
+/** A reply is a channel answer only when it looks like one: "@name" or a t.me link (not any single word). */
+const looksLikeChannel = (text: string) => /(^|\s)@[A-Za-z]|(t|telegram)\.me\//i.test(text);
+
 /** /start publish_<postId>[_<script>]. Returns false when the payload is not a publish link. */
 export async function startPublish(api: Api, chatId: number, user: User, locale: Locale, payload: string): Promise<boolean> {
   const parsed = parsePublishPayload(payload);
@@ -120,6 +131,9 @@ export async function startPublish(api: Api, chatId: number, user: User, locale:
   if (!brand.channel) {
     await setPendingPublish(user.id, post.id, script);
     await api.sendMessage(chatId, t(locale, "pub.ask_channel"), { reply_markup: new InlineKeyboard().url(t(locale, "pub.add_bot"), addBotAsAdminLink()) });
+  } else if (await getPendingPublish(user.id)) {
+    // A newer link replaces an older "which channel?" question.
+    await clearPendingPublish(user.id);
   }
   return true;
 }
@@ -130,14 +144,17 @@ export async function switchScript(api: Api, chatId: number, user: User, locale:
   const brand = post ? await getBrand(post.brandId) : null;
   if (!post || !brand) return void (await api.sendMessage(chatId, t(locale, "pub.not_found")));
   if (brand.ownerTelegramId != null && brand.ownerTelegramId !== user.id) return void (await api.sendMessage(chatId, t(locale, "pub.not_yours")));
-  await sendPreview(api, chatId, locale, post, script, brand.channel);
+  await sendPreview(api, chatId, locale, post, pickScript(post.variants, script, brand.dna?.languages), brand.channel);
 }
 
 /** "pb" button ("Kanalga joylash"): authorize (claim an unowned brand), then publish through publishPost. */
-export async function publishFromButton(api: Api, chatId: number, user: User, locale: Locale, postId: string, script: Script): Promise<void> {
+export async function publishFromButton(api: Api, chatId: number, user: User, locale: Locale, postId: string, wanted: Script): Promise<void> {
   const post = await getPost(postId);
   const brand = post ? await getBrand(post.brandId) : null;
   if (!post || !brand) return void (await api.sendMessage(chatId, t(locale, "pub.not_found")));
+  if (brand.ownerTelegramId != null && brand.ownerTelegramId !== user.id) return void (await api.sendMessage(chatId, t(locale, "pub.not_yours")));
+  // A forged or stale button may name an empty variant: fall back to one the post has.
+  const script = pickScript(post.variants, wanted, brand.dna?.languages);
   if (post.status === "published" && post.publishedUrl) {
     await api.sendMessage(chatId, t(locale, "pub.already", { url: post.publishedUrl }), { link_preview_options: { is_disabled: true } });
     return;
@@ -155,7 +172,10 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
     return;
   }
   const kb = res.addAdminUrl ? new InlineKeyboard().url(t(locale, "pub.add_bot"), res.addAdminUrl).row().text(t(locale, "pub.button", { channel: brand.channel }), callbackData("pb", post.id, script)) : undefined;
-  await api.sendMessage(chatId, t(locale, "pub.failed", { error: res.error ?? "" }), { ...(kb ? { reply_markup: kb } : {}), link_preview_options: { is_disabled: true } });
+  await api.sendMessage(chatId, t(locale, "pub.failed", { error: publishError(locale, res.status, res.error) }), {
+    ...(kb ? { reply_markup: kb } : {}),
+    link_preview_options: { is_disabled: true },
+  });
 }
 
 /**
@@ -164,6 +184,7 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
  * message goes on to the normal onboarding.
  */
 export async function answerPendingChannel(api: Api, chatId: number, user: User, locale: Locale, text: string): Promise<boolean> {
+  if (!looksLikeChannel(text)) return false;
   const pending = await getPendingPublish(user.id);
   if (!pending) return false;
   const word = text.trim().split(/\s+/).find((w) => /^@|t\.me|telegram\.me/i.test(w)) ?? text.trim();

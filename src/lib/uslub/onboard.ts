@@ -1,13 +1,14 @@
 import "server-only";
 import { InlineKeyboard, type Api } from "grammy";
 import { getPublicUrl } from "@/lib/env";
-import type { Locale } from "@/lib/i18n";
+import { type Locale, type MessageKey, t } from "@/lib/i18n";
 import { safeLogEvent } from "@/lib/track";
+import { pickScript } from "./botpublish-core";
 import { buildBrand } from "./brand";
 import type { BrandProfile } from "./contract";
 import { generatePosts } from "./copywriter";
 import { createOnboardGate, type GateResult } from "./limit";
-import { LlmError } from "./llm";
+import { errorBody } from "./http";
 import { publishPost } from "./publish";
 import { parseChannelUsername, ScrapeError } from "./scrape";
 import { getBrand, getPost, savePosts } from "./store";
@@ -15,10 +16,8 @@ import { getBrand, getPost, savePosts } from "./store";
 /** Studio link in the bot (PUBLIC_URL first; production domain renamed to Mercat on 24 Nov). */
 const studioUrl = () => `${getPublicUrl() ?? "https://mercat-ai.vercel.app"}/studio`;
 
-export const ONBOARD_PROMPT =
-  "Kanalingiz havolasini yuboring (masalan, @kanal_nomi yoki https://t.me/kanal_nomi) " +
-  "yoki biznesingizni 2-3 gapda yozing: nima sotasiz, kimga, qayerda.\n\n" +
-  "Bir daqiqada brendingiz DNK-si va tayyor postlarni yuboraman.";
+/** "Send your channel link or describe your business" in the user's language. */
+export const onboardPrompt = (locale: Locale) => t(locale, "bot.onboard_prompt");
 
 export type OnboardInput = { channel: string } | { knowledge: string } | null;
 
@@ -41,12 +40,13 @@ export function gateMessage(result: Exclude<GateResult, { ok: true }>, locale: L
  * "📢 Publish" button in the bot. `userId` is the trusted ctx.from.id; the same
  * authorization path as /api/uslub/publish (owner + own channel + admin checks).
  */
-export async function publishFromBot(postId: string, userId: number): Promise<string> {
+export async function publishFromBot(postId: string, userId: number, locale: Locale = "uz"): Promise<string> {
   const post = await getPost(postId);
   const brand = post ? await getBrand(post.brandId) : null;
-  if (!brand?.channel) return "Avval kanal havolasini yuboring: post shu kanalga e’lon qilinadi.";
-  const res = await publishPost({ postId, script: "uz_latn", chat: brand.channel, userId });
-  return res.ok ? `✅ E’lon qilindi: ${res.url}` : `⚠️ ${res.error}`;
+  if (!post || !brand?.channel) return t(locale, "bot.need_channel");
+  const script = pickScript(post.variants, undefined, brand.dna?.languages);
+  const res = await publishPost({ postId, script, chat: brand.channel, userId });
+  return res.ok ? t(locale, "pub.done", { url: res.url ?? "" }) : t(locale, "pub.failed", { error: res.error ?? "" });
 }
 
 /** Decides whether a private message is a channel link, a business description, or neither. */
@@ -59,56 +59,53 @@ export function classifyOnboardText(text: string): OnboardInput {
   return s.length >= 40 ? { knowledge: s } : null;
 }
 
-function dnaSummary(brand: BrandProfile, postsRead: number): string {
+function dnaSummary(brand: BrandProfile, postsRead: number, locale: Locale): string {
   const d = brand.dna;
+  const address = (["siz", "sen", "mixed"] as const).includes(d.address as "siz") ? t(locale, `bot.addr.${d.address}` as MessageKey) : "—";
   const lines = [
-    `🧬 ${d.name} — brend DNK`,
+    t(locale, "bot.dna_title", { name: d.name }),
     "",
     d.oneLiner,
     "",
-    `👥 Auditoriya: ${d.audience}`,
-    `🗣 Ohang: ${d.tone}`,
-    `💬 Murojaat: ${d.address === "siz" ? "«siz»" : d.address === "sen" ? "«sen»" : "aralash"}, emoji: ${d.emojiDensity}`,
-    d.products.length ? `🛍 Mahsulotlar: ${d.products.slice(0, 5).join(", ")}` : "",
-    postsRead ? `\n📊 ${postsRead} ta post o‘qildi.` : "",
+    t(locale, "bot.dna_audience", { value: d.audience }),
+    t(locale, "bot.dna_tone", { value: d.tone }),
+    t(locale, "bot.dna_voice", { address, emoji: t(locale, `bot.emoji.${d.emojiDensity}` as MessageKey) }),
+    d.products.length ? t(locale, "bot.dna_products", { value: d.products.slice(0, 5).join(", ") }) : "",
+    postsRead ? `\n${t(locale, "bot.posts_read", { n: postsRead })}` : "",
   ];
   return lines.filter((l) => l !== "").join("\n").slice(0, 3500);
 }
 
 /** Slow part of the onboarding: run after replying "Ishlayapman…" so the webhook answers fast. */
-export async function runOnboarding(api: Api, chatId: number, userId: number, input: Exclude<OnboardInput, null>): Promise<void> {
+export async function runOnboarding(api: Api, chatId: number, userId: number, input: Exclude<OnboardInput, null>, locale: Locale = "uz"): Promise<void> {
   const started = Date.now();
   try {
-    const { brand, channel } = await buildBrand({ ...input, ownerTelegramId: userId });
-    await api.sendMessage(chatId, dnaSummary(brand, channel?.posts.length ?? brand.samplePosts.length));
+    // The DNA's prose follows the user's Telegram language; the posts keep all four variants.
+    const { brand, channel } = await buildBrand({ ...input, ownerTelegramId: userId, lang: locale });
+    await api.sendMessage(chatId, dnaSummary(brand, channel?.posts.length ?? brand.samplePosts.length, locale));
 
     const posts = await generatePosts(brand, "Kanal uchun ikkita yangi post: biri mahsulot yoki xizmat haqida, biri mijozlar bilan suhbat (savol yoki foydali maslahat).", 2);
     await savePosts(posts, userId);
     for (const [i, p] of posts.entries()) {
       // Publishing goes through publishFromBot (owner + own channel + admin checks); only for linked channels.
-      const kb = brand.channel ? new InlineKeyboard().text(`📢 @${brand.channel} ga e’lon qilish`, `pub:${p.id}`) : undefined;
-      await api.sendMessage(chatId, `✍️ Post ${i + 1}  ·  insoniylik: ${p.humanScore}/100\n\n${p.variants.uz_latn}`.slice(0, 4000), {
+      const kb = brand.channel ? new InlineKeyboard().text(t(locale, "bot.publish_to", { channel: brand.channel }), `pub:${p.id}`) : undefined;
+      const text = p.variants[pickScript(p.variants, undefined, brand.dna?.languages)];
+      await api.sendMessage(chatId, `${t(locale, "bot.post_header", { i: i + 1, score: p.humanScore })}\n\n${text}`.slice(0, 4000), {
         ...(kb ? { reply_markup: kb } : {}),
       });
     }
 
     const app = getPublicUrl();
     const kb = new InlineKeyboard();
-    if (app?.startsWith("https://")) kb.webApp("📱 Ilovada ochish", `${app}/tg?brand=${brand.id}`).row();
-    kb.url("🧩 Studio: kirill, rus, ingliz va video", `${studioUrl()}?brand=${brand.id}`);
-    await api.sendMessage(
-      chatId,
-      "Tayyor! Postlarning kirill, rus va ingliz variantlari, Reels ssenariysi va mijozlar radari Studio’da. " +
-        "Hech narsa sizning tasdig‘ingizsiz e’lon qilinmaydi.",
-      { reply_markup: kb },
-    );
+    if (app?.startsWith("https://")) kb.webApp(t(locale, "bot.open_in_app"), `${app}/tg?brand=${brand.id}`).row();
+    kb.url(t(locale, "bot.open_studio"), `${studioUrl()}?brand=${brand.id}`);
+    await api.sendMessage(chatId, t(locale, "bot.done"), { reply_markup: kb });
     await safeLogEvent(userId, "bot_onboarded", { brand_id: brand.id, ms: Date.now() - started });
   } catch (err) {
-    const msg =
-      err instanceof ScrapeError || err instanceof LlmError
-        ? err.message
-        : "Kechirasiz, xatolik yuz berdi. Birozdan keyin qayta urinib ko‘ring.";
+    // Same owner-safe sentence as the API, in the user's language (never a stack trace or an English SDK error).
+    const { body } = errorBody(err, locale);
     if (!(err instanceof ScrapeError)) console.error("[uslub/onboard]", err instanceof Error ? err.message : err);
-    await api.sendMessage(chatId, `⚠️ ${msg}\n\n${err instanceof ScrapeError ? "Yoki biznesingizni 2-3 gapda yozing." : ""}`.trim()).catch(() => undefined);
+    const hint = err instanceof ScrapeError && body.code !== "channel_empty" ? `\n\n${t(locale, "bot.or_describe")}` : "";
+    await api.sendMessage(chatId, `⚠️ ${body.error}${hint}`).catch(() => undefined);
   }
 }
