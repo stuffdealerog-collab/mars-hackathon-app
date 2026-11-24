@@ -20,7 +20,8 @@ export const POST = handle(async (req) => {
   const userId = telegramUserId(req, body.initData);
   const post = await getPost(body.postId);
   if (!post) throw new HttpError(404, "Post not found", "post_not_found");
-  await loadBrandFor(post.brandId, userId);
+  const brand = await loadBrandFor(post.brandId, userId);
+  if (brand.ownerTelegramId != null && brand.ownerTelegramId !== userId) throw new HttpError(403, "post of another owner", "brand_forbidden");
   const approved = await approvePost(post.id, userId);
   if (!approved) throw new HttpError(404, "Post not found", "post_not_found");
   return json({ post: approved });

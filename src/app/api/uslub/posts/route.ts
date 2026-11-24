@@ -89,7 +89,10 @@ export const GET = handle(async (req) => {
   rateLimit(req, "posts_get", 60);
   const url = new URL(req.url);
   const brandId = url.searchParams.get("brandId") ?? "";
-  const brand = await loadBrandFor(brandId, telegramUserId(req));
+  const userId = telegramUserId(req);
+  const brand = await loadBrandFor(brandId, userId);
+  // Drafts are private: an owned brand lists posts only for its owner (also for public channel_only rows).
+  if (brand.ownerTelegramId != null && brand.ownerTelegramId !== userId) throw new HttpError(403, "posts of another owner", "brand_forbidden");
   const limit = Number(url.searchParams.get("limit") ?? 50);
   return json({ posts: await listPosts(brand.id, Number.isFinite(limit) ? limit : 50) });
 });

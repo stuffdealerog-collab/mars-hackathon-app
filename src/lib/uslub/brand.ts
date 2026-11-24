@@ -64,8 +64,10 @@ export async function buildBrand(input: BuildBrandInput): Promise<BuildBrandResu
     const cached = source === "channel_only" ? await findChannelOnlyBrand(scraped.username) : null;
     const cachedLang = (cached?.dna as { proseLang?: string } | undefined)?.proseLang ?? "uz";
     if (cached && cachedLang === lang && isReusableBrand(cached, { channel: scraped.username })) {
-      if (cached.ownerTelegramId === owner) return { brand: cached, cached: true, channel: scraped };
-      // Same public DNA, but a separate row owned by this caller.
+      // Only the same Telegram user gets the same row back. Anonymous callers never share a row: the brand id is
+      // their capability for its posts (GET /posts), so a competitor pasting the same channel can't see drafts.
+      if (owner != null && cached.ownerTelegramId === owner) return { brand: cached, cached: true, channel: scraped };
+      // Same public DNA (no new Claude call), but a separate row for this caller.
       const copy = await saveBrand(
         { channel: scraped.username, knowledge: "", samplePosts: cached.samplePosts, dna: cached.dna, mode: "channel" },
         owner,
