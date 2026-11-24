@@ -16,6 +16,9 @@ modes (comma-separated): hero16x9, hero9x16, orbs, loop, glb, blend
   hero9x16  1080x1920 still           -> <out>/constellation-9x16.png
   orbs      10+1 transparent orbs     -> <out>/orbs/orb-<role>.png (1024x1024)
   loop      seamless 12 s orbit loop  -> <out>/frames/loop_####.png (encode with ffmpeg)
+  push      5 s push-in from wide to the core (beauty) -> <out>/push_frames/push_####.png
+  clay      the same move as an untextured clay pass  -> <out>/clay_frames/clay_####.png
+            (Seedance 2.5 "@Clay Render" reference: it carries camera path + timing)
   glb       web model (vertex colours, animated) -> <out>/uslub-constellation.glb
   blend     save the .blend           -> <out>/uslub-constellation.blend
 
@@ -533,6 +536,42 @@ def export_glb(orbs, core):
     print(f"[uslub3d] wrote {path}")
 
 
+PUSH_FRAMES = 120  # 5 s at 24 fps
+
+
+def add_push_in(sc, cam, cam_d):
+    """Wide establishing -> close on the lime core, eased (one motivated move)."""
+    frame_16x9(sc, cam, cam_d)
+    sc.frame_start, sc.frame_end = 1, PUSH_FRAMES
+    cam.location = (0.0, -11.0, 4.6)
+    cam.keyframe_insert("location", frame=1)
+    cam.location = (0.0, -3.1, 1.05)
+    cam.keyframe_insert("location", frame=PUSH_FRAMES)
+    cam_d.lens = 46
+    cam_d.dof.aperture_fstop = 2.2
+
+
+def make_clay(sc):
+    """Untextured grey pass: no emission, no glow — only form, layout and motion."""
+    clay = bpy.data.materials.new("clay")
+    bsdf = principled(clay)
+    set_in(bsdf, "Base Color", hex_rgba("#B8B8B8"))
+    set_in(bsdf, "Roughness", 0.65)
+    set_in(bsdf, "Emission Strength", 0.0)
+    sc.view_layers[0].material_override = clay
+    sc.world.node_tree.nodes["Background"].inputs["Color"].default_value = hex_rgba("#3A3A3E")
+    sc.compositing_node_group = None
+    sc.view_settings.view_transform = "Standard"
+
+
+def render_frames(sc, folder, prefix):
+    os.makedirs(os.path.join(OUT, folder), exist_ok=True)
+    sc.render.image_settings.file_format = "PNG"
+    sc.render.image_settings.color_mode = "RGB"
+    sc.render.filepath = os.path.join(OUT, folder, prefix)
+    bpy.ops.render.render(animation=True)
+
+
 def main():
     if "hero16x9" in MODES:
         sc, cam, cam_d, *_ = build()
@@ -552,6 +591,16 @@ def main():
         if QUALITY == "preview":
             sc.render.resolution_percentage = 50
         bpy.ops.render.render(animation=True)
+    if "push" in MODES:
+        sc, cam, cam_d, *_ = build()
+        add_push_in(sc, cam, cam_d)
+        render_frames(sc, "push_frames", "push_")
+    if "clay" in MODES:
+        sc, cam, cam_d, *_ = build()
+        add_push_in(sc, cam, cam_d)
+        make_clay(sc)
+        sc.eevee.taa_render_samples = 16
+        render_frames(sc, "clay_frames", "clay_")
     if "orbs" in MODES:
         sc, cam, cam_d, orbs, core, rig = build()
         render_orbs(sc, cam, cam_d, orbs, core)

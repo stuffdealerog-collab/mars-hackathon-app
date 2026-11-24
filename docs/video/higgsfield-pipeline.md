@@ -1,5 +1,7 @@
 # Uslub AI video: Higgsfield production plan (scouting only, nothing spent)
 
+> **Update 24 Nov evening.** For the pitch film, use `docs/video/higgsfield-runbook.md` (shots, exact prompts, cost check) and `docs/video/pitch-storyboard.md`. This file is kept for the trial findings below. Note: the 16:55 schedule in §7 was for today's MVP deadline and is obsolete. Also, Higgsfield's help center says MCP generations always cost credits, which conflicts with the live API message below, so the runbook checks cost before every batch.
+
 ## Blocker: the free generations don't work from Claude Code
 
 - I ran a cost check with `use_unlim:true` on `seedance_2_5`. Higgsfield rejected it with: *"You are using Higgsfield from Claude Code, where unlimited generations are not available. They are available in: Claude chat, Claude Cowork, ChatGPT."*
