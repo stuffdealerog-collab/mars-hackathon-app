@@ -50,6 +50,13 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
   const approved = post.status === "approved";
   const published = post.status === "published";
   const name = channelName || "Kanal";
+  // A blank the writer could not fill ("Kod: [kod]"): the owner's fact to add, said quietly.
+  const tokens = post.placeholders ? (post.placeholders.find((p) => p.script === script)?.tokens ?? []) : null;
+  const blanks = tokens?.filter((t) => text.includes(t)) ?? [];
+  const blankLeft = post.status === "draft" && !!post.note && (tokens ? blanks.length > 0 : true);
+  // Named for the script on screen; the server's own sentence when it did not say which blanks.
+  const blankText = blanks.length ? fmt(c.posts.blank, { facts: blanks.join(", ") }) : post.note;
+  const hint = blankLeft ? blankText : note?.tone === "hint" ? note.text : null;
 
   return (
     <article aria-labelledby={`${id}-h`}>
@@ -97,13 +104,19 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
             </>
           ) : (
             <p lang={script === "ru" ? "ru" : script === "en" ? "en" : "uz"} className="post-text">
-              {keepNumbers(text)}
+              {markBlanks(keepNumbers(text), blanks)}
             </p>
           )}
           {slot && <p className="mt-1.5 text-right text-[12px] text-ink-3">{slot.time}</p>}
         </div>
       </div>
-      {pro && <PostDetails post={post} />}
+
+      {hint && (
+        <p role="status" className="flex items-start gap-2.5 px-1 pt-3 text-[14px] leading-relaxed">
+          <span aria-hidden className="mt-[0.55em] h-1.5 w-1.5 shrink-0 rounded-full bg-led shadow-[0_0_8px_var(--led)]" />
+          {hint}
+        </p>
+      )}
 
       <footer className="flex flex-col gap-3 px-1 pt-3">
         {editing ? (
@@ -164,7 +177,7 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
             </button>
           </div>
         )}
-        {note && (
+        {note && note.tone !== "hint" && (
           <p role={note.tone === "bad" ? "alert" : "status"} className={`text-[14px] leading-relaxed ${note.tone === "bad" ? "text-bad" : "text-ok"}`}>
             {note.text}
             {note.href && (
@@ -178,6 +191,26 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
           </p>
         )}
       </footer>
+      {/* Pro depth comes after the owner's decision, never between the post and its buttons. */}
+      {pro && <PostDetails post={post} />}
     </article>
+  );
+}
+
+const escapeRe = (s: string) => s.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&");
+
+/** Underlines each unfilled blank ("[kod]") in amber, so the owner sees where the fact goes. */
+function markBlanks(text: string, blanks: string[]): React.ReactNode {
+  if (!blanks.length) return text;
+  const pattern = new RegExp("(" + blanks.map(escapeRe).join("|") + ")");
+  const parts = text.split(pattern);
+  return parts.map((part, i) =>
+    blanks.includes(part) ? (
+      <mark key={i} className="rounded-[4px] bg-transparent text-led underline decoration-led/60 decoration-dotted underline-offset-4">
+        {part}
+      </mark>
+    ) : (
+      part
+    ),
   );
 }

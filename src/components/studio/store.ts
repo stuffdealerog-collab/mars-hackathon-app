@@ -66,7 +66,8 @@ interface StudioState {
   tab: Tab;
   edited: Record<string, Partial<Record<Script, string>>>;
   busy: Record<string, "approve" | "publish" | undefined>;
-  postNote: Record<string, { text: string; href?: string; link?: string; tone: "ok" | "bad" } | undefined>;
+  /** Under a post: done (ok), went wrong (bad), or a fact the owner still has to add (hint). */
+  postNote: Record<string, { text: string; href?: string; link?: string; tone: "ok" | "bad" | "hint" } | undefined>;
   /** The script the post list shows (one switch for all cards); null = follow the page language. */
   postScript: Script | null;
   /** Plan slots ("day time") whose post is being written on request. */
@@ -114,6 +115,12 @@ const missingRoute = (f: Fail) => f.status === 404 && f.code !== "brand_not_foun
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Approve/publish refuse a text that still has a blank ("Kod: [kod]") with this code. */
+export const BLANK_LEFT = "placeholder_left";
+
+/** The request may have done its work even though its answer never arrived. */
+const lostAnswer = (f: Fail) => f.code === "timeout" || f.code === "network";
+
 /** The plan items behind `failed[]` (its `index` points into the slots that were sent). */
 const missedOf = (sent: PlanItem[], failed: api.MissedSlot[] | undefined): PlanItem[] =>
   (failed ?? []).map((f) => sent[f.index]).filter((it): it is PlanItem => Boolean(it));
@@ -157,6 +164,47 @@ export const useStudio = create<StudioState>((set, get) => {
   const fail = (key: StepKey, f: Fail) => {
     step(key, { status: "fail" });
     set({ problem: problemOf(f) });
+  };
+
+  /**
+   * After a timeout or a dropped connection the server may still have written the posts (it
+   * finishes before the client gives up). Lists them: this run's slots that landed, and the rest.
+   */
+  const landed = async (brandId: string, items: PlanItem[]) => {
+    const r = await api.listPosts(brandId, lang());
+    if (!r.ok) return null;
+    const keys = new Set(items.map(slotKey));
+    const known = new Set(get().posts.map((p) => p.id));
+    const posts = r.data.posts.filter((p) => p.slot && keys.has(slotKey(p.slot)) && !known.has(p.id));
+    const have = new Set(posts.map((p) => slotKey(p.slot!)));
+    return { posts, missing: items.filter((it) => !have.has(slotKey(it))) };
+  };
+
+  /** Writes the posts for more plan slots (one row, or the ones the run missed), in one call. */
+  const writeMore = async (items: PlanItem[]) => {
+    const brand = get().brand;
+    if (!brand || get().sample || !items.length) return;
+    const my = runId;
+    const keys = new Set(items.map(slotKey));
+    const flag = (v: boolean) => set({ writingSlot: { ...get().writingSlot, ...Object.fromEntries([...keys].map((k) => [k, v])) } });
+    flag(true);
+    set({ problem: null });
+    const r = await api.writePosts(brand.id, items.map(api.slotOf), lang());
+    const got = !r.ok && lostAnswer(r) ? await landed(brand.id, items) : null;
+    flag(false);
+    if (my !== runId) return;
+    const written = r.ok ? r.data.posts : (got?.posts ?? []);
+    if (!written.length) {
+      set({ problem: r.ok ? { code: "internal", message: copy().error.generic } : problemOf(r) });
+      return;
+    }
+    const known = new Set(get().posts.map((p) => p.id));
+    const others = get().missed.filter((m) => !keys.has(slotKey(m)));
+    set({
+      posts: [...get().posts, ...written.filter((p) => !known.has(p.id))],
+      missed: [...others, ...(r.ok ? missedOf(items, r.data.failed) : (got?.missing ?? []))],
+    });
+    void pictures(my);
   };
 
   const setPostImage = (id: string, image: PostImage) =>
@@ -257,9 +305,16 @@ export const useStudio = create<StudioState>((set, get) => {
       step("posts", { status: "run", n: items.length });
       const r = await api.writePosts(brand.id, items.map(api.slotOf), lang());
       if (my !== runId) return;
-      if (!r.ok) return fail("posts", r);
-      set({ posts: r.data.posts, missed: missedOf(items, r.data.failed) });
-      step("posts", { status: "done", n: r.data.posts.length });
+      if (r.ok) {
+        set({ posts: r.data.posts, missed: missedOf(items, r.data.failed) });
+      } else {
+        // The answer was lost, not necessarily the work: show what landed, rewrite only the rest.
+        const got = lostAnswer(r) ? await landed(brand.id, items) : null;
+        if (my !== runId) return;
+        if (!got?.posts.length) return fail("posts", r);
+        set({ posts: got.posts, missed: got.missing });
+      }
+      step("posts", { status: "done", n: get().posts.length });
     }
 
     set({ phase: "ready", tab: "posts", problem: null });
@@ -415,42 +470,9 @@ export const useStudio = create<StudioState>((set, get) => {
     setPostScript: (postScript) => set({ postScript }),
 
     /** Writes the post for one more plan slot (the run writes only the first few). */
-    writeSlot: async (item) => {
-      const brand = get().brand;
-      if (!brand || get().sample) return;
-      const key = slotKey(item);
-      const my = runId;
-      set({ writingSlot: { ...get().writingSlot, [key]: true }, problem: null });
-      const r = await api.writePosts(brand.id, [api.slotOf(item)], lang());
-      set({ writingSlot: { ...get().writingSlot, [key]: false } });
-      if (my !== runId) return;
-      if (!r.ok) {
-        set({ problem: problemOf(r) });
-        return;
-      }
-      set({ posts: [...get().posts, ...r.data.posts] });
-      void pictures(my);
-    },
+    writeSlot: (item) => writeMore([item]),
 
-    writeMissed: async () => {
-      const brand = get().brand;
-      const items = get().missed;
-      if (!brand || get().sample || !items.length) return;
-      const my = runId;
-      const flag = (v: boolean) =>
-        set({ writingSlot: { ...get().writingSlot, ...Object.fromEntries(items.map((it) => [slotKey(it), v])) } });
-      flag(true);
-      set({ problem: null });
-      const r = await api.writePosts(brand.id, items.map(api.slotOf), lang());
-      flag(false);
-      if (my !== runId) return;
-      if (!r.ok) {
-        set({ problem: problemOf(r) });
-        return;
-      }
-      set({ posts: [...get().posts, ...r.data.posts], missed: missedOf(items, r.data.failed) });
-      void pictures(my);
-    },
+    writeMissed: () => writeMore(get().missed),
 
     startChannel: (channel) => {
       visualRun = null;
@@ -608,9 +630,12 @@ export const useStudio = create<StudioState>((set, get) => {
     setTab: (tab) => set({ tab }),
 
     editPost: (id, script, text) => {
+      const note = get().postNote[id];
       set({
         posts: get().posts.map((p) => (p.id === id ? { ...p, variants: { ...p.variants, [script]: text } } : p)),
         edited: { ...get().edited, [id]: { ...get().edited[id], [script]: text } },
+        // The next Tasdiqlash re-checks the blank; an old hint would only confuse.
+        ...(note?.tone === "hint" ? { postNote: { ...get().postNote, [id]: undefined } } : {}),
       });
     },
 
@@ -626,7 +651,8 @@ export const useStudio = create<StudioState>((set, get) => {
       const r = await api.approvePost(id, lang(), get().edited[id]);
       busy(undefined);
       if (!r.ok) {
-        note({ text: problemOf(r).message || copy().posts.approveError, tone: "bad" });
+        // "Kod: [kod]" still in the text: the server names the fact; the owner adds it in Tahrirlash.
+        note({ text: problemOf(r).message || copy().posts.approveError, tone: r.code === BLANK_LEFT ? "hint" : "bad" });
         return;
       }
       const server = r.data.post;
@@ -659,7 +685,9 @@ export const useStudio = create<StudioState>((set, get) => {
       }
       const msg = r.ok ? r.data.error ?? copy().error.generic : problemOf(r).message;
       const admin = r.ok ? r.data.addAdminUrl : r.addAdminUrl;
-      note({ text: msg, href: admin, tone: "bad" });
+      // A blank still in the text is the owner's fact to add, not a failure.
+      const blank = (r.ok ? r.data.code : r.code) === BLANK_LEFT;
+      note({ text: msg, href: blank ? undefined : admin, tone: blank ? "hint" : "bad" });
     },
 
     retryImage: async (id) => {

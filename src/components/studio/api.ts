@@ -214,9 +214,13 @@ export function slotOf(item: PlanItem): SlotBrief {
 /** A slot the writer could not fill; `index` points into the slots that were sent. */
 export type MissedSlot = { index: number; day: string; time: string; error: string; code: string };
 
-/** One post per slot. Partial success is normal: `failed` lists the slots that came out empty. */
+/**
+ * One post per slot. Partial success is normal: `failed` lists the slots that came out empty.
+ * The route works to a ~60 s budget with maxDuration 120; the client waits 125 s so the server is
+ * done before we give up, and the store then lists what landed instead of writing it again.
+ */
 export function writePosts(brandId: string, slots: SlotBrief[], lang: Lang) {
-  return call<{ posts: PostDraft[]; failed?: MissedSlot[] }>("/posts", { method: "POST", body: { brandId, slots: slots.slice(0, 7), lang } }, 75_000);
+  return call<{ posts: PostDraft[]; failed?: MissedSlot[] }>("/posts", { method: "POST", body: { brandId, slots: slots.slice(0, 7), lang } }, 125_000);
 }
 
 export function listPosts(brandId: string, lang: Lang) {
@@ -247,7 +251,7 @@ export function getPostImage(postId: string, lang: Lang) {
 
 /** Inside the Mini App only: the server checks initData, ownership and the bot's admin rights. */
 export function publishPost(postId: string, script: Script, chat: string, lang: Lang) {
-  return call<{ ok: boolean; url?: string; error?: string; addAdminUrl?: string }>(
+  return call<{ ok: boolean; url?: string; error?: string; code?: string; addAdminUrl?: string }>(
     "/publish",
     { method: "POST", body: { postId, script, chat, lang, initData: tgInitData() } },
     35_000,
