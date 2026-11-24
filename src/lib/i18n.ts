@@ -10,7 +10,15 @@ const dictionaries = {
       "Assalomu alaykum, {name}! Xush kelibsiz.\nIlovani ochish uchun quyidagi tugmani bosing.",
     "bot.greeting_no_app": "Assalomu alaykum, {name}! Xush kelibsiz.",
     "bot.open_app": "Ilovani ochish",
-    "bot.help": "Boshlash uchun /start buyrugʻini yuboring.",
+    "bot.help":
+      "Qanday ishlaydi:\n\n1. Kanalingiz havolasini yuboring (@kanal yoki https://t.me/kanal). Kanal yo‘q bo‘lsa, biznesingizni 2-3 gapda yozing: nima sotasiz, kimga, qayerda.\n2. Bir daqiqada brendingiz ovozi va tayyor postlarni yuboraman.\n3. Joylash uchun botni kanalingizga admin qiling va «Post yozish» huquqini bering.\n4. Post ostidagi 📢 tugmasini bosing — post kanalda paydo bo‘ladi.\n\n/natija — haftalik natijalar\n/start — qaytadan boshlash",
+    // Bot profile (bot-profile.ts): short description ≤120, description ≤512, command descriptions ≤256.
+    "bot.profile.short": "Kichik biznes uchun marketing bo‘limi: kanalingizni o‘qiydi, postlar yozadi, siz tasdiqlagach kanalga joylaydi.",
+    "bot.profile.description":
+      "Kanal havolasini yuboring — Mercat kanalingizni o‘qiydi, haftalik reja va rasmli postlar tayyorlaydi; siz tasdiqlaysiz, bot joylaydi.\n\nKanal yo‘qmi? Biznesingizni 2-3 gapda yozing: nima sotasiz, kimga, qayerda.\n\nPostlar o‘zbekcha (lotin va kirill), ruscha va inglizcha. Joylash uchun botni kanalingizga admin qiling.",
+    "bot.cmd.start": "Boshlash: kanal havolasi yoki biznes tavsifi",
+    "bot.cmd.natija": "Haftalik natijalar",
+    "bot.cmd.help": "Qanday ishlaydi",
     "bot.ai_unavailable": "AI yordamchi hozircha sozlanmagan. Tez orada ishga tushadi!",
     "bot.error": "Kechirasiz, xatolik yuz berdi. Keyinroq qayta urinib koʻring.",
     "bot.onboard_prompt": "Kanalingiz havolasini yuboring (masalan, @kanal_nomi yoki https://t.me/kanal_nomi) yoki biznesingizni 2-3 gapda yozing: nima sotasiz, kimga, qayerda.\n\nBir daqiqada brendingiz ovozi va tayyor postlarni yuboraman.",
@@ -88,7 +96,14 @@ const dictionaries = {
       "Здравствуйте, {name}! Добро пожаловать.\nНажмите кнопку ниже, чтобы открыть приложение.",
     "bot.greeting_no_app": "Здравствуйте, {name}! Добро пожаловать.",
     "bot.open_app": "Открыть приложение",
-    "bot.help": "Отправьте /start, чтобы начать.",
+    "bot.help":
+      "Как это работает:\n\n1. Пришлите ссылку на канал (@kanal или https://t.me/kanal). Канала нет — опишите бизнес в 2–3 предложениях: что продаёте, кому, где.\n2. Через минуту пришлю голос вашего бренда и готовые посты.\n3. Чтобы публиковать, сделайте бота админом канала с правом «Публикация сообщений».\n4. Нажмите 📢 под постом — он появится в канале.\n\n/natija — итоги недели\n/start — начать заново",
+    "bot.profile.short": "Маркетинг для малого бизнеса: читает ваш канал, пишет посты и публикует их, когда вы одобрите.",
+    "bot.profile.description":
+      "Пришлите ссылку на канал — Mercat прочитает его, подготовит план на неделю и посты с картинками; вы утверждаете, бот публикует.\n\nКанала нет? Опишите бизнес в 2–3 предложениях: что продаёте, кому, где.\n\nПосты на узбекском (латиница и кириллица), русском и английском. Чтобы публиковать, сделайте бота админом канала.",
+    "bot.cmd.start": "Начать: ссылка на канал или описание бизнеса",
+    "bot.cmd.natija": "Итоги недели",
+    "bot.cmd.help": "Как это работает",
     "bot.ai_unavailable": "ИИ-ассистент пока не настроен. Скоро заработает!",
     "bot.error": "Извините, что-то пошло не так. Попробуйте позже.",
     "bot.onboard_prompt": "Пришлите ссылку на ваш канал (например, @kanal_nomi или https://t.me/kanal_nomi) или опишите бизнес в 2–3 предложениях: что продаёте, кому, где.\n\nЧерез минуту пришлю голос вашего бренда и готовые посты.",
@@ -165,7 +180,14 @@ const dictionaries = {
     "bot.greeting": "Hi {name}! Welcome.\nTap the button below to open the app.",
     "bot.greeting_no_app": "Hi {name}! Welcome.",
     "bot.open_app": "Open app",
-    "bot.help": "Send /start to begin.",
+    "bot.help":
+      "How it works:\n\n1. Send your channel link (@channel or https://t.me/channel). No channel? Describe your business in 2–3 sentences: what you sell, to whom, where.\n2. In a minute I'll send your brand voice and ready posts.\n3. To publish, make the bot an admin of your channel with the \"Post messages\" right.\n4. Tap 📢 under a post — it appears in your channel.\n\n/natija — this week's results\n/start — start over",
+    "bot.profile.short": "Marketing for small businesses: reads your channel, writes posts and publishes them once you approve.",
+    "bot.profile.description":
+      "Send your channel link — Mercat reads your channel, prepares a weekly plan and posts with pictures; you approve, the bot publishes.\n\nNo channel yet? Describe your business in 2–3 sentences: what you sell, to whom, where.\n\nPosts in Uzbek (Latin and Cyrillic), Russian and English. To publish, make the bot an admin of your channel.",
+    "bot.cmd.start": "Start: a channel link or a business description",
+    "bot.cmd.natija": "This week's results",
+    "bot.cmd.help": "How it works",
     "bot.ai_unavailable": "The AI assistant isn't configured yet. Coming soon!",
     "bot.error": "Sorry, something went wrong. Please try again later.",
     "bot.onboard_prompt": "Send your channel link (for example @channel_name or https://t.me/channel_name) or describe your business in 2–3 sentences: what you sell, to whom, where.\n\nIn a minute I'll send your brand voice and ready posts.",
