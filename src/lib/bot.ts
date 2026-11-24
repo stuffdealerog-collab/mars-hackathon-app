@@ -132,7 +132,7 @@ function registerHandlers(b: Bot) {
     await ctx.reply(t(pickLocale(ctx.from?.language_code), "bot.help"));
   });
 
-  // Any other private text: Uslub onboarding (channel link or business description).
+  // Any other private text: Mercat onboarding (channel link or business description).
   pm.on("message:text", async (ctx) => {
     const from = ctx.from;
     if (!from) return;

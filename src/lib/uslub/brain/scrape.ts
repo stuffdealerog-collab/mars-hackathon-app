@@ -152,7 +152,7 @@ const CACHE_MS = 30 * 60_000;
 
 async function fetchPage(url: string, timeoutMs: number): Promise<string> {
   const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; UslubBrain/1.0)", "Accept-Language": "en" },
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; MercatBot/1.0; +https://mercat-ai.vercel.app)", "Accept-Language": "en" },
     signal: AbortSignal.timeout(timeoutMs),
     redirect: "follow",
     cache: "no-store",

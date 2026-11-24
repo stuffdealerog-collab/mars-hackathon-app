@@ -1,4 +1,4 @@
-# Uslub Brain sample: @safiabakery (Safia Cafe & Bakery | Channel)
+# Mercat Brain sample: @safiabakery (Safia Cafe & Bakery | Channel)
 
 Generated 2026-11-24 by POST /api/uslub/analyze and POST /api/uslub/strategy (lang=uz, category="cafe bakery", competitor @lesailes_uz).
 Knowledge base for the strategy = text of this channel's own public posts (no owner input), so prices/address/hours are intentionally missing and the system asks for them instead of inventing them.

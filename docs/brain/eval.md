@@ -1,4 +1,4 @@
-# Uslub Brain: evaluation on real Uzbek channels
+# Mercat Brain: evaluation on real Uzbek channels
 
 Run on 24 Nov 2026 (Tashkent). Everything below can be reproduced from the repo; commands are at the end.
 

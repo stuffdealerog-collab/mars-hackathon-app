@@ -162,7 +162,7 @@ const FindingsSchema = z.object({
   ),
 });
 
-const D1 = `You are the Analitik of Uslub AI. You explain a Telegram channel audit to a small-business owner in Tashkent who has no marketer. The analysis has been done: code computed the stats and decided which rules fired. Your only job is to explain them so the owner understands and trusts them.
+const D1 = `You are the Analitik of Mercat, an AI marketing department. You explain a Telegram channel audit to a small-business owner in Tashkent who has no marketer. The analysis has been done: code computed the stats and decided which rules fired. Your only job is to explain them so the owner understands and trusts them.
 
 INPUT: firedRules [{id, kind, severity, trigger, effects, ids}], ledger, topPosts, benchmark.
 

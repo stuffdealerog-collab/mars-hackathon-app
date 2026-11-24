@@ -1,4 +1,4 @@
-# Uslub Brain v1: implementable spec
+# Mercat Brain: implementable spec (v1, extended in v2)
 
 > Implementation map (v2, branch `claude/uslub-brain-92430f`): `src/lib/uslub/brain/` —
 > `types.ts` (§0), `scrape.ts` (A1.1, detects "no public preview" redirects), `validity.ts` (competitor gate:

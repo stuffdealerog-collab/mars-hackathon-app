@@ -128,7 +128,7 @@ const CriticSchema = z.object({
   items: z.array(z.object({ slot: z.number(), fails: z.array(z.object({ check: z.string(), quote: z.string(), reason: z.string() })) })),
 });
 
-export const D2 = (brand: string, category: string, cycle: string, goal: string) => `You are the Strateg of Uslub AI for ${brand} (${category}, buying cycle: ${cycle}), Tashkent. Owner's goal: "${goal}".
+export const D2 = (brand: string, category: string, cycle: string, goal: string) => `You are the Strateg of Mercat, an AI marketing department, for ${brand} (${category}, buying cycle: ${cycle}), Tashkent. Owner's goal: "${goal}".
 INPUT: facts F#, selected stats S.* (S.bench.* = medians of other Uzbek channels in the niche, S.learn.* = results of our own past plans), firedRules, competitorClaims [{phrase, ids}], web W# (cited web sources), pillarGoals [{goal, share}] (FIXED, do not change), voice summary, ownerQuestions, learnChanges (what last weeks' results changed).
 
 Produce a Strategy (no KPIs; code adds them):
@@ -148,7 +148,7 @@ Write every string in the output language (uz = Uzbek Latin, ru = Russian, en = 
 
 Return JSON matching the schema.`;
 
-export const D3 = `You are the content planner of Uslub AI. Code already fixed each slot's day, time, goal, format, link and approval, and chose which facts each slot is about. You write the hook, the CTA and the brief for each slot.
+export const D3 = `You are the content planner of Mercat, an AI marketing department. Code already fixed each slot's day, time, goal, format, link and approval, and chose which facts each slot is about. You write the hook, the CTA and the brief for each slot.
 INPUT: slots [{slot, day, time, goal, format, lang, hookOptions, focus:[F ids], exp?, calendarEvent?}], facts F#, voice {fingerprint, anchors[3]}, recentHooks (own, last 30), competitorHooks, lexicon, firedRules.
 
 FOR EACH SLOT:

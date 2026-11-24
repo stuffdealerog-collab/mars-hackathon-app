@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS events_type_created_at_idx ON events (type, created_at);
 CREATE INDEX IF NOT EXISTS events_telegram_id_idx ON events (telegram_id);
 
--- ------------------------------------------------------------ Uslub AI engine
+-- -------------------------------------------------------------- Mercat engine
 
 CREATE TABLE IF NOT EXISTS brands (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS flows (
 
 CREATE INDEX IF NOT EXISTS flows_brand_created_idx ON flows (brand_id, created_at DESC);
 
--- ------------------------------------------------------------- Uslub Brain v2
+-- ------------------------------------------------------------ Mercat Brain v2
 -- Everything the Brain learns lives here. All writes are best-effort: if these
 -- tables are missing the Brain still answers, it just cannot learn.
 

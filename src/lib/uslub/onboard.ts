@@ -12,7 +12,8 @@ import { publishPost } from "./publish";
 import { parseChannelUsername, ScrapeError } from "./scrape";
 import { getBrand, getPost, savePosts } from "./store";
 
-const STUDIO_URL = "https://mars-hackathon-app.vercel.app/studio";
+/** Studio link in the bot (PUBLIC_URL first; production domain renamed to Mercat on 24 Nov). */
+const studioUrl = () => `${getPublicUrl() ?? "https://mercat-ai.vercel.app"}/studio`;
 
 export const ONBOARD_PROMPT =
   "Kanalingiz havolasini yuboring (masalan, @kanal_nomi yoki https://t.me/kanal_nomi) " +
@@ -94,7 +95,7 @@ export async function runOnboarding(api: Api, chatId: number, userId: number, in
     const app = getPublicUrl();
     const kb = new InlineKeyboard();
     if (app?.startsWith("https://")) kb.webApp("📱 Ilovada ochish", `${app}/tg?brand=${brand.id}`).row();
-    kb.url("🧩 Studio: kirill, rus, ingliz va video", `${STUDIO_URL}?brand=${brand.id}`);
+    kb.url("🧩 Studio: kirill, rus, ingliz va video", `${studioUrl()}?brand=${brand.id}`);
     await api.sendMessage(
       chatId,
       "Tayyor! Postlarning kirill, rus va ingliz variantlari, Reels ssenariysi va mijozlar radari Studio’da. " +

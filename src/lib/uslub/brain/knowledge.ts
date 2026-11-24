@@ -36,7 +36,7 @@ export { KnowledgeError } from "./knowledge-parse";
 const PDF_MAX_BYTES = 5_000_000;
 const PDF_MAX_PAGES = 20;
 const ALLOWED_PORTS = new Set(["", "80", "443", "8080", "8443"]);
-const UA = "Mozilla/5.0 (compatible; UslubBrain/1.0; +https://mars-hackathon-app.vercel.app)";
+const UA = "Mozilla/5.0 (compatible; MercatBot/1.0; +https://mercat-ai.vercel.app)";
 
 export interface FetchedResource {
   finalUrl: string;

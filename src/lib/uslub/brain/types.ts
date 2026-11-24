@@ -1,5 +1,5 @@
 /**
- * Uslub Brain v1 — shared primitives (pure, no I/O).
+ * Mercat Brain — shared primitives (pure, no I/O).
  * Core principle: code decides what is true, when to post and why; the LLM only
  * decides how to say it, and its output is checked against the ledger.
  */
