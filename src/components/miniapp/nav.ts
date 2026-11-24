@@ -34,6 +34,10 @@ interface NavState {
   regs: Record<string, Reg>;
   /** A saved brand that did not open for a passing reason (network, server): Start offers to try it again. */
   retryBrand: string | null;
+  /** The edit sheet holds unsaved text (MiniApp alone drives Telegram's closing confirmation). */
+  dirtyEdit: boolean;
+  /** Posts whose publish answer was lost: the server is asked what happened before Publish is offered again. */
+  checking: Record<string, boolean>;
   push: (r: Route) => void;
   pop: () => void;
   /** Drops every pushed screen at once (flow changes such as "start over"). */
@@ -58,6 +62,8 @@ export const useNav = create<NavState>((set, get) => ({
   toast: null,
   regs: {},
   retryBrand: null,
+  dirtyEdit: false,
+  checking: {},
 
   push: (r) => set({ stack: [...get().stack.filter((s) => !s.leaving), { ...r, key: ++seq }] }),
 

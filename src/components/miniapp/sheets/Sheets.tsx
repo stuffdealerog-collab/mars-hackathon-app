@@ -1,5 +1,5 @@
 import type { Script } from "@/lib/uslub/contract";
-import { Check, Copy, Laptop, Link2 } from "lucide-react";
+import { Check, Copy, Laptop, Link2, PencilLine } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import * as api from "../../studio/api";
 import { problemOf, useStudio } from "../../studio/store";
@@ -9,7 +9,6 @@ import { parseChannel } from "../../ui/parts";
 import { blankNote, blankTokens } from "../blank";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons, useNav, type Sheet as SheetT } from "../nav";
-import { useClosingConfirmation } from "../native";
 import { scriptOf, usePostScript, useWhen } from "../screens/Posts";
 import { Sheet } from "../Shell";
 import { cloud, confirmNative, haptic, openLink, popup } from "../tg";
@@ -106,28 +105,29 @@ function SettingsSheet({ leaving, onRestart }: { leaving: boolean; onRestart: ()
 
       <p className="mb-2 mt-6 px-1 text-[13px] font-medium text-ink-2">{m.settings.mode}</p>
       <div className="ma-group">
-        <div className="ma-row">
+        {/* The whole row is the switch: a tap on the label or the hint toggles it too. */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={pro}
+          aria-labelledby="ma-pro-l"
+          className="ma-row ma-press"
+          onClick={() => {
+            haptic.select();
+            setPro(!pro);
+            cloud.set("pro", !pro ? "1" : "0");
+          }}
+        >
           <span className="min-w-0 flex-1">
             <span id="ma-pro-l" className="block text-[16px] font-medium">
               {c.pro.label}
             </span>
             <span className="mt-0.5 block text-[13.5px] leading-snug text-ink-2">{m.settings.proHint}</span>
           </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={pro}
-            aria-labelledby="ma-pro-l"
-            className="switch"
-            onClick={() => {
-              haptic.select();
-              setPro(!pro);
-              cloud.set("pro", !pro ? "1" : "0");
-            }}
-          >
+          <span className="switch" data-on={pro ? "true" : "false"} aria-hidden>
             <span className="switch__knob" />
-          </button>
-        </div>
+          </span>
+        </button>
       </div>
 
       {phase !== "start" && !sample && (
@@ -203,27 +203,43 @@ function EditSheet({ leaving, postId }: { leaving: boolean; postId: string }) {
   const close = useNav((s) => s.closeSheet);
   const say = useNav((s) => s.say);
   const { script } = usePostScript();
-  const s = post ? scriptOf(post, script) : script;
+  // The text to edit: the script the server named for a blank, else the one on screen when it still
+  // has the blank, else any script whose text still has it (the server checks the channel's script).
+  const [s] = useState<Script>(() => {
+    if (!post) return script;
+    const named = (note as { script?: Script } | undefined)?.script;
+    if (named && post.variants[named]?.trim()) return named;
+    const shown = scriptOf(post, script);
+    const has = (x: Script) => blankTokens(post, x).some((tok) => (post.variants[x] ?? "").includes(tok));
+    if (has(shown)) return shown;
+    return (post.placeholders ?? []).map((x) => x.script).find(has) ?? shown;
+  });
   const original = post?.variants[s] ?? "";
   const [draft, setDraft] = useState(original);
   const area = useRef<HTMLTextAreaElement>(null);
   const dirty = draft.trim() !== original.trim();
-  const tokens = post ? blankTokens(post, s) : [];
+  const tokens = (post ? blankTokens(post, s) : []).filter((tok) => draft.includes(tok));
   const hint = (post && blankNote(post)) || (note?.tone === "hint" ? note.text : null);
-  useClosingConfirmation(dirty && !leaving);
-
-  // A post with a blank opens on the blank: the cursor selects it, ready to be typed over.
+  // MainApp owns Telegram's closing confirmation; the sheet only reports unsaved text.
   useEffect(() => {
+    useNav.setState({ dirtyEdit: dirty && !leaving });
+    return () => useNav.setState({ dirtyEdit: false });
+  }, [dirty, leaving]);
+
+  /** Selects a blank in the text. Called from a tap, so iOS raises the keyboard too. */
+  const pick = (tok: string) => {
     const el = area.current;
     if (!el) return;
-    const t = setTimeout(() => {
-      const at = tokens.map((tok) => el.value.indexOf(tok)).filter((i) => i >= 0).sort((a, b) => a - b)[0];
-      el.focus({ preventScroll: true });
-      if (at != null) {
-        const tok = tokens.find((x) => el.value.indexOf(x) === at)!;
-        el.setSelectionRange(at, at + tok.length);
-      }
-    }, 420);
+    const at = el.value.indexOf(tok);
+    el.focus({ preventScroll: false });
+    if (at >= 0) el.setSelectionRange(at, at + tok.length);
+  };
+
+  // Android raises the keyboard on a programmatic focus: open on the first blank there. iOS needs
+  // the owner's tap, which the blank chips below give.
+  useEffect(() => {
+    if (!tokens.length || /iP(hone|ad|od)/.test(navigator.userAgent)) return;
+    const t = setTimeout(() => pick(tokens[0]), 420);
     return () => clearTimeout(t);
     // only when the sheet opens
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -243,6 +259,17 @@ function EditSheet({ leaving, postId }: { leaving: boolean; postId: string }) {
   return (
     <Sheet title={m.edit.title} leaving={leaving}>
       {hint && <p className="ma-hint mb-2 mt-1">{hint}</p>}
+      {tokens.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-2" role="group" aria-label={m.post.blankChip}>
+          {tokens.map((tok) => (
+            <button key={tok} type="button" className="ma-chip !bg-[color-mix(in_oklab,var(--led)_16%,transparent)]" onClick={() => pick(tok)}>
+              <PencilLine className="h-4 w-4 text-led" aria-hidden />
+              {tok}
+            </button>
+          ))}
+          <span className="text-[13px] text-ink-3">{m.post.blankChip}</span>
+        </div>
+      )}
       <label htmlFor={`${id}-t`} className="sr-only">
         {c.posts.textLabel}
       </label>
@@ -317,7 +344,7 @@ function DetailsSheet({ leaving, postId }: { leaving: boolean; postId: string })
               <span className="text-[13px] font-semibold text-ink-2">{c.posts.scriptNames[s]}</span>
               <button
                 type="button"
-                className="ma-iconbtn -my-2 -mr-3 !h-10 !w-10"
+                className="ma-iconbtn -my-2.5 -mr-3"
                 aria-label={copied === s ? m.details.copied : m.details.copy}
                 onClick={() => {
                   void navigator.clipboard?.writeText(post.variants[s] ?? "").then(

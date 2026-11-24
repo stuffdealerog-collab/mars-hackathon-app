@@ -8,7 +8,7 @@ import { parseChannel } from "../../ui/parts";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons, useNav } from "../nav";
 import { TopBar, useCompact } from "../Shell";
-import { ledFit } from "../led-fit";
+import { ledFit, useWidth } from "../measure";
 import { haptic } from "../tg";
 
 /** The first screen: one field, one decision (Telegram's MainButton «Boshlash»). */
@@ -26,7 +26,8 @@ export function StartScreen({ active }: { active: boolean }) {
   const { ref, compact } = useCompact(10);
   const typed = parseChannel(value);
   const sign = typed ? `@${typed}` : undefined;
-  const led = ledFit(sign?.length ?? 0, 316); // 343 px strip minus its padding
+  const { ref: stripRef, width: stripWidth } = useWidth<HTMLDivElement>();
+  const led = ledFit(sign ?? "", stripWidth - 24); // the strip minus its padding
 
   const go = () => {
     const name = parseChannel(value);
@@ -49,7 +50,7 @@ export function StartScreen({ active }: { active: boolean }) {
       <div ref={ref} className="ma-scroll">
         <div className="ma-pad flex min-h-full flex-col">
           {/* The shop sign stays dark until there is a real channel to read. */}
-          <div className="ma-sign mt-2 rounded-[12px]">
+          <div ref={stripRef} className="ma-sign mt-2 rounded-[12px]">
             <LedStrip text={sign} dot={led.dot} gap={led.gap} run={led.run} label={sign} />
           </div>
           <h1 className="ma-h1 mt-8">{c.start.title}</h1>

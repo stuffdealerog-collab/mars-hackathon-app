@@ -179,5 +179,8 @@ export function useClosingConfirmation(on: boolean) {
     const app = tg();
     if (!app || !atLeast("6.2")) return;
     tgSafe(() => (on ? app.enableClosingConfirmation?.() : app.disableClosingConfirmation?.()));
+    return () => {
+      if (on) tgSafe(() => app.disableClosingConfirmation?.());
+    };
   }, [on]);
 }

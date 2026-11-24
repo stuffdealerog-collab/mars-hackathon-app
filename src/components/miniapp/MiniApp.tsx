@@ -17,6 +17,7 @@ import { VideoScreen } from "./screens/Video";
 import { EdgeBack, Layer, Skel, Toast } from "./Shell";
 import { SheetHost } from "./sheets/Sheets";
 import { launchTarget } from "./launch";
+import { restart } from "./actions";
 import { useResume } from "./sync";
 import { cloud, haptic, tg } from "./tg";
 
@@ -47,7 +48,9 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
     haptic.tap();
     useNav.getState().openSheet({ name: "settings" });
   });
-  useClosingConfirmation(phase === "working" || busy || unsaved);
+  const dirtyEdit = useNav((s) => s.dirtyEdit);
+  // One owner for Telegram's single closing-confirmation flag (the edit sheet only reports dirtyEdit).
+  useClosingConfirmation(phase === "working" || busy || unsaved || dirtyEdit);
   useResume(booted);
 
   // The document itself never scrolls: each screen scrolls inside its own region.
@@ -80,7 +83,7 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
         await s.reopen(id);
         const st = useStudio.getState();
         if (st.phase === "ready") return true;
-        const gone = ["brand_not_found", "not_found", "brand_forbidden"].includes(st.problem?.code ?? "");
+        const gone = ["brand_not_found", "not_found", "post_not_found", "brand_forbidden"].includes(st.problem?.code ?? "");
         if (gone && id === saved.brand) cloud.remove("brand");
         if (!gone) useNav.setState({ retryBrand: id });
         return false;
@@ -123,12 +126,6 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
     if (phase === "start" && emptyChannel) useNav.getState().push({ name: "fresh" });
   }, [phase, emptyChannel]);
 
-  const restart = useCallback(() => {
-    useNav.getState().clear();
-    useStudio.getState().reset();
-    cloud.remove("brand");
-    haptic.press();
-  }, []);
 
   const live = stack.filter((s) => !s.leaving);
   const topKey = live[live.length - 1]?.key;
@@ -212,6 +209,16 @@ function Tabs({ active }: { active: boolean }) {
         ? { text: m.review, onClick: () => (haptic.tap(), openPost(next)) }
         : null;
   useBottomButtons("tabs", PRIORITY.base, active && !!main, main);
+
+  // After the run, a failed «Postini yozish», «Qayta yozish» or plan rebuild is said once, never silent.
+  const problem = useStudio((s) => s.problem);
+  const said = useRef<unknown>(null);
+  useEffect(() => {
+    if (!problem || said.current === problem) return;
+    said.current = problem;
+    haptic.error();
+    useNav.getState().say(problem.message, "bad");
+  }, [problem]);
 
   const pick = (t: PhoneTab) => {
     if (t === tab) return;

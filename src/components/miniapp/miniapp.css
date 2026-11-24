@@ -444,6 +444,25 @@ html.ma-html body {
 .ma-chip:active {
   transform: scale(0.96);
 }
+/* The settings row is the switch; its knob mirrors the row's state (globals' .switch reads aria-checked). */
+.switch[data-on="true"] {
+  background: var(--lime);
+}
+.switch[data-on="true"] .switch__knob {
+  transform: translateX(20px);
+  background: var(--lime-ink);
+}
+
+/* The images session's pills (Boshqa variant, retry, product photo) look 36 px; they take 44. */
+.ma-postimage figcaption button {
+  position: relative;
+}
+.ma-postimage figcaption button::after {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
+}
+
 /* The chip looks 36 px tall; its touch target is 44. */
 .ma-chip {
   position: relative;
