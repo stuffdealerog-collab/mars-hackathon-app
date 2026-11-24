@@ -297,7 +297,7 @@ export const TEMPLATES: { key: string; name: string; hint: string; task: string;
     flow: {
       id: "f-reels",
       title: "Reels",
-      nodes: [n("in", "input", "Reels"), n("brand", "brand", "Uslub"), n("video", "video", "Ssenariy"), n("edit", "editor", "Matn"), n("tr", "translator", "Subtitrlar"), n("ok", "approval", "Tasdiqlash"), n("pub", "publisher", "Telegram")],
+      nodes: [n("in", "input", "Reels"), n("brand", "brand", "Brend"), n("video", "video", "Ssenariy"), n("edit", "editor", "Matn"), n("tr", "translator", "Subtitrlar"), n("ok", "approval", "Tasdiqlash"), n("pub", "publisher", "Telegram")],
       edges: [e("in", "brand"), e("brand", "video"), e("video", "edit"), e("edit", "tr"), e("tr", "ok"), e("ok", "pub")],
     },
   },

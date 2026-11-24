@@ -45,7 +45,7 @@
   --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jbmono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Uslub AI — "AI OS" dark widget language */
+  /* Mercat — "AI OS" dark widget language */
   --color-void: #050506;
   --color-surface: #0e0e11;
   --color-surface-2: #16161b;
@@ -111,7 +111,7 @@ body {
   }
 }
 
-/* ---------------------------------------------------------------- Uslub AI */
+/* ---------------------------------------------------------------- Mercat */
 .uslub {
   background-color: var(--color-void);
   background-image: radial-gradient(rgb(255 255 255 / 0.065) 1px, transparent 1.3px);
