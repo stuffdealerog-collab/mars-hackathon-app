@@ -183,6 +183,14 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
   }
   const decision = await authorize(api, brand, brand.channel, user);
   if (!decision.ok) return void (await refusal(api, chatId, locale, decision.reason, brand.channel, publishData(post, script)));
+  // The rights checks above take a few Telegram round trips: read the post again right before sending, so an edit
+  // made meanwhile is caught too. (publishPost reads it once more; that last gap is milliseconds.)
+  const fresh = await getPost(post.id);
+  if (!fresh || shownHash !== textHash(shownText(fresh, script))) {
+    await api.sendMessage(chatId, t(locale, "pub.changed"));
+    if (fresh) await sendPreview(api, chatId, locale, fresh, script, brand.channel);
+    return;
+  }
   const res = await publishPost({ postId: post.id, script, chat: brand.channel, userId: user.id });
   if (res.ok) {
     await api.sendMessage(chatId, t(locale, "pub.done", { url: res.url ?? "" }), { link_preview_options: { is_disabled: true } });

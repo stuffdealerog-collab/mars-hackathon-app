@@ -117,6 +117,18 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
     expect(publishPost).not.toHaveBeenCalled();
     expect(sent[0].text).toMatch(/o‘zgargan/);
     expect(sent[1].text).toBe("Boshqa odam yozgan matn.");
+    // An edit that lands while the bot is checking channel rights is caught by the re-read before sending.
+    const race = await makePost("tortlar7_uz", null);
+    const raceApi = fakeApi({ "@tortlar7_uz": { 7: { status: "creator" }, [BOT_ID]: { status: "administrator", can_post_messages: true } } });
+    const getChatMember = raceApi.api as unknown as { getChatMember: (c: string, u: number) => Promise<unknown> };
+    const original = getChatMember.getChatMember;
+    getChatMember.getChatMember = async (c, u) => {
+      await store.approvePost(race.post.id, null, { variants: { ...race.post.variants, uz_latn: "Ichkariga kirib olgan matn." }, neuroHits: {}, humanScore: 90, changed: ["uz_latn"] });
+      return original(c, u);
+    };
+    await publishFromButton(raceApi.api, 7, { id: 7 }, "uz", race.post.id, "uz_latn", textHash(race.post.variants.uz_latn));
+    expect(publishPost).not.toHaveBeenCalled();
+    expect(raceApi.sent.some((m) => m.text === "Ichkariga kirib olgan matn.")).toBe(true);
     // A button without a hash (old message) is treated the same way.
     await publishFromButton(api, 7, { id: 7 }, "uz", post.id, "uz_latn");
     expect(publishPost).not.toHaveBeenCalled();

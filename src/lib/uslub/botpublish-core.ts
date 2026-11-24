@@ -2,6 +2,7 @@
  * Pure parts of publishing from the bot (deep link t.me/<bot>?start=publish_<postId>): payload and
  * callback parsing, the script to show, and who may claim an unowned web brand. No I/O — unit-tested.
  */
+import { createHash } from "node:crypto";
 import { checkChatRights, type MemberInfo } from "./access";
 import type { Script } from "./contract";
 
@@ -18,24 +19,23 @@ export function parsePublishPayload(payload: string): { postId: string; script?:
 
 export const publishPayload = (postId: string, script?: Script) => `publish_${postId}${script ? `_${script}` : ""}`;
 
-/** FNV-1a 32-bit of the text, 8 hex chars: binds a publish button to the exact text the owner saw. */
+/**
+ * SHA-256 of the text, first 96 bits (16 base64url chars): binds a publish button to the exact text the owner saw.
+ * Cryptographic on purpose — whoever edits the post can read the original, so a short checksum could be matched
+ * by a crafted edit; a 96-bit SHA-256 prefix cannot.
+ */
 export function textHash(text: string): string {
-  let h = 0x811c9dc5;
-  for (const ch of text.trim()) {
-    h ^= ch.codePointAt(0) as number;
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return h.toString(16).padStart(8, "0");
+  return createHash("sha256").update(text.trim(), "utf8").digest("base64url").slice(0, 16);
 }
 
 /**
  * Callback data for the "Kanalga joylash" button (pb, with the hash of the text shown) and the script switch (pv).
- * ≤ 64 bytes: "pb:" + uuid + ":l:" + 8 hex = 49.
+ * ≤ 64 bytes: "pb:" + uuid + ":l:" + 16 = 57.
  */
 export const callbackData = (kind: "pb" | "pv", postId: string, script: Script, hash?: string) =>
   `${kind}:${postId}:${SHORT[script]}${kind === "pb" && hash ? `:${hash}` : ""}`;
 
-export const CALLBACK_RE = new RegExp(`^(pb|pv):(${UUID}):([lcre])(?::([0-9a-f]{8}))?$`);
+export const CALLBACK_RE = new RegExp(`^(pb|pv):(${UUID}):([lcre])(?::([A-Za-z0-9_-]{16}))?$`);
 
 export function parseCallback(data: string): { kind: "pb" | "pv"; postId: string; script: Script; hash?: string } | null {
   const m = CALLBACK_RE.exec(data);
