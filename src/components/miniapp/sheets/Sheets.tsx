@@ -305,7 +305,7 @@ function EditSheet({ leaving, postId }: { leaving: boolean; postId: string }) {
 
 /* ----------------------------------------------------------------- details */
 
-/** Professional rejim: what the post was made from, how natural it reads, every script to copy. */
+/** Pro rejim: what the post was made from, how natural it reads, every script to copy. */
 function DetailsSheet({ leaving, postId }: { leaving: boolean; postId: string }) {
   const c = useCopy();
   const m = useMiniCopy();
