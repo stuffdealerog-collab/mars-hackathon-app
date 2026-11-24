@@ -1,6 +1,6 @@
 import "server-only";
 import { after } from "next/server";
-import { Bot, InlineKeyboard } from "grammy";
+import { type Api, Bot, InlineKeyboard } from "grammy";
 import { isAiConfigured } from "./ai";
 import { getEnv, getPublicUrl } from "./env";
 import { type Locale, pickLocale, t } from "./i18n";
@@ -16,8 +16,10 @@ import {
   gateMessage,
   onboardGate,
   onboardPrompt,
+  type OnboardInput,
   publishFromBot,
-  runOnboarding,
+  RETRY_ONBOARD_RE,
+  runOnboardingInTime,
 } from "./uslub/onboard";
 
 /**
@@ -53,6 +55,51 @@ async function customerFromPlanLink(ctx: { reply: (text: string, other?: object)
   await ctx.reply(t(locale, "bot.link_ask"), {
     reply_markup: new InlineKeyboard().text(t(locale, "bot.link_yes"), `lead:${tag}:${slot}`),
   });
+}
+
+/**
+ * Starts a bot onboarding (channel link or business description): checks AI and the spend gate, says "working",
+ * then runs it after the webhook has answered, within its time budget (a late run tells the owner instead of
+ * going silent). Claude usage is logged as one llm_usage event (route "bot/onboard").
+ */
+async function startOnboarding(
+  ctx: { reply: (text: string, other?: object) => Promise<unknown>; replyWithChatAction: (a: "typing") => Promise<unknown>; api: Api },
+  chatId: number,
+  userId: number,
+  locale: Locale,
+  input: Exclude<OnboardInput, null>,
+): Promise<void> {
+  if (!isAiConfigured()) {
+    await ctx.reply(t(locale, "bot.ai_unavailable"));
+    return;
+  }
+  // LLM spend guard: one onboarding in flight per user, at most 5 per hour.
+  const gate = onboardGate.enter(userId);
+  if (!gate.ok) {
+    await ctx.reply(gateMessage(gate, locale));
+    return;
+  }
+  try {
+    await ctx.reply("channel" in input ? t(locale, "bot.working_channel", { channel: input.channel }) : t(locale, "bot.working_text"));
+    await ctx.replyWithChatAction("typing").catch(() => undefined);
+  } catch (err) {
+    onboardGate.leave(userId);
+    throw err;
+  }
+  const api = ctx.api;
+  await runLater(() =>
+    runWithContext({ route: "bot/onboard", lang: locale, telegramId: userId }, async () => {
+      try {
+        const run = await runOnboardingInTime(api, chatId, userId, input, locale);
+        // After "this is taking long" the owner has an answer, but the run itself goes on: keep the spend gate (and
+        // this after() task, so the function stays up) until it really ends — a retry tap meanwhile is "busy".
+        await run.settled;
+      } finally {
+        onboardGate.leave(userId);
+        await flushUsage();
+      }
+    }),
+  );
 }
 
 export function getBot(): Bot {
@@ -159,36 +206,14 @@ function registerHandlers(b: Bot) {
       await ctx.reply(onboardPrompt(locale));
       return;
     }
-    if (!isAiConfigured()) {
-      await ctx.reply(t(locale, "bot.ai_unavailable"));
-      return;
-    }
-    // LLM spend guard: one onboarding in flight per user, at most 5 per hour.
-    const gate = onboardGate.enter(from.id);
-    if (!gate.ok) {
-      await ctx.reply(gateMessage(gate, locale));
-      return;
-    }
-    try {
-      await ctx.reply("channel" in input ? t(locale, "bot.working_channel", { channel: input.channel }) : t(locale, "bot.working_text"));
-      await ctx.replyWithChatAction("typing").catch(() => undefined);
-    } catch (err) {
-      onboardGate.leave(from.id);
-      throw err;
-    }
-    const api = ctx.api;
-    const chatId = ctx.chat.id;
-    await runLater(() =>
-      // Usage of the onboarding's Claude calls is logged as one llm_usage event (route "bot/onboard").
-      runWithContext({ route: "bot/onboard", lang: locale, telegramId: from.id }, async () => {
-        try {
-          await runOnboarding(api, chatId, from.id, input, locale);
-        } finally {
-          onboardGate.leave(from.id);
-          await flushUsage();
-        }
-      }),
-    );
+    await startOnboarding(ctx, ctx.chat.id, from.id, locale, input);
+  });
+
+  // "Try again" after a channel onboarding that took too long (see runOnboardingInTime).
+  b.callbackQuery(RETRY_ONBOARD_RE, async (ctx) => {
+    await ctx.answerCallbackQuery().catch(() => undefined);
+    const locale = pickLocale(ctx.from.language_code);
+    await startOnboarding(ctx, ctx.chat?.id ?? ctx.from.id, ctx.from.id, locale, { channel: ctx.match[1] });
   });
 
   // "📢 Publish" under a generated post. ctx.from is trusted (comes from Telegram).

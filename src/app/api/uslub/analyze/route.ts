@@ -4,7 +4,7 @@ import { respond } from "@/lib/uslub/brain/route-utils";
 import { handle, rateLimit, readJson } from "@/lib/uslub/http";
 
 // Node.js runtime is the default (an explicit `runtime` export is rejected with cacheComponents).
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 const Body = z.object({
   channel: z.string().trim().min(2).max(100),
