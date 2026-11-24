@@ -74,7 +74,7 @@ export function usePostActions() {
 }
 
 /** One post, full size, as subscribers will see it; swipe sideways for the next one. */
-export function PostScreen({ start, active }: { start: number; active: boolean }) {
+export function PostScreen({ id, active }: { id: string; active: boolean }) {
   const c = useCopy();
   const m = useMiniCopy();
   const posts = useStudio((s) => s.posts);
@@ -85,7 +85,12 @@ export function PostScreen({ start, active }: { start: number; active: boolean }
   const { approve, publish } = usePostActions();
   const when = useWhen();
   const deck = useRef<HTMLDivElement>(null);
-  const [index, setIndex] = useState(() => Math.min(start, Math.max(0, posts.length - 1)));
+  const [index, setIndex] = useState(() => Math.max(0, posts.findIndex((p) => p.id === id)));
+  // The post went away (a new run, another device): nothing to show here, go back.
+  const [missing] = useState(() => !posts.some((p) => p.id === id));
+  useEffect(() => {
+    if (missing) useNav.getState().back();
+  }, [missing]);
   const indexRef = useLatest(index);
 
   // Open on the tapped post without an animated scroll.

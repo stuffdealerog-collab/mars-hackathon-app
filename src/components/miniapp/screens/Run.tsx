@@ -61,11 +61,20 @@ export function RunScreen({ active }: { active: boolean }) {
   const panelRef = useRef<HTMLUListElement>(null);
   const fixLink = !!problem && ["channel_invalid", "not_found", "invalid_input", "channel_mismatch"].includes(problem.code);
 
+  // Spektr on capable phones; on a weak Android a short lamp check instead (each lamp flashes once).
+  const [weak] = useState(() => typeof window !== "undefined" && (window as { __maPerf?: string }).__maPerf === "low");
   const [intro, setIntro] = useState<{ gate: boolean } | null>(() => {
-    if (spektrPlayed || typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
+    if (spektrPlayed || weak || typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
     spektrPlayed = true;
     return { gate: true };
   });
+  const [check, setCheck] = useState(() => weak && !spektrPlayed);
+  useEffect(() => {
+    if (!check) return;
+    spektrPlayed = true;
+    const t = setTimeout(() => setCheck(false), 1300);
+    return () => clearTimeout(t);
+  }, [check]);
   const onBloom = useCallback(() => setIntro((i) => (i ? { gate: false } : i)), []);
   const onDone = useCallback(() => setIntro(null), []);
   useEffect(() => {
@@ -120,7 +129,7 @@ export function RunScreen({ active }: { active: boolean }) {
           </p>
           {!problem && <p className="mt-1 text-[14px] text-ink-3">{m.run.note}</p>}
 
-          <div className="relative mt-5">
+          <div className={`relative mt-5 ${check ? "ma-lampcheck" : ""}`}>
             <Panel ref={panelRef} lamps={lamps} />
             {intro && <SpectrumIntro fieldRef={ledRef} panelRef={panelRef} onBloom={onBloom} onDone={onDone} />}
           </div>

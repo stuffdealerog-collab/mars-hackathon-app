@@ -82,6 +82,7 @@ const uz = {
   settingsLabel: "Sozlamalar",
   clear: "Tozalash",
   review: "Postlarni ko‘rib chiqish",
+  seePosts: "Postlarni ko‘rish · {n}",
   more: "Batafsil",
   weekdaysShort: ["Ya", "Du", "Se", "Ch", "Pa", "Ju", "Sh"],
 };
@@ -165,6 +166,7 @@ const ru: MiniCopy = {
   settingsLabel: "Настройки",
   clear: "Очистить",
   review: "Проверить посты",
+  seePosts: "Посмотреть посты · {n}",
   more: "Подробнее",
   weekdaysShort: ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"],
 };
@@ -246,6 +248,7 @@ const en: MiniCopy = {
   settingsLabel: "Settings",
   clear: "Clear",
   review: "Review the posts",
+  seePosts: "See the posts · {n}",
   more: "More",
   weekdaysShort: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
 };
