@@ -14,6 +14,82 @@ export function Layer({ anim, covered, children, label }: { anim?: "in" | "out" 
   );
 }
 
+/**
+ * iOS edge swipe: drag from the left edge to go back, the screen beneath sliding out from
+ * under it, as in every native navigation stack. Released past a third (or flicked), it pops.
+ */
+export function EdgeBack({ routeKey }: { routeKey: number }) {
+  const strip = useRef<HTMLSpanElement>(null);
+  const drag = useRef<{ x: number; t: number; dx: number; top: HTMLElement; under: HTMLElement | null; w: number } | null>(null);
+
+  const style = (el: HTMLElement | null, transform: string, transition = "none") => {
+    if (!el) return;
+    el.style.transition = transition;
+    el.style.transform = transform;
+  };
+  const dim = (el: HTMLElement | null, opacity: string, transition = "none") => {
+    const d = el?.querySelector<HTMLElement>(":scope > .ma-layer__dim");
+    if (!d) return;
+    d.style.transition = transition;
+    d.style.opacity = opacity;
+  };
+
+  const onDown = (e: React.PointerEvent) => {
+    const top = strip.current?.closest<HTMLElement>(".ma-layer");
+    if (!top) return;
+    const under = top.previousElementSibling?.classList.contains("ma-layer") ? (top.previousElementSibling as HTMLElement) : null;
+    drag.current = { x: e.clientX, t: performance.now(), dx: 0, top, under, w: top.clientWidth };
+    top.style.animation = "none";
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    d.dx = Math.max(0, e.clientX - d.x);
+    const k = Math.min(1, d.dx / d.w);
+    style(d.top, `translateX(${d.dx}px)`);
+    style(d.under, `translateX(${-26 * (1 - k)}%)`);
+    dim(d.under, String(0.42 * (1 - k)));
+  };
+  const onUp = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d) return;
+    const v = d.dx / Math.max(1, performance.now() - d.t);
+    const ease = "cubic-bezier(0.2, 0.8, 0.2, 1)";
+    if (d.dx > d.w / 3 || (d.dx > 30 && v > 0.5)) {
+      style(d.top, "translateX(100%)", `transform 220ms ${ease}`);
+      style(d.under, "translateX(0)", `transform 220ms ${ease}`);
+      dim(d.under, "0", `opacity 220ms ${ease}`);
+      setTimeout(() => {
+        useNav.setState({ stack: useNav.getState().stack.filter((s) => s.key !== routeKey) });
+        if (d.under) {
+          d.under.style.transition = "none";
+          d.under.style.transform = "";
+          dim(d.under, "");
+          requestAnimationFrame(() => {
+            if (d.under) d.under.style.transition = "";
+          });
+        }
+      }, 220);
+      return;
+    }
+    style(d.top, "translateX(0)", `transform 260ms ${ease}`);
+    style(d.under, "translateX(-26%)", `transform 260ms ${ease}`);
+    dim(d.under, "0.42", `opacity 260ms ${ease}`);
+    setTimeout(() => {
+      [d.top, d.under].forEach((el) => {
+        if (!el) return;
+        el.style.transition = "";
+        el.style.transform = "";
+      });
+      dim(d.under, "");
+    }, 270);
+  };
+
+  return <span ref={strip} aria-hidden className="ma-edge" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} />;
+}
+
 /* ----------------------------------------------------------------- top bar */
 
 /**

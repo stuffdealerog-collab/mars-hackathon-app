@@ -8,16 +8,8 @@ import { parseChannel } from "../../ui/parts";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons, useNav } from "../nav";
 import { TopBar, useCompact } from "../Shell";
+import { ledFit } from "../led-fit";
 import { haptic } from "../tg";
-
-/** Shrinks the sign's dots so the whole channel name fits a 375 px phone; past that it runs. */
-function ledFit(chars: number) {
-  const room = 316; // 343 px strip minus its padding
-  const step = chars ? room / (chars * 6) : 4.5;
-  if (step >= 4.5) return { dot: 3, gap: 1.5, run: false };
-  if (step < 2.6) return { dot: 2, gap: 0.9, run: true };
-  return { dot: step * 0.68, gap: step * 0.32, run: false };
-}
 
 /** The first screen: one field, one decision (Telegram's MainButton «Boshlash»). */
 export function StartScreen({ active }: { active: boolean }) {
@@ -33,7 +25,7 @@ export function StartScreen({ active }: { active: boolean }) {
   const { ref, compact } = useCompact(10);
   const typed = parseChannel(value);
   const sign = typed ? `@${typed}` : undefined;
-  const led = ledFit(sign?.length ?? 0);
+  const led = ledFit(sign?.length ?? 0, 316); // 343 px strip minus its padding
 
   const go = () => {
     const name = parseChannel(value);

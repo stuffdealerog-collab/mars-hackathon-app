@@ -8,6 +8,7 @@ import { fmt, useCopy } from "../../ui/lang";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons } from "../nav";
 import { TopBar } from "../Shell";
+import { ledFit } from "../led-fit";
 import { haptic } from "../tg";
 
 type Copy = ReturnType<typeof useCopy>;
@@ -87,6 +88,7 @@ export function RunScreen({ active }: { active: boolean }) {
   const now = running ?? failed ?? lastDone;
   const nowLabel = now ? stepLabel(now, mode, c) : null;
   const led = sample ? undefined : input.channel ? `@${input.channel}` : undefined;
+  const fit = ledFit(led?.length ?? 0, 200); // the strip beside the clock
 
   useBottomButtons(
     "run",
@@ -103,7 +105,7 @@ export function RunScreen({ active }: { active: boolean }) {
         <div className="ma-pad ma-run">
           <div className="flex items-center gap-2.5">
             <div ref={ledRef} className="min-w-0 flex-1">
-              <LedStrip text={led} dot={3} gap={1.3} run={!!led && led.length > 14} label={led} />
+              <LedStrip text={led} dot={fit.dot} gap={fit.gap} run={fit.run} label={led} />
             </div>
             <span className="rounded-[12px] bg-stage px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
               <Elapsed />

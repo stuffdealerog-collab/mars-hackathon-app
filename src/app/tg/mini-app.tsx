@@ -68,6 +68,10 @@ export default function MiniAppEntry({ bot }: { bot: string }) {
     if (scheme !== "light" && scheme !== "dark") return;
     void import("@/components/miniapp/mock").then(({ installTelegramMock }) => {
       installTelegramMock({ scheme, platform: p.get("platform") === "android" ? "android" : "ios", lang: p.get("tglang") ?? "uz" });
+      // Test handles for driving states the sample cannot reach (publish errors, fresh brands).
+      void Promise.all([import("@/components/studio/store"), import("@/components/miniapp/nav")]).then(([s, n]) => {
+        (window as unknown as { __ma: unknown }).__ma = { studio: s.useStudio, nav: n.useNav };
+      });
       setPreview(scheme);
       setLangHint(p.get("tglang") ?? "uz");
       started.current = true;
