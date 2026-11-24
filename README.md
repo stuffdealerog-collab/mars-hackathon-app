@@ -18,15 +18,15 @@
 In a small Tashkent business the marketing department is usually the owner, at night, after closing. Mercat gives them one: ten employees drawn as lamps behind glass. A lamp glows while its employee works and stays lit when the result is ready. Nothing glows for decoration.
 
 <p align="center">
-  <img src="docs/brand/screens/studio-department.png" alt="Desktop Studio: the department at work on the sample bakery, seven lamps lit" width="49%">
-  <img src="docs/brand/screens/studio-posts.png" alt="Desktop Studio in Pro: the queue of five posts, the post preview and the inspector" width="49%">
+  <img src="docs/brand/screens/landing.png" alt="Landing page: the promise, the link field with Start, and the sample bakery's department with seven lamps lit" width="49%">
+  <img src="docs/brand/screens/studio-posts.png" alt="Desktop Studio in Pro on the sample bakery: the channel's numbers on the LED sign, five posts waiting, the post preview with Approve, and the inspector" width="49%">
 </p>
 <p align="center">
   <img src="docs/brand/screens/miniapp-channel.png" alt="Telegram Mini App: the channel's numbers on the amber LED and what to fix" width="24%">
   &nbsp;
   <img src="docs/brand/screens/miniapp-post.png" alt="Telegram Mini App: a post with Edit and Approve" width="24%">
 </p>
-<p align="center"><sub>Screenshots use the built-in sample, a made-up bakery marked "namuna". No client data.</sub></p>
+<p align="center"><sub>Screenshots use the built-in sample, a made-up bakery labelled as a sample. No client data.</sub></p>
 
 ## How it works
 
