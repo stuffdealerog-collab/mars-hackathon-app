@@ -18,6 +18,19 @@ const ALLOWED = [
   "PUBLIC_URL",
   "ANTHROPIC_API_KEY",
   "ANTHROPIC_MODEL",
+  // Media (post pictures): provider keys and daily limits.
+  "FAL_KEY",
+  "FAL_IMAGE_MODEL",
+  "HIGGSFIELD_API_KEY",
+  "HF_API_KEY",
+  "HF_API_SECRET",
+  "MEDIA_PROVIDERS",
+  "MEDIA_ANON_DAILY_LIMIT",
+  "MEDIA_DAILY_LIMIT",
+  "MEDIA_USER_DAILY_LIMIT",
+  "MEDIA_VISUAL_DAILY_LIMIT",
+  "MEDIA_VISUAL_BRAND_DAILY_LIMIT",
+  "MEDIA_VISUAL_ACTOR_DAILY_LIMIT",
 ];
 const TARGETS = ["production", "preview"];
 
