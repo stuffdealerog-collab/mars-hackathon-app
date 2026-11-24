@@ -1,6 +1,6 @@
-# Mercat Brain: implementable spec (v1, extended in v2)
+# Mercat Brain v1: implementable spec
 
-> Implementation map (v2, branch `claude/uslub-brain-92430f`): `src/lib/uslub/brain/` —
+> Implementation map (v2): `src/lib/uslub/brain/` —
 > `types.ts` (§0), `scrape.ts` (A1.1, detects "no public preview" redirects), `validity.ts` (competitor gate:
 > squatted / empty / stale / tiny / no preview), `stats.ts` (§B), `rules.ts` (§C incl. live R.FUNNEL_LEAK and
 > niche-benchmark relReach), `bench.ts` (niche benchmarks from text-free channel summaries, `bench-seed.json` =

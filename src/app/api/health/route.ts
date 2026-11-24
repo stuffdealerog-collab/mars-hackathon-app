@@ -24,7 +24,7 @@ export async function GET(): Promise<Response> {
   await connection(); // always run at request time, never prerendered
   const db = await checkDb();
   return Response.json(
-    { ok: db.ok, service: "mars-hackathon-app", db, time: new Date().toISOString() },
+    { ok: db.ok, service: "mercat", db, time: new Date().toISOString() },
     { status: db.ok ? 200 : 503, headers: { "cache-control": "no-store" } },
   );
 }

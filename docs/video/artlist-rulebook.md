@@ -200,4 +200,3 @@ Sources: Higgsfield search_sound_effects / generate_audio, or the ElevenLabs con
 | 16:30–16:50 | Edit to the beat, typography, glass cards, one grade and grain pass, sound mix. |
 | 16:50–16:55 | Export 1080p H.264 at −14 LUFS and watch it once full-screen. |
 
-Working files are in `/private/tmp/claude-501/-Users-latif--claude-spares-spare-r8grLk/0d098c34-26d0-45d8-a2ce-8d9851fad634/scratchpad/yt/` (channel HTML and RSS feed).

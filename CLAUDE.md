@@ -1,6 +1,6 @@
 # Mercat — hackathon repo rules
 
-Mercat (formerly "Uslub AI"; internal paths still use `uslub`) — AI marketing department for small businesses in Uzbekistan (MARS hackathon, Techstars Startup Week Tashkent). Deploy deadline: 16:30 Tashkent time, 24 Nov 2026.
+Mercat (formerly "Uslub AI"; internal paths still use `uslub`) — AI marketing department for small businesses in Uzbekistan (built at the MARS AI Hackathon, Techstars Startup Week Tashkent 2026).
 
 ## Stack
 Next.js 16 App Router · React 19 · TypeScript · Tailwind 4 · @xyflow/react (node canvas) · motion · lucide-react · zustand · Neon Postgres (`src/lib/db.ts`, tagged-template SQL only) · grammY bot · Anthropic SDK (`src/lib/ai.ts`) · Vercel (fra1).

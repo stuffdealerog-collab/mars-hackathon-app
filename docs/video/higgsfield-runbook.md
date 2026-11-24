@@ -4,7 +4,6 @@
 - `docs/video/pitch-storyboard.md` (what we're making)
 - `docs/creative/playbook.md` (why it's done this way)
 
-**Deadline:** the Trial Unlimited ends **27 Nov 02:27 Tashkent** (26 Nov 21:27 UTC). Generate tonight. Finals and TTS can wait until the morning of 25 Nov.
 
 ## 0. Money rules (non-negotiable)
 
