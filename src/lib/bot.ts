@@ -7,6 +7,7 @@ import { getEnv, getPublicUrl } from "./env";
 import { formatDay, type Locale, pickLocale, t } from "./i18n";
 import { parseSource, safeLogEvent, track } from "./track";
 import { botHandle, botProfile, syncBotProfile } from "./uslub/bot-profile";
+import { spenderKey, takeUnits } from "./uslub/budget-core";
 import { learnFor } from "./uslub/brain/learn-run";
 import { latestPlanForOwner, ORDER_BUCKETS, planByTag, recordOutcome } from "./uslub/brain/memory";
 import { scrapeChannelData } from "./uslub/brain/scrape";
@@ -113,6 +114,14 @@ async function startOnboarding(
   const gate = onboardGate.enter(userId);
   if (!gate.ok) {
     await ctx.reply(gateMessage(gate, locale));
+    return;
+  }
+  // The app-wide daily Claude budget (shared with the API): an onboarding is a brand and posts, 2 units. A signed-in
+  // Telegram user has no per-user daily cap beyond the hourly gate above.
+  const budget = await takeUnits({ actor: spenderKey(userId, ""), anonymous: false, weight: 2, route: "bot/onboard" }).catch(() => "ok" as const);
+  if (budget !== "ok") {
+    onboardGate.leave(userId);
+    await ctx.reply(t(locale, "bot.budget_exhausted"));
     return;
   }
   try {
