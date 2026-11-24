@@ -13,6 +13,7 @@ import { COPY } from "../ui/copy";
 import { useLang, type Lang } from "../ui/lang";
 import * as api from "./api";
 import type { Fail } from "./api";
+import { latestBatch } from "./batch";
 import { keepAudit, keepPlan, keptAudit, keptPlan } from "./keep";
 import { sampleAudit, sampleBrand, samplePlan, samplePosts } from "./sample";
 
@@ -41,6 +42,8 @@ const IMAGE_POLL_LIMIT_MS = 4 * 60_000;
 export interface Problem {
   message: string;
   code: string;
+  /** A day limit (429): said calmly; "anonymous" also offers the bot, where the owner is known. */
+  limit?: "app" | "anonymous";
 }
 
 interface Input {
@@ -144,9 +147,15 @@ interface StudioState {
 const lang = (): Lang => useLang.getState().lang;
 const copy = () => COPY[lang()];
 
+/** A day limit the owner cannot retry past today: the guests' share (web, no Telegram) or the whole app's. */
+const limitOf = (f: Fail): Problem["limit"] =>
+  f.code === "guest_limit" ? "anonymous" : f.code === "budget_exhausted" ? (f.scope === "anonymous" || f.scope === "anon" ? "anonymous" : "app") : undefined;
+
 /** Owner-safe text for a failed call: the server's own sentence when it sent one. */
 export function problemOf(f: Fail): Problem {
   const c = copy();
+  const limit = limitOf(f);
+  if (limit) return { code: f.code, message: limit === "anonymous" ? c.limit.guest : c.limit.app, limit };
   if (f.code === "network") return { code: f.code, message: c.error.network };
   if (f.code === "timeout") return { code: f.code, message: c.error.timeout };
   if (f.error && f.code !== "internal" && !/^(internal error|http \d+)$/i.test(f.error)) return { code: f.code, message: f.error };
@@ -275,8 +284,10 @@ export const useStudio = create<StudioState>((set, get) => {
     });
 
   const fail = (key: StepKey, f: Fail) => {
-    step(key, { status: "fail" });
-    set({ problem: problemOf(f) });
+    const problem = problemOf(f);
+    // A day limit is not the employee's mistake: the lamp goes quiet instead of red.
+    step(key, { status: problem.limit ? "skip" : "fail" });
+    set({ problem });
   };
 
   /**
@@ -350,13 +361,13 @@ export const useStudio = create<StudioState>((set, get) => {
   const setPostImage = (id: string, image: PostImage) =>
     set({ posts: get().posts.map((p) => (p.id === id ? { ...p, image } : p)) });
 
-  const countImages = () => {
+  const countImages = (otherwise?: StepStatus) => {
     const ps = get().posts;
     const ready = ps.filter((p) => p.image?.status === "ready").length;
     const open = ps.filter((p) => isOpen(p.image)).length;
     const failed = ps.some((p) => p.image?.status === "failed");
     const was = get().steps.find((s) => s.key === "images")?.status;
-    step("images", { n: ready, m: ps.length, status: open ? "run" : ready ? "done" : failed ? "fail" : was });
+    step("images", { n: ready, m: ps.length, status: open ? "run" : ready ? "done" : failed ? "fail" : (otherwise ?? was) });
   };
 
   /** Learns the picture style once per brand (channel photos and/or the owner's photos). */
@@ -374,12 +385,17 @@ export const useStudio = create<StudioState>((set, get) => {
     return visualRun;
   };
 
-  /** Starts a picture for every post that has none, then polls until all are ready or failed. */
+  /**
+   * Starts a picture for each post of the latest run that has none, then polls until all are ready
+   * or failed. Older drafts without one keep the card's own «Rasm yaratish»: reopening a brand
+   * with many of them must not start a pile of paid pictures at once.
+   */
   const pictures = async (my: number) => {
     // Drafts only: a redrawn approved post would no longer match what the owner approved (and the
     // bot refuses to publish it). A failed attempt that still has a picture keeps it; the owner can
     // ask for another one from the card.
-    const posts = get().posts.filter(needsPicture);
+    const batch = latestBatch(get().posts);
+    const posts = get().posts.filter((p) => batch.has(p.id) && needsPicture(p));
     if (!posts.length && !get().posts.some((p) => p.image?.status === "queued" || p.image?.status === "running")) {
       countImages();
       return;
@@ -396,6 +412,14 @@ export const useStudio = create<StudioState>((set, get) => {
         if (missingRoute(r)) {
           // Pictures are not available on this server yet: say nothing rather than pretend.
           step("images", { status: "skip" });
+          return;
+        }
+        if (r.status === 429) {
+          // A day limit: the next post would hit it too. Say it once, calmly, and leave the rest
+          // on the card's own button for when the limit allows.
+          set({ problem: problemOf(r) });
+          countImages("skip");
+          void poll(my);
           return;
         }
         // The answer was lost, not necessarily the picture: the route may still be drawing it
@@ -554,7 +578,7 @@ export const useStudio = create<StudioState>((set, get) => {
         const a = auditP ? await auditP : null;
         if (my !== runId) return;
         if (a && !a.ok && isEmptyChannel(a) && ch) return toEmptyChannel(ch);
-        step("read", { status: get().postsRead != null ? "done" : "fail" });
+        step("read", { status: get().postsRead != null ? "done" : problemOf(b).limit ? "skip" : "fail" });
         return fail("voice", b);
       }
       const read = b.data.channelInfo?.postsRead ?? get().postsRead;

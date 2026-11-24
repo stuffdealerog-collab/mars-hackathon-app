@@ -85,6 +85,13 @@ const uz = {
     timeout: "Javob kechikdi. Qayta urinib ko‘ring.",
     generic: "Nimadir ishlamadi. Qayta urinib ko‘ring.",
   },
+  /** A 429 day limit: calm, never "something broke". Guests on the website are sent to the bot. */
+  limit: {
+    title: "Bugungi limit tugadi",
+    guest: "Saytdagi mehmonlar uchun bugungi limit tugadi. Davom etish uchun Mercat’ni Telegram bot orqali oching.",
+    app: "Mercat’ning bugungi limiti tugadi. Ertaga qayta urinib ko‘ring.",
+    openBot: "Botda ochish",
+  },
 
   tabs: { channel: "Kanal", posts: "Postlar", video: "Video", dept: "Bo‘lim" },
 
@@ -415,6 +422,12 @@ const ru: Copy = {
     timeout: "Ответ задержался. Попробуйте ещё раз.",
     generic: "Что-то не сработало. Попробуйте ещё раз.",
   },
+  limit: {
+    title: "Лимит на сегодня исчерпан",
+    guest: "Гостевой лимит на сайте на сегодня закончился. Чтобы продолжить, откройте Mercat через Telegram-бота.",
+    app: "Дневной лимит Mercat на сегодня исчерпан. Попробуйте завтра.",
+    openBot: "Открыть в боте",
+  },
 
   tabs: { channel: "Канал", posts: "Посты", video: "Видео", dept: "Отдел" },
 
@@ -742,6 +755,12 @@ const en: Copy = {
     network: "Could not reach the internet. Check your connection and try again.",
     timeout: "The answer took too long. Try again.",
     generic: "Something didn’t work. Try again.",
+  },
+  limit: {
+    title: "Today's limit is used up",
+    guest: "The website's guest limit for today is used up. To keep going, open Mercat through the Telegram bot.",
+    app: "Mercat's limit for today is used up. Try again tomorrow.",
+    openBot: "Open in the bot",
   },
 
   tabs: { channel: "Channel", posts: "Posts", video: "Video", dept: "Department" },

@@ -22,7 +22,8 @@ import { useLang, type Lang } from "../ui/lang";
 
 /** A blank still in a post's text, per script (approve and publish refuse with placeholder_left). */
 export type Missing = { script: Script; tokens: string[] };
-export type Fail = { ok: false; error?: string; code: string; status: number; reason?: string; addAdminUrl?: string; missing?: Missing[] };
+/** `scope` comes with a 429 `budget_exhausted`: "app" (the whole app's day) or "anonymous" (guests on the web). */
+export type Fail = { ok: false; error?: string; code: string; status: number; reason?: string; addAdminUrl?: string; missing?: Missing[]; scope?: string };
 export type Ok<T> = { ok: true; data: T };
 export type Res<T> = Ok<T> | Fail;
 
@@ -111,7 +112,7 @@ function headers(): Record<string, string> {
 }
 
 async function failFrom(res: Response): Promise<Fail> {
-  const j = (await res.json().catch(() => null)) as { error?: string; code?: string; reason?: string; addAdminUrl?: string; missing?: unknown } | null;
+  const j = (await res.json().catch(() => null)) as { error?: string; code?: string; reason?: string; addAdminUrl?: string; missing?: unknown; scope?: unknown } | null;
   return {
     ok: false,
     status: res.status,
@@ -119,6 +120,7 @@ async function failFrom(res: Response): Promise<Fail> {
     code: j?.code ?? (res.status === 429 ? "rate_limited" : res.status === 404 ? "not_found" : "http"),
     reason: j?.reason,
     addAdminUrl: j?.addAdminUrl,
+    scope: typeof j?.scope === "string" ? j.scope : undefined,
     missing: Array.isArray(j?.missing) ? (j.missing as Missing[]).filter((m) => typeof m?.script === "string" && Array.isArray(m.tokens)) : undefined,
   };
 }
@@ -283,10 +285,11 @@ export async function buildStrategy(
 
 /* ------------------------------------------------------------------ posts */
 
-export type SlotBrief = PlanSlot & { brief: string };
+/** `format` (text | photo | album | video) tells the writer whether the post is a video one. */
+export type SlotBrief = PlanSlot & { brief: string; format?: string };
 
 export function slotOf(item: PlanItem): SlotBrief {
-  return { day: item.day, time: item.time, goal: item.goal, hook: item.hook, cta: item.cta, brief: item.brief };
+  return { day: item.day, time: item.time, goal: item.goal, hook: item.hook, cta: item.cta, brief: item.brief, format: item.format };
 }
 
 /** A slot the writer could not fill; `index` points into the slots that were sent. */
