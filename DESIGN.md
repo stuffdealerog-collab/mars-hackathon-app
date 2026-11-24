@@ -254,10 +254,13 @@ A single 1180px container with 16px gutters on phones and 32px from 640px. The p
 
 The lamp panel is a 2-column grid with a 10px gap, ten lamps in pipeline order, two per row (five per row in the Studio from 640px). Sections are separated by 64px (mobile) or 96px (desktop) of vertical padding.
 
-Studio and the Mini App are one phone column, max 760px, in three phases:
-1. **Start** — the LED sign (dark until a channel is typed), "Kanalingiz uchun bir haftalik postlar", the link field, "Kanalim hali bo‘sh" (the description form: text, optional channel, up to 5 photos), then the 3 steps.
-2. **Working** — the LED sign with the channel and an m:ss clock, "Bo‘lim ishlayapti", one line saying what is happening now, then the panel. Spektr plays once on the first run; lamps light from real results.
-3. **Ready** — the brand name, the ten-light strip (or the full panel in Professional rejim), the Professional switch, then the tabs **Kanal · Postlar · Video**. Kanal: measured numbers on the LED, 3 findings, "Qanday yozasiz" in five lines, the week plan (each row: "Post tayyor" or "Postini yozish"). Postlar: one "Post tili" switch, then each post as a Telegram bubble with its picture, "Tavsiya: day, time", Tahrirlash / Tasdiqlash, then Kanalga joylash. Video: a plain "in development" notice.
+On phones the Studio is one column, max 760px, in three phases. The header holds the mark, a quiet "Pro" toggle and `uz · ru · en`.
+
+1. **Start.** Ten dark lights, "Kanalingiz uchun bir haftalik postlar", one line, the link field with the lime "Boshlash", then "Kanalim hali bo‘sh" as a quiet secondary button that opens the description form (text, optional channel, up to 5 photos). Below, the 3 steps as three words and an icon each.
+2. **Working.** A pill naming what is being read and an m:ss clock on the LED, "Bo‘lim ishlayapti", one line saying what is happening now, then the panel. Spektr plays once on the first run, from the pill. Lamps light only from real results.
+3. **Ready.** The brand name, the ten-light strip with "N xodim ishladi" (tap it for the full panel; Pro shows the full panel), then the tabs Kanal, Postlar and Video. Kanal has the measured numbers on the LED, 3 findings, "Qanday yozasiz" in five lines and the week plan, where each row offers "Post tayyor" or "Postini yozish". Postlar has one "Post tili" switch, then each post as a Telegram bubble with its picture, "Eng yaxshi vaqt: day, time", Tahrirlash and Tasdiqlash, then Kanalga joylash. Video is a plain "in development" notice.
+
+On desktop (1024px and wider) the Studio is the pro tool. A frosted-glass **hub** floats 12px in from the edge over the lamp stage and holds the sections, the brand, the ten department lights, the Pro switch and the language. Drag it across the screen, or press its dock button, to move it to the other side; fold it to a 76px icon rail. Both choices are remembered. The working area sits beside it, max 1040px. Glass is used here for one reason: the lit lamps' colours wash the stage faintly behind the hub and show through it. With no lamp lit there is no wash. Desktop starts in Professional rejim.
 
 **The Layout Never Moves Rule.** Every state a screen can reach is laid out before it is reached. Lamps, results, chips and counters have reserved space; switching state changes light, weight and opacity, never size or position (CLS 0).
 

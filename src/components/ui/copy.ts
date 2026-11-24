@@ -18,11 +18,11 @@ const uz = {
     exampleNote: "Namuna: o‘ylab topilgan non do‘koni. Sizda raqamlar va postlar o‘z kanalingizdan olinadi.",
     exampleFindingLabel: "Kanal tahlilidan",
     exampleFinding: "Sotuv postlarining 12 tasidan faqat 1 tasida narx yozilgan.",
-    exampleFix: "Narxni postning o‘zida yozing: «Narxi qancha?» degan savollar kamayadi, buyurtma tezlashadi.",
+    exampleFix: "Narxni postning o‘zida yozing. «Narxi qancha?» degan savollar kamayadi, buyurtma tezlashadi.",
     examplePostLabel: "Tayyor post",
     examplePostName: "Tandir non",
     examplePost:
-      "Ertalab 7:00 dan issiq patir bor 🫓\n\nKatta patir — 12 000 so‘m, kichigi — 7 000 so‘m. Chilonzor 9-kvartal, bozor yonida.\n\nOldindan buyurtma uchun adminga yozing — soat 7 ga tayyorlab qo‘yamiz.",
+      "Ertalab 7:00 dan issiq patir bor 🫓\n\nKatta patir — 12 000 so‘m, kichigi — 7 000 so‘m. Chilonzor 9-kvartal, bozor yonida.\n\nOldindan buyurtma uchun adminga yozing, soat 7 ga tayyorlab qo‘yamiz.",
     price: "7 kun bepul, keyin 149 000 so‘m/oy",
     beta: "beta",
     footer: "Mercat · Toshkent, 2026",
@@ -30,7 +30,7 @@ const uz = {
 
   start: {
     title: "Kanalingiz uchun bir haftalik postlar",
-    sub: "Havolani qo‘ying — 2 daqiqada reja va rasmli postlar. Siz tasdiqlaysiz.",
+    sub: "Havolani qo‘ying. 2 daqiqada reja va rasmli postlar tayyor bo‘ladi, siz faqat tasdiqlaysiz.",
     linkLabel: "Telegram kanal havolasi",
     linkPh: "t.me/kanal_nomi",
     linkExample: "Ochiq kanal, masalan t.me/kanal_nomi. Parol kerak emas.",
@@ -45,7 +45,7 @@ const uz = {
 
   fresh: {
     title: "Biznesingiz haqida yozing",
-    sub: "Nima sotishingizni yozing — birinchi haftaga reja va postlarni tayyorlaymiz.",
+    sub: "Nima sotishingizni yozing, birinchi hafta uchun reja va postlarni tayyorlaymiz.",
     descLabel: "Nima sotasiz yoki qanday xizmat ko‘rsatasiz?",
     descPh: "Masalan: Chilonzorda uyda tort pishiraman. Buyurtmani 2 kun oldin olaman. Kichik tort 180 000 so‘mdan. Yetkazib berish bor.",
     descHint: "Narx, manzil, kim sotib oladi.",
@@ -59,7 +59,7 @@ const uz = {
     photoBad: "Bu faylni ochib bo‘lmadi. JPG yoki PNG rasm tanlang.",
     go: "Postlarni tayyorlash",
     back: "Kanal havolasi bilan boshlash",
-    emptyNotice: "Bu kanalda post kam yoki u yopiq. Biznesingiz haqida yozing — postlarni tavsifdan tayyorlaymiz.",
+    emptyNotice: "Bu kanalda post kam yoki u yopiq. Biznesingiz haqida yozing, postlarni tavsifdan tayyorlaymiz.",
   },
 
   work: {
@@ -107,7 +107,7 @@ const uz = {
     writingSlot: "Yozilmoqda…",
     planMissing: "Bu sahifada reja saqlanmagan.",
     planRebuild: "Rejani qayta tuzish",
-    freshNoStats: "Kanal bo‘sh — raqamlar birinchi postlardan keyin chiqadi.",
+    freshNoStats: "Kanal hali bo‘sh. Raqamlar birinchi postlardan keyin chiqadi.",
     launchTitle: "Birinchi obunachilarni qanday topish",
     newChannel: "Boshqa kanal",
   },
@@ -127,10 +127,10 @@ const uz = {
     publishing: "Joylanmoqda…",
     published: "Kanalga joylandi",
     openPost: "Postni ko‘rish",
-    webNote: "Bot ochiladi — u yerda 📢 tugmasini bosing. Bot kanalda admin bo‘lishi kerak.",
-    samplePublish: "Namunada post joylanmaydi — o‘z kanalingiz bilan sinab ko‘ring.",
+    webNote: "Bot ochiladi, u yerda 📢 tugmasini bosing. Bot kanalda admin bo‘lishi kerak.",
+    samplePublish: "Namunadagi post joylanmaydi. O‘z kanalingiz bilan sinab ko‘ring.",
     addAdmin: "Botni kanalga admin qilish",
-    noChannel: "Kanal havolasi ko‘rsatilmagan. Botni oching va kanalingizni yuboring — post o‘sha yerdan joylanadi.",
+    noChannel: "Kanal havolasi ko‘rsatilmagan. Botni oching va kanalingizni yuboring, post o‘sha yerdan joylanadi.",
     openBot: "Botni ochish",
     approveError: "Tasdiqni saqlab bo‘lmadi. Qayta urinib ko‘ring.",
     textLabel: "Post matni",
@@ -180,7 +180,7 @@ const uz = {
     publisher: { name: "SMM-menejer", job: "Kanalga joylaydi" },
   },
   lampState: { off: "kutmoqda", warming: "ishlayapti", on: "tayyor", you: "sizni kutmoqda", error: "xato", soon: "tez orada" },
-  /** Counted captions: [one, few, many] — Uzbek and English need fewer forms, Russian needs all three. */
+  /** Counted captions: [one, few, many]. Uzbek and English need fewer forms, Russian needs all three. */
   lampResult: {
     postsRead: ["post o‘qildi", "post o‘qildi", "post o‘qildi"],
     described: "tavsif o‘qildi",
@@ -258,7 +258,7 @@ const ru: Copy = {
     exampleNote: "Пример: выдуманная пекарня. У вас цифры и посты будут из вашего канала.",
     exampleFindingLabel: "Из разбора канала",
     exampleFinding: "Цена указана только в 1 из 12 продающих постов.",
-    exampleFix: "Пишите цену прямо в посте: вопросов «сколько стоит?» станет меньше, заказы пойдут быстрее.",
+    exampleFix: "Пишите цену прямо в посте. Вопросов «сколько стоит?» станет меньше, заказы пойдут быстрее.",
     examplePostLabel: "Готовый пост",
     examplePostName: "Тандир нон",
     examplePost:
@@ -270,7 +270,7 @@ const ru: Copy = {
 
   start: {
     title: "Посты на неделю для вашего канала",
-    sub: "Вставьте ссылку — за 2 минуты план и посты с картинками. Утверждаете вы.",
+    sub: "Вставьте ссылку. Через 2 минуты будут план и посты с картинками, а утверждаете вы.",
     linkLabel: "Ссылка на Telegram-канал",
     linkPh: "t.me/kanal",
     linkExample: "Открытый канал, например t.me/kanal. Пароль не нужен.",
@@ -285,7 +285,7 @@ const ru: Copy = {
 
   fresh: {
     title: "Расскажите о своём деле",
-    sub: "Напишите, что вы продаёте, — составим план на первую неделю и напишем посты.",
+    sub: "Напишите, что вы продаёте. Мы составим план на первую неделю и напишем посты.",
     descLabel: "Что вы продаёте или какую услугу оказываете?",
     descPh: "Например: пеку торты дома на Чиланзаре. Заказ за 2 дня. Маленький торт от 180 000 сум. Есть доставка.",
     descHint: "Цены, адрес, кто покупает.",
@@ -299,7 +299,7 @@ const ru: Copy = {
     photoBad: "Не удалось открыть файл. Выберите фото JPG или PNG.",
     go: "Подготовить посты",
     back: "Начать со ссылки на канал",
-    emptyNotice: "В этом канале мало постов или он закрыт. Расскажите о своём деле — подготовим посты по описанию.",
+    emptyNotice: "В этом канале мало постов или он закрыт. Расскажите о своём деле, и мы подготовим посты по описанию.",
   },
 
   work: {
@@ -347,7 +347,7 @@ const ru: Copy = {
     writingSlot: "Пишем…",
     planMissing: "План на этой странице не сохранён.",
     planRebuild: "Составить план заново",
-    freshNoStats: "Канал пустой — цифры появятся после первых постов.",
+    freshNoStats: "Канал пока пустой. Цифры появятся после первых постов.",
     launchTitle: "Как найти первых подписчиков",
     newChannel: "Другой канал",
   },
@@ -367,10 +367,10 @@ const ru: Copy = {
     publishing: "Публикуем…",
     published: "Опубликован",
     openPost: "Открыть пост",
-    webNote: "Откроется бот — нажмите там 📢. Бот должен быть админом канала.",
-    samplePublish: "В примере пост не публикуется — попробуйте со своим каналом.",
+    webNote: "Откроется бот, нажмите там 📢. Бот должен быть админом канала.",
+    samplePublish: "Пост из примера не публикуется. Попробуйте со своим каналом.",
     addAdmin: "Сделать бота админом канала",
-    noChannel: "Канал не указан. Откройте бота и отправьте ему ссылку на канал — пост опубликуется оттуда.",
+    noChannel: "Канал не указан. Откройте бота и отправьте ему ссылку на канал, пост опубликуется оттуда.",
     openBot: "Открыть бота",
     approveError: "Не удалось сохранить. Попробуйте ещё раз.",
     textLabel: "Текст поста",
@@ -495,7 +495,7 @@ const en: Copy = {
     exampleNote: "Example: a made-up bakery. Yours will come from your own channel.",
     exampleFindingLabel: "From the channel review",
     exampleFinding: "Only 1 of 12 sales posts shows a price.",
-    exampleFix: "Put the price in the post itself: fewer “how much?” questions, faster orders.",
+    exampleFix: "Put the price in the post itself. You get fewer “how much?” questions and faster orders.",
     examplePostLabel: "Ready post",
     examplePostName: "Tandir non",
     examplePost:
@@ -507,7 +507,7 @@ const en: Copy = {
 
   start: {
     title: "A week of posts for your channel",
-    sub: "Paste the link — a plan and posts with pictures in 2 minutes. You approve.",
+    sub: "Paste the link. In 2 minutes you get a plan and posts with pictures, and you approve them.",
     linkLabel: "Telegram channel link",
     linkPh: "t.me/channel",
     linkExample: "A public channel, e.g. t.me/channel. No password.",
@@ -584,7 +584,7 @@ const en: Copy = {
     writingSlot: "Writing…",
     planMissing: "The plan isn’t saved on this page.",
     planRebuild: "Plan again",
-    freshNoStats: "Empty channel — numbers come after the first posts.",
+    freshNoStats: "The channel is empty. Numbers come after the first posts.",
     launchTitle: "How to get the first subscribers",
     newChannel: "Another channel",
   },
@@ -604,10 +604,10 @@ const en: Copy = {
     publishing: "Publishing…",
     published: "Published",
     openPost: "Open the post",
-    webNote: "Opens the bot — tap 📢 there. The bot must be a channel admin.",
-    samplePublish: "Sample posts can’t be published — try it with your own channel.",
+    webNote: "Opens the bot. Tap 📢 there. The bot must be a channel admin.",
+    samplePublish: "Sample posts can’t be published. Try it with your own channel.",
     addAdmin: "Make the bot a channel admin",
-    noChannel: "No channel is set. Open the bot and send it your channel link — the post will be published from there.",
+    noChannel: "No channel is set. Open the bot and send it your channel link, and it publishes the post from there.",
     openBot: "Open the bot",
     approveError: "Could not save the approval. Try again.",
     textLabel: "Post text",
