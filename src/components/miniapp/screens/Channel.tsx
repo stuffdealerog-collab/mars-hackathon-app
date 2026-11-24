@@ -34,7 +34,8 @@ export function ChannelScreen({ onOpenPost }: { onOpenPost: (id: string) => void
   const sample = useStudio((s) => s.sample);
   const audit = useStudio((s) => s.audit);
   const sufficiency = useStudio((s) => s.sufficiency);
-  const postsRead = useStudio((s) => s.postsRead ?? s.audit?.postsAnalyzed ?? null);
+  // The audit's own count first: it is the number the channel sign shows (posts read can be fewer).
+  const postsRead = useStudio((s) => s.audit?.postsAnalyzed ?? s.postsRead ?? null);
   const openSheet = useNav((s) => s.openSheet);
   const lamps = useLamps();
   const { ref, compact } = useCompact(56);
@@ -445,6 +446,8 @@ function StrategyDetails() {
   const strategy = useStudio((s) => s.strategy);
   if (!strategy) return null;
   const t = (s: string) => ownerText(s, lang);
+  // An empty offer, or one the engine refused ("BLOCKED: …"), is not shown at all.
+  const offer = strategy.offer?.trim() && !/^BLOCKED/i.test(strategy.offer.trim()) ? strategy.offer : null;
   return (
     <section aria-labelledby="ma-strat">
       <H2 id="ma-strat">{c.pro.label}</H2>
@@ -455,10 +458,10 @@ function StrategyDetails() {
             <p className="mt-1 text-[15px] leading-snug">{t(strategy.positioning)}</p>
           </div>
         )}
-        {strategy.offer && (
+        {offer && (
           <div className="ma-row !block">
             <p className="text-[13px] text-ink-2">{c.pro.offer}</p>
-            <p className="mt-1 text-[15px] leading-snug">{t(strategy.offer)}</p>
+            <p className="mt-1 text-[15px] leading-snug">{t(offer)}</p>
           </div>
         )}
         {strategy.pillars.length > 0 && (

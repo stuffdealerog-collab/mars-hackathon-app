@@ -1,4 +1,5 @@
 import { INTRO_CLOUD_KEY, INTRO_COPY, INTRO_STEPS, localIntro, Onboarding, seenValue } from "../onboarding";
+import { useStudio } from "../studio/store";
 import { useLang } from "../ui/lang";
 import { PRIORITY, useBottomButtons, useNav } from "./nav";
 import { cloud, haptic } from "./tg";
@@ -16,6 +17,7 @@ export function markIntroSeen() {
 export function MiniIntro() {
   const step = useNav((s) => s.intro);
   const lang = useLang((s) => s.lang);
+  const bot = useStudio((s) => s.bot);
   const t = INTRO_COPY[lang];
   const open = step != null;
   const at = step ?? 0;
@@ -49,6 +51,7 @@ export function MiniIntro() {
       step={at}
       onStepChange={(n) => useNav.getState().setIntroStep(n)}
       lang={lang}
+      bot={bot}
       variant="phone"
       hostPrimary
       onClose={close}
