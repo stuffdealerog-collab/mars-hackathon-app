@@ -20,7 +20,7 @@ import { markIntroSeen, MiniIntro } from "./Intro";
 import { decideIntro, forcedByUrl, INTRO_CLOUD_KEY, introSeen, localIntro } from "../onboarding";
 import { launchTarget } from "./launch";
 import { restart } from "./actions";
-import { useResume } from "./sync";
+import { loadLatestPlan, useResume } from "./sync";
 import { isLimit } from "./limits";
 import { cloud, haptic, tg } from "./tg";
 
@@ -128,9 +128,13 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
   useEffect(() => {
     if (lastPhase.current !== phase) {
       const fromRun = lastPhase.current === "working";
+      const reopened = lastPhase.current === "reopening";
       lastPhase.current = phase;
       useNav.getState().clear();
       if (phase === "ready" && fromRun) haptic.success();
+      // A reopened brand without a plan on this phone: the server's latest one, if it has one.
+      const st = useStudio.getState();
+      if (phase === "ready" && reopened && st.brand && !st.plan && !st.sample) void loadLatestPlan(st.brand.id);
     }
   }, [phase]);
 
