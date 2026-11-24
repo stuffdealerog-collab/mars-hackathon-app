@@ -1,13 +1,16 @@
 import type { AgentRole, Script } from "@/lib/uslub/contract";
-import { forwardRef, useMemo } from "react";
+import { ChevronDown } from "lucide-react";
+import { forwardRef, useMemo, useState } from "react";
 import { Led } from "../lamp/Led";
 import { LampTile } from "../lamp/LampTile";
 import { LAMP_ORDER, type LampState } from "../lamp/lamps";
-import { useCopy } from "../ui/lang";
+import { plural } from "../ui/format";
+import { fmt, useCopy, useLang } from "../ui/lang";
 import { useStudio, type StepKey } from "./store";
 
 /** Roles that do nothing for the owner yet: their lamps stay dark with "tez orada". */
-const SOON: AgentRole[] = ["video", "radar"];
+export const SOON_ROLES: readonly AgentRole[] = ["video", "radar"];
+const SOON = SOON_ROLES;
 const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
 
 export type Lamps = { state: Record<AgentRole, LampState>; soon: Set<AgentRole>; result: Partial<Record<AgentRole, React.ReactNode>> };
@@ -28,6 +31,7 @@ function Num({ n, word }: { n: number | string; word: string }) {
  */
 export function useLamps(gate = false): Lamps {
   const c = useCopy();
+  const lang = useLang((s) => s.lang);
   const steps = useStudio((s) => s.steps);
   const mode = useStudio((s) => s.mode);
   const brand = useStudio((s) => s.brand);
@@ -58,22 +62,24 @@ export function useLamps(gate = false): Lamps {
 
     const read = mode === "fresh" ? !!brand : !!audit || postsRead != null;
     state.analyst = by(read, "read");
+    const count = (forms: readonly string[], n: number) => <Num n={n} word={plural(forms, n, lang)} />;
     if (mode === "fresh" && brand) result.analyst = <span className="text-[14px] font-semibold leading-tight">{c.lampResult.described}</span>;
-    else if (audit || postsRead != null) result.analyst = <Num n={audit?.postsAnalyzed ?? postsRead ?? 0} word={c.lampResult.postsRead} />;
+    else if (audit || postsRead != null) result.analyst = count(c.lampResult.postsRead, audit?.postsAnalyzed ?? postsRead ?? 0);
 
     state.strategist = by(!!plan, "plan");
-    if (plan) result.strategist = <Num n={plan.items.length} word={c.lampResult.planned} />;
-    else if (progress?.m) result.strategist = <Num n={`${progress.n}/${progress.m}`} word={c.lampResult.planned} />;
+    if (plan) result.strategist = count(c.lampResult.planned, plan.items.length);
+    else if (progress?.m) result.strategist = <Num n={`${progress.n}/${progress.m}`} word={plural(c.lampResult.planned, progress.m, lang)} />;
 
     const written = posts.length > 0;
     state.copywriter = by(written, "posts");
     state.editor = by(written, "posts");
     state.translator = by(written, "posts");
     if (written) {
-      result.copywriter = <Num n={posts.length} word={c.lampResult.written} />;
+      result.copywriter = count(c.lampResult.written, posts.length);
       result.editor = <span className="text-[14px] font-semibold leading-tight">{c.lampResult.clean}</span>;
-      const langs = SCRIPTS.filter((s) => posts.some((p) => p.variants[s]?.trim())).length;
-      result.translator = <Num n={langs} word={c.lampResult.languages} />;
+      // What it translated into, by name: no count to misread.
+      const into = SCRIPTS.filter((s) => s !== "uz_latn" && posts.some((p) => p.variants[s]?.trim()));
+      result.translator = <span className="text-[14px] font-semibold leading-tight">{into.map((s) => c.posts.scripts[s]).join(" · ")}</span>;
     }
 
     const images = posts.map((p) => p.image).filter(Boolean);
@@ -82,21 +88,21 @@ export function useLamps(gate = false): Lamps {
     const imgStep = status("images");
     if (open) {
       state.designer = "warming";
-      result.designer = <Num n={`${ready}/${posts.length}`} word={c.lampResult.pictures} />;
+      result.designer = <Num n={`${ready}/${posts.length}`} word={plural(c.lampResult.pictures, posts.length, lang)} />;
     } else if (ready) {
       state.designer = "on";
-      result.designer = <Num n={ready} word={c.lampResult.pictures} />;
+      result.designer = count(c.lampResult.pictures, ready);
     } else if (images.length) state.designer = "error";
     else if (imgStep === "skip") soon.add("designer");
 
     const published = posts.filter((p) => p.status === "published").length;
     if (published) {
       state.publisher = "on";
-      result.publisher = <Num n={published} word={c.lampResult.published} />;
+      result.publisher = count(c.lampResult.published, published);
     } else if (written) state.publisher = "you";
 
     return { state, soon, result };
-  }, [gate, steps, mode, brand, audit, postsRead, plan, progress, posts, c]);
+  }, [gate, steps, mode, brand, audit, postsRead, plan, progress, posts, c, lang]);
 }
 
 /** The full panel: ten lamps in pipeline order. */
@@ -119,8 +125,9 @@ export const Panel = forwardRef<HTMLUListElement, { lamps: Lamps; size?: "sm" | 
             state={st}
             name={c.lamps[r].name}
             job={showJob ? c.lamps[r].job : undefined}
-            stateText={soon ? c.lampState.soon : c.lampState[st]}
-            className={soon ? "opacity-60" : ""}
+            // A dark lamp says nothing; only "tez orada" roles explain themselves.
+            stateText={soon ? c.lampState.soon : st === "off" ? undefined : c.lampState[st]}
+            className={soon ? "lamp--soon" : ""}
           >
             {st === "off" ? null : lamps.result[r]}
           </LampTile>
@@ -130,27 +137,33 @@ export const Panel = forwardRef<HTMLUListElement, { lamps: Lamps; size?: "sm" | 
   );
 });
 
-/** The department in one line: ten small lights, for the ready screen in simple mode. */
+/**
+ * The department in one line: ten small lights for the ready screen. Tap to open the full
+ * panel with every lamp's result; tap again to fold it.
+ */
 export function Strip({ lamps }: { lamps: Lamps }) {
   const c = useCopy();
-  const working = LAMP_ORDER.filter((r) => lamps.state[r] !== "off" && !lamps.soon.has(r)).length;
-  const total = LAMP_ORDER.filter((r) => !SOON.includes(r)).length;
+  const [open, setOpen] = useState(false);
+  const working = LAMP_ORDER.filter((r) => lamps.state[r] !== "off").length;
   return (
-    <div className="flex items-center gap-3">
-      <ul aria-label={c.dept.label} className="grid flex-1 grid-cols-10 gap-1.5">
-        {LAMP_ORDER.map((r) => (
-          <LampTile
-            key={r}
-            as="li"
-            role={r}
-            size="xs"
-            state={lamps.state[r]}
-            aria-label={`${c.lamps[r].name}: ${lamps.soon.has(r) && lamps.state[r] === "off" ? c.lampState.soon : c.lampState[lamps.state[r]]}`}
-            title={c.lamps[r].name}
-          />
-        ))}
-      </ul>
-      <span className="tnum shrink-0 text-[13px] text-ink-2">{c.dept.staff.replace("{n}", String(working)).replace("{m}", String(total))}</span>
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex min-h-11 w-full items-center gap-3 rounded-[14px] text-left"
+      >
+        <ul aria-hidden className="grid flex-1 grid-cols-10 gap-1.5">
+          {LAMP_ORDER.map((r) => (
+            <LampTile key={r} as="li" role={r} size="xs" state={lamps.state[r]} />
+          ))}
+        </ul>
+        <span className="tnum flex shrink-0 items-center gap-1 text-[13px] text-ink-2">
+          {fmt(c.dept.staff, { n: working })}
+          <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${open ? "rotate-180" : ""}`} strokeWidth={1.75} aria-hidden />
+        </span>
+      </button>
+      {open && <Panel lamps={lamps} className="mt-3" />}
     </div>
   );
 }

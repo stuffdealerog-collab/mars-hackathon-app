@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fmt, isMachineEvidence, keepNumbers, num, ownerText, parseChannel, weekday } from "./format";
+import { fmt, isMachineEvidence, keepNumbers, num, ownerText, parseChannel, plural, weekday } from "./format";
 
 const NBSP = "\u00a0";
 
@@ -37,6 +37,17 @@ describe("keepNumbers", () => {
   it("leaves ordinary spaces between numbers and words alone", () => {
     expect(keepNumbers("soat 7 ga, 9-kvartal 12 ta")).toBe("soat 7 ga, 9-kvartal 12 ta");
     expect(keepNumbers("2026 1234")).toBe("2026 1234");
+  });
+});
+
+describe("plural", () => {
+  const ru = ["пост", "поста", "постов"];
+  it("follows Russian plural rules", () => {
+    expect([1, 2, 5, 21, 22, 25, 111].map((n) => plural(ru, n, "ru"))).toEqual(["пост", "поста", "постов", "пост", "поста", "постов", "постов"]);
+  });
+  it("uses the plural form for English counts other than one", () => {
+    expect(plural(["post", "posts", "posts"], 1, "en")).toBe("post");
+    expect(plural(["post", "posts", "posts"], 7, "en")).toBe("posts");
   });
 });
 

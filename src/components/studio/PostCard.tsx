@@ -1,5 +1,6 @@
 import type { PostDraft, Script } from "@/lib/uslub/contract";
 import { Check, ExternalLink } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useId, useState } from "react";
 import { fmt, keepNumbers, useCopy, useLang } from "../ui/lang";
 import { weekday } from "../ui/format";
@@ -21,8 +22,18 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
   const retryImage = useStudio((s) => s.retryImage);
   const sample = useStudio((s) => s.sample);
   const channelName = useStudio((s) => s.brand?.dna.name || s.brand?.channel || (s.input.channel ? `@${s.input.channel}` : ""));
+  // Reserve the picture slot while pictures are on their way (not in sample mode, not when the
+  // picture service is unavailable), so the card never jumps when one arrives.
+  const picturesExpected = useStudio((s) => !s.sample && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [pulse, setPulse] = useState(false);
+  const [wasApproved, setWasApproved] = useState(post.status !== "draft");
+  // Pulse once on the change to "approved" (state derived during render, no effect needed).
+  if (post.status !== "draft" && !wasApproved) {
+    setWasApproved(true);
+    setPulse(true);
+  }
 
   const text = post.variants[script] ?? "";
   const slot = post.slot;
@@ -50,16 +61,27 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
       </header>
 
       {/* Drawn close to Telegram's own channel post, so the owner sees what subscribers will see. */}
-      <div className="tgpost">
-        <PostPicture image={post.image} alt={c.posts.image.alt} onRetry={sample ? undefined : () => void retryImage(post.id)} />
+      <div className="tgpost relative">
+        {/* Approving answers with one lime pulse around the post: the owner's hand, confirmed. */}
+        <AnimatePresence>
+          {pulse && (
+            <motion.span
+              aria-hidden
+              className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] shadow-[inset_0_0_0_2px_var(--lime)]"
+              initial={{ opacity: 1, scale: 1 }}
+              animate={{ opacity: 0, scale: 1.015 }}
+              transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+              onAnimationComplete={() => setPulse(false)}
+            />
+          )}
+        </AnimatePresence>
+        <PostPicture image={post.image} alt={c.posts.image.alt} expected={picturesExpected} onRetry={sample ? undefined : () => void retryImage(post.id)} />
         <div className="px-4 pb-2.5 pt-3">
           <div className="mb-2 flex items-center gap-2.5">
             <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[14px] font-semibold text-white" style={{ background: "linear-gradient(160deg, #C86B3C, #6b3115)" }}>
               {name.replace(/^@/, "").slice(0, 1).toUpperCase()}
             </span>
-            <span className="min-w-0 truncate text-[14.5px] font-semibold" style={{ color: "color-mix(in oklab, #E08A55 70%, var(--ink))" }}>
-              {name}
-            </span>
+            <span className="min-w-0 truncate text-[14.5px] font-semibold text-[#E0956A]">{name}</span>
           </div>
           {editing ? (
             <>

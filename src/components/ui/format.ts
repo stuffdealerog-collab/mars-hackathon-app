@@ -28,6 +28,17 @@ export function keepNumbers(text: string): string {
   return text.replace(/(\d)[ \u202f](?=\d{3}(?!\d))/g, "$1\u00a0");
 }
 
+/** Picks [one, few, many] by the language's plural rules: "1 пост", "2 поста", "5 постов". */
+export function plural(forms: readonly string[], n: number, lang: Lang): string {
+  let rule = "other";
+  try {
+    rule = new Intl.PluralRules(lang).select(n);
+  } catch {
+    /* no plural data: the "many" form reads fine */
+  }
+  return rule === "one" ? forms[0] : rule === "few" ? forms[1] : forms[2];
+}
+
 /** "2026-11-30" -> weekday index (0 = Sunday) without timezone drift. */
 export function weekday(iso: string): number | null {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);

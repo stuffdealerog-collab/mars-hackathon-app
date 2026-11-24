@@ -1,5 +1,4 @@
-"use client";
-
+import type { AgentRole } from "@/lib/uslub/contract";
 import { useLayoutEffect, useRef, useState } from "react";
 import { LAMP_ORDER, LAMPS } from "@/components/lamp/lamps";
 
@@ -13,7 +12,7 @@ import { LAMP_ORDER, LAMPS } from "@/components/lamp/lamps";
  * Everything runs on WAAPI, so React does not re-render per frame.
  */
 
-type Geo = { w: number; ox: number; oy: number; dx: number; dy: number; tiles: { x: number; y: number; w: number; h: number; hue: string; core: string }[] };
+type Geo = { w: number; ox: number; oy: number; dx: number; dy: number; tiles: { x: number; y: number; w: number; h: number; hue: string; core: string; dark: boolean }[] };
 
 const T = { squeeze: 380, charge: 300, chargeEnd: 700, drop: 980, split: 1000, beamIn: 330, bloom: 1300, end: 1900, back: 1650 };
 const EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
@@ -24,11 +23,14 @@ export function SpectrumIntro({
   panelRef,
   onBloom,
   onDone,
+  dark = [],
 }: {
   fieldRef: React.RefObject<HTMLElement | null>;
   panelRef: React.RefObject<HTMLElement | null>;
   onBloom: () => void;
   onDone: () => void;
+  /** Roles that do nothing yet ("tez orada"): no beam, no flash, they stay dark. */
+  dark?: readonly AgentRole[];
 }) {
   const box = useRef<HTMLDivElement>(null);
   const point = useRef<HTMLSpanElement>(null);
@@ -47,13 +49,13 @@ export function SpectrumIntro({
     const tiles = Array.from(panel.children).map((li, i) => {
       const r = li.getBoundingClientRect();
       const l = LAMPS[LAMP_ORDER[i]];
-      return { x: r.left - b.left, y: r.top - b.top, w: r.width, h: r.height, hue: l.hue, core: l.core };
+      return { x: r.left - b.left, y: r.top - b.top, w: r.width, h: r.height, hue: l.hue, core: l.core, dark: dark.includes(LAMP_ORDER[i]) };
     });
     const id = requestAnimationFrame(() =>
       setGeo({ w: b.width, ox: f.left - b.left + f.width / 2, oy: f.top - b.top + f.height / 2, dx: b.width / 2, dy: -18, tiles }),
     );
     return () => cancelAnimationFrame(id);
-  }, [fieldRef, panelRef]);
+  }, [fieldRef, panelRef, dark]);
 
   // Play the sequence once geometry is known.
   useLayoutEffect(() => {
@@ -63,12 +65,13 @@ export function SpectrumIntro({
     const timers: number[] = [];
     if (field) {
       anims.push(
+        // transform + opacity only: clip-path animates on the main thread in Telegram's webview.
         field.animate(
           [
-            { clipPath: "inset(0 0% 0 0% round 999px)", opacity: 1, offset: 0 },
-            { clipPath: "inset(0 50% 0 50% round 999px)", opacity: 0.6, offset: T.squeeze / T.end },
-            { clipPath: "inset(0 50% 0 50% round 999px)", opacity: 0, offset: T.back / T.end },
-            { clipPath: "inset(0 0% 0 0% round 999px)", opacity: 1, offset: 1 },
+            { transform: "scaleX(1)", opacity: 1, offset: 0 },
+            { transform: "scaleX(0.04)", opacity: 0.6, offset: T.squeeze / T.end },
+            { transform: "scaleX(0.04)", opacity: 0, offset: T.back / T.end },
+            { transform: "scaleX(1)", opacity: 1, offset: 1 },
           ],
           { duration: T.end, easing: "linear" },
         ),
@@ -94,6 +97,7 @@ export function SpectrumIntro({
       );
     }
     geo.tiles.forEach((t, i) => {
+      if (t.dark) return;
       const beam = beams.current[i];
       const flash = flashes.current[i];
       const delay = T.split + i * 22;
@@ -138,6 +142,7 @@ export function SpectrumIntro({
             const len = Math.hypot(cx - geo.dx, cy - geo.dy);
             const ang = (Math.atan2(-(cx - geo.dx), cy - geo.dy) * 180) / Math.PI;
             const rot = `rotate(${ang.toFixed(2)}deg)`;
+            if (t.dark) return null;
             return (
               <span key={`b${i}`}>
                 <span
@@ -167,7 +172,7 @@ export function SpectrumIntro({
                     width: t.w,
                     height: t.h,
                     opacity: 0,
-                    background: `radial-gradient(150% 100% at 50% -10%, ${t.core} 0%, ${t.hue} 30%, color-mix(in oklab, ${t.hue} 30%, transparent) 70%, transparent 90%)`,
+                    background: `radial-gradient(150% 100% at 50% -10%, ${t.core} 0%, ${t.hue} 30%, ${t.hue}4d 70%, transparent 90%)`,
                   }}
                 />
               </span>
@@ -176,7 +181,7 @@ export function SpectrumIntro({
           <span
             ref={point}
             className="absolute left-0 top-0 h-4 w-4 rounded-full bg-white"
-            style={{ opacity: 0, boxShadow: "0 0 16px 6px #fff, 0 0 60px 24px rgb(255 236 210 / .55)" }}
+            style={{ opacity: 0, boxShadow: "0 0 10px 3px #fff, 0 0 24px 8px rgb(255 236 210 / .45)" }}
           />
         </>
       )}

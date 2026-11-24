@@ -1,18 +1,22 @@
 "use client";
 
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Script } from "@/lib/uslub/contract";
-import { Led, LedStrip } from "../lamp/Led";
+import { Led } from "../lamp/Led";
 import { fmt, useCopy, useInitLang, useLang, type Lang } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel } from "../ui/parts";
 import { ChannelTab } from "./ChannelTab";
-import { Panel, Strip, useLamps } from "./Department";
+import { Panel, SOON_ROLES, Strip, useLamps } from "./Department";
 import { PostCard } from "./PostCard";
 import { SpectrumIntro } from "./SpectrumIntro";
 import { Start } from "./Start";
 import { POSTS_PER_RUN, useStudio, type Step, type Tab } from "./store";
 
 type Theme = "light" | "dark";
+
+/** Exponential ease-out, the system's one curve (DESIGN.md, Motion). */
+const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
 /**
  * The Studio: one screen that answers "what is this and what do I do", a calm checklist
@@ -51,7 +55,10 @@ export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: stri
     <div data-theme={theme} className="flex min-h-dvh flex-col bg-paper text-ink">
       <header className="mx-auto flex w-full max-w-[760px] items-center justify-between gap-3 px-4 pb-2 pt-3 sm:px-6 sm:pt-5">
         <Logo href={inTelegram ? null : "/"} />
-        <LangSwitch />
+        <span className="flex items-center gap-2">
+          <ProToggle />
+          <LangSwitch />
+        </span>
       </header>
       {sample && <SampleBanner />}
       <main className="mx-auto w-full max-w-[760px] flex-1 px-4 pb-20 sm:px-6">
@@ -61,6 +68,20 @@ export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: stri
         {phase === "ready" && <Ready inTelegram={inTelegram} />}
       </main>
     </div>
+  );
+}
+
+/** One quiet toggle for marketers: the same screens, denser. Remembered on this device. */
+function ProToggle() {
+  const c = useCopy();
+  const pro = useStudio((s) => s.pro);
+  const setPro = useStudio((s) => s.setPro);
+  return (
+    <span className="seg">
+      <button type="button" aria-pressed={pro} title={c.pro.label} aria-label={c.pro.label} onClick={() => setPro(!pro)} className="!px-3.5">
+        Pro
+      </button>
+    </span>
   );
 }
 
@@ -132,7 +153,7 @@ function Working() {
   const input = useStudio((s) => s.input);
   const sample = useStudio((s) => s.sample);
   const head = useRef<HTMLHeadingElement>(null);
-  const ledRef = useRef<HTMLDivElement>(null);
+  const ledRef = useRef<HTMLSpanElement>(null);
   const panelRef = useRef<HTMLUListElement>(null);
   // A wrong or private link will fail the same way again: the way forward is another link.
   const fixLink = !!problem && ["channel_invalid", "not_found", "invalid_input", "channel_mismatch"].includes(problem.code);
@@ -163,31 +184,32 @@ function Working() {
   const lastDone = [...steps].reverse().find((s) => s.status === "done");
   const now = running ?? failed ?? lastDone;
   const nowLabel = now ? stepLabel(now, mode, c) : null;
-  // The sign prints only real facts: the owner's channel, never the sample's made-up one.
-  const led = sample ? undefined : input.channel ? `@${input.channel}` : undefined;
+  // What is being read: the owner's channel, or the sample, said plainly.
+  const source = sample ? c.sample.chip : input.channel ? `@${input.channel}` : c.work.readDesc.wait;
 
   return (
     <div className="pt-4 sm:pt-8">
-      <div className="flex items-center gap-2.5">
-        <div ref={ledRef} className="min-w-0 flex-1">
-          <LedStrip text={led} dot={3} gap={1.3} run={!!led && led.length > 16} label={led} />
-        </div>
-        <span className="rounded-[12px] bg-stage px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
+      {/* Spektr's light starts from this pill: the thing Mercat is reading. */}
+      <div className="flex items-center justify-between gap-3">
+        <span ref={ledRef} className="inline-flex min-h-10 min-w-0 items-center truncate rounded-full bg-glass-2 px-4 text-[15px] font-medium shadow-[inset_0_0_0_1px_var(--hair-2)]">
+          {source}
+        </span>
+        <span className="shrink-0 rounded-[12px] bg-stage px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
           <ElapsedLed />
         </span>
       </div>
 
-      <h1 ref={head} tabIndex={-1} className="mt-6 text-[26px] font-semibold leading-tight tracking-[-0.02em] outline-none sm:text-[32px]">
+      <h1 ref={head} tabIndex={-1} className="mt-6 text-[28px] font-semibold leading-tight tracking-[-0.03em] outline-none sm:text-[34px]">
         {problem ? c.error.title : c.dept.working}
       </h1>
-      <p className="mt-2 min-h-6 text-[16px] text-ink" aria-live="polite">
+      <p className="mt-1.5 min-h-6 text-[16px] text-ink-2" aria-live="polite">
         {nowLabel}
+        {!problem && <span className="text-ink-3"> · {c.work.note}</span>}
       </p>
-      {!problem && <p className="mt-1 text-[14px] text-ink-3">{c.work.note}</p>}
 
-      <div className="relative mt-6">
+      <div className="relative mt-5">
         <Panel ref={panelRef} lamps={lamps} />
-        {intro && <SpectrumIntro fieldRef={ledRef} panelRef={panelRef} onBloom={onBloom} onDone={onDone} />}
+        {intro && <SpectrumIntro fieldRef={ledRef} panelRef={panelRef} onBloom={onBloom} onDone={onDone} dark={SOON_ROLES} />}
       </div>
 
       {problem && (
@@ -238,8 +260,8 @@ function Ready({ inTelegram }: { inTelegram: boolean }) {
   const reset = useStudio((s) => s.reset);
   const sample = useStudio((s) => s.sample);
   const pro = useStudio((s) => s.pro);
-  const setPro = useStudio((s) => s.setPro);
   const lamps = useLamps();
+  const reduce = useReducedMotion() ?? false;
   const tabs: { key: Tab; name: string }[] = [
     { key: "channel", name: c.tabs.channel },
     { key: "posts", name: c.tabs.posts },
@@ -270,18 +292,7 @@ function Ready({ inTelegram }: { inTelegram: boolean }) {
       </div>
 
       {/* The department stays on screen: ten small lights, or the full panel in Professional rejim. */}
-      <div className="mt-5">{pro ? <Panel lamps={lamps} /> : <Strip lamps={lamps} />}</div>
-      <div className="mt-4 flex items-center justify-between gap-4">
-        <span className="min-w-0">
-          <span id="pro-l" className="block text-[15px] font-medium">
-            {c.pro.label}
-          </span>
-          <span className="block text-[13px] leading-snug text-ink-2">{c.pro.hint}</span>
-        </span>
-        <button type="button" role="switch" aria-checked={pro} aria-labelledby="pro-l" className="switch" onClick={() => setPro(!pro)}>
-          <span className="switch__knob" />
-        </button>
-      </div>
+      <div className="mt-4">{pro ? <Panel lamps={lamps} /> : <Strip lamps={lamps} />}</div>
 
       <div role="tablist" aria-label="Mercat" onKeyDown={onKey} className="sticky top-0 z-10 -mx-4 mt-5 flex gap-1 border-b border-line bg-paper px-4 sm:mx-0 sm:px-0">
         {tabs.map((t) => (
@@ -302,11 +313,23 @@ function Ready({ inTelegram }: { inTelegram: boolean }) {
         ))}
       </div>
 
-      <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="pt-7">
-        {tab === "channel" && <ChannelTab />}
-        {tab === "posts" && <PostsTab inTelegram={inTelegram} />}
-        {tab === "video" && <VideoTab />}
-      </div>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={tab}
+          id={`panel-${tab}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${tab}`}
+          className="pt-7"
+          initial={reduce ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduce ? undefined : { opacity: 0, y: -4 }}
+          transition={{ duration: 0.22, ease: EASE_OUT }}
+        >
+          {tab === "channel" && <ChannelTab />}
+          {tab === "posts" && <PostsTab inTelegram={inTelegram} />}
+          {tab === "video" && <VideoTab />}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
@@ -320,16 +343,19 @@ function PostsTab({ inTelegram }: { inTelegram: boolean }) {
   const posts = useStudio((s) => s.posts);
   const picked = useStudio((s) => s.postScript);
   const setPostScript = useStudio((s) => s.setPostScript);
+  const channelLangs = useStudio((s) => s.brand?.dna.languages) ?? [];
+  const reduce = useReducedMotion() ?? false;
   if (!posts.length) return <p className="text-[15px] text-ink-2">{c.posts.none}</p>;
 
-  // One switch for the whole list; it follows the page language until the owner picks.
+  // One switch for the whole list. The post language is the channel's own (from the brand),
+  // not the page language; the page language is only a fallback when the brand has none.
   const available = SCRIPTS.filter((s) => posts.some((p) => p.variants[s]?.trim()));
-  const fallback = available.includes(SCRIPT_FOR[lang]) ? SCRIPT_FOR[lang] : (available[0] ?? "uz_latn");
+  const own = channelLangs.find((s) => available.includes(s));
+  const fallback = own ?? (available.includes(SCRIPT_FOR[lang]) ? SCRIPT_FOR[lang] : (available[0] ?? "uz_latn"));
   const script = picked && available.includes(picked) ? picked : fallback;
 
   return (
-    <div className="flex flex-col gap-5">
-      <p className="text-[15px] leading-relaxed text-ink-2">{c.posts.intro}</p>
+    <div className="flex flex-col gap-6">
       {available.length > 1 && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className="text-[14px] text-ink-2" id="post-lang">
@@ -344,8 +370,16 @@ function PostsTab({ inTelegram }: { inTelegram: boolean }) {
           </div>
         </div>
       )}
-      {posts.map((p) => (
-        <PostCard key={p.id} post={p} script={p.variants[script]?.trim() ? script : "uz_latn"} inTelegram={inTelegram} />
+      {/* Cards are dealt in one after another, once; later state changes do not replay it. */}
+      {posts.map((p, i) => (
+        <motion.div
+          key={p.id}
+          initial={reduce ? false : { opacity: 0, y: 18, scale: 0.985 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.42, ease: EASE_OUT, delay: Math.min(i, 6) * 0.07 }}
+        >
+          <PostCard post={p} script={p.variants[script]?.trim() ? script : "uz_latn"} inTelegram={inTelegram} />
+        </motion.div>
       ))}
     </div>
   );

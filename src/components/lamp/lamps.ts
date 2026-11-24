@@ -43,12 +43,27 @@ export const LAMPS: Record<AgentRole, Lamp> = {
 
 export type LampState = "off" | "warming" | "on" | "you" | "error";
 
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const rgba = (hex: string, a: number) => `rgba(${rgb(hex).join(", ")}, ${a})`;
+const mix = (a: string, b: string, t: number) => {
+  const [x, y] = [rgb(a), rgb(b)];
+  return `rgb(${x.map((v, i) => Math.round(v * (1 - t) + y[i] * t)).join(", ")})`;
+};
+
+/**
+ * Per-lamp CSS variables. Mixed colours are computed here, not with CSS color-mix():
+ * older Android WebViews (Telegram on Huawei / old MIUI) drop the whole background otherwise.
+ */
 export const lampVars = (role: AgentRole) => {
   const l = LAMPS[role];
   return {
     "--hue": l.hue,
     "--core": l.core,
     "--deep": l.deep,
+    "--mid": mix(l.hue, l.deep, 0.45),
+    "--deep-a": rgba(l.deep, 0.55),
+    "--hue-a": rgba(l.hue, 0.7),
+    "--hue-b": rgba(l.hue, 0.22),
     "--on": l.darkInk ? "#1c0f05" : "#fff",
     "--on-shadow": l.darkInk ? "none" : "0 1px 14px rgb(0 0 0 / .35)",
   } as React.CSSProperties;

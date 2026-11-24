@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowLeft, ImagePlus, X } from "lucide-react";
+import { ArrowLeft, ImagePlus, Sprout, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
-import { LedStrip } from "../lamp/Led";
+import { LampTile } from "../lamp/LampTile";
+import { LAMP_ORDER } from "../lamp/lamps";
 import { ChannelField } from "../ui/ChannelField";
 import { keepNumbers, useCopy } from "../ui/lang";
 import { parseChannel, Steps } from "../ui/parts";
@@ -59,11 +60,8 @@ export function Start({ initialView = "link", initialChannel = "" }: { initialVi
 function HowItWorks() {
   const c = useCopy();
   return (
-    <section aria-labelledby="how-h" className="mt-14 border-t border-line pt-8 sm:mt-16">
-      <h2 id="how-h" className="text-[18px] font-semibold">
-        {c.start.stepsTitle}
-      </h2>
-      <Steps className="mt-5" />
+    <section aria-label={c.start.stepsTitle} className="mt-12 max-w-[560px]">
+      <Steps />
     </section>
   );
 }
@@ -89,10 +87,14 @@ function LinkForm({ initialChannel, onEmpty }: { initialChannel: string; onEmpty
 
   return (
     <>
-      {/* The shop sign stays dark until there is a real channel to read: then it spells it. */}
-      <LedStrip text={typed ? `@${typed}` : undefined} dot={3} gap={1.5} className="mb-6 max-w-[460px]" label={typed ? `@${typed}` : undefined} />
-      <h1 className="max-w-[20ch] text-balance text-[30px] font-semibold leading-[1.06] tracking-[-0.03em] sm:text-[44px]">{c.start.title}</h1>
-      <p className="mt-3 max-w-[52ch] text-[16px] leading-relaxed text-ink-2">{c.start.sub}</p>
+      {/* The department, still dark: ten lights that come on once there is a channel to read. */}
+      <ul aria-hidden className="mb-7 grid max-w-[460px] grid-cols-10 gap-1.5">
+        {LAMP_ORDER.map((r) => (
+          <LampTile key={r} as="li" role={r} size="xs" state={typed ? "warming" : "off"} />
+        ))}
+      </ul>
+      <h1 className="max-w-[18ch] text-balance text-[32px] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-[48px]">{c.start.title}</h1>
+      <p className="mt-3 max-w-[46ch] text-[16px] leading-relaxed text-ink-2">{c.start.sub}</p>
 
       <form onSubmit={submit} noValidate className="mt-7 max-w-[560px]">
         <ChannelField
@@ -113,12 +115,11 @@ function LinkForm({ initialChannel, onEmpty }: { initialChannel: string; onEmpty
         </p>
       </form>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 px-2">
-        <button type="button" onClick={onEmpty} className="link inline-flex min-h-11 items-center text-[15px] font-medium">
-          {c.start.emptyToggle}
-        </button>
-        <span className="text-[14px] text-ink-3">{c.start.time}</span>
-      </div>
+      {/* The second way in: a real button, quieter than the lime one. */}
+      <button type="button" onClick={onEmpty} className="btn-2 mt-4 !min-h-12 gap-2 !px-5 !text-[15px]">
+        <Sprout className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.75} aria-hidden />
+        {c.start.emptyToggle}
+      </button>
     </>
   );
 }
