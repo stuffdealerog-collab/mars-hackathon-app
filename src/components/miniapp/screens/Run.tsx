@@ -8,7 +8,8 @@ import { fmt, useCopy } from "../../ui/lang";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons } from "../nav";
 import { TopBar } from "../Shell";
-import { ledFit } from "../led-fit";
+import { ledFit, useWidth } from "../measure";
+import { restart } from "../actions";
 import { haptic } from "../tg";
 
 type Copy = ReturnType<typeof useCopy>;
@@ -54,7 +55,6 @@ export function RunScreen({ active }: { active: boolean }) {
   const mode = useStudio((s) => s.mode);
   const problem = useStudio((s) => s.problem);
   const retry = useStudio((s) => s.retry);
-  const reset = useStudio((s) => s.reset);
   const input = useStudio((s) => s.input);
   const sample = useStudio((s) => s.sample);
   const ledRef = useRef<HTMLDivElement>(null);
@@ -97,14 +97,15 @@ export function RunScreen({ active }: { active: boolean }) {
   const now = running ?? failed ?? lastDone;
   const nowLabel = now ? stepLabel(now, mode, c) : null;
   const led = sample ? undefined : input.channel ? `@${input.channel}` : undefined;
-  const fit = ledFit(led?.length ?? 0, 200); // the strip beside the clock
+  const { ref: stripRef, width: stripWidth } = useWidth<HTMLDivElement>();
+  const fit = ledFit(led ?? "", stripWidth - 24); // the strip beside the clock, minus its padding
 
   useBottomButtons(
     "run",
     PRIORITY.base,
     active && !!problem,
-    fixLink ? { text: c.error.startOver, onClick: reset } : { text: c.error.retry, onClick: () => (haptic.press(), retry()) },
-    fixLink ? null : { text: c.error.startOver, onClick: reset },
+    fixLink ? { text: c.error.startOver, onClick: restart } : { text: c.error.retry, onClick: () => (haptic.press(), retry()) },
+    fixLink ? null : { text: c.error.startOver, onClick: restart },
   );
 
   return (
@@ -114,7 +115,7 @@ export function RunScreen({ active }: { active: boolean }) {
         <div className="ma-pad ma-run">
           <div className="flex items-center gap-2.5">
             <div ref={ledRef} className="min-w-0 flex-1">
-              <div className="ma-sign rounded-[12px]">
+              <div ref={stripRef} className="ma-sign rounded-[12px]">
                 <LedStrip text={led} dot={fit.dot} gap={fit.gap} run={fit.run} label={led} />
               </div>
             </div>

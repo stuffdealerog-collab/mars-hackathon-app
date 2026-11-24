@@ -14,14 +14,21 @@ import { haptic } from "../tg";
 const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
 const SCRIPT_FOR: Record<Lang, Script> = { uz: "uz_latn", ru: "ru", en: "en" };
 
-/** One language switch for the whole list; it follows the app language until the owner picks. */
+/**
+ * One post language for the whole list, and the one that gets published: the channel's own (the
+ * brand's languages), never the Telegram UI language. The UI language is only a fallback when the
+ * brand has none. The switch shows only when the channel itself writes in two languages or more.
+ */
 export function usePostScript(): { script: Script; available: Script[] } {
   const lang = useLang((s) => s.lang);
   const posts = useStudio((s) => s.posts);
   const picked = useStudio((s) => s.postScript);
-  const available = SCRIPTS.filter((s) => posts.some((p) => p.variants[s]?.trim()));
-  const fallback = available.includes(SCRIPT_FOR[lang]) ? SCRIPT_FOR[lang] : (available[0] ?? "uz_latn");
-  return { script: picked && available.includes(picked) ? picked : fallback, available };
+  const channelLangs = useStudio((s) => s.brand?.dna.languages) ?? [];
+  const all = SCRIPTS.filter((s) => posts.some((p) => p.variants[s]?.trim()));
+  const own = channelLangs.find((s) => all.includes(s));
+  const fallback = own ?? (all.includes(SCRIPT_FOR[lang]) ? SCRIPT_FOR[lang] : (all[0] ?? "uz_latn"));
+  const script = picked && all.includes(picked) ? picked : fallback;
+  return { script, available: all.length > 1 && channelLangs.length > 1 ? all : [] };
 }
 
 /** The script a single post shows: the list's choice when the post has it, else Uzbek Latin. */

@@ -67,11 +67,42 @@ export function usePostActions() {
       say(m.post.publishedToast, "ok");
       return;
     }
-    if (useStudio.getState().postNote[id]?.tone === "hint") haptic.warn();
-    else refuse(r.message || c.error.generic, r.adminUrl);
+    if (useStudio.getState().postNote[id]?.tone === "hint") {
+      haptic.warn();
+      return;
+    }
+    // The answer was lost (network, timeout), not necessarily the post: the server may have sent it.
+    // Ask before offering «Kanalga joylash» again, or the channel gets it twice.
+    if (r.message === c.error.network || r.message === c.error.timeout) {
+      useNav.setState({ checking: { ...useNav.getState().checking, [id]: true } });
+      const out = await wasPublished(id);
+      useNav.setState({ checking: { ...useNav.getState().checking, [id]: false } });
+      if (out) {
+        useStudio.setState({ posts: useStudio.getState().posts.map((p) => (p.id === id ? { ...p, status: "published", publishedUrl: out.url ?? p.publishedUrl } : p)), postNote: { ...useStudio.getState().postNote, [id]: undefined } });
+        haptic.success();
+        say(m.post.publishedToast, "ok");
+        return;
+      }
+    }
+    refuse(r.message || c.error.generic, r.adminUrl);
   };
 
   return { approve, publish };
+}
+
+/** Reads the post back (unthrottled): did a publish whose answer was lost go out after all? Tries twice. */
+async function wasPublished(id: string): Promise<{ url?: string } | null> {
+  const brand = useStudio.getState().brand;
+  if (!brand) return null;
+  for (let i = 0; i < 2; i++) {
+    if (i) await new Promise((r) => setTimeout(r, 2500));
+    const r = await api.listPosts(brand.id, useLang.getState().lang);
+    if (!r.ok) continue;
+    const p = r.data.posts.find((x) => x.id === id);
+    if (p?.status === "published") return { url: p.publishedUrl };
+    if (p) return null;
+  }
+  return null;
 }
 
 /** One post, full size, as subscribers will see it; swipe sideways for the next one. */
@@ -93,6 +124,9 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
     if (missing) useNav.getState().back();
   }, [missing]);
   const indexRef = useLatest(index);
+  // While the pager moves, the MainButton would act on the post it is leaving: it waits for the snap.
+  const [moving, setMoving] = useState(false);
+  const movingRef = useLatest(moving);
 
   // Open on the tapped post without an animated scroll.
   useEffect(() => {
@@ -113,8 +147,10 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
         haptic.select();
         setIndex(i);
       }
+      setMoving(false);
     };
     const onScroll = () => {
+      if (!movingRef.current && Math.abs(el.scrollLeft - indexRef.current * el.clientWidth) > 4) setMoving(true);
       clearTimeout(timer);
       timer = window.setTimeout(settle, 90);
     };
@@ -125,7 +161,7 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
       el.removeEventListener("scroll", onScroll);
       el.removeEventListener("scrollend", settle);
     };
-  }, [indexRef]);
+  }, [indexRef, movingRef]);
 
   const goTo = (i: number) => {
     const el = deck.current;
@@ -141,6 +177,17 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
   const nextOpen = posts.findIndex((p, i) => i !== index && statusOf(p) !== "published");
   // A blank the writer could not fill (a price, a code): the owner fills it before it can go out.
   const blank = useBlank(post);
+  const checking = useNav((st) => (post ? !!st.checking[post.id] : false));
+  // Pictures are still coming (the store has not reached this post yet, or it is drawing): publishing
+  // now would send text only.
+  const picturesExpected = useStudio((st) => !st.sample && st.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")));
+  const pictureComing = !!post && (picturePending(post) || (picturesExpected && !post.image?.url));
+  /** The post under the pager right now (the tap may come before the snap settles). */
+  const settled = (pid: string) => {
+    const el = deck.current;
+    const i = el ? Math.round(el.scrollLeft / Math.max(1, el.clientWidth)) : index;
+    return posts[i]?.id === pid;
+  };
   const edit = () => {
     if (!post) return;
     haptic.tap();
@@ -151,20 +198,22 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
   let secondary: BtnSpec | null = null;
   if (post) {
     if (status !== "published" && blank) {
-      main = { text: m.post.fill, onClick: edit };
+      main = { text: m.post.fill, onClick: edit, active: !moving };
     } else if (status === "draft") {
-      main = { text: busy === "approve" ? c.posts.approving : c.posts.approve, onClick: () => void approve(post.id), progress: busy === "approve" };
-      secondary = { text: c.posts.edit, onClick: edit };
+      main = { text: busy === "approve" ? c.posts.approving : c.posts.approve, onClick: () => settled(post.id) && void approve(post.id), progress: busy === "approve", active: !moving };
+      secondary = { text: c.posts.edit, onClick: edit, active: !moving };
     } else if (status === "approved") {
-      main = picturePending(post)
-        ? { text: m.post.waitPicture, onClick: () => undefined, active: false }
-        : { text: busy === "publish" ? c.posts.publishing : c.posts.publish, onClick: () => void publish(post.id, s), progress: busy === "publish", shine: true };
+      main = checking
+        ? { text: m.post.checking, onClick: () => undefined, progress: true }
+        : pictureComing
+          ? { text: m.post.waitPicture, onClick: () => undefined, active: false }
+          : { text: busy === "publish" ? c.posts.publishing : c.posts.publish, onClick: () => settled(post.id) && void publish(post.id, s), progress: busy === "publish", shine: true, active: !moving };
     } else {
       const url = post.publishedUrl;
       if (nextOpen >= 0) {
-        main = { text: m.post.next, onClick: () => (haptic.tap(), goTo(nextOpen)) };
-        if (url) secondary = { text: c.posts.openPost, onClick: () => openLink(url) };
-      } else if (url) main = { text: c.posts.openPost, onClick: () => openLink(url) };
+        main = { text: m.post.next, onClick: () => (haptic.tap(), goTo(nextOpen)), active: !moving };
+        if (url) secondary = { text: c.posts.openPost, onClick: () => openLink(url), active: !moving };
+      } else if (url) main = { text: c.posts.openPost, onClick: () => openLink(url), active: !moving };
     }
   }
   useBottomButtons("post", PRIORITY.pushed, active, main, secondary);

@@ -11,6 +11,7 @@ import type { PlanItemExtra } from "../../studio/api";
 import { isMachineEvidence, ownerText, plural, weekday } from "../../ui/format";
 import { fmt, num, useCopy, useLang } from "../../ui/lang";
 import { useMiniCopy } from "../copy";
+import { ledFit, useWidth } from "../measure";
 import { useNav } from "../nav";
 import { Skel, TopBar, useCompact } from "../Shell";
 import { haptic } from "../tg";
@@ -130,9 +131,11 @@ function Numbers() {
     );
   }
 
+  // A million and up reads as "1,2M" (the sign's own letters); below that every digit is shown.
+  const big = (n: number) => (n >= 1_000_000 ? `${num(n / 1_000_000, lang, 1)}M` : num(n, lang));
   const cells: [string, string][] = [];
-  if (audit.subscribers != null) cells.push([num(audit.subscribers, lang), c.channel.subscribers]);
-  if (audit.avgViews != null) cells.push([num(Math.round(audit.avgViews), lang), c.channel.avgViews]);
+  if (audit.subscribers != null) cells.push([big(audit.subscribers), c.channel.subscribers]);
+  if (audit.avgViews != null) cells.push([big(Math.round(audit.avgViews)), c.channel.avgViews]);
   if (audit.reachRate != null) cells.push([`${num(audit.reachRate * 100, lang)}%`, c.channel.reach]);
   cells.push([num(audit.postsPerWeek, lang, 1), c.channel.perWeek]);
 
@@ -143,9 +146,7 @@ function Numbers() {
         {cells.map(([v, k]) => (
           <div key={k} className="ma-group ma-sign flex flex-col-reverse justify-end gap-2.5 px-4 pb-3.5 pt-4">
             <dt className="text-[13px] leading-snug text-ink-2">{k}</dt>
-            <dd>
-              <Led text={v} dot={3.2} gap={1.2} label={v} grid={false} />
-            </dd>
+            <FitLed text={v} />
           </div>
         ))}
       </dl>
@@ -154,6 +155,17 @@ function Numbers() {
         <Findings audit={audit} />
       </section>
     </>
+  );
+}
+
+/** A measured number on the sign, sized to its cell so every digit shows (123 456 on a 360 px phone). */
+function FitLed({ text }: { text: string }) {
+  const { ref, width } = useWidth<HTMLElement>();
+  const fit = ledFit(text, width, { dot: 3.2, gap: 1.2 });
+  return (
+    <dd ref={ref} className="min-w-0">
+      {width > 0 && <Led text={text} dot={fit.dot} gap={fit.gap} label={text} grid={false} />}
+    </dd>
   );
 }
 

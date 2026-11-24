@@ -34,6 +34,8 @@ const uz = {
     savedToast: "Matn saqlandi",
     edited: "tahrirlangan",
     fill: "To‘ldirish",
+    checking: "Tekshirilmoqda…",
+    blankChip: "Bosing va yozing",
     blank: "Matnda siz to‘ldiradigan joy qoldi.",
   },
   edit: {
@@ -121,6 +123,8 @@ const ru: MiniCopy = {
     savedToast: "Текст сохранён",
     edited: "изменён",
     fill: "Заполнить",
+    checking: "Проверяем…",
+    blankChip: "Нажмите и впишите",
     blank: "В тексте осталось место, которое заполните вы.",
   },
   edit: {
@@ -206,6 +210,8 @@ const en: MiniCopy = {
     savedToast: "Text saved",
     edited: "edited",
     fill: "Fill in",
+    checking: "Checking…",
+    blankChip: "Tap and type",
     blank: "The text has a blank only you can fill.",
   },
   edit: {
