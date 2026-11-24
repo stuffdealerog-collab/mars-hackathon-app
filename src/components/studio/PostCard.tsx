@@ -19,6 +19,7 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
   const publish = useStudio((s) => s.publish);
   const retryImage = useStudio((s) => s.retryImage);
   const sample = useStudio((s) => s.sample);
+  const channelName = useStudio((s) => s.brand?.dna.name || s.brand?.channel || (s.input.channel ? `@${s.input.channel}` : ""));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
 
@@ -29,11 +30,11 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
   const when = slot ? fmt(c.posts.when, { when: [day != null ? c.weekdays[day] : null, slot.time].filter(Boolean).join(", ") }) : post.brief;
   const approved = post.status === "approved";
   const published = post.status === "published";
-  const hasPicture = !!post.image;
+  const name = channelName || "Kanal";
 
   return (
-    <article className="card overflow-hidden" aria-labelledby={`${id}-h`}>
-      <header className="flex items-center justify-between gap-3 px-4 pb-3 pt-4 sm:px-5">
+    <article aria-labelledby={`${id}-h`}>
+      <header className="flex items-center justify-between gap-3 px-1 pb-2">
         <h3 id={`${id}-h`} className="min-w-0 text-[14px] text-ink-2">
           {when}
         </h3>
@@ -45,24 +46,35 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
         )}
       </header>
 
-      <PostPicture image={post.image} alt={c.posts.image.alt} onRetry={sample ? undefined : () => void retryImage(post.id)} />
-
-      <div className={`px-4 sm:px-5 ${hasPicture ? "pt-4" : "pt-0"}`}>
-        {editing ? (
-          <>
-            <label htmlFor={`${id}-t`} className="sr-only">
-              {c.posts.textLabel}
-            </label>
-            <textarea id={`${id}-t`} className="input min-h-[220px]" value={draft} onChange={(e) => setDraft(e.target.value)} />
-          </>
-        ) : (
-          <p lang={script === "ru" ? "ru" : script === "en" ? "en" : "uz"} className="post-text">
-            {keepNumbers(text)}
-          </p>
-        )}
+      {/* Drawn close to Telegram's own channel post, so the owner sees what subscribers will see. */}
+      <div className="tgpost">
+        <PostPicture image={post.image} alt={c.posts.image.alt} onRetry={sample ? undefined : () => void retryImage(post.id)} />
+        <div className="px-4 pb-2.5 pt-3">
+          <div className="mb-2 flex items-center gap-2.5">
+            <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[14px] font-semibold text-white" style={{ background: "linear-gradient(160deg, #C86B3C, #6b3115)" }}>
+              {name.replace(/^@/, "").slice(0, 1).toUpperCase()}
+            </span>
+            <span className="min-w-0 truncate text-[14.5px] font-semibold" style={{ color: "color-mix(in oklab, #E08A55 70%, var(--ink))" }}>
+              {name}
+            </span>
+          </div>
+          {editing ? (
+            <>
+              <label htmlFor={`${id}-t`} className="sr-only">
+                {c.posts.textLabel}
+              </label>
+              <textarea id={`${id}-t`} className="input min-h-[220px]" value={draft} onChange={(e) => setDraft(e.target.value)} />
+            </>
+          ) : (
+            <p lang={script === "ru" ? "ru" : script === "en" ? "en" : "uz"} className="post-text">
+              {keepNumbers(text)}
+            </p>
+          )}
+          {slot && <p className="mt-1.5 text-right text-[12px] text-ink-3">{slot.time}</p>}
+        </div>
       </div>
 
-      <footer className="flex flex-col gap-3 px-4 pb-4 pt-5 sm:px-5">
+      <footer className="flex flex-col gap-3 px-1 pt-3">
         {editing ? (
           <div className="flex gap-2.5">
             <button type="button" className="btn-2 flex-1 sm:flex-none" onClick={() => setEditing(false)}>

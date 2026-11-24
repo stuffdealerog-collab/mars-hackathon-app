@@ -1,12 +1,14 @@
 "use client";
 
-import { Check, Loader2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Script } from "@/lib/uslub/contract";
+import { Led, LedStrip } from "../lamp/Led";
 import { fmt, useCopy, useInitLang, useLang, type Lang } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel } from "../ui/parts";
 import { ChannelTab } from "./ChannelTab";
+import { Panel, Strip, useLamps } from "./Department";
 import { PostCard } from "./PostCard";
+import { SpectrumIntro } from "./SpectrumIntro";
 import { Start } from "./Start";
 import { POSTS_PER_RUN, useStudio, type Step, type Tab } from "./store";
 
@@ -87,18 +89,6 @@ function Reopening() {
 
 /* --------------------------------------------------------------- working */
 
-function Elapsed() {
-  const c = useCopy();
-  const startedAt = useStudio((s) => s.startedAt);
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  const s = Math.max(0, Math.round((now - startedAt) / 1000));
-  return <span className="tnum">{fmt(c.work.seconds, { s })}</span>;
-}
-
 function stepLabel(step: Step, mode: "channel" | "fresh", c: ReturnType<typeof useCopy>): string | null {
   const w = c.work;
   if (step.status === "skip") return null;
@@ -129,6 +119,9 @@ function stepLabel(step: Step, mode: "channel" | "fresh", c: ReturnType<typeof u
   }
 }
 
+/** Spektr plays once per page: the first run's wow, not every retry. */
+let spektrPlayed = false;
+
 function Working() {
   const c = useCopy();
   const steps = useStudio((s) => s.steps);
@@ -137,41 +130,65 @@ function Working() {
   const retry = useStudio((s) => s.retry);
   const reset = useStudio((s) => s.reset);
   const input = useStudio((s) => s.input);
+  const sample = useStudio((s) => s.sample);
   const head = useRef<HTMLHeadingElement>(null);
+  const ledRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLUListElement>(null);
   // A wrong or private link will fail the same way again: the way forward is another link.
   const fixLink = !!problem && ["channel_invalid", "not_found", "invalid_input", "channel_mismatch"].includes(problem.code);
 
+  // The first run opens with Spektr: the channel's light drops onto the panel and splits into
+  // ten beams; the lamps stay dark until the beams land. Never under reduced motion.
+  const [intro, setIntro] = useState<{ gate: boolean } | null>(() => {
+    if (spektrPlayed || typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
+    spektrPlayed = true;
+    return { gate: true };
+  });
+  const onBloom = useCallback(() => setIntro((i) => (i ? { gate: false } : i)), []);
+  const onDone = useCallback(() => setIntro(null), []);
+  // Safety net: if the intro cannot animate (hidden tab, no rAF), never keep the lamps dark.
   useEffect(() => {
-    head.current?.focus();
+    if (!intro?.gate) return;
+    const id = window.setTimeout(() => setIntro((i) => (i ? { gate: false } : i)), 2500);
+    return () => clearTimeout(id);
+  }, [intro?.gate]);
+  const lamps = useLamps(!!intro?.gate);
+
+  useEffect(() => {
+    head.current?.focus({ preventScroll: true });
   }, []);
 
-  return (
-    <div className="pt-6 sm:pt-12">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 ref={head} tabIndex={-1} className="text-[28px] font-semibold leading-tight tracking-[-0.02em] outline-none sm:text-[34px]">
-          {problem ? c.error.title : c.work.title}
-        </h1>
-        {!problem && (
-          <span className="shrink-0 text-[15px] text-ink-3">
-            <Elapsed />
-          </span>
-        )}
-      </div>
-      {input.channel && <p className="mt-1 text-[16px] text-ink-2">@{input.channel}</p>}
-      {!problem && <p className="mt-3 text-[15px] text-ink-2">{c.work.note}</p>}
+  const running = steps.find((s) => s.status === "run");
+  const failed = steps.find((s) => s.status === "fail");
+  const lastDone = [...steps].reverse().find((s) => s.status === "done");
+  const now = running ?? failed ?? lastDone;
+  const nowLabel = now ? stepLabel(now, mode, c) : null;
+  // The sign prints only real facts: the owner's channel, never the sample's made-up one.
+  const led = sample ? undefined : input.channel ? `@${input.channel}` : undefined;
 
-      <ol className="mt-7 flex flex-col gap-3.5" aria-live="polite">
-        {steps.map((s) => {
-          const label = stepLabel(s, mode, c);
-          if (!label) return null;
-          return (
-            <li key={s.key} className={`flex items-center gap-3 text-[16px] ${s.status === "wait" ? "text-ink-3" : "text-ink"}`}>
-              <StepIcon status={s.status} />
-              <span>{label}</span>
-            </li>
-          );
-        })}
-      </ol>
+  return (
+    <div className="pt-4 sm:pt-8">
+      <div className="flex items-center gap-2.5">
+        <div ref={ledRef} className="min-w-0 flex-1">
+          <LedStrip text={led} dot={3} gap={1.3} run={!!led && led.length > 16} label={led} />
+        </div>
+        <span className="rounded-[12px] bg-stage px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
+          <ElapsedLed />
+        </span>
+      </div>
+
+      <h1 ref={head} tabIndex={-1} className="mt-6 text-[26px] font-semibold leading-tight tracking-[-0.02em] outline-none sm:text-[32px]">
+        {problem ? c.error.title : c.dept.working}
+      </h1>
+      <p className="mt-2 min-h-6 text-[16px] text-ink" aria-live="polite">
+        {nowLabel}
+      </p>
+      {!problem && <p className="mt-1 text-[14px] text-ink-3">{c.work.note}</p>}
+
+      <div className="relative mt-6">
+        <Panel ref={panelRef} lamps={lamps} />
+        {intro && <SpectrumIntro fieldRef={ledRef} panelRef={panelRef} onBloom={onBloom} onDone={onDone} />}
+      </div>
 
       {problem && (
         <div role="alert" className="mt-8 rounded-2xl border border-line bg-card p-4 sm:p-5">
@@ -198,12 +215,16 @@ function Working() {
   );
 }
 
-function StepIcon({ status }: { status: Step["status"] }) {
-  const box = "grid h-6 w-6 shrink-0 place-items-center rounded-full";
-  if (status === "done") return <span className={`${box} bg-ok text-paper`}><Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden /></span>;
-  if (status === "fail") return <span className={`${box} bg-bad text-paper`}><X className="h-3.5 w-3.5" strokeWidth={3} aria-hidden /></span>;
-  if (status === "run") return <span className={`${box} text-ink-2`}><Loader2 className="h-5 w-5 animate-spin [animation-duration:1.6s]" aria-hidden /></span>;
-  return <span className={`${box} border border-line-2`} aria-hidden />;
+/** The run's clock on the LED: m:ss, a measured number like the rest of the sign. */
+function ElapsedLed() {
+  const startedAt = useStudio((s) => s.startedAt);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const s = Math.max(0, Math.round((now - startedAt) / 1000));
+  return <Led text={`${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`} dot={3} gap={1.3} grid={false} label={`${s} s`} />;
 }
 
 /* ----------------------------------------------------------------- ready */
@@ -216,6 +237,9 @@ function Ready({ inTelegram }: { inTelegram: boolean }) {
   const posts = useStudio((s) => s.posts);
   const reset = useStudio((s) => s.reset);
   const sample = useStudio((s) => s.sample);
+  const pro = useStudio((s) => s.pro);
+  const setPro = useStudio((s) => s.setPro);
+  const lamps = useLamps();
   const tabs: { key: Tab; name: string }[] = [
     { key: "channel", name: c.tabs.channel },
     { key: "posts", name: c.tabs.posts },
@@ -243,6 +267,20 @@ function Ready({ inTelegram }: { inTelegram: boolean }) {
             {c.channel.newChannel}
           </button>
         )}
+      </div>
+
+      {/* The department stays on screen: ten small lights, or the full panel in Professional rejim. */}
+      <div className="mt-5">{pro ? <Panel lamps={lamps} /> : <Strip lamps={lamps} />}</div>
+      <div className="mt-4 flex items-center justify-between gap-4">
+        <span className="min-w-0">
+          <span id="pro-l" className="block text-[15px] font-medium">
+            {c.pro.label}
+          </span>
+          <span className="block text-[13px] leading-snug text-ink-2">{c.pro.hint}</span>
+        </span>
+        <button type="button" role="switch" aria-checked={pro} aria-labelledby="pro-l" className="switch" onClick={() => setPro(!pro)}>
+          <span className="switch__knob" />
+        </button>
       </div>
 
       <div role="tablist" aria-label="Mercat" onKeyDown={onKey} className="sticky top-0 z-10 -mx-4 mt-5 flex gap-1 border-b border-line bg-paper px-4 sm:mx-0 sm:px-0">

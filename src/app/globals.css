@@ -1,90 +1,130 @@
 @import "tailwindcss";
 
 /*
- * Mercat — calm paper system (DESIGN.md).
- * Warm paper background, near-black ink, 1px lines, one quiet accent that only the
- * single primary action on a screen uses. Colour on the page comes from the owner's
- * own posts and pictures, never from decoration.
+ * Mercat — "Chiroqlar yonadi" (the lights come on), simplified. See DESIGN.md.
+ * A dark stage; the department is a panel of lamps that glow only while an employee works
+ * or holds a result. Amber LED dots print measured numbers only. Lime is the owner's hand:
+ * the one decision on a screen. Everything else is quiet glass, hairlines and Onest.
+ * Telegram's light theme swaps the stage for white via [data-theme="light"].
  */
 
 :root {
-  --paper: #f7f5f0;
-  --card: #ffffff;
-  --ink: #1b1a17;
-  --ink-2: #57534b;
-  --ink-3: #85807a;
-  --line: #e5e0d6;
-  --line-2: #cdc6b8;
-  --tint: #efebe3;
-  --accent: #1f5c47;
-  --accent-hover: #184a39;
-  --accent-ink: #ffffff;
-  --ok: #2b7350;
-  --bad: #a3352b;
-  --bad-soft: #f8ece9;
-  color-scheme: light;
-}
+  --stage: #000;
+  --glass: #0d0d10;
+  --glass-2: #17171b;
+  --glass-3: #222227;
+  --hair: rgb(255 255 255 / 0.08);
+  --hair-2: rgb(255 255 255 / 0.14);
+  --ink: #f3f1ec;
+  --ink-2: #a8a49c;
+  --ink-3: #85817a;
+  --led: #ffb547;
+  --led-off: rgb(255 181 71 / 0.1);
+  --lime: #d7ff3a;
+  --lime-ink: #0b0c02;
+  --ok: #3be08a;
+  --bad: #ff5a4e;
+  --bad-soft: rgb(255 90 78 / 0.12);
+  --focus: var(--lime);
 
-/* Telegram dark theme (Mini App) and the ?theme=dark preview. */
-[data-theme="dark"] {
-  --paper: #181816;
-  --card: #22211e;
-  --ink: #efece6;
-  --ink-2: #b5b0a6;
-  --ink-3: #8a857c;
-  --line: #34322d;
-  --line-2: #4a4740;
-  --tint: #2b2a26;
-  --accent: #7fc4a6;
-  --accent-hover: #93d1b6;
-  --accent-ink: #0f1f18;
-  --ok: #7fc4a6;
-  --bad: #f0907f;
-  --bad-soft: #3a2522;
+  /* Names the Studio components use. */
+  --paper: var(--stage);
+  --card: var(--glass);
+  --tint: var(--glass-2);
+  --line: var(--hair);
+  --line-2: var(--hair-2);
+  --accent: var(--lime);
+  --accent-ink: var(--lime-ink);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+  --t-tap: 120ms;
+  --t-state: 200ms;
+  --t-panel: 360ms;
+  --t-on: 720ms;
+  --t-off: 1000ms;
   color-scheme: dark;
 }
 
+/* Telegram light theme (Mini App) and the ?theme=light preview. */
+[data-theme="light"] {
+  --stage: #ffffff;
+  --glass: #f3f2ef;
+  --glass-2: #eae9e5;
+  --glass-3: #dfddd8;
+  --hair: rgb(10 10 15 / 0.08);
+  --hair-2: rgb(10 10 15 / 0.15);
+  --ink: #0d0d11;
+  --ink-2: #57544e;
+  --ink-3: #6e6a63;
+  --led: #c26a00;
+  --led-off: rgb(194 106 0 / 0.1);
+  --ok: #1f8a4c;
+  --bad: #c9362b;
+  --bad-soft: rgb(201 54 43 / 0.1);
+  --focus: #5a7000;
+  color-scheme: light;
+}
+
 @theme inline {
+  --color-stage: var(--stage);
+  --color-glass: var(--glass);
+  --color-glass-2: var(--glass-2);
+  --color-glass-3: var(--glass-3);
   --color-paper: var(--paper);
   --color-card: var(--card);
+  --color-tint: var(--tint);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-ink-3: var(--ink-3);
   --color-line: var(--line);
   --color-line-2: var(--line-2);
-  --color-tint: var(--tint);
+  --color-lime: var(--lime);
+  --color-lime-ink: var(--lime-ink);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+  --color-led: var(--led);
   --color-ok: var(--ok);
   --color-bad: var(--bad);
   --color-bad-soft: var(--bad-soft);
   /* Older pages (/qr, /stats) still use these names. */
-  --color-background: var(--paper);
+  --color-background: var(--stage);
   --color-foreground: var(--ink);
   --color-muted: var(--ink-2);
   --font-sans: var(--font-onest), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-html {
-  background: var(--paper);
-  -webkit-text-size-adjust: 100%;
-}
+/* Base layer, so utilities such as outline-none can still override it. */
+@layer base {
+  html {
+    background: var(--stage);
+    -webkit-text-size-adjust: 100%;
+  }
 
-body {
-  background: var(--paper);
-  color: var(--ink);
-  font-feature-settings: "ss01";
-}
+  body {
+    background: var(--stage);
+    color: var(--ink);
+    caret-color: var(--lime);
+    accent-color: var(--lime);
+    scrollbar-color: #2b2b31 transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+  [data-theme="light"] body,
+  body[data-theme="light"] {
+    scrollbar-color: #d4d2cc transparent;
+  }
 
-::selection {
-  background: color-mix(in oklab, var(--accent) 22%, transparent);
-}
+  ::selection {
+    background: var(--lime);
+    color: var(--lime-ink);
+  }
 
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 6px;
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+  }
 }
 
 .tnum {
@@ -93,83 +133,81 @@ body {
 
 /* Component classes sit in the components layer so Tailwind utilities can still adjust them. */
 @layer components {
-  /* ---------------------------------------------------------------- buttons */
-
+  /* ------------------------------------------------------------ controls */
   .btn,
   .btn-2 {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    min-height: 48px;
-    padding: 0 20px;
-    border-radius: 12px;
+    gap: 8px;
+    min-height: 52px;
+    padding: 0 22px;
+    border-radius: 999px;
     font-size: 16px;
-    line-height: 1.2;
-    font-weight: 600;
+    font-weight: 620;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
     text-align: center;
     transition:
-      background-color 0.15s ease,
-      box-shadow 0.15s ease,
-      color 0.15s ease;
-    -webkit-tap-highlight-color: transparent;
+      transform var(--t-tap) var(--ease-out),
+      background var(--t-state) var(--ease-out),
+      filter var(--t-state) var(--ease-out);
     cursor: pointer;
   }
-
-  /* The one primary action on a screen. */
+  /* The owner's hand: the one decision on a screen. */
   .btn {
-    background: var(--accent);
-    color: var(--accent-ink);
+    background: var(--lime);
+    color: var(--lime-ink);
   }
   .btn:hover {
-    background: var(--accent-hover);
+    filter: brightness(1.07);
   }
-
   .btn-2 {
-    background: var(--card);
+    background: var(--glass-2);
     color: var(--ink);
-    font-weight: 500;
-    box-shadow: inset 0 0 0 1px var(--line-2);
+    box-shadow: inset 0 0 0 1px var(--hair);
   }
   .btn-2:hover {
-    background: var(--tint);
+    background: var(--glass-3);
   }
-
+  .btn:active,
+  .btn-2:active {
+    transform: scale(0.96);
+  }
   .btn:disabled,
   .btn-2:disabled,
   .btn[aria-disabled="true"],
   .btn-2[aria-disabled="true"] {
-    opacity: 0.5;
-    cursor: not-allowed;
+    opacity: 0.45;
+    pointer-events: none;
   }
 
-  /* Text-only action: underlined, quiet. */
   .link {
     color: var(--ink);
     text-decoration: underline;
-    text-decoration-color: var(--line-2);
+    text-decoration-color: var(--hair-2);
     text-underline-offset: 4px;
-    transition: text-decoration-color 0.15s ease;
+    transition: text-decoration-color var(--t-state) var(--ease-out);
   }
   .link:hover {
     text-decoration-color: var(--ink-2);
   }
 
-  /* ------------------------------------------------------------------ fields */
-
+  /* -------------------------------------------------------------- fields */
   .input {
     width: 100%;
-    min-height: 52px;
-    padding: 0 16px;
-    border-radius: 12px;
-    background: var(--card);
+    min-height: 56px;
+    padding: 0 20px;
+    border-radius: 999px;
+    background: var(--glass-2);
     color: var(--ink);
-    font-size: 16px; /* 16px keeps iOS from zooming the page on focus */
-    box-shadow: inset 0 0 0 1px var(--line-2);
-    transition: box-shadow 0.15s ease;
+    font-size: 17px; /* ≥16px keeps iOS from zooming on focus */
+    box-shadow: inset 0 0 0 1px var(--hair-2);
+    transition: box-shadow var(--t-state) var(--ease-out);
   }
   textarea.input {
-    padding: 14px 16px;
+    padding: 16px 20px;
+    border-radius: 22px;
     line-height: 1.5;
     resize: vertical;
   }
@@ -178,50 +216,134 @@ body {
   }
   .input:focus {
     outline: none;
-    box-shadow: inset 0 0 0 1.5px var(--ink);
+    box-shadow: inset 0 0 0 1.5px var(--lime);
+  }
+  [data-theme="light"] .input:focus {
+    box-shadow: inset 0 0 0 1.5px var(--focus);
   }
   .input[aria-invalid="true"] {
     box-shadow: inset 0 0 0 1.5px var(--bad);
   }
 
-  /* ------------------------------------------------------------------ surfaces */
-
-  .card {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 16px;
+  /* The one link field: a pill with the lime submit nested at its right end. */
+  .chan-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 60px;
+    padding: 4px 4px 4px 18px;
+    border-radius: 999px;
+    background: var(--glass-2);
+    box-shadow: inset 0 0 0 1px var(--hair-2);
+    transition: box-shadow var(--t-state) var(--ease-out);
+  }
+  .chan-field:focus-within {
+    box-shadow: inset 0 0 0 1.5px var(--focus);
+  }
+  .chan-field[data-invalid] {
+    box-shadow: inset 0 0 0 1.5px var(--bad);
+  }
+  .chan-field input,
+  .chan-field input:focus-visible {
+    outline: none; /* the field's own ring shows focus */
   }
 
-  /* Segmented switch (language, post script). */
+  /* ------------------------------------------------------------ surfaces */
+  .card {
+    border-radius: 22px;
+    background: var(--glass);
+    box-shadow: inset 0 0 0 1px var(--hair);
+  }
+
+  /* Segmented switch (language, post script). Never lime. */
   .seg {
     display: inline-flex;
     gap: 2px;
     padding: 3px;
-    border-radius: 10px;
-    background: var(--tint);
+    border-radius: 999px;
+    background: var(--glass);
+    box-shadow: inset 0 0 0 1px var(--hair);
   }
   .seg > button,
   .seg > a {
-    min-height: 32px;
+    min-height: 34px;
     min-width: 40px;
-    padding: 0 10px;
-    border-radius: 8px;
+    padding: 0 12px;
+    border-radius: 999px;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 550;
     color: var(--ink-2);
     transition:
-      background-color 0.15s ease,
-      color 0.15s ease;
+      background var(--t-state) var(--ease-out),
+      color var(--t-state) var(--ease-out);
   }
   .seg > [aria-pressed="true"],
   .seg > [aria-current="true"],
   .seg > [aria-selected="true"] {
-    background: var(--card);
+    background: var(--glass-3);
     color: var(--ink);
-    box-shadow: 0 0 0 1px var(--line);
   }
 
-  /* A Telegram post body: the owner's real unit of work. */
+  /* An owner setting (Professional rejim): lime when on. */
+  .switch {
+    position: relative;
+    width: 52px;
+    height: 32px;
+    flex: none;
+    border-radius: 999px;
+    background: var(--glass-3);
+    box-shadow: inset 0 0 0 1px var(--hair-2);
+    transition: background var(--t-state) var(--ease-out);
+  }
+  .switch__knob {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--ink-2);
+    transition:
+      transform var(--t-panel) var(--ease-out),
+      background var(--t-state) var(--ease-out);
+  }
+  .switch[aria-checked="true"] {
+    background: var(--lime);
+  }
+  .switch[aria-checked="true"] .switch__knob {
+    transform: translateX(20px);
+    background: var(--lime-ink);
+  }
+
+  /* Sample data only: the dashed stroke means "namuna" and nothing else. */
+  .namuna {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 9px;
+    border: 1px dashed var(--ink-3);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+
+  /* The owner's real unit of work, drawn close to Telegram's own bubble. */
+  .tgpost {
+    border-radius: 22px 22px 22px 8px;
+    background: var(--glass-2);
+    box-shadow: inset 0 0 0 1px var(--hair);
+    color: var(--ink);
+    overflow: hidden;
+  }
+  [data-theme="light"] .tgpost {
+    background: #fff;
+    box-shadow:
+      0 1px 2px rgb(10 10 15 / 0.08),
+      0 8px 24px -12px rgb(10 10 15 / 0.18);
+  }
+
   .post-text {
     white-space: pre-line;
     overflow-wrap: anywhere;
@@ -230,26 +352,254 @@ body {
   }
 }
 
-/* Calm "in progress" for picture slots: a slow tint, no glow. */
-@keyframes breathe {
+/* ------------------------------------------------------------------- lamp */
+.lamp {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-height: 124px;
+  border-radius: 22px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  color: var(--ink);
+  text-align: left;
+}
+.lamp--sm {
+  min-height: 92px;
+  border-radius: 18px;
+}
+.lamp--xs {
+  min-height: 30px;
+  border-radius: 10px;
+}
+.lamp__glow,
+.lamp__spill {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--t-off) var(--ease-in);
+}
+.lamp__glow {
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(60% 30% at 50% 0%, var(--core) 0%, transparent 100%),
+    radial-gradient(
+      150% 100% at 50% -10%,
+      var(--hue) 0%,
+      color-mix(in oklab, var(--hue) 55%, var(--deep)) 32%,
+      color-mix(in oklab, var(--deep) 60%, transparent) 60%,
+      transparent 88%
+    );
+}
+.lamp__glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.4),
+    inset 0 0 0 1px rgb(255 255 255 / 0.1);
+}
+.lamp__spill {
+  inset: 22% 8% -12% 8%;
+  z-index: -1;
+  border-radius: 40%;
+  background: var(--hue);
+  filter: blur(26px);
+}
+.lamp--xs .lamp__spill {
+  filter: blur(10px);
+}
+.lamp__filament {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: 26px;
+  height: 3px;
+  margin-left: -13px;
+  border-radius: 3px;
+  background: var(--hair-2);
+  transition:
+    background var(--t-state) var(--ease-out),
+    box-shadow var(--t-state) var(--ease-out);
+}
+.lamp--xs .lamp__filament {
+  top: 6px;
+  width: 14px;
+  height: 2px;
+  margin-left: -7px;
+}
+.lamp__body {
+  position: relative;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 24px 13px 12px;
+}
+.lamp__result {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-height: 30px;
+  color: var(--on, #fff);
+  text-shadow: var(--on-shadow, 0 1px 14px rgb(0 0 0 / 0.35));
+  opacity: 0;
+  transition: opacity var(--t-panel) var(--ease-out);
+}
+.lamp:is([data-state="on"], [data-state="you"], [data-state="warming"]) .lamp__result {
+  opacity: 1;
+  transition-delay: 260ms;
+}
+.lamp__name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lamp__title {
+  font-size: 15px;
+  font-weight: 640;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  transition:
+    font-weight var(--t-panel) var(--ease-out),
+    color var(--t-panel) var(--ease-out);
+}
+.lamp--sm .lamp__title {
+  font-size: 13.5px;
+}
+.lamp__job {
+  min-height: 2.5em;
+  font-size: 12.5px;
+  line-height: 1.25;
+  color: var(--ink-2);
+}
+.lamp__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--ink-2);
+}
+.lamp:is([data-state="on"], [data-state="you"]) .lamp__state,
+.lamp:is([data-state="on"], [data-state="you"]) .lamp__job {
+  color: rgb(255 255 255 / 0.92);
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.35);
+}
+.lamp[data-state="off"] .lamp__title {
+  font-weight: 450;
+  color: var(--ink-2);
+}
+.lamp__you {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 0 3px rgb(215 255 58 / 0.22);
+}
+.lamp:is([data-state="on"], [data-state="you"], [data-state="warming"]) .lamp__filament {
+  background: var(--core);
+  box-shadow: 0 0 12px 2px var(--core);
+}
+.lamp:is([data-state="on"], [data-state="you"]) .lamp__glow {
+  opacity: 1;
+  animation: lamp-on var(--t-on) linear both;
+}
+.lamp:is([data-state="on"], [data-state="you"]) .lamp__spill {
+  opacity: 0.42;
+  transition: opacity var(--t-on) var(--ease-out);
+}
+.lamp[data-state="warming"] .lamp__glow {
+  animation: lamp-warm 2.4s var(--ease-io) infinite;
+}
+.lamp[data-state="warming"] .lamp__spill {
+  opacity: 0.16;
+  transition: opacity var(--t-on) var(--ease-out);
+}
+.lamp[data-state="error"] .lamp__glow {
+  opacity: 0.16;
+  filter: saturate(0.3);
+}
+.lamp[data-state="error"] .lamp__filament {
+  background: var(--bad);
+}
+[data-theme="light"] .lamp:is([data-state="on"], [data-state="you"]) .lamp__state,
+[data-theme="light"] .lamp:is([data-state="on"], [data-state="you"]) .lamp__title {
+  color: var(--ink);
+  text-shadow: none;
+}
+[data-theme="light"] .lamp__result {
+  color: color-mix(in oklab, var(--deep) 70%, #000);
+  text-shadow: none;
+}
+[data-theme="light"] .lamp__spill {
+  filter: blur(22px);
+}
+[data-theme="light"] .lamp:is([data-state="on"], [data-state="you"]) .lamp__spill {
+  opacity: 0.3;
+}
+@keyframes lamp-on {
+  0% { opacity: 0; }
+  8% { opacity: 0.75; }
+  12% { opacity: 0.18; }
+  21% { opacity: 0.9; }
+  27% { opacity: 0.5; }
+  46% { opacity: 1; }
+  100% { opacity: 1; }
+}
+@keyframes lamp-warm {
   0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
+  100% { opacity: 0.34; }
+  50% { opacity: 0.7; }
+}
+
+/* LED running line: the text enters from the right edge and leaves on the left, like a shop sign. */
+.led-run {
+  display: inline-block;
+  padding-left: 100%;
+  animation: led-run var(--led-run, 9s) linear infinite;
+}
+@keyframes led-run {
+  to {
+    transform: translateX(-100%);
   }
 }
+
+/* Calm "in progress" for waiting text and picture slots. */
+@keyframes breathe {
+  0%,
+  100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
 .breathe {
-  animation: breathe 2.4s ease-in-out infinite;
+  animation: breathe 2.4s var(--ease-io) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .lamp__glow,
+  .lamp__spill,
+  .lamp__result {
+    animation: none !important;
+    transition-duration: 150ms !important;
+    transition-delay: 0ms !important;
+  }
+  .lamp[data-state="warming"] .lamp__glow {
+    opacity: 0.55;
+  }
+  .led-run {
+    padding-left: 0;
+    animation: none;
+  }
   .breathe {
     animation: none;
   }
-  * {
-    scroll-behavior: auto !important;
+  .btn:active,
+  .btn-2:active {
+    transform: none;
   }
 }
 

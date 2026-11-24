@@ -1,17 +1,11 @@
 "use client";
 
-import Link from "next/link";
+import { Mark } from "../lamp/Mark";
 import { LANGS, useCopy, useLang } from "./lang";
 
-/** The name, set plainly. No mark, no glow. */
+/** The logo: one small lamp with a warm filament, and the name. */
 export function Logo({ href = "/" }: { href?: string | null }) {
-  const word = <span className="text-[18px] font-semibold tracking-[-0.015em] text-ink">Mercat</span>;
-  if (!href) return word;
-  return (
-    <Link href={href} className="-my-2 inline-flex min-h-11 items-center" aria-label="Mercat">
-      {word}
-    </Link>
-  );
+  return <Mark href={href} />;
 }
 
 export function LangSwitch() {

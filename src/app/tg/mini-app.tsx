@@ -20,8 +20,8 @@ type TgExtras = {
 };
 type Tg = TelegramWebApp & TgExtras;
 
-/** Our paper colours, painted into Telegram's own chrome so the header matches the page. */
-const PAPER: Record<Theme, string> = { light: "#f7f5f0", dark: "#181816" };
+/** The stage colour, painted into Telegram's own chrome so the header matches the page. */
+const PAPER: Record<Theme, string> = { light: "#ffffff", dark: "#000000" };
 
 function webApp(): Tg | undefined {
   return window.Telegram?.WebApp as Tg | undefined;
@@ -29,12 +29,12 @@ function webApp(): Tg | undefined {
 
 /** Follows Telegram's light/dark theme. */
 function useTelegramTheme(active: boolean) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("dark");
   useEffect(() => {
     const tg = webApp();
     if (!active || !tg) return;
     const apply = () => {
-      const next: Theme = tg.colorScheme === "dark" ? "dark" : "light";
+      const next: Theme = tg.colorScheme === "light" ? "light" : "dark";
       setTheme(next);
       tg.setHeaderColor?.(PAPER[next]);
       tg.setBackgroundColor?.(PAPER[next]);

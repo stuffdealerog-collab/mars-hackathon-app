@@ -68,6 +68,9 @@ interface StudioState {
   /** Plan slots ("day time") whose post is being written on request. */
   writingSlot: Record<string, boolean>;
 
+  /** Professional rejim: the full lamp panel, the strategy and plan details. Off = the simple path. */
+  pro: boolean;
+  setPro: (v: boolean) => void;
   configure: (o: { bot: string }) => void;
   setPostScript: (s: Script) => void;
   writeSlot: (item: PlanItem) => Promise<void>;
@@ -357,10 +360,26 @@ export const useStudio = create<StudioState>((set, get) => {
     postNote: {},
     postScript: null,
     writingSlot: {},
+    pro: false,
+
+    setPro: (pro) => {
+      set({ pro });
+      try {
+        localStorage.setItem("mercat.pro", pro ? "1" : "0");
+      } catch {
+        /* private mode: lasts for this page */
+      }
+    },
 
     configure: ({ bot }) => {
       const p = new URLSearchParams(window.location.search);
-      set({ bot, sample: api.sampleMode(), entry: { view: p.get("mode") === "fresh" ? "fresh" : "link", channel: "" } });
+      let pro = false;
+      try {
+        pro = localStorage.getItem("mercat.pro") === "1";
+      } catch {
+        /* ignore */
+      }
+      set({ bot, pro, sample: api.sampleMode(), entry: { view: p.get("mode") === "fresh" ? "fresh" : "link", channel: "" } });
     },
 
     setPostScript: (postScript) => set({ postScript }),

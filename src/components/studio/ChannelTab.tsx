@@ -1,4 +1,5 @@
 import type { ChannelAudit } from "@/lib/uslub/contract";
+import { Led } from "../lamp/Led";
 import { useCopy, useLang, fmt, num } from "../ui/lang";
 import { isMachineEvidence, ownerText, weekday } from "../ui/format";
 import { slotKey, useStudio } from "./store";
@@ -8,12 +9,77 @@ const KIND_ORDER = { problem: 0, opportunity: 1, strength: 2 } as const;
 export function ChannelTab() {
   const c = useCopy();
   const mode = useStudio((s) => s.mode);
+  const pro = useStudio((s) => s.pro);
   return (
     <div className="flex flex-col gap-12">
       {mode === "channel" ? <Numbers /> : <p className="text-[15px] leading-relaxed text-ink-2">{c.channel.freshNoStats}</p>}
       <Voice />
       <Plan />
+      {pro && <StrategyDetails />}
     </div>
+  );
+}
+
+/** Professional rejim only: the strategist's reasoning behind the plan. */
+function StrategyDetails() {
+  const c = useCopy();
+  const lang = useLang((s) => s.lang);
+  const strategy = useStudio((s) => s.strategy);
+  if (!strategy) return null;
+  const t = (s: string) => ownerText(s, lang);
+  return (
+    <Section id="strat-h" title={c.pro.label}>
+      <div className="flex flex-col gap-3">
+        {strategy.positioning && (
+          <div className="card p-4 sm:p-5">
+            <p className="text-[13px] text-ink-2">{c.pro.positioning}</p>
+            <p className="mt-1.5 text-[15px] leading-relaxed">{t(strategy.positioning)}</p>
+          </div>
+        )}
+        {strategy.offer && (
+          <div className="card p-4 sm:p-5">
+            <p className="text-[13px] text-ink-2">{c.pro.offer}</p>
+            <p className="mt-1.5 text-[15px] leading-relaxed">{t(strategy.offer)}</p>
+          </div>
+        )}
+        {strategy.pillars.length > 0 && (
+          <div className="card p-4 sm:p-5">
+            <p className="text-[13px] text-ink-2">{c.pro.pillars}</p>
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {strategy.pillars.map((p) => (
+                <li key={p.name} className="flex items-baseline justify-between gap-3 text-[15px]">
+                  <span className="min-w-0">{t(p.name)}</span>
+                  <span className="tnum shrink-0 text-ink-2">{Math.round(p.share * 100)}%</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {strategy.kpis.length > 0 && (
+          <div className="card p-4 sm:p-5">
+            <p className="text-[13px] text-ink-2">{c.pro.kpis}</p>
+            <ul className="mt-2 flex flex-col gap-2">
+              {strategy.kpis.map((k) => (
+                <li key={k.metric} className="text-[15px] leading-snug">
+                  {t(k.metric)}: <span className="tnum font-semibold">{k.baseline != null ? `${k.baseline} → ` : ""}{k.target}</span>
+                  {k.how && <span className="block text-[13.5px] text-ink-2">{t(k.how)}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {strategy.risks.length > 0 && (
+          <div className="card p-4 sm:p-5">
+            <p className="text-[13px] text-ink-2">{c.pro.risks}</p>
+            <ul className="mt-2 flex list-disc flex-col gap-1.5 pl-5 text-[15px] leading-snug">
+              {strategy.risks.map((r) => (
+                <li key={r}>{t(r)}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </Section>
   );
 }
 
@@ -62,11 +128,14 @@ function Numbers() {
 
   return (
     <>
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-4">
+      {/* Measured numbers print on the amber LED, like a shop sign; nothing else does. */}
+      <dl className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         {cells.map(([v, k]) => (
-          <div key={k} className="flex flex-col-reverse justify-end bg-card px-4 py-3.5">
-            <dt className="mt-0.5 text-[13.5px] leading-snug text-ink-2">{k}</dt>
-            <dd className="tnum text-[22px] font-semibold leading-tight tracking-[-0.01em]">{v}</dd>
+          <div key={k} className="card flex flex-col-reverse justify-end gap-2 px-4 pb-3.5 pt-4">
+            <dt className="text-[13px] leading-snug text-ink-2">{k}</dt>
+            <dd>
+              <Led text={v} dot={3.4} gap={1.3} label={v} grid={false} />
+            </dd>
           </div>
         ))}
       </dl>
@@ -134,6 +203,7 @@ function Plan() {
   const setTab = useStudio((s) => s.setTab);
   const writeSlot = useStudio((s) => s.writeSlot);
   const writing = useStudio((s) => s.writingSlot);
+  const pro = useStudio((s) => s.pro);
   const sample = useStudio((s) => s.sample);
   const brand = useStudio((s) => s.brand);
   const title = mode === "fresh" ? c.channel.planFreshTitle : c.channel.planTitle;
@@ -176,6 +246,28 @@ function Plan() {
               </div>
               <div className="min-w-0">
                 <p className="text-[15px] leading-snug">{ownerText(it.hook, lang)}</p>
+                {pro && (
+                  <dl className="mt-1.5 grid gap-0.5 text-[13px] leading-snug text-ink-2">
+                    {it.format && (
+                      <div>
+                        <dt className="inline">{c.pro.format}: </dt>
+                        <dd className="inline">{it.format}</dd>
+                      </div>
+                    )}
+                    {it.brief && it.brief !== it.hook && (
+                      <div>
+                        <dt className="inline">{c.pro.brief}: </dt>
+                        <dd className="inline">{ownerText(it.brief, lang)}</dd>
+                      </div>
+                    )}
+                    {it.metric && (
+                      <div>
+                        <dt className="inline">{c.pro.metric}: </dt>
+                        <dd className="inline">{ownerText(it.metric, lang)}</dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
                 <p className="mt-1 text-[13.5px] text-ink-3">
                   {c.channel.goal[it.goal]}
                   {has ? (

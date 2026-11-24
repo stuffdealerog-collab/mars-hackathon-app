@@ -1,4 +1,5 @@
 import type { PostImage } from "@/lib/uslub/contract";
+import { lampVars } from "../lamp/lamps";
 import { useCopy } from "../ui/lang";
 
 /**
@@ -28,9 +29,12 @@ export function PostPicture({ image, alt, onRetry }: { image?: PostImage; alt: s
       </div>
     );
   }
+  // While it is drawn, the picture slot is the Designer's lamp, warming.
   return (
-    <div className="flex aspect-[4/3] w-full items-center justify-center bg-tint" role="status">
-      <p className="breathe text-[15px] text-ink-2">{c.posts.image.running}</p>
+    <div className="lamp aspect-[4/3] w-full items-center justify-center !rounded-none" data-state="warming" style={lampVars("designer")} role="status">
+      <span className="lamp__glow" aria-hidden />
+      <span className="lamp__filament" aria-hidden />
+      <p className="relative text-[15px] font-medium text-white [text-shadow:0_1px_10px_rgb(0_0_0/.4)]">{c.posts.image.running}</p>
     </div>
   );
 }

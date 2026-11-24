@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.PUBLIC_URL ?? "https://mercat-ai.vercel.app"),
   title: { default: "Mercat — Telegram kanalingiz uchun postlar", template: "%s · Mercat" },
   description:
-    "Telegram kanalingiz havolasini qo‘ying: Mercat kanalni o‘qiydi, nima ishlamayotganini raqamlar bilan ko‘rsatadi va bir haftalik postlarni rasmlari bilan tayyorlaydi. Siz faqat tasdiqlaysiz.",
+    "Telegram kanalingiz havolasini qo‘ying: Mercat kanalni o‘qiydi, nimani tuzatish kerakligini raqamlar bilan ko‘rsatadi va bir haftalik postlarni rasmlari bilan tayyorlaydi. Siz faqat tasdiqlaysiz.",
   openGraph: {
     title: "Mercat — kanalingizga postlarni Mercat yozadi",
     description: "Havolani qo‘ying: kanal tahlili, haftalik reja va rasmli postlar. Siz faqat tasdiqlaysiz.",
@@ -15,8 +15,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f7f5f0",
-  colorScheme: "light",
+  themeColor: "#000000",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

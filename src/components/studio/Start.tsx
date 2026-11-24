@@ -2,6 +2,8 @@
 
 import { ArrowLeft, ImagePlus, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
+import { LedStrip } from "../lamp/Led";
+import { ChannelField } from "../ui/ChannelField";
 import { keepNumbers, useCopy } from "../ui/lang";
 import { parseChannel, Steps } from "../ui/parts";
 import { useStudio } from "./store";
@@ -83,42 +85,35 @@ function LinkForm({ initialChannel, onEmpty }: { initialChannel: string; onEmpty
     startChannel(name);
   };
 
+  const typed = parseChannel(value);
+
   return (
     <>
-      <h1 className="max-w-[20ch] text-balance text-[30px] font-semibold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">{c.start.title}</h1>
+      {/* The shop sign stays dark until there is a real channel to read: then it spells it. */}
+      <LedStrip text={typed ? `@${typed}` : undefined} dot={3} gap={1.5} className="mb-6 max-w-[460px]" label={typed ? `@${typed}` : undefined} />
+      <h1 className="max-w-[20ch] text-balance text-[30px] font-semibold leading-[1.06] tracking-[-0.03em] sm:text-[44px]">{c.start.title}</h1>
       <p className="mt-3 max-w-[52ch] text-[16px] leading-relaxed text-ink-2">{c.start.sub}</p>
 
-      <form onSubmit={submit} noValidate className="mt-7">
-        <label htmlFor={id} className="mb-2 block text-[15px] font-medium">
-          {c.start.linkLabel}
-        </label>
-        <div className="flex flex-col gap-2.5 sm:flex-row">
-          <input
-            id={id}
-            className="input sm:flex-1"
-            inputMode="url"
-            autoComplete="off"
-            autoCapitalize="none"
-            spellCheck={false}
-            placeholder={c.start.linkPh}
-            value={value}
-            aria-invalid={bad || undefined}
-            aria-describedby={`${id}-hint`}
-            onChange={(e) => {
-              setValue(e.target.value);
-              if (bad) setBad(false);
-            }}
-          />
-          <button type="submit" className="btn sm:px-7">
-            {c.start.go}
-          </button>
-        </div>
-        <p id={`${id}-hint`} role={bad ? "alert" : undefined} className={`mt-2 text-[14px] ${bad ? "text-bad" : "text-ink-3"}`}>
+      <form onSubmit={submit} noValidate className="mt-7 max-w-[560px]">
+        <ChannelField
+          id={id}
+          value={value}
+          onChange={(v) => {
+            setValue(v);
+            if (bad) setBad(false);
+          }}
+          invalid={bad}
+          placeholder={c.start.linkPh}
+          label={c.start.linkLabel}
+          button={c.start.go}
+          describedBy={`${id}-hint`}
+        />
+        <p id={`${id}-hint`} role={bad ? "alert" : undefined} className={`mt-2.5 px-2 text-[14px] ${bad ? "text-bad" : "text-ink-3"}`}>
           {bad ? c.start.linkBad : c.start.linkExample}
         </p>
       </form>
 
-      <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2">
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 px-2">
         <button type="button" onClick={onEmpty} className="link inline-flex min-h-11 items-center text-[15px] font-medium">
           {c.start.emptyToggle}
         </button>
