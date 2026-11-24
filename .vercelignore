@@ -1,0 +1,6 @@
+# never upload local secrets
+.env
+.env.local
+.env*.local
+supabase/.temp
+supabase/.branches
