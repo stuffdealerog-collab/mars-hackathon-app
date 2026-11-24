@@ -20,6 +20,14 @@ import type { MediaProviderId } from "./types";
  *   MEDIA_VISUAL_DAILY_LIMIT        style analyses (Claude vision) per rolling 24 h, whole app, default 60
  *   MEDIA_VISUAL_BRAND_DAILY_LIMIT  style analyses per brand per rolling 24 h, default 8
  *   MEDIA_VISUAL_ACTOR_DAILY_LIMIT  style analyses per caller (Telegram user, or hashed IP) per 24 h, default 12
+ *
+ * Pictures (kind "image") have their own pools, so they never eat the video quota (and vice versa):
+ *   MEDIA_IMAGE_DAILY_LIMIT         pictures per rolling 24 h, whole app (the spend ceiling), default 150
+ *   MEDIA_IMAGE_ANON_DAILY_LIMIT    shared by all anonymous web callers, default 100; 0 = Telegram login required
+ *   MEDIA_IMAGE_USER_DAILY_LIMIT    per verified Telegram user, default 60
+ *   MEDIA_IMAGE_BRAND_DAILY_LIMIT   per brand, default 24 (7 posts with ~2 more versions each): one brand,
+ *                                   or a stranger's brand, cannot drain the shared pool
+ * Jobs the provider refused at submit (nothing billed) do not count.
  */
 export interface MediaConfig {
   higgsfield?: { keyId: string; keySecret: string; videoModel?: string; imageModel?: string };
@@ -28,6 +36,7 @@ export interface MediaConfig {
   dailyLimit: number;
   userDailyLimit: number;
   anonDailyLimit: number;
+  image: { dailyLimit: number; anonDailyLimit: number; userDailyLimit: number; brandDailyLimit: number };
   visualDailyLimit: number;
   visualBrandDailyLimit: number;
   visualActorDailyLimit: number;
@@ -104,6 +113,12 @@ export function readMediaConfig(env: Env): MediaConfig {
     dailyLimit: limit("MEDIA_DAILY_LIMIT", 30),
     userDailyLimit: limit("MEDIA_USER_DAILY_LIMIT", 5),
     anonDailyLimit: limit("MEDIA_ANON_DAILY_LIMIT", 5),
+    image: {
+      dailyLimit: limit("MEDIA_IMAGE_DAILY_LIMIT", 150),
+      anonDailyLimit: limit("MEDIA_IMAGE_ANON_DAILY_LIMIT", 100),
+      userDailyLimit: limit("MEDIA_IMAGE_USER_DAILY_LIMIT", 60),
+      brandDailyLimit: limit("MEDIA_IMAGE_BRAND_DAILY_LIMIT", 24),
+    },
     visualDailyLimit: limit("MEDIA_VISUAL_DAILY_LIMIT", 60),
     visualBrandDailyLimit: limit("MEDIA_VISUAL_BRAND_DAILY_LIMIT", 8),
     visualActorDailyLimit: limit("MEDIA_VISUAL_ACTOR_DAILY_LIMIT", 12),

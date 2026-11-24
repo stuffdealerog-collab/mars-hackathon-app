@@ -5,7 +5,7 @@ import { clientIp, json, loadBrandFor, rateLimit, telegramUserId } from "@/lib/u
 import { langOf, parseLang, PictureError, pictureErrorResponse, type Lang } from "@/lib/uslub/media/route-errors";
 import { canChangeBrandPictures } from "@/lib/uslub/visual/access";
 import { ImageInputError } from "@/lib/uslub/visual/images";
-import { MAX_OWNER_IMAGES } from "@/lib/uslub/visual/learn";
+import { MAX_OWNER_IMAGES, VisualFetchError } from "@/lib/uslub/visual/learn";
 import { getBrandVisualInfo } from "@/lib/uslub/visual/repo";
 import { actorKey, learnAndSaveVisual, VisualBusyError, VisualLimitError } from "@/lib/uslub/visual/service";
 
@@ -73,6 +73,9 @@ export async function POST(req: Request): Promise<Response> {
   } catch (err) {
     if (err instanceof VisualLimitError) return pictureErrorResponse(new PictureError(429, "style_limit"), lang);
     if (err instanceof VisualBusyError) return pictureErrorResponse(new PictureError(503, "ai_failed"), lang);
+    if (err instanceof VisualFetchError) {
+      return pictureErrorResponse(new PictureError(502, err.stage === "channel" ? "fetch_failed" : "storage_failed"), lang);
+    }
     if (err instanceof ImageInputError) return pictureErrorResponse(new PictureError(400, "bad_image", err.message), lang);
     return pictureErrorResponse(err, lang);
   }

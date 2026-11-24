@@ -6,7 +6,7 @@ import type { StoredBrand } from "../store";
 import { analyzeStyle } from "./analyze";
 import { fetchChannelPhotos, isTelegramCdn } from "./channel";
 import { downloadImage, ImageInputError } from "./images";
-import { learnVisualStyle, type LearnDeps } from "./learn";
+import { learnVisualStyle, VisualFetchError, type LearnDeps } from "./learn";
 import { getBrandVisualInfo, releaseVisualAnalysis, reserveVisualAnalysis, saveBrandVisual } from "./repo";
 import { falUpload } from "./storage";
 
@@ -109,8 +109,10 @@ export async function learnAndSaveVisual(
       opts.deps ?? visualDeps(),
     );
   } catch (err) {
-    // An unreadable owner photo fails before Claude is called: give the slot back.
-    if (err instanceof ImageInputError) await releaseVisualAnalysis(slot).catch(() => undefined);
+    // Failures before Claude is called (an unreadable owner photo, the channel unreachable) give the
+    // slot back; nothing is saved, so the next request learns again.
+    const beforeAi = err instanceof ImageInputError || (err instanceof VisualFetchError && err.stage === "channel");
+    if (beforeAi) await releaseVisualAnalysis(slot).catch(() => undefined);
     throw err;
   }
   await saveBrandVisual(brand.id, visual);

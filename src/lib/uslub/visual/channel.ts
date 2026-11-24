@@ -119,7 +119,11 @@ export async function fetchChannelPhotos(
         signal: AbortSignal.timeout(opts.timeoutMs ?? 12_000),
         cache: "no-store",
       });
-      if (!res.ok) break;
+      if (!res.ok) {
+        // t.me answers 200 even for private or unknown channels; anything else is a temporary failure.
+        if (page === 0) throw new Error(`t.me preview ${res.status}`);
+        break;
+      }
       html = await res.text();
     } catch (err) {
       if (page === 0) throw err;

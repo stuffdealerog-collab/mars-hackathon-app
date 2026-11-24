@@ -12,12 +12,17 @@ import { isTerminal, type Aspect, type MediaJob, type MediaProviderId } from "./
  * Pure orchestration over injected dependencies (see post-image.test.ts).
  */
 
-/** What we keep in posts.image: the contract's PostImage plus bookkeeping the browser never sees. */
+/**
+ * What we keep in posts.image: the contract's PostImage plus bookkeeping the browser never sees.
+ *
+ * `url` is THE post's picture: the newest finished one. It stays set while another version renders
+ * (status queued/running) and after that version fails (status failed), so the Studio, the bot's
+ * preview and publishing all show and send the same picture. `status` describes the latest attempt.
+ */
 export type StoredPostImage = PostImage & {
   attempts?: number; // jobs started for this post (regenerations are capped)
   productUrl?: string; // the owner's product photo for this post, re-hosted
   scene?: string; // what the picture shows, reused by "another variant"
-  lastReadyUrl?: string; // the previous finished picture, published if a new version is not ready
   model?: string;
   updatedAt?: string;
 };
@@ -181,7 +186,7 @@ export function imageFromJob(job: MediaJob, prev: StoredPostImage): StoredPostIm
   const base = { ...prev, jobId: job.id, model: job.model, updatedAt: job.updatedAt };
   if (job.status === "succeeded" && job.result?.url) return { ...base, status: "ready", url: job.result.url, error: undefined };
   if (job.status === "failed" || job.status === "canceled" || (job.status === "succeeded" && !job.result?.url)) {
-    return { ...base, status: "failed", url: undefined, error: FAILED_COPY };
+    return { ...base, status: "failed", error: FAILED_COPY }; // the previous finished picture (url) stays
   }
   return { ...base, status: job.status === "running" ? "running" : "queued" };
 }
@@ -253,8 +258,7 @@ export async function startPostImage(
     scene,
     productUrl,
     attempts: attempts + 1,
-    // The last finished picture stays publishable while another version renders or if it fails.
-    lastReadyUrl: prev?.status === "ready" ? prev.url : prev?.lastReadyUrl,
+    url: prev?.url, // the picture the owner sees stays until a new one is finished
   });
   await deps.save(post.id, image);
   return image;
@@ -277,13 +281,18 @@ export async function pollPostImage(args: { post: PostForImage; actor: Actor }, 
 }
 
 /**
- * The picture to send when the post is published: the ready one; else, if one is still rendering,
- * refresh it first (the Studio may have stopped polling, e.g. the phone went to the bot); else the
- * last finished version. Undefined = publish text only.
+ * The picture publishing sends: exactly the one the owner sees (`url`, the newest finished picture),
+ * whatever the latest attempt's status. Publishing never refreshes to a newer version the owner has
+ * not seen; the bot's preview refreshes first (refreshPostImage) and then shows this same url.
+ * Undefined = publish text only.
  */
-export async function imageUrlForPublish(post: PostForImage, deps: PostImageDeps): Promise<string | undefined> {
-  let image = post.image;
-  if (isPending(image)) image = (await pollPostImage({ post, actor: { telegramId: null } }, deps).catch(() => image)) ?? image;
-  if (image?.status === "ready" && image.url) return image.url;
-  return image?.lastReadyUrl;
+export const publishedImageUrl = (image: StoredPostImage | undefined): string | undefined => image?.url;
+
+/** A channel brand whose saved style has no references is looked at again after this long. */
+const EMPTY_REFS_RELEARN_MS = 30 * 60_000;
+
+/** A saved style worth learning again: a channel brand with no references (the channel may have photos now). */
+export function needsRelearn(visual: VisualStyle | undefined, mode: string, channel: string | undefined, now = Date.now()): boolean {
+  if (!visual) return true;
+  return visual.refs.length === 0 && mode !== "fresh" && Boolean(channel) && now - Date.parse(visual.learnedAt) > EMPTY_REFS_RELEARN_MS;
 }

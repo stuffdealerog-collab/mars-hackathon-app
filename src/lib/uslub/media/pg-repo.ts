@@ -1,6 +1,6 @@
 import "server-only";
 import { getSql, pgErrorCode } from "@/lib/db";
-import type { MediaJobRepo, Quota, QuotaResult } from "./repo";
+import type { MediaJobRepo, Quota, QuotaResult, QuotaUsage } from "./repo";
 import type { MediaJob } from "./types";
 
 /**
@@ -55,32 +55,52 @@ export class PgMediaJobRepo implements MediaJobRepo {
    */
   async insertWithinQuota(job: MediaJob, q: Quota): Promise<QuotaResult> {
     const sql = getSql();
-    const cap = (n: number) => (Number.isFinite(n) ? n : 2_147_483_647);
+    const cap = (n: number | undefined) => (n !== undefined && Number.isFinite(n) ? n : 2_147_483_647);
+    const brandCap = job.brandId ? cap(q.brand) : 2_147_483_647;
+    // Billable jobs of this kind in the window (a job refused at submit has no provider request id).
+    const counts = sql`SELECT
+        count(*)::int AS total,
+        count(*) FILTER (WHERE owner_key = ${job.ownerKey})::int AS mine,
+        count(*) FILTER (WHERE brand_id = ${job.brandId ?? ""})::int AS brand
+      FROM media_jobs
+      WHERE created_at >= ${q.sinceIso} AND kind = ${job.kind}
+        AND NOT (status = 'failed' AND data->>'providerRequestId' IS NULL)`;
     const results = await withTable(() =>
       sql.transaction([
         sql`SELECT pg_advisory_xact_lock(${QUOTA_LOCK})`,
-        sql`SELECT
-              (SELECT count(*)::int FROM media_jobs WHERE created_at >= ${q.sinceIso}) AS total,
-              (SELECT count(*)::int FROM media_jobs WHERE owner_key = ${job.ownerKey} AND created_at >= ${q.sinceIso}) AS mine`,
+        counts,
         sql`INSERT INTO media_jobs (id, brand_id, kind, status, provider, owner_key, data, created_at, updated_at)
             SELECT ${job.id}, ${job.brandId ?? null}, ${job.kind}, ${job.status}, ${job.provider}, ${job.ownerKey},
                    ${JSON.stringify(job)}::jsonb, ${job.createdAt}, ${job.updatedAt}
-            WHERE (SELECT count(*) FROM media_jobs WHERE created_at >= ${q.sinceIso}) < ${cap(q.global)}
-              AND (SELECT count(*) FROM media_jobs WHERE owner_key = ${job.ownerKey} AND created_at >= ${q.sinceIso}) < ${cap(q.owner)}
+            FROM (
+              SELECT count(*) AS total,
+                     count(*) FILTER (WHERE owner_key = ${job.ownerKey}) AS mine,
+                     count(*) FILTER (WHERE brand_id = ${job.brandId ?? ""}) AS brand
+              FROM media_jobs
+              WHERE created_at >= ${q.sinceIso} AND kind = ${job.kind}
+                AND NOT (status = 'failed' AND data->>'providerRequestId' IS NULL)
+            ) c
+            WHERE c.total < ${cap(q.global)} AND c.mine < ${cap(q.owner)} AND c.brand < ${brandCap}
             RETURNING id`,
       ]),
     );
     if ((results[2] as unknown[]).length) return "ok";
-    const counts = (results[1] as { total: number; mine: number }[])[0];
-    return counts && counts.total >= q.global ? "global" : "owner";
+    const c = (results[1] as { total: number; mine: number; brand: number }[])[0];
+    if (!c || c.total >= cap(q.global)) return "global";
+    if (c.mine >= cap(q.owner)) return "owner";
+    return "brand";
   }
 
-  async countSince(sinceIso: string, ownerKey: string): Promise<{ total: number; owner: number }> {
+  async countSince(sinceIso: string, kind: MediaJob["kind"], ownerKey: string, brandId?: string): Promise<QuotaUsage> {
     const rows = (await withTable(
-      () => getSql()`SELECT count(*)::int AS total, count(*) FILTER (WHERE owner_key = ${ownerKey})::int AS owner
-                     FROM media_jobs WHERE created_at >= ${sinceIso}`,
-    )) as { total: number; owner: number }[];
-    return rows[0] ?? { total: 0, owner: 0 };
+      () => getSql()`SELECT count(*)::int AS total,
+                            count(*) FILTER (WHERE owner_key = ${ownerKey})::int AS owner,
+                            count(*) FILTER (WHERE brand_id = ${brandId ?? ""})::int AS brand
+                     FROM media_jobs
+                     WHERE created_at >= ${sinceIso} AND kind = ${kind}
+                       AND NOT (status = 'failed' AND data->>'providerRequestId' IS NULL)`,
+    )) as QuotaUsage[];
+    return rows[0] ?? { total: 0, owner: 0, brand: 0 };
   }
 
   async update(job: MediaJob): Promise<void> {

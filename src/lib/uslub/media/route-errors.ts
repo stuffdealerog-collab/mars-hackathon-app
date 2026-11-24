@@ -24,6 +24,7 @@ export type PictureErrorCode =
   | "storage_failed"
   | "ai_failed"
   | "generation_failed"
+  | "fetch_failed"
   | "internal";
 
 const TEXT: Record<PictureErrorCode, Record<Lang, string>> = {
@@ -92,6 +93,11 @@ const TEXT: Record<PictureErrorCode, Record<Lang, string>> = {
     uz: "Rasm chiqmadi. Qayta urinib ko‘ring.",
     ru: "Картинка не получилась. Попробуйте ещё раз.",
     en: "The picture did not come out. Try again.",
+  },
+  fetch_failed: {
+    uz: "Kanal rasmlarini hozir o‘qib bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.",
+    ru: "Сейчас не удалось прочитать фото канала. Попробуйте чуть позже.",
+    en: "The channel's photos could not be read just now. Try again shortly.",
   },
   internal: {
     uz: "Nimadir buzildi. Qayta urinib ko‘ring.",

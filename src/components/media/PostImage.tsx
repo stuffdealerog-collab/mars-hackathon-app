@@ -34,7 +34,10 @@ export interface PostImageProps {
   allowProductPhoto?: boolean;
   /** Telegram Mini App initData, sent as `Authorization: tma …` (web Studio: leave empty). */
   initData?: string;
-  /** Every new state (e.g. enable "Tasdiqlash" when `status === "ready"`). */
+  /**
+   * Every new state. `image.url` is the picture that will be published (it stays while another
+   * version renders or fails); `status` is the latest attempt.
+   */
   onChange?: (image: PostImageValue) => void;
   className?: string;
 }
@@ -59,8 +62,9 @@ export function PostImage({
   const t = copyFor(lang);
   const reduce = useReducedMotion() ?? false;
   const [image, setImage] = useState<PostImageValue | null>(initial ?? null);
-  // The last ready picture stays on screen (dimmed) while another version renders.
-  const [shown, setShown] = useState<string | undefined>(initial?.status === "ready" ? initial.url : undefined);
+  // `url` is the post's picture (the newest finished one): it stays set while another version
+  // renders or after it fails, and it is exactly what publishing sends. Shown dimmed while rendering.
+  const [shown, setShown] = useState<string | undefined>(initial?.url);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slow, setSlow] = useState(false);
@@ -80,7 +84,7 @@ export function PostImage({
 
   const apply = useCallback((next: PostImageValue) => {
     setImage(next);
-    if (next.status === "ready" && next.url) setShown(next.url);
+    if (next.url) setShown(next.url);
     onChangeRef.current?.(next);
   }, []);
 

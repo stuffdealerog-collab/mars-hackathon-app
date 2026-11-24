@@ -48,9 +48,16 @@ export async function learnVisualStyle(input: LearnInput, deps: LearnDeps): Prom
     }
   }
 
+  // A network failure is not "this channel has no photos": it throws (nothing is saved, the next
+  // request learns again) instead of producing a style with no references that would stick.
   const channelCands: Candidate[] = [];
   if (input.brand.mode !== "fresh" && input.brand.channel) {
-    const photos = await deps.channelPhotos(input.brand.channel).catch(() => [] as ChannelPhoto[]);
+    let photos: ChannelPhoto[];
+    try {
+      photos = await deps.channelPhotos(input.brand.channel);
+    } catch {
+      throw new VisualFetchError("channel");
+    }
     const picked = pickCandidates(photos, CHANNEL_CANDIDATES);
     const loaded = await Promise.allSettled(picked.map((p) => deps.download(p.url, "channel")));
     loaded.forEach((r, i) => {
@@ -59,6 +66,7 @@ export async function learnVisualStyle(input: LearnInput, deps: LearnDeps): Prom
       const when = p.date ? p.date.slice(0, 10) : `post ${p.postId}`;
       channelCands.push({ item: { img: r.value, source: "channel", label: `channel ${p.kind === "photo" ? "photo" : "video cover"}, ${when}` } });
     });
+    if (picked.length > 0 && channelCands.length === 0) throw new VisualFetchError("channel");
   }
 
   const all = [...ownerCands, ...channelCands];
@@ -77,6 +85,18 @@ export async function learnVisualStyle(input: LearnInput, deps: LearnDeps): Prom
   hosted.forEach((r, i) => {
     if (r.status === "fulfilled") refs.push({ url: r.value, source: kept[i].item.source });
   });
+  if (kept.length > 0 && refs.length === 0) throw new VisualFetchError("rehost"); // storage down: try again later
 
   return { refs, ...style, learnedAt: new Date((deps.now ?? Date.now)()).toISOString() };
+}
+
+/**
+ * A temporary failure while learning: "channel" = the channel's photos could not be fetched (before
+ * any AI call), "rehost" = the kept references could not be stored (after the AI call). Nothing is saved.
+ */
+export class VisualFetchError extends Error {
+  constructor(readonly stage: "channel" | "rehost") {
+    super(stage === "channel" ? "channel photos could not be fetched" : "references could not be stored");
+    this.name = "VisualFetchError";
+  }
 }

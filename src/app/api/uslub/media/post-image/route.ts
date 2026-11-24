@@ -82,7 +82,7 @@ export async function POST(req: Request): Promise<Response> {
     const plan = planPostImageStart(post.image, Boolean(body.regenerate || body.photo));
     if (plan === "existing") return json({ image: publicPostImage(post.image!) });
     if (plan === "limit") throw new PictureError(429, "post_limit");
-    await deps.jobs.assertRoom({ telegramId }); // daily caps, before paying for the preparation
+    await deps.jobs.assertRoom({ telegramId }, "image", brand.id); // daily picture caps, before paying for the preparation
 
     const productUrl = body.photo ? await hostProductPhoto(body.photo, post.id) : undefined;
     const visual = await ensureVisual(brand, actorKey(telegramId, clientIp(req)));

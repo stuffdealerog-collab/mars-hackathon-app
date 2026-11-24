@@ -5,7 +5,15 @@ import type { VisualStyle } from "../contract";
 import type { StoredBrand } from "../store";
 import { getBrandVisualInfo } from "../visual/repo";
 import { learnAndSaveVisual } from "../visual/service";
-import { imageUrlForPublish, type PostImageDeps, type SceneInput } from "./post-image";
+import {
+  needsRelearn,
+  pollPostImage,
+  publicPostImage,
+  publishedImageUrl,
+  type PostImageDeps,
+  type PublicPostImage,
+  type SceneInput,
+} from "./post-image";
 import { getPostForImage, savePostImage } from "./post-repo";
 import { PictureError } from "./route-errors";
 import { media } from "./service";
@@ -59,23 +67,23 @@ const learning = new Map<string, Promise<VisualStyle | undefined>>();
 /** A failed analysis is not retried by every picture request for a while (it costs money each time). */
 const failedAt = new Map<string, number>();
 const RETRY_AFTER_FAILURE_MS = 5 * 60_000;
-
 /**
- * The brand's style; learned on the fly the first time a post needs a picture. A failed or capped
- * analysis is not fatal: the picture is then made from the business description alone.
+ * The brand's style; learned on the fly the first time a post needs a picture, and learned again
+ * (within the analysis caps) when a channel brand's style has no references. A failed or capped
+ * analysis is not fatal: the picture is made with the style we have, or from the description alone.
  */
 export async function ensureVisual(brand: StoredBrand, actor: string): Promise<VisualStyle | undefined> {
-  const { visual } = await getBrandVisualInfo(brand.id);
-  if (visual) return visual;
-  if (Date.now() - (failedAt.get(brand.id) ?? 0) < RETRY_AFTER_FAILURE_MS) return undefined;
+  const info = await getBrandVisualInfo(brand.id);
+  if (!needsRelearn(info.visual, info.mode, brand.channel)) return info.visual;
+  if (Date.now() - (failedAt.get(brand.id) ?? 0) < RETRY_AFTER_FAILURE_MS) return info.visual;
   let p = learning.get(brand.id);
   if (!p) {
-    p = learnAndSaveVisual(brand, { actor })
+    p = learnAndSaveVisual(brand, { actor, refresh: Boolean(info.visual) })
       .then((r) => r.visual)
       .catch((err) => {
         failedAt.set(brand.id, Date.now());
         console.warn("[media/post-image] style analysis skipped:", err instanceof Error ? err.message : err);
-        return undefined;
+        return info.visual;
       })
       .finally(() => learning.delete(brand.id));
     learning.set(brand.id, p);
@@ -84,17 +92,33 @@ export async function ensureVisual(brand: StoredBrand, actor: string): Promise<V
 }
 
 /**
- * The picture publishPost sends: ready, refreshed if still rendering, else the last finished one.
- * Only our own CDN's pictures are ever sent. Never throws: a picture problem must not block a post.
+ * The picture publishPost sends: exactly `posts.image.url`, the one the owner sees in the Studio and
+ * in the bot's preview (never a newer version nobody has seen). Only our own CDN's pictures are sent.
+ * Never throws: a picture problem must not block a post.
  */
 export async function publishImageUrl(postId: string): Promise<string | undefined> {
   try {
     const post = await getPostForImage(postId);
-    if (!post?.image) return undefined;
-    const url = await imageUrlForPublish(post, postImageDeps());
-    return publishableImageUrl({ status: "ready", url });
+    return publishableImageUrl({ status: "ready", url: publishedImageUrl(post?.image) });
   } catch (err) {
     console.warn("[media/post-image] no picture for publish:", err instanceof Error ? err.message : err);
     return undefined;
+  }
+}
+
+/**
+ * For the bot's publish preview: brings a picture that is still rendering up to date (the Studio may
+ * have stopped polling when the phone switched to Telegram), then returns it. Show `image.url` if set:
+ * that is exactly what publishPost will send. Never throws; null = no picture.
+ */
+export async function refreshPostImage(postId: string): Promise<PublicPostImage | null> {
+  try {
+    const post = await getPostForImage(postId);
+    if (!post?.image) return null;
+    const image = await pollPostImage({ post, actor: { telegramId: null } }, postImageDeps()).catch(() => post.image);
+    return image ? publicPostImage(image) : null;
+  } catch (err) {
+    console.warn("[media/post-image] preview refresh:", err instanceof Error ? err.message : err);
+    return null;
   }
 }

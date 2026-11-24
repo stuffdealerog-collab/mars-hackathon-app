@@ -21,7 +21,7 @@ Every post gets a picture that looks like it came from the business's own channe
    With no image at all the text-to-image twin of the model runs. Saved in `posts.image`; "another variant" reuses the subject line; max 6 pictures per post.
    If the brand has no style yet, the route learns it first (one analysis per brand at a time per instance).
 3. **Publish** — `publish.ts`: a ready picture goes out as ONE photo message with the text as caption when the text is ≤ 1024 characters; longer text goes as the photo, then the full text right under it (never cut). If Telegram cannot fetch the image by URL we upload the file; if the second message fails the first is deleted.
-   A picture still rendering is refreshed first; if a new version is not ready (or failed), the last finished version is sent.
+   It sends exactly `posts.image.url`: the newest finished picture, which stays set while another version renders or after it fails. The Studio shows that same url, so it never publishes a version the owner has not seen. The bot's preview should call `refreshPostImage(postId)` first, then show `image.url`.
 
 **Guards (cheap checks before anything paid):**
 - **Writes:** need the brand owner's Telegram identity once a brand has an owner. Adding owner photos turns a shared `channel_only` brand `custom`.
@@ -64,6 +64,13 @@ Add keys to `.env.local` locally and to Vercel env vars. Never commit them, and 
 | `MEDIA_USER_DAILY_LIMIT` | per verified Telegram user (default 5) |
 | `MEDIA_ANON_DAILY_LIMIT` | one shared pool for every anonymous web caller (default 5). **0 means a Telegram login is required.** |
 | `MEDIA_DEMO` | `1` turns on the offline demo provider, which returns the pre-rendered `/media/3d/…` files labelled as a sample |
+| `MEDIA_IMAGE_DAILY_LIMIT` | post pictures per rolling 24 h, whole app: the spend ceiling (default 150 ≈ $12) |
+| `MEDIA_IMAGE_ANON_DAILY_LIMIT` | pictures shared by all anonymous web callers (default 100). **0 means a Telegram login is required** (401 `login_required`). |
+| `MEDIA_IMAGE_USER_DAILY_LIMIT` | pictures per verified Telegram user (default 60) |
+| `MEDIA_IMAGE_BRAND_DAILY_LIMIT` | pictures per brand (default 24 = 7 posts with ~2 more versions each), so one brand cannot drain the shared pool |
+| `MEDIA_VISUAL_DAILY_LIMIT` / `_BRAND_` / `_ACTOR_` | style analyses (Claude vision) app-wide / per brand / per caller (defaults 60 / 8 / 12) |
+
+Pictures and videos count in separate pools (`MEDIA_DAILY_LIMIT`, `MEDIA_USER_DAILY_LIMIT` and `MEDIA_ANON_DAILY_LIMIT` are for videos). Jobs the provider refused at submit (nothing billed) do not count.
 
 Malformed values are ignored, and only the variable's **name** is logged.
 

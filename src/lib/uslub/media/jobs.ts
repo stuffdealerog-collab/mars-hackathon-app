@@ -33,6 +33,8 @@ export interface MediaJobsDeps {
   dailyLimit?: number; // jobs per rolling 24 h, whole app (protects the API balance)
   userDailyLimit?: number; // per verified Telegram user
   anonDailyLimit?: number; // shared by ALL anonymous web callers; 0 = Telegram login required
+  /** Pictures have their own pools (see config.ts); the fields above are for videos. */
+  image?: { dailyLimit?: number; anonDailyLimit?: number; userDailyLimit?: number; brandDailyLimit?: number };
   pollIntervalMs?: number;
   timeoutMs?: number; // a job still not done after this is failed
   /** Copies a finished result to our own storage; return the new result, or undefined to keep the provider URL. */
@@ -45,6 +47,7 @@ export const MEDIA_DEFAULTS = {
   dailyLimit: 30,
   userDailyLimit: 5,
   anonDailyLimit: 5,
+  image: { dailyLimit: 150, anonDailyLimit: 100, userDailyLimit: 60, brandDailyLimit: 24 },
   pollIntervalMs: 4_000,
   timeoutMs: 20 * 60_000,
   minSeconds: 3,
@@ -88,9 +91,29 @@ export class MediaJobs {
     return ok[0];
   }
 
+  /** The caps for a kind: videos use the original pools, pictures their own (plus a per-brand cap). */
+  limits(kind: MediaKind): { global: number; anon: number; user: number; brand?: number } {
+    if (kind === "image") {
+      const d = MEDIA_DEFAULTS.image;
+      const i = this.deps.image ?? {};
+      return {
+        global: i.dailyLimit ?? d.dailyLimit,
+        anon: i.anonDailyLimit ?? d.anonDailyLimit,
+        user: i.userDailyLimit ?? d.userDailyLimit,
+        brand: i.brandDailyLimit ?? d.brandDailyLimit,
+      };
+    }
+    return {
+      global: this.deps.dailyLimit ?? MEDIA_DEFAULTS.dailyLimit,
+      anon: this.deps.anonDailyLimit ?? MEDIA_DEFAULTS.anonDailyLimit,
+      user: this.deps.userDailyLimit ?? MEDIA_DEFAULTS.userDailyLimit,
+    };
+  }
+
   /**
    * @param actor verified Telegram user id, or null for an anonymous web caller.
-   * Spend is capped three ways: per user, one shared anonymous pool, and the whole app.
+   * Spend is capped per user, in one shared anonymous pool, per brand (pictures) and app-wide,
+   * separately for pictures and videos.
    */
   async create(input: MediaJobInput, actor: Actor = ANON): Promise<MediaJob> {
     if (input.kind === "video" && !input.imageUrl) {
@@ -106,15 +129,9 @@ export class MediaJobs {
     for (const url of images) validateImageUrl(url);
     const provider = this.pickProvider(input);
 
-    const anonLimit = this.deps.anonDailyLimit ?? MEDIA_DEFAULTS.anonDailyLimit;
+    const caps = this.limits(input.kind);
     const ownerKey = ownerKeyOf(actor);
-    if (ownerKey === "anon" && anonLimit <= 0 && provider.id !== "demo") {
-      throw new MediaError(
-        401,
-        "Video yaratish uchun Telegram bot orqali kiring. / Чтобы создать видео, войдите через Telegram-бота.",
-        "login_required",
-      );
-    }
+    if (ownerKey === "anon" && caps.anon <= 0 && provider.id !== "demo") throw loginRequired();
 
     const seconds = input.kind === "video" ? clamp(Math.round(input.seconds), MEDIA_DEFAULTS.minSeconds, MEDIA_DEFAULTS.maxSeconds) : 0;
     const { prompt, negativePrompt } = input.customPrompt
@@ -150,15 +167,16 @@ export class MediaJobs {
     const free = provider.id === "demo"; // the demo provider costs nothing
     const quota = await this.deps.repo.insertWithinQuota(job, {
       sinceIso: new Date(this.now() - 24 * 3600_000).toISOString(),
-      global: free ? Infinity : (this.deps.dailyLimit ?? MEDIA_DEFAULTS.dailyLimit),
-      owner: free ? Infinity : ownerKey === "anon" ? anonLimit : (this.deps.userDailyLimit ?? MEDIA_DEFAULTS.userDailyLimit),
+      global: free ? Infinity : caps.global,
+      owner: free ? Infinity : ownerKey === "anon" ? caps.anon : caps.user,
+      brand: free || caps.brand === undefined ? undefined : caps.brand,
     });
     if (quota !== "ok") {
       throw new MediaError(
         429,
         quota === "owner" && ownerKey === "anon"
           ? "Mehmonlar uchun bugungi limit tugadi. Telegram bot orqali kiring. / Гостевой лимит на сегодня исчерпан — войдите через Telegram."
-          : "Bugungi video limiti tugadi. Ertaga qayta urinib ko‘ring. / Дневной лимит генераций исчерпан.",
+          : "Bugungi limit tugadi. Ertaga qayta urinib ko‘ring. / Дневной лимит генераций исчерпан.",
         "limit",
       );
     }
@@ -206,13 +224,15 @@ export class MediaJobs {
    * Cheap pre-check of the daily caps before a caller spends money preparing a job (AI calls,
    * uploads). Not a reservation: create() still checks atomically with the insert.
    */
-  async assertRoom(actor: Actor = ANON): Promise<void> {
-    if (!this.deps.repo.countSince) return;
+  async assertRoom(actor: Actor = ANON, kind: MediaKind = "image", brandId?: string): Promise<void> {
+    const caps = this.limits(kind);
     const ownerKey = ownerKeyOf(actor);
-    const anonLimit = this.deps.anonDailyLimit ?? MEDIA_DEFAULTS.anonDailyLimit;
-    const used = await this.deps.repo.countSince(new Date(this.now() - 24 * 3600_000).toISOString(), ownerKey);
-    const ownerCap = ownerKey === "anon" ? anonLimit : (this.deps.userDailyLimit ?? MEDIA_DEFAULTS.userDailyLimit);
-    if (used.total >= (this.deps.dailyLimit ?? MEDIA_DEFAULTS.dailyLimit) || used.owner >= ownerCap) {
+    if (ownerKey === "anon" && caps.anon <= 0) throw loginRequired();
+    if (!this.deps.repo.countSince) return;
+    const used = await this.deps.repo.countSince(new Date(this.now() - 24 * 3600_000).toISOString(), kind, ownerKey, brandId);
+    const ownerCap = ownerKey === "anon" ? caps.anon : caps.user;
+    const brandFull = brandId !== undefined && caps.brand !== undefined && used.brand >= caps.brand;
+    if (used.total >= caps.global || used.owner >= ownerCap || brandFull) {
       throw new MediaError(429, "Bugungi limit tugadi. / Дневной лимит исчерпан.", "limit");
     }
   }
@@ -229,13 +249,15 @@ export class MediaJobs {
     if (job.lastPolledAt && now - Date.parse(job.lastPolledAt) < interval) return job;
 
     const provider = this.deps.providers.find((p) => p.id === job.provider);
-    const timeout = this.deps.timeoutMs ?? MEDIA_DEFAULTS.timeoutMs;
-    if (now - Date.parse(job.createdAt) > timeout) {
+    // The timeout is judged AFTER asking the provider: a job that finished while nobody was
+    // polling (the owner closed the tab) is still delivered, not failed for being late.
+    const timedOut = now - Date.parse(job.createdAt) > (this.deps.timeoutMs ?? MEDIA_DEFAULTS.timeoutMs);
+    const expire = async () => {
       job.status = "failed";
       job.error = "Provayder javob bermadi (vaqt tugadi). / Провайдер не ответил вовремя.";
       if (provider?.cancel) await provider.cancel(refOf(job)).catch(() => undefined);
       return this.save(job);
-    }
+    };
     if (!provider) {
       job.status = "failed";
       job.error = `Provider ${job.provider} is no longer available`;
@@ -277,6 +299,7 @@ export class MediaJobs {
         job.error = this.describe(err);
       }
     }
+    if (timedOut && !isTerminal(job.status)) return expire();
     return this.save(job);
   }
 
@@ -304,6 +327,10 @@ export class MediaJobs {
 /** The caller: a verified Telegram user id, or null for an anonymous web caller. */
 export type Actor = { telegramId: number | null };
 export type AccessOpts = { authorized?: boolean };
+
+/** Anonymous use of this kind is switched off (its anonymous cap is 0): sign in through the bot. */
+const loginRequired = () =>
+  new MediaError(401, "Telegram bot orqali kiring. / Войдите через Telegram-бота.", "login_required");
 const ANON: Actor = { telegramId: null };
 const ownerKeyOf = (a: Actor) => (a.telegramId != null ? `tg:${a.telegramId}` : "anon");
 

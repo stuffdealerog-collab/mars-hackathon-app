@@ -256,12 +256,33 @@ describe("learnVisualStyle", () => {
     expect(v.prompt).toMatch(/wooden table/);
   });
 
-  it("a failed re-host drops that ref instead of failing the style; bad owner files are reported", async () => {
+  it("one failed re-host drops that ref; storage down for all of them fails instead of saving an empty style", async () => {
+    let n = 0;
+    const flaky = learnDeps({
+      rehost: vi.fn(async (_img: ImageBytes, name: string) => (++n === 2 ? Promise.reject(new Error("blip")) : `https://v3b.fal.media/files/${name}.jpg`)),
+    });
+    const v = await learnVisualStyle({ brand }, flaky.deps);
+    expect(v.refs).toHaveLength(MAX_REFS - 1);
     const { deps } = learnDeps({ rehost: vi.fn(async () => Promise.reject(new Error("fal down"))) });
-    const v = await learnVisualStyle({ brand }, deps);
-    expect(v.refs).toEqual([]);
+    await expect(learnVisualStyle({ brand }, deps)).rejects.toMatchObject({ name: "VisualFetchError", stage: "rehost" });
     await expect(learnVisualStyle({ brand, ownerImages: ["data:image/png;base64,AAAA"] }, deps)).rejects.toThrow(/photo 1/);
     await expect(learnVisualStyle({ brand, ownerImages: Array(6).fill(jpegDataUrl) }, deps)).rejects.toThrow(/at most 5/);
+  });
+
+  it("an unreachable channel is a temporary failure before any AI call, not 'no photos'", async () => {
+    const down = learnDeps({ channelPhotos: vi.fn(async () => Promise.reject(new Error("t.me 502"))) });
+    await expect(learnVisualStyle({ brand }, down.deps)).rejects.toMatchObject({ name: "VisualFetchError", stage: "channel" });
+    expect(down.deps.analyze).not.toHaveBeenCalled();
+    const noBytes = learnDeps({ download: vi.fn(async () => Promise.reject(new Error("timeout"))) });
+    await expect(learnVisualStyle({ brand }, noBytes.deps)).rejects.toMatchObject({ stage: "channel" });
+    expect(noBytes.deps.analyze).not.toHaveBeenCalled();
+    // a channel that really has no photos still gets a style (from the description)
+    const empty = learnDeps({ channelPhotos: vi.fn(async () => []) });
+    await expect(learnVisualStyle({ brand }, empty.deps)).resolves.toMatchObject({ refs: [] });
+  });
+
+  it("t.me answering with an error status on the first page is a failure, not an empty channel", async () => {
+    await expect(fetchChannelPhotos("shop", { fetch: vi.fn(async () => new Response("busy", { status: 503 })) })).rejects.toThrow(/503/);
   });
 });
 

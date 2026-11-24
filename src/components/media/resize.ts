@@ -10,7 +10,7 @@ export async function resizeImageFile(
   const maxSide = opts.maxSide ?? 1280;
   const maxBytes = opts.maxBytes ?? 700_000;
   if (!file.type.startsWith("image/")) throw new Error("not an image");
-  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  const bitmap = await decodeImage(file);
   try {
     let side = maxSide;
     let quality = opts.quality ?? 0.85;
@@ -25,7 +25,7 @@ export async function resizeImageFile(
       if (!ctx) throw new Error("canvas is not available");
       ctx.fillStyle = "#fff"; // transparent PNGs get a white background, not black
       ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(bitmap, 0, 0, w, h);
+      ctx.drawImage(bitmap.source, 0, 0, w, h);
       const url = canvas.toDataURL("image/jpeg", quality);
       if (dataUrlBytes(url) <= maxBytes) return url;
       if (quality > 0.65) quality -= 0.1;
@@ -34,6 +34,39 @@ export async function resizeImageFile(
     throw new Error("image is too large");
   } finally {
     bitmap.close();
+  }
+}
+
+type Decoded = { width: number; height: number; source: CanvasImageSource; close: () => void };
+
+/**
+ * Decodes a photo, upright. createImageBitmap with { imageOrientation } throws on iOS 15 Safari and
+ * older WebViews, so it falls back to the plain call, then to an <img> element (which browsers
+ * draw with the EXIF orientation applied).
+ */
+async function decodeImage(file: File): Promise<Decoded> {
+  const fromBitmap = (b: ImageBitmap): Decoded => ({ width: b.width, height: b.height, source: b, close: () => b.close() });
+  if (typeof createImageBitmap === "function") {
+    try {
+      return fromBitmap(await createImageBitmap(file, { imageOrientation: "from-image" }));
+    } catch {
+      try {
+        return fromBitmap(await createImageBitmap(file));
+      } catch {
+        // fall through to <img>
+      }
+    }
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = url;
+    await img.decode();
+    return { width: img.naturalWidth, height: img.naturalHeight, source: img, close: () => URL.revokeObjectURL(url) };
+  } catch (err) {
+    URL.revokeObjectURL(url);
+    throw err;
   }
 }
 
