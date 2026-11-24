@@ -1,7 +1,7 @@
 import type { PostDraft, Script } from "@/lib/uslub/contract";
 import { Check, ExternalLink } from "lucide-react";
 import { useId, useState } from "react";
-import { fmt, keepNumbers, useCopy } from "../ui/lang";
+import { fmt, keepNumbers, useCopy, useLang } from "../ui/lang";
 import { weekday } from "../ui/format";
 import { botPublishUrl } from "./api";
 import { PostPicture } from "./PostPicture";
@@ -10,6 +10,7 @@ import { useStudio } from "./store";
 /** One post: picture, text in the list's chosen script, edit / approve / publish. */
 export function PostCard({ post, script, inTelegram }: { post: PostDraft; script: Script; inTelegram: boolean }) {
   const c = useCopy();
+  const lang = useLang((s) => s.lang);
   const id = useId();
   const bot = useStudio((s) => s.bot);
   const busy = useStudio((s) => s.busy[post.id]);
@@ -27,7 +28,9 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
   const slot = post.slot;
   const day = slot ? weekday(slot.day) : null;
   // A suggestion, not a schedule: nothing is published by itself.
-  const when = slot ? fmt(c.posts.when, { when: [day != null ? c.weekdays[day] : null, slot.time].filter(Boolean).join(", ") }) : post.brief;
+  // Russian writes weekdays in lower case mid-sentence ("Лучше выложить: понедельник, 07:30").
+  const dayName = day != null ? (lang === "ru" ? c.weekdays[day].toLowerCase() : c.weekdays[day]) : null;
+  const when = slot ? fmt(c.posts.when, { when: [dayName, slot.time].filter(Boolean).join(", ") }) : post.brief;
   const approved = post.status === "approved";
   const published = post.status === "published";
   const name = channelName || "Kanal";
