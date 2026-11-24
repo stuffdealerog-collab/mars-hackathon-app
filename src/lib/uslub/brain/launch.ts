@@ -6,6 +6,7 @@ import type { OnStage } from "./audit";
 import { stripIds, stripIdsAll } from "./copy";
 import { GROWTH_IDEAS, KIND_BRIEF, descriptionSignals, launchKpis, launchQuestions, launchSkeleton, launchSufficiency, type LaunchSlot } from "./launch-plan";
 import { brainJson, SONNET } from "./llm";
+import { mondayOf } from "./skeleton";
 import { LEXICON } from "./stats";
 import type { Lang } from "./types";
 import { clip } from "../text";
@@ -209,7 +210,7 @@ export async function buildLaunchStrategy(inp: LaunchInput) {
   emit({ stage: "strategy", strategy, ok: Boolean(d), elapsedMs: Date.now() - t0 });
 
   const plan: ContentPlan = {
-    weekOf: slots[0].day,
+    weekOf: mondayOf(slots[0].day),
     items,
     rationale: {
       uz: "Kanal yangi: birinchi post — kimligingiz, nima sotishingiz va qanday buyurtma berish (uni pin qiling). Keyin mahsulot, ishonch va bitta taklif; ikki post o‘quvchilarni javob yozishga chaqiradi. 2 haftada 9 ta post — boshlash uchun yetarli va ushlab turish oson.",

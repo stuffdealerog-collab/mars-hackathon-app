@@ -139,7 +139,7 @@ export async function analyzeDeterministic(input: {
   });
   emit({ stage: "rules", rules: rules.map((r) => ({ id: r.id, status: r.status, trigger: r.trigger, kind: r.kind })) });
   const cal = upcomingEvents(category, now).map(
-    (e): LedgerEntry => ({ id: `S.calendar.${e.id}`, label: e.name.uz, value: e.date, display: `${e.name.uz} (${e.date})`, source: "rule", prior: e.confidence !== "fixed" }),
+    (e): LedgerEntry => ({ id: `S.calendar.${e.id}`, label: e.name[lang], value: e.date, display: `${e.name[lang]} (${e.date})`, source: "rule", prior: e.confidence !== "fixed" }),
   );
   const ledger = [
     ...statsLedger(stats, competitors.map((c) => c.stats)),

@@ -20,7 +20,8 @@ import type { ChannelData, ChannelStats, Goal, Lang, LedgerEntry, RuleResult } f
 import { webContext } from "./web";
 import { clip } from "../text";
 import { dotted, pastDatesIn } from "../dates";
-import { type Duplicate, duplicateItems, isBlockedMarker, ownerFacing, pastFacts } from "./plan-checks";
+import { briefMetaText, type Duplicate, duplicateItems, isBlockedMarker, ownerFacing, pastFacts } from "./plan-checks";
+import { fixMixedScript } from "../postguard";
 
 /* ------------------------------------------------------------------ D0 facts */
 
@@ -171,7 +172,7 @@ FOR EACH SLOT:
 - hook = the first line, ≤90 chars (aim for ≤70), in slot.lang. It must contain at least one specific from F (number, price, product name, district/landmark, real question). No greetings ("Assalomu alaykum", "Hurmatli mijozlar", "Здравствуйте", "Dear"). No hype. Never mention the bot, the link or "write to us" in the hook: the hook is about the customer and the product. Never invent a fact that is not in F.
   Bad: "Sizni ajoyib takliflarimiz kutmoqda!" (no specific, cliché, would fit anyone).
 - cta: one short action, the way the owner would say it. sale/trust: the link opens our Telegram bot, which passes the customer's message to the owner, who answers personally; so a short verb + reason tied to this post + the token {{LINK}} exactly once. Never promise that the bot itself sends menus or prices. reach: one short forward or save line, no link. Keep CTAs short (≤ 12 words before the link), vary them across slots, and never use the stock line "shu yerga yozing — o'zimiz javob beramiz".
-- brief (for Kopirayter and Dizayner): 1 sentence of angle and which audience pain; the facts to use [F..]; what to photograph or film AT THE BUSINESS (real, never stock; for video, a ≤60-second phone shot list in 3 steps).
+- brief (for Kopirayter and Dizayner): 1 sentence of angle and which audience pain; the facts to use [F..]; what to photograph or film AT THE BUSINESS (real, never stock; for video, a ≤60-second phone shot list in 3 steps). The owner reads the brief: write it in slot.lang, labels included (never English labels like "Angle:", "Facts:" in a uz or ru brief, never the word "ledger").
 - sale slot: include the product's F price in the hook or brief. Urgency only with an F deadline or capacity fact.
 - factIds: every F id you used. hook and cta are the customer-facing post: never put ids, brackets or ledger codes in them (ids go only in factIds and the brief).
 - Facts quoted from the channel's own posts carry the post date [YYYY-MM-DD]. Prices, products, addresses, hours and processes are standing facts. Dated events, promotions, deadlines and "new branch" announcements older than 14 days are history: never present them as current, and never tie a fact to a calendar event unless the fact itself names that event.
@@ -306,7 +307,7 @@ export async function buildStrategy(inp: StrategyInput) {
 
   // 1. facts ∥ channel analysis (scrape, validity, bench, learn) ∥ web context (only the strategist waits for it)
   emit({ stage: "facts", status: "start" });
-  const webP = live && inp.web !== false ? webContext({ brandName, category, channel, competitors: inp.competitors, now }) : Promise.resolve([] as LedgerEntry[]);
+  const webP = live && inp.web !== false ? webContext({ brandName, category, channel, competitors: inp.competitors, now, lang }) : Promise.resolve([] as LedgerEntry[]);
   // Scrape once; the analysis then hits the scrape cache, and a thin KB's fact extraction starts right after it.
   const ownP: Promise<ChannelData | null> = inp.preloaded
     ? Promise.resolve(inp.preloaded.own)
@@ -596,12 +597,16 @@ export async function buildStrategy(inp: StrategyInput) {
     // Ids are for the checks and the brief; the customer never sees "[F3]".
     hook = stripIds(hook);
     cta = stripIds(cta);
+    if (lang === "uz") {
+      hook = fixMixedScript(hook);
+      cta = fixMixedScript(cta);
+      brief = fixMixedScript(brief);
+    }
     const link = s.link ?? "";
     // No tracked link (reach slot, or no BOT_USERNAME): the placeholder never reaches the owner.
     cta = s.goal !== "reach" && link ? cta.replaceAll("{{LINK}}", link) : cta.replace(/\s*\{\{LINK\}\}/g, "").replace(/[\s:–—-]+$/, "").trim();
     const evIds = [...new Set([...s.evidence, ...(it?.factIds ?? [])])];
-    const tsLabel = s.timeSource === "prior" ? "taxminiy" : s.timeSource;
-    const meta = `— Dalil: ${evIds.join(" · ") || "-"} | Vaqt: ${tsLabel} | Tasdiq: ${[...new Set(reasons)].join(", ") || "autopilot"}${s.exp ? ` | exp:${s.exp}` : ""}`;
+    const meta = briefMetaText({ timeSource: s.timeSource, reasons: [...new Set(reasons)], exp: s.exp }, lang);
     return {
       day: s.day,
       time: s.time,
@@ -614,6 +619,8 @@ export async function buildStrategy(inp: StrategyInput) {
       metric: s.metric,
       // extras: where the slot's time/goal came from (ids for the UI's evidence chips)
       briefMeta: meta,
+      // ledger ids behind the slot's time, goal and facts (for evidence chips; never shown as text)
+      evidence: evIds,
       needsApproval: reasons.length > 0,
       // extras for the UI
       slot: s.slot,

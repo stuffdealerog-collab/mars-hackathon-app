@@ -73,7 +73,7 @@ const MSG = {
   onlyOwnChannel: "Faqat brendingiz kanaliga e’lon qilish mumkin: @",
   notAdmin: "Siz bu kanalning egasi yoki admini emassiz. / Вы не владелец и не админ этого канала.",
   noPostRight: "Sizda bu kanalda post yozish huquqi yo‘q. / У вас нет права публиковать в этом канале.",
-  botNotAdmin: "Botni kanalga admin qiling va «Post yozish» huquqini bering: ",
+  botNotAdmin: "Botni kanalga admin qiling va «Yozuvli xabarlar» huquqini bering: ",
 } as const;
 
 /**

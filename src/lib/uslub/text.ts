@@ -67,3 +67,22 @@ export function wellFormedFetch(base?: typeof fetch): typeof fetch {
     return send(input, init);
   };
 }
+
+/**
+ * Post HTML with every line break as "\n", minus the lines that are only link labels ("Сайт | Telegram |
+ * Instagram"): once the tags go, those words point nowhere and would teach the writer a dead signature line.
+ * A line with one link (a call to action) or a link whose label is the address itself stays.
+ */
+export function withoutLinkLabelLines(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div)>/gi, "\n")
+    .split("\n")
+    .filter((line) => {
+      const labels = [...line.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((m) => m[1].replace(/<[^>]+>/g, "").trim());
+      if (labels.length < 2 || labels.some((l) => /[./@:]/.test(l) || !/^[\p{L}\p{M} '’‘-]{2,24}$/u.test(l))) return true;
+      const rest = line.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, "").replace(/<[^>]+>/g, "").replace(/&[#\w]+;/g, " ");
+      return /[\p{L}\d]/u.test(rest);
+    })
+    .join("\n");
+}

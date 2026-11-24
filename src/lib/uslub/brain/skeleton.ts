@@ -56,6 +56,14 @@ export function tashkentDate(ms: number): Date {
   return new Date(ms + TZ_H * 3600_000);
 }
 
+/** The Monday of the week an ISO date falls in ("2026-11-26", a Thursday -> "2026-11-23"): ContentPlan.weekOf. */
+export function mondayOf(isoDay: string): string {
+  const d = new Date(`${isoDay.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return isoDay;
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
 export function isoWeek(d: Date): { year: number; week: number } {
   const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   const day = (t.getUTCDay() + 6) % 7;
@@ -144,7 +152,8 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
   const { rules, stats } = inp;
   const start = tashkentDate(inp.now);
   start.setUTCDate(start.getUTCDate() + 1);
-  const weekOf = start.toISOString().slice(0, 10);
+  // The plan starts tomorrow; weekOf names the Monday of that week (the contract's "ISO date of Monday").
+  const weekOf = mondayOf(start.toISOString().slice(0, 10));
   const N = postCount(stats, rules);
   const counts = goalCounts(N, inp.shares, rules, inp.hasPriceFact || inp.hasOfferFact);
 
@@ -283,14 +292,7 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
       }
     }
     time = fixTime(time, weekdays[i]);
-    const metric =
-      med == null
-        ? "baseline: week 1"
-        : goal === "reach"
-          ? `≥${Math.round(1.2 * med)} views at 72h (lift 1.2) [S.medianViews]`
-          : goal === "trust"
-            ? `≥${Math.round(med)} views and ≥3 bot starts [S.medianViews]`
-            : `≥${Math.max(3, Math.round(0.01 * med))} bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]`;
+    const metric = metricText(goal, med, inp.lang);
     const reasons: string[] = [];
     if (goal === "sale") reasons.push("narx");
     if (formats[i] === "video") reasons.push("video");
@@ -329,6 +331,36 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
     }
   }
   return { weekOf, slots, counts: finalCounts };
+}
+
+/** What each slot is judged by, in the owner's language (numbers only, no ledger ids). */
+const METRIC: Record<Lang, { first: string; reach: (v: number) => string; trust: (v: number) => string; sale: (s: number) => string }> = {
+  uz: {
+    first: "birinchi hafta: boshlang‘ich raqamlarni o‘lchaymiz",
+    reach: (v) => `72 soatda ≥${v} ko‘rish`,
+    trust: (v) => `≥${v} ko‘rish va ≥3 kishi botni ochadi`,
+    sale: (s) => `≥${s} kishi botni ochadi (taxminan 1% bosish) va ≥1 buyurtma`,
+  },
+  ru: {
+    first: "первая неделя: замеряем исходные цифры",
+    reach: (v) => `≥${v} просмотров за 72 ч`,
+    trust: (v) => `≥${v} просмотров и ≥3 открытия бота`,
+    sale: (s) => `≥${s} открытий бота (около 1% переходов) и ≥1 заказ`,
+  },
+  en: {
+    first: "first week: we measure the starting numbers",
+    reach: (v) => `≥${v} views in 72 h`,
+    trust: (v) => `≥${v} views and ≥3 bot starts`,
+    sale: (s) => `≥${s} bot starts (about 1% click-through) and ≥1 order`,
+  },
+};
+
+export function metricText(goal: Goal, medianViews: number | undefined, lang: Lang): string {
+  const t = METRIC[lang] ?? METRIC.uz;
+  if (medianViews == null) return t.first;
+  if (goal === "reach") return t.reach(Math.round(1.2 * medianViews));
+  if (goal === "trust") return t.trust(Math.round(medianViews));
+  return t.sale(Math.max(3, Math.round(0.01 * medianViews)));
 }
 
 /* --------------------------------------------- hook types and fact focus */

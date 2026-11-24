@@ -6,7 +6,7 @@ import { rewriteNeuroBatch, type EditJob } from "./editor";
 import { llmJson, MODEL_QUALITY, type Effort } from "./llm";
 import { analyzeNeuro, inventedFacts } from "./neuro";
 import { findPlaceholders } from "./placeholders";
-import { dropVideoMentions } from "./postguard";
+import { contactBlankIfNone, dropVideoMentions, fixMixedScript, hasContact, oneContactRoute, replaceHiddenPrice, ruFirstPersonGender } from "./postguard";
 import { latinToCyrillic, polishUzLatin } from "./translit";
 import { clip } from "./text";
 
@@ -25,7 +25,7 @@ const SYSTEM = `You are the "Copywriter" (Kopirayter) of an AI marketing departm
 You write Telegram channel posts that sound like the brand's own admin wrote them, not like an AI.
 
 Hard rules:
-1. FACTS: use only facts present in the brand knowledge or the brand's own posts (prices, addresses, phone numbers, dates, codes, branches, product names, discounts). Never invent them. If the brief needs a fact you don't have, write the post without it, or with a natural line that sends the reader to the admin ("narxini adminga yozing", "manzilni lichkada aytamiz", "уточните цену у администратора"). NEVER write a template slot or placeholder of any kind: no [narx], [kod], {phone}, <address>, ___, XXX. The post must be ready to publish exactly as written.
+1. FACTS: use only facts present in the brand knowledge or the brand's own posts (prices, addresses, phone numbers, dates, codes, branches, product names, discounts). Never invent them. If the brief needs a fact you don't have, write the post without it. NEVER write a template slot or placeholder of any kind ([kod], {phone}, <address>, ___, XXX) with ONE exception: a price you don't have. Never hide a price ("narxi lichkada", "narxini adminga yozing", "цену уточняйте у администратора", "price in DM"): people who don't see a price don't order. Write [narx] (uz), [цена] (ru), [price] (en) where the price goes; the owner fills it in before publishing.
 2. VOICE: copy the brand's real posts: their length, line breaks, emoji density, address form (siz/sen), call-to-action style and hashtags. Each post must be a ready-to-publish Telegram post (plain text, no Markdown asterisks).
 3. LANGUAGE: uz_latn is the main version: natural, modern Uzbek in Latin script as people in Tashkent write, with o‘ and g‘ written with the ‘ sign and the tutuq belgisi as ’. Respect suffix assimilation: after k / q the dative is -ka / -qa (keshbekka, qishloqqa), never "keshbekga". Avoid word-for-word calques from Russian and bureaucratic style. ru and en are natural adaptations of the same post (not literal translations), with the same facts.
 4. NO "NEURO-WORDS": never use AI clichés such as "zamonaviy dunyoda", "noyob imkoniyat", "qo‘ldan boy bermang", "o‘z ichiga oladi", "kashf eting", "unutilmas taassurotlar", "betakror", "sizni kutmoqda", "nafaqat ..., balki ...", "в современном мире", "уникальная возможность", "не упустите шанс", "откройте для себя", "погрузитесь в", "незабываемые впечатления", "unlock", "elevate", "seamless", "dive into", "game-changer", "look no further". Be concrete: name the product, the price if known, the time, the place.
@@ -34,7 +34,9 @@ Hard rules:
 6. NEW CONTENT: never re-tell or translate one of the example posts; write new posts in the same voice.
 7. Make each post a different angle (product, behind the scenes, customer question, offer, useful tip…) unless the brief asks otherwise.
 8. LENGTH: keep every version under 950 characters, even if the brand's older posts are longer — the post goes out as a photo caption (Telegram's limit is 1024).
-9. PHOTOS ARE NOT IN THE TEXT: a brief may say which photo or video to shoot — that note is for the owner, never write it into the post. Never describe a picture ("on the photo you can see…") and never claim the business did, tested or showed something unless the knowledge says so.`;
+9. PHOTOS ARE NOT IN THE TEXT: a brief may say which photo or video to shoot — that note is for the owner, never write it into the post. Never describe a picture ("on the photo you can see…") and never claim the business did, tested or showed something unless the knowledge says so.
+10. ONE WAY TO ORDER: if the call to action has a link, that link is the only way to contact or order in the post: no extra phone number, @admin or "write to us" line. Without a link, use the brand's own order contact from the knowledge. Never say "Direct" (that is Instagram's inbox, not Telegram). If the knowledge has no contact at all, write [kontakt] (uz), [контакт] (ru), [contact] (en) where it goes, never a bare "write to the admin".
+11. NO OFFER NOBODY GAVE: never hint at a discount, gift, promo or "special offer" unless the knowledge states it.`;
 
 function brandContext(brand: BrandProfile): string {
   const { dna } = brand;
@@ -42,8 +44,12 @@ function brandContext(brand: BrandProfile): string {
     .slice(-8)
     .map((p, i) => `--- example ${i + 1} ---\n${p.slice(0, 700)}`)
     .join("\n");
+  const gender = ruFirstPersonGender(brand.samplePosts);
   return [
     `BRAND DNA:\n${JSON.stringify(dna, null, 1)}`,
+    gender
+      ? `THE OWNER'S VOICE IN RUSSIAN: the owner writes about themself as a ${gender === "f" ? "woman (я приготовила, сама, рада)" : "man (я приготовил, сам, рад)"}. In the ru version, first-person verbs and adjectives take that gender; "мы" stays "мы".`
+      : "",
     brand.knowledge ? `BRAND KNOWLEDGE (the only source of facts):\n${clip(brand.knowledge, 6000)}` : "BRAND KNOWLEDGE: none beyond the posts.",
     examples ? `THE BRAND'S REAL POSTS (match this voice):\n${examples}` : "",
   ]
@@ -87,6 +93,9 @@ async function fillMissingVariants(drafts: { id: string; variants: Record<Script
   }
 }
 
+/** Blanks the owner fills before publishing: a price nobody gave, a contact on a new channel. */
+const OWNER_BLANK_RE = /^\[(narx|цена|price|kontakt|контакт|contact)\]$/i;
+
 const PLACEHOLDER_SYSTEM = `You fix Telegram posts that still contain unfilled template slots such as [kod], [narx], {phone}, <address>, ___ or XXX.
 Rules:
 - Rewrite ONLY the sentences that contain a slot. Every other word stays exactly as it is.
@@ -103,7 +112,7 @@ async function fixPlaceholders(
   ctx: { left: () => number; keep: string[]; deadline?: number },
 ): Promise<void> {
   const jobs = drafts.flatMap((d) =>
-    (["uz_latn", "ru", "en"] as Script[]).filter((s) => findPlaceholders(d.variants[s]).length).map((s) => ({ d, s, text: d.variants[s] })),
+    (["uz_latn", "ru", "en"] as Script[]).filter((s) => findPlaceholders(d.variants[s]).some((t) => !OWNER_BLANK_RE.test(t))).map((s) => ({ d, s, text: d.variants[s] })),
   );
   if (!jobs.length) return;
   if (ctx.left() > 12_000) {
@@ -183,7 +192,7 @@ export async function generatePosts(brand: BrandProfile, brief: string, count = 
   const createdAt = new Date().toISOString();
   const keep = brandWords(brand); // brand names stay in Latin inside the Cyrillic version
   const drafts = result.posts.slice(0, n).map((p) => {
-    const uz = polishUzLatin(p.uz_latn.trim());
+    const uz = polishUzLatin(fixMixedScript(p.uz_latn.trim()));
     return {
       id: randomUUID(),
       variants: { uz_latn: uz, uz_cyrl: latinToCyrillic(uz, keep), ru: p.ru.trim(), en: p.en.trim() } as Record<Script, string>,
@@ -207,7 +216,7 @@ export async function generatePosts(brand: BrandProfile, brief: string, count = 
     for (const d of drafts) {
       for (const script of ["uz_latn", "ru", "en"] as Script[]) {
         const text = cleaned.get(`${d.id}:${script}`)?.text;
-        if (text) d.variants[script] = script === "uz_latn" ? polishUzLatin(text) : text;
+        if (text) d.variants[script] = script === "uz_latn" ? polishUzLatin(fixMixedScript(text)) : text;
       }
       d.variants.uz_cyrl = latinToCyrillic(d.variants.uz_latn, keep);
     }
@@ -222,8 +231,21 @@ export async function generatePosts(brand: BrandProfile, brief: string, count = 
   }
 
   // Template slots that slipped through ("Kod: [kod]"): one rewrite of just those sentences, checked again.
+  // A price or contact blank is the owner's to fill (approve refuses until then), so it is not rewritten.
   // Whatever is still left keeps the post out of the channel (approve / publish refuse it, the Studio shows a note).
   await fixPlaceholders(drafts, { left, keep, deadline: opts.deadline });
+
+  // Content rules the model sometimes breaks: a hidden price becomes a price blank, one way to order per post
+  // (no "Direct"), and a new channel with no known contact gets a contact blank instead of "write to the admin".
+  const noContact = brand.mode === "fresh" && !hasContact(`${brand.knowledge}\n${brand.samplePosts.join("\n")}`);
+  for (const d of drafts) {
+    for (const script of ["uz_latn", "ru", "en"] as const) {
+      let text = oneContactRoute(replaceHiddenPrice(d.variants[script], script));
+      if (noContact) text = contactBlankIfNone(text, script);
+      d.variants[script] = text;
+    }
+    d.variants.uz_cyrl = latinToCyrillic(d.variants.uz_latn, keep);
+  }
 
   return drafts.map((d) => {
     const neuroHits: Partial<Record<Script, NeuroHit[]>> = {};

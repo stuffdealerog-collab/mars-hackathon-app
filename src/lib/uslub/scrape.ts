@@ -3,7 +3,7 @@
  * No API keys, no login: only channels with a public preview work.
  * Pure parsing helpers are exported for tests; `scrapeChannel` does the fetch.
  */
-import { wellFormed } from "./text";
+import { wellFormed, withoutLinkLabelLines } from "./text";
 
 export interface ScrapedPost {
   id?: number;
@@ -52,6 +52,12 @@ export class ScrapeError extends Error {
   }
 }
 
+/** A private channel's invite link (t.me/+…, t.me/joinchat/…): it has no public preview to read. */
+export function isInviteLink(input: string): boolean {
+  const s = input.trim();
+  return /(?:^|\/\/|www\.)(?:t|telegram)\.me\/(?:\+|joinchat\/)/i.test(s) || /^\+[\w-]{8,}$/.test(s);
+}
+
 /** A channel with fewer posts than this is treated as empty (fresh mode): there is no voice to learn yet. */
 export const MIN_CHANNEL_POSTS = 5;
 
@@ -92,12 +98,7 @@ export function decodeEntities(s: string): string {
 
 /** Telegram message HTML -> plain text (keeps line breaks and emoji). */
 export function htmlToText(html: string): string {
-  return decodeEntities(
-    html
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/(p|div)>/gi, "\n")
-      .replace(/<[^>]+>/g, ""),
-  )
+  return decodeEntities(withoutLinkLabelLines(html).replace(/<[^>]+>/g, ""))
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -153,6 +154,8 @@ export async function scrapeChannel(
   input: string,
   opts: { timeoutMs?: number; maxPosts?: number; /** fewer messages (any kind) than this → ScrapeError "channel_empty" (default 1) */ minPosts?: number } = {},
 ): Promise<ScrapedChannel> {
+  // A closed channel's invite link is not a typo: like a channel without a preview, the Studio goes to fresh mode.
+  if (isInviteLink(input)) throw new ScrapeError("private channel invite link", 422, "channel_empty", { reason: "private", postsFound: 0 });
   const username = parseChannelUsername(input);
   if (!username) {
     throw new ScrapeError("Kanal havolasi noto‘g‘ri. Misol: @kanal_nomi yoki https://t.me/kanal_nomi", 400, "channel_invalid");

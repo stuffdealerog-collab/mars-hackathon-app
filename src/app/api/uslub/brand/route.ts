@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { spendClaude } from "@/lib/uslub/budget";
 import { buildBrand } from "@/lib/uslub/brand";
+import { parseCount } from "@/lib/uslub/brain/scrape";
 import { handle, HttpError, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import { publicBrand } from "@/lib/uslub/store";
 
@@ -40,9 +41,12 @@ export const POST = handle(async (req) => {
     mode: brand.mode ?? "channel",
     ...(switchedToFresh ? { switchedToFresh: true } : {}),
     // postsRead = every message read on the channel page (albums and reels without captions included).
-    channelInfo: channel ? { title: channel.title, subscribers: channel.subscribers, postsRead: channel.totalMessages } : undefined,
+    // subscribers is a number like everywhere else ("12.3K subscribers" on the page -> 12300).
+    channelInfo: channel ? { title: channel.title, subscribers: subscriberCount(channel.subscribers), postsRead: channel.totalMessages } : undefined,
   });
 });
+
+const subscriberCount = (raw: string | undefined) => (raw ? parseCount(raw.split(/\s/).filter((w) => /\d/.test(w)).join(""))?.value : undefined);
 
 /** GET ?id= -> { brand } */
 export const GET = handle(async (req) => {

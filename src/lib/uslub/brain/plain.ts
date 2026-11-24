@@ -474,6 +474,55 @@ const LABEL: Record<string, T3> = {
 };
 
 /** "postni ko‘radigan obunachilar: 52.4% · 30 ta post" — plain evidence for a finding (ids the owner can't read are dropped). */
+const DAY_NAMES: Record<string, T3> = {
+  Mon: { uz: "dushanba", ru: "в понедельник", en: "Monday" },
+  Tue: { uz: "seshanba", ru: "во вторник", en: "Tuesday" },
+  Wed: { uz: "chorshanba", ru: "в среду", en: "Wednesday" },
+  Thu: { uz: "payshanba", ru: "в четверг", en: "Thursday" },
+  Fri: { uz: "juma", ru: "в пятницу", en: "Friday" },
+  Sat: { uz: "shanba", ru: "в субботу", en: "Saturday" },
+  Sun: { uz: "yakshanba", ru: "в воскресенье", en: "Sunday" },
+};
+const FORMAT_LABEL: Record<string, T3> = {
+  text: { uz: "matnli postlar", ru: "текстовые посты", en: "text posts" },
+  photo: { uz: "suratli postlar", ru: "посты с фото", en: "photo posts" },
+  album: { uz: "albomlar", ru: "альбомы", en: "albums" },
+  video: { uz: "video postlar", ru: "видео", en: "video posts" },
+  other: { uz: "boshqa postlar", ru: "другие посты", en: "other posts" },
+};
+const LANG_LABEL: Record<string, T3> = {
+  "uz-Latn": { uz: "lotincha postlar", ru: "посты на латинице", en: "posts in Uzbek (Latin)" },
+  "uz-Cyrl": { uz: "kirillcha postlar", ru: "посты на кириллице", en: "posts in Uzbek (Cyrillic)" },
+  ru: { uz: "ruscha postlar", ru: "посты на русском", en: "posts in Russian" },
+  en: { uz: "inglizcha postlar", ru: "посты на английском", en: "posts in English" },
+  mixed: { uz: "aralash tildagi postlar", ru: "посты на двух языках", en: "posts in two languages" },
+};
+const LENGTH_LABEL: Record<string, T3> = {
+  "<300": { uz: "qisqa postlar (300 belgigacha)", ru: "короткие посты (до 300 знаков)", en: "short posts (under 300 characters)" },
+  "300-800": { uz: "o‘rtacha postlar (300–800 belgi)", ru: "средние посты (300–800 знаков)", en: "medium posts (300–800 characters)" },
+  ">800": { uz: "uzun postlar (800 belgidan ko‘p)", ru: "длинные посты (больше 800 знаков)", en: "long posts (over 800 characters)" },
+};
+
+/** Labels for the per-bucket ids (S.hourLift.19-22, S.weekdayLift.Mon, S.formatLift.photo…); the raw key is in e.label. */
+function bucketLabel(id: string, e: LedgerEntry): T3 | undefined {
+  const m = /^S\.(formatLift|hourLift|weekdayLift|langLift|lengthLift)\./.exec(id);
+  if (!m) return undefined;
+  const key = String(e.label).split(" ").slice(1).join(" ");
+  if (m[1] === "hourLift") {
+    const h = /^(\d{1,2})-(\d{1,2})$/.exec(key);
+    if (!h) return undefined;
+    const span = `${h[1].padStart(2, "0")}:00–${h[2].padStart(2, "0")}:00`;
+    return { uz: `${span} dagi postlar`, ru: `посты в ${span}`, en: `posts at ${span}` };
+  }
+  if (m[1] === "weekdayLift") {
+    const d = DAY_NAMES[key];
+    return d && { uz: `${d.uz} kungi postlar`, ru: `посты ${d.ru}`, en: `${d.en} posts` };
+  }
+  if (m[1] === "formatLift") return FORMAT_LABEL[key];
+  if (m[1] === "langLift") return LANG_LABEL[key];
+  return LENGTH_LABEL[key];
+}
+
 export function evidenceText(ids: string[], ledger: Map<string, LedgerEntry>, lang: Lang): string {
   const out: string[] = [];
   for (const id of ids) {
@@ -483,9 +532,11 @@ export function evidenceText(ids: string[], ledger: Map<string, LedgerEntry>, la
       if (e.url) out.push(`${pick(lang, { uz: "post", ru: "пост", en: "post" })}: ${e.url}`);
       continue;
     }
-    const label = LABEL[id];
+    const label = LABEL[id] ?? bucketLabel(id, e);
     if (!label) continue;
     const v = typeof e.value === "number" ? e.value : undefined;
+    // A bucket with too few posts has no number to show ("n=2"): it is not evidence the owner can read.
+    if (v == null && /^n=/.test(e.display)) continue;
     const display =
       v != null && /%$/.test(e.display)
         ? pctText(v, lang)

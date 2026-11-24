@@ -2,10 +2,11 @@ import "server-only";
 import { after } from "next/server";
 import { type Api, Bot, InlineKeyboard } from "grammy";
 import { isAiConfigured } from "./ai";
+import { getSql, isDbConfigured } from "./db";
 import { getEnv, getPublicUrl } from "./env";
-import { type Locale, pickLocale, t } from "./i18n";
+import { formatDay, type Locale, pickLocale, t } from "./i18n";
 import { parseSource, safeLogEvent, track } from "./track";
-import { botProfile, syncBotProfile } from "./uslub/bot-profile";
+import { botHandle, botProfile, syncBotProfile } from "./uslub/bot-profile";
 import { learnFor } from "./uslub/brain/learn-run";
 import { latestPlanForOwner, ORDER_BUCKETS, planByTag, recordOutcome } from "./uslub/brain/memory";
 import { scrapeChannelData } from "./uslub/brain/scrape";
@@ -43,11 +44,22 @@ async function runLater(task: () => Promise<void>): Promise<void> {
  */
 let profileSyncStarted = false;
 
+/** The language a user's Telegram app uses (app_users), for messages the bot sends them unprompted. */
+async function userLocale(telegramId: number): Promise<Locale> {
+  if (!isDbConfigured()) return pickLocale(undefined);
+  try {
+    const rows = (await getSql()`SELECT language_code FROM app_users WHERE telegram_id = ${telegramId}`) as { language_code: string | null }[];
+    return pickLocale(rows[0]?.language_code);
+  } catch {
+    return pickLocale(undefined);
+  }
+}
+
 function syncProfileOnce(api: Api): void {
   if (profileSyncStarted) return;
   profileSyncStarted = true;
   // MENU_BUTTON_TEXT is optional and not validated in env.ts (lead's file): read as is, empty = "Mercat".
-  const want = botProfile(getPublicUrl(), process.env.MENU_BUTTON_TEXT);
+  const want = botProfile(getPublicUrl(), process.env.MENU_BUTTON_TEXT, botHandle());
   void runLater(async () => {
     try {
       const { changed, failed } = await syncBotProfile(api, want);
@@ -198,12 +210,12 @@ function registerHandlers(b: Bot) {
         const measured = mine.filter((o) => o.status === "final" || o.status === "early");
         const starts = mine.reduce((a, o) => a + o.starts, 0);
         lines = [
-          t(locale, "bot.results_summary", { week: plan.weekOf, n: plan.items.length, found: mine.filter((o) => o.status !== "not_found").length, measured: measured.length }),
+          t(locale, "bot.results_summary", { week: formatDay(plan.weekOf, locale), n: plan.items.length, found: mine.filter((o) => o.status !== "not_found").length, measured: measured.length }),
           t(locale, "bot.results_starts", { n: starts }),
           ...r.changes.slice(0, 4).map((c) => `• ${c.replace(/\s*\[[^\]]*\]\s*$/, "")}`),
         ];
       } catch {
-        lines = [t(locale, "bot.results_unreadable", { week: plan.weekOf })];
+        lines = [t(locale, "bot.results_unreadable", { week: formatDay(plan.weekOf, locale) })];
       }
     }
     await ctx.reply([...lines, "", t(locale, "bot.results_question")].join("\n"), {
@@ -216,7 +228,7 @@ function registerHandlers(b: Bot) {
   });
 
   pm.command("help", async (ctx) => {
-    await ctx.reply(t(pickLocale(ctx.from?.language_code), "bot.help"));
+    await ctx.reply(t(pickLocale(ctx.from?.language_code), "bot.help", { bot: botHandle() }));
   });
 
   // Any other private text: Mercat onboarding (channel link or business description).
@@ -226,7 +238,7 @@ function registerHandlers(b: Bot) {
     const locale = pickLocale(from.language_code);
     const text = ctx.message.text;
     if (text.startsWith("/")) {
-      await ctx.reply(t(locale, "bot.help"));
+      await ctx.reply(t(locale, "bot.help", { bot: botHandle() }));
       return;
     }
     await track(from, "message", { length: text.length });
@@ -284,14 +296,16 @@ function registerHandlers(b: Bot) {
     }
     const u = ctx.from;
     const item = plan.items.find((i) => i.slot === slot);
-    const who = `${escapeHtml([u.first_name, u.last_name].filter(Boolean).join(" ") || "Mijoz")}${u.username ? ` (@${u.username})` : ""}`;
-    const post = item?.hook ? `«${escapeHtml(clip(item.hook, 80))}»` : `${slot}-post`;
+    // The alert goes to the owner: their language, not the customer's.
+    const ownerLocale = await userLocale(plan.ownerTelegramId);
+    const name = escapeHtml([u.first_name, u.last_name].filter(Boolean).join(" ") || t(ownerLocale, "bot.lead_customer"));
+    const who = `<a href="tg://user?id=${u.id}">${name}</a>${u.username ? ` (@${u.username})` : ""}`;
+    const post = item?.hook ? `«${escapeHtml(clip(item.hook, 80))}»` : t(ownerLocale, "bot.lead_post", { slot });
     try {
-      await ctx.api.sendMessage(
-        plan.ownerTelegramId,
-        `🔔 Yangi so‘rov: <a href="tg://user?id=${u.id}">${who}</a>\n${post} (${item?.day ?? plan.weekOf}) havolasi orqali.\nUnga o‘zingiz yozing. Sotuv bo‘lsa — tugmani bosing, reja shundan o‘rganadi.`,
-        { parse_mode: "HTML", reply_markup: new InlineKeyboard().text("✅ Sotildi", `sold:${plan.tag}:${slot}`) },
-      );
+      await ctx.api.sendMessage(plan.ownerTelegramId, t(ownerLocale, "bot.lead_alert", { who, post, day: formatDay(item?.day ?? plan.weekOf, ownerLocale) }), {
+        parse_mode: "HTML",
+        reply_markup: new InlineKeyboard().text(t(ownerLocale, "bot.lead_sold"), `sold:${plan.tag}:${slot}`),
+      });
       await safeLogEvent(u.id, "lead", { src: `src_${plan.tag}_${slot}` });
       await ctx.editMessageText(t(locale, "bot.link_sent")).catch(() => undefined);
     } catch {
