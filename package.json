@@ -15,7 +15,6 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^1.13.0",
     "@neondatabase/serverless": "^1.2.1",
-    "@xyflow/react": "^13.0.3",
     "grammy": "^1.48.0",
     "lucide-react": "^1.79.0",
     "motion": "^14.14.0",
