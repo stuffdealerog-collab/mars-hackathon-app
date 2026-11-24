@@ -246,3 +246,27 @@ export async function loadOutcomes(plans: StoredPlan[]): Promise<{ weekOrders: M
   }
   return { weekOrders, sold };
 }
+
+/* ------------------------------------------------------------ facts cache */
+
+const factsMem = new Map<string, { at: number; facts: unknown[] }>();
+
+/** Cached D0 facts for a knowledge-base hash (7 days). */
+export async function loadFactsCache(hash: string): Promise<unknown[] | null> {
+  if (!isDbConfigured()) return factsMem.get(hash)?.facts ?? null;
+  const rows = (await getSql()`
+    SELECT facts FROM brain_facts_cache WHERE kb_hash = ${hash} AND created_at > now() - interval '7 days'
+  `.catch(soft("load facts cache", []))) as { facts: unknown[] }[];
+  return rows[0]?.facts ?? null;
+}
+
+export async function saveFactsCache(hash: string, facts: unknown[]): Promise<void> {
+  if (!isDbConfigured()) {
+    factsMem.set(hash, { at: Date.now(), facts });
+    return;
+  }
+  await getSql()`
+    INSERT INTO brain_facts_cache (kb_hash, facts) VALUES (${hash}, ${JSON.stringify(facts)}::jsonb)
+    ON CONFLICT (kb_hash) DO UPDATE SET facts = EXCLUDED.facts, created_at = now()
+  `.catch(soft("save facts cache", undefined));
+}

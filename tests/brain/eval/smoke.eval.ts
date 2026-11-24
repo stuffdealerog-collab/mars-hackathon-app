@@ -4,6 +4,41 @@ import { describe, expect, it } from "vitest";
 /** Live end-to-end smoke (SMOKE=1): one real channel, web on, nothing saved. Prints the stage timeline. */
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
+describe.skipIf(!process.env.SMOKE_MANY)("live strategy load smoke", () => {
+  it("runs several channels at once and reports time to skeleton, first item, strategy, done", async () => {
+    const { buildStrategy } = await import("../../../src/lib/uslub/brain/strategy");
+    const chans = (process.env.SMOKE_MANY as string).split(",");
+    const rows = await Promise.all(
+      chans.map(async (ch) => {
+        const t0 = Date.now();
+        const at: Record<string, number> = {};
+        const mark = (k: string) => (at[k] ??= Math.round((Date.now() - t0) / 100) / 10);
+        try {
+          const r = await buildStrategy({
+            knowledge: "",
+            channel: ch,
+            lang: "uz",
+            save: false,
+            onStage: (e) => {
+              if (e.stage === "skeleton") mark("skeleton");
+              if (e.stage === "item") mark("firstItem");
+              if (e.stage === "web") mark("web");
+              if (e.stage === "strategy") mark("strategy");
+            },
+          });
+          mark("done");
+          return { ch, ...at, facts: r.facts.length, web: r.web.length, strategyOk: Boolean(r.strategy.positioning), critic: r.criticReport.map((c) => c.status[0]).join("") };
+        } catch (err) {
+          return { ch, error: err instanceof Error ? err.message : String(err), done: Math.round((Date.now() - t0) / 100) / 10 };
+        }
+      }),
+    );
+    console.log(JSON.stringify(rows));
+    writeFileSync(process.env.SMOKE_OUT ?? "/dev/null", JSON.stringify(rows, null, 1));
+    for (const r of rows) expect((r as { done: number }).done).toBeLessThan(50);
+  });
+});
+
 describe.skipIf(!process.env.SMOKE)("live strategy smoke", () => {
   it("streams stages and finishes under the 60 s route limit", async () => {
     const { buildStrategy } = await import("../../../src/lib/uslub/brain/strategy");

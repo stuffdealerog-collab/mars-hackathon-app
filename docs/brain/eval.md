@@ -163,6 +163,23 @@ v2.1 (prompt e178a99d74, reverted) is not in the table: NATURAL 2.03, ACTIONABLE
   - the example CTA was copied into almost every post;
   - an old master-class post was presented as a current Black Friday offer; posts in the knowledge base now carry their date, and dated events older than 14 days stay history.
 
+### Latency under load (after the 45 s budget, 24 Nov evening)
+
+Production (main, Brain v1) took 31 s when called directly and more than 50 s from the Studio (`brandId` + audit, no streaming), so the client fell back to sample data. Brain v2 now runs on a hard budget:
+
+- one scrape, then fact extraction starts at once;
+- facts are cached in Postgres by KB hash;
+- the strategist waits for web sources only until 12 s and writes a compact answer;
+- no repair call starts after 26 s;
+- everything returns by about 45 s.
+
+Live runs with web search on, channel only (the Studio's case), several at once:
+
+| run | channels at once | skeleton | first finished post | done |
+|---|---|---|---|---|
+| fresh (no cache) | 3 | 7–8.5 s | 16–26 s | 28.3 / 30.0 / 32.8 s |
+| facts cached | 3 (+1 fresh) | 2 s (fresh: 7 s) | 9–12 s (fresh: 14 s) | 22.6 / 25.6 / 27.2 s (fresh: 35.5 s) |
+
 ## 3. Human calibration (founder, tonight)
 
 `docs/brain/eval-labels.csv` holds every v2 plan item from the run above without the judge's scores. The founder fills SPECIFIC … GOAL_FIT (1–3), MACHINE_MADE (y/n) and a comment for 20–30 rows. Then run:

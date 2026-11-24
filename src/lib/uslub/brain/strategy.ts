@@ -9,7 +9,8 @@ import { upcomingEvents } from "./calendar";
 import type { StoredPlanItem } from "./learn";
 import { extractIds, groundedCheck, jaccard, lintItem, trigrams, type CheckFail, type LintItem } from "./lint";
 import { brainJson, GROUNDING, HAIKU, SONNET } from "./llm";
-import { newPlanTag, savePlan } from "./memory";
+import { loadFactsCache, newPlanTag, saveFactsCache, savePlan } from "./memory";
+import { scrapeChannelData } from "./scrape";
 import { stripIds } from "./copy";
 import { cycleOf, pillarShares, ruleLedger, runRules, type KbSignals } from "./rules";
 import { assignFocus, assignHookTypes, buildKpis, buildSkeleton, HOOK_TYPES, type Slot } from "./skeleton";
@@ -26,26 +27,35 @@ type Fact = { id: string; type: (typeof FACT_TYPES)[number]; text: string; quote
 
 const D0 = `Extract atomic facts from the owner's knowledge base. One fact = one checkable statement: one product, one price (with its product), one address, one hours line, one number, one review, one guarantee, one offer term, one deadline.
 For each: type (product|price|address|district|landmark|hours|contact|delivery|payment|year|number|person|review|certificate|guarantee|offer|deadline|story), text (short, KB language), quote (the exact span copied character-for-character from the KB).
-Do not infer, merge, translate, generalise or complete anything. A price with no product: skip it. Return JSON {facts:[...]}.`;
+Do not infer, merge, translate, generalise or complete anything. A price with no product: skip it. At most 30 facts, most useful first: prices, products, address and hours, numbers and reviews, then the rest. Return JSON {facts:[...]}.`;
 
 const ws = (s: string) => normApos(s).replace(/\s+/g, " ").trim().toLowerCase();
 
 const factCache = new Map<string, { at: number; facts: Fact[] }>();
 
-/** D0 with a 30-minute cache keyed by the KB hash (the same brand re-planned costs nothing). */
+/**
+ * D0 with two caches keyed by the KB hash: this instance's memory (30 min), then Postgres (7 days),
+ * so the same brand re-planned on any serverless instance skips the extraction call.
+ */
 export async function extractFacts(kb: string): Promise<Fact[]> {
   if (!kb.trim()) return [];
   const key = createHash("sha256").update(kb).digest("hex");
   const hit = factCache.get(key);
   if (hit && Date.now() - hit.at < 30 * 60_000) return hit.facts;
+  const stored = (await loadFactsCache(key).catch(() => null)) as Fact[] | null;
+  if (stored?.length) {
+    factCache.set(key, { at: Date.now(), facts: stored });
+    return stored;
+  }
   const facts = await extractFactsUncached(kb);
   factCache.set(key, { at: Date.now(), facts });
   if (factCache.size > 100) factCache.delete(factCache.keys().next().value as string);
+  void saveFactsCache(key, facts);
   return facts;
 }
 
 async function extractFactsUncached(kb: string): Promise<Fact[]> {
-  const res = await brainJson({ schema: FactsSchema, model: HAIKU, effort: "low", maxTokens: 6000, system: D0, prompt: `KNOWLEDGE BASE:\n${kb.slice(0, 12000)}` });
+  const res = await brainJson({ schema: FactsSchema, model: HAIKU, effort: "low", maxTokens: 5000, timeoutMs: 14_000, system: D0, prompt: `KNOWLEDGE BASE:\n${kb.slice(0, 12000)}` });
   const norm = ws(kb);
   return res.facts
     .filter((f) => f.quote.trim() && norm.includes(ws(f.quote)))
@@ -146,6 +156,7 @@ Write every string in the output language (uz = Uzbek Latin, ru = Russian, en = 
 6 risks (3–6) — only from fired rules, stats, or missing facts, each with ids.
 7 rationale (3–5 lines) — each "<rule or result in plain words>: <ledger number> → <decision this week> [ids]". Cover the fired rules with the biggest effect on this week's plan; if learnChanges exist, the first line says what our own past results changed. Plain shop-owner words.
 
+Keep it compact: at most 2 audiences, 2 examples per pillar, 3–4 risks, 3–4 rationale lines; every string ≤ 220 characters.
 Return JSON matching the schema.`;
 
 export const D3 = `You are the content planner of Mercat, an AI marketing department. Code already fixed each slot's day, time, goal, format, link and approval, and chose which facts each slot is about. You write the hook, the CTA and the brief for each slot.
@@ -239,7 +250,11 @@ export type CriticStatus = "passed" | "fixed" | "owner_input" | "timeout";
 export async function buildStrategy(inp: StrategyInput) {
   const t0 = Date.now();
   const elapsed = () => Date.now() - t0;
-  const DEADLINE = 55_000;
+  // Route maxDuration is 60 s; cold start, DB and serialisation need a margin. Everything returns by ~45 s.
+  const DEADLINE = 45_000;
+  const WEB_UNTIL = 12_000; // the strategist waits for web sources at most until t0 + 12 s
+  const REPAIR_UNTIL = 26_000; // no repair call starts after this
+
   const now = inp.now ?? Date.now();
   const lang = inp.lang ?? "uz";
   const category = inp.category ?? "";
@@ -251,17 +266,25 @@ export async function buildStrategy(inp: StrategyInput) {
   // 1. facts ∥ channel analysis (scrape, validity, bench, learn) ∥ web context (only the strategist waits for it)
   emit({ stage: "facts", status: "start" });
   const webP = live && inp.web !== false ? webContext({ brandName, category, channel, competitors: inp.competitors, now }) : Promise.resolve([] as LedgerEntry[]);
+  // Scrape once; the analysis then hits the scrape cache, and a thin KB's fact extraction starts right after it.
+  const ownP: Promise<ChannelData | null> = inp.preloaded
+    ? Promise.resolve(inp.preloaded.own)
+    : channel
+      ? scrapeChannelData(channel).catch(() => null)
+      : Promise.resolve(null);
   const analysisP =
     channel || inp.preloaded
-      ? analyzeDeterministic({ channel: channel as string, competitors: inp.competitors, category, now, lang, brandId: inp.brandId, ownerVerified: inp.ownerVerified, preloaded: inp.preloaded, onStage: emit })
+      ? ownP.then(() =>
+          analyzeDeterministic({ channel: channel as string, competitors: inp.competitors, category, now, lang, brandId: inp.brandId, ownerVerified: inp.ownerVerified, preloaded: inp.preloaded, onStage: emit }),
+        )
       : Promise.resolve(null);
   // A thin knowledge base ("just a channel link") is topped up with the owner's own recent posts:
   // facts are still quote-checked against that text, so nothing outside the owner's words gets in.
   const thinKb = inp.knowledge.trim().length < 300 && Boolean(channel || inp.preloaded);
   let knowledge = inp.knowledge;
   const factsP = thinKb
-    ? analysisP.then((a) => {
-        knowledge = [inp.knowledge.trim(), a ? postsAsKb(a.data, now) : ""].filter(Boolean).join("\n\n");
+    ? ownP.then((own) => {
+        knowledge = [inp.knowledge.trim(), own ? postsAsKb(own, now) : ""].filter(Boolean).join("\n\n");
         return extractFacts(knowledge);
       })
     : extractFacts(inp.knowledge);
@@ -357,16 +380,16 @@ export async function buildStrategy(inp: StrategyInput) {
   );
 
   // 5. strategist: waits for the web context (≤12 s), runs in parallel with the slot writers
-  const strategistP = webP.then(async (web) => {
+  const strategistP = Promise.race([webP, sleep(Math.max(0, WEB_UNTIL - elapsed())).then(() => [] as LedgerEntry[])]).then(async (web) => {
     for (const w of web) ledgerMap.set(w.id, w);
     ledger.push(...web);
     if (web.length) emit({ stage: "web", sources: web.map(({ id, url, display }) => ({ id, url, display })) });
     const d2 = await brainJson({
       schema: StrategySchema,
       model: SONNET,
-      effort: "medium",
-      maxTokens: 10000,
-      timeoutMs: Math.max(10_000, DEADLINE - 3_000 - elapsed()),
+      effort: "low",
+      maxTokens: 6000,
+      timeoutMs: Math.max(8_000, DEADLINE - 1_000 - elapsed()),
       system: `${common}\n\n${D2(brandName, category || "biznes", cycle, inp.goal ?? "ko'proq buyurtma")}`,
       prompt: JSON.stringify({
         facts: factsForLlm,
@@ -461,7 +484,7 @@ export async function buildStrategy(inp: StrategyInput) {
     if (!criticRan) emit({ stage: "critic", slots: drafted.map((s) => s.slot), status: "skipped" });
     let failing = group.filter((s) => failsOf(s.slot).length > 0);
     if (failing.length) emit({ stage: "critic", failing: failing.map((s) => ({ slot: s.slot, fails: failsOf(s.slot) })) });
-    if (failing.length && elapsed() < 36_000) {
+    if (failing.length && elapsed() < REPAIR_UNTIL) {
       try {
         const fix = await draftCall(failing, true);
         const fixed: Slot[] = [];

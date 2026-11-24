@@ -163,3 +163,11 @@ CREATE TABLE IF NOT EXISTS brand_knowledge (
 );
 
 CREATE INDEX IF NOT EXISTS brand_knowledge_brand_idx ON brand_knowledge (brand_id, created_at DESC);
+
+-- Facts the strategist extracted from a knowledge base, keyed by the KB's sha256: the same brand
+-- re-planned (on any serverless instance) skips the extraction call. Only the exact same text hits.
+CREATE TABLE IF NOT EXISTS brain_facts_cache (
+  kb_hash text PRIMARY KEY,
+  facts jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);

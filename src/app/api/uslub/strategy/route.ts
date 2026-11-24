@@ -35,6 +35,7 @@ export const POST = handle(async (req) => {
   let knowledge = body.knowledge ?? "";
   let channel = body.channel ?? body.audit?.channel;
   let brandName = body.brandName;
+  let category = body.category;
   const userId = telegramUserId(req);
   let brandId: string | undefined;
   let ownerVerified = false;
@@ -50,6 +51,8 @@ export const POST = handle(async (req) => {
       knowledge = [owner.text, brand.knowledge, knowledge].filter(Boolean).join("\n\n");
       channel ??= brand.channel;
       brandName ??= brand.dna?.name;
+      // The Studio sends no category: the brand's one-liner ("Toshkentdagi qandolatxona…") drives the buying cycle and niche.
+      category ??= brand.dna?.oneLiner?.slice(0, 80);
     } catch (err) {
       if (err instanceof HttpError && err.status === 403) throw err;
       if (!knowledge) throw err instanceof HttpError ? err : new HttpError(404, "Brand not found");
@@ -63,7 +66,7 @@ export const POST = handle(async (req) => {
       competitors: body.competitors,
       goal: body.goal,
       lang: body.lang ?? "uz",
-      category: body.category,
+      category,
       brandName,
       brandId,
       ownerTelegramId: userId,
