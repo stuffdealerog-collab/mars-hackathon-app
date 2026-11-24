@@ -126,3 +126,52 @@ export function Led({
     </span>
   );
 }
+
+/** A full-width LED strip: the unlit dot grid always, lit text only when there is a fact to show. */
+export function LedStrip({
+  text,
+  dot = 4,
+  gap = 2,
+  className = "",
+  label,
+  run = false,
+}: {
+  text?: string;
+  dot?: number;
+  gap?: number;
+  className?: string;
+  label?: string;
+  /** scroll the text through the strip, like a shop's running line */
+  run?: boolean;
+}) {
+  const step = dot + gap;
+  const r = dot / 2;
+  const h = 7 * step - gap;
+  return (
+    <div
+      role="img"
+      aria-label={text ? (label ?? text) : "LED o‘chiq: hali havola yo‘q"}
+      className={`flex items-center overflow-hidden rounded-[12px] bg-[var(--stage)] px-3 ${className}`}
+      style={{ boxShadow: "inset 0 0 0 1px var(--hair)", height: h + 22 }}
+    >
+      <span
+        aria-hidden
+        className="block w-full overflow-hidden"
+        style={{
+          height: h,
+          backgroundImage: `radial-gradient(circle at ${r}px ${r}px, var(--led-off) ${r * 0.9}px, transparent ${r}px)`,
+          backgroundSize: `${step}px ${step}px`,
+        }}
+      >
+        {text ? (
+          <span
+            className={`whitespace-nowrap ${run ? "led-run" : "inline-block"}`}
+            style={run ? ({ "--led-run": `${Math.max(6, text.length * 0.55)}s` } as React.CSSProperties) : undefined}
+          >
+            <Led text={text} dot={dot} gap={gap} grid={false} />
+          </span>
+        ) : null}
+      </span>
+    </div>
+  );
+}

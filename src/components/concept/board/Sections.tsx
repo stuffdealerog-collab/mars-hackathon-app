@@ -3,7 +3,8 @@ import { Check } from "lucide-react";
 import { Deck } from "@/components/lamp/Deck";
 import { LampTile } from "@/components/lamp/LampTile";
 import { Led } from "@/components/lamp/Led";
-import { PanelDemo, SAMPLE_RESULT } from "./Live";
+import { PanelDemo } from "./Live";
+import { SAMPLE_RESULT } from "./sample";
 
 export function Section({ id, title, lead, children }: { id: string; title: string; lead?: React.ReactNode; children: React.ReactNode }) {
   return (

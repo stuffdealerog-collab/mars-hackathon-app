@@ -22,6 +22,7 @@ export function LampTile({
   size = "md",
   showJob = false,
   stateLabel = true,
+  bare = false,
   as: Tag = "div",
   ...rest
 }: {
@@ -32,6 +33,8 @@ export function LampTile({
   size?: "sm" | "md" | "lg";
   showJob?: boolean;
   stateLabel?: boolean;
+  /** light only: no name, no result (tiny status strips) */
+  bare?: boolean;
   as?: "div" | "li" | "button";
 } & Omit<React.HTMLAttributes<HTMLElement>, "children">) {
   const l = LAMPS[role];
@@ -40,6 +43,7 @@ export function LampTile({
       <span className="lamp__spill" aria-hidden />
       <span className="lamp__glow" aria-hidden />
       <span className="lamp__filament" aria-hidden />
+      {bare ? null : (
       <span className="lamp__body">
         <span className="lamp__result">{children}</span>
         <span className="lamp__name">
@@ -53,6 +57,7 @@ export function LampTile({
           )}
         </span>
       </span>
+      )}
     </Tag>
   );
 }

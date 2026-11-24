@@ -14,6 +14,7 @@ export interface Lamp {
   hue: string; // the light
   core: string; // hot centre of the bulb
   deep: string; // where the light falls into the dark
+  darkInk?: boolean; // results sit on a light glow: print them dark
 }
 
 export const LAMP_ORDER: AgentRole[] = [
@@ -30,8 +31,8 @@ export const LAMP_ORDER: AgentRole[] = [
 ];
 
 export const LAMPS: Record<AgentRole, Lamp> = {
-  brand: { role: "brand", name: "Brend xotirasi", ru: "Память бренда", job: "Ovozingizni eslab qoladi", hue: "#FFD6A0", core: "#FFF7EA", deep: "#B8642F" },
-  analyst: { role: "analyst", name: "Analitik", ru: "Аналитик", job: "Kanal raqamlarini o‘qiydi", hue: "#FFB547", core: "#FFEBC2", deep: "#A8501A" },
+  brand: { role: "brand", name: "Brend xotirasi", ru: "Память бренда", job: "Ovozingizni eslab qoladi", hue: "#FFD6A0", core: "#FFF7EA", deep: "#B8642F", darkInk: true },
+  analyst: { role: "analyst", name: "Analitik", ru: "Аналитик", job: "Kanal raqamlarini o‘qiydi", hue: "#FFB547", core: "#FFEBC2", deep: "#A8501A", darkInk: true },
   strategist: { role: "strategist", name: "Strateg", ru: "Стратег", job: "Haftalik reja tuzadi", hue: "#FF8A3D", core: "#FFD6B8", deep: "#9A2E1A" },
   copywriter: { role: "copywriter", name: "Kopirayter", ru: "Копирайтер", job: "Postlarni ovozingizda yozadi", hue: "#FF6152", core: "#FFC9BF", deep: "#931D38" },
   editor: { role: "editor", name: "Muharrir", ru: "Редактор", job: "Neyro-so‘zlarni o‘chiradi", hue: "#FF4580", core: "#FFC0D5", deep: "#7E1258" },
@@ -51,5 +52,11 @@ export type LampState = "off" | "warming" | "on" | "you" | "error";
 
 export const lampVars = (role: AgentRole) => {
   const l = LAMPS[role];
-  return { "--hue": l.hue, "--core": l.core, "--deep": l.deep } as React.CSSProperties;
+  return {
+    "--hue": l.hue,
+    "--core": l.core,
+    "--deep": l.deep,
+    "--on": l.darkInk ? "#1c0f05" : "#fff",
+    "--on-shadow": l.darkInk ? "none" : "0 1px 14px rgb(0 0 0 / .35)",
+  } as React.CSSProperties;
 };

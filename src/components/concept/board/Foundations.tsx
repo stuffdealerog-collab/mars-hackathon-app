@@ -11,8 +11,8 @@ const NEUTRALS = [
   ["glass-2", "#17171B", "Поднятые поверхности, пост, поле ввода"],
   ["hair", "rgb 255 / 7%", "Единственная граница: 1px внутри"],
   ["ink", "#F3F1EC", "Текст. Тёплый белый, 18.6 : 1 на сцене"],
-  ["ink-2", "#A39F98", "Вторичный текст, 7.9 : 1"],
-  ["ink-3", "#6F6B65", "Только крупное и необязательное, 3.9 : 1"],
+  ["ink-2", "#A39F98", "Вторичный текст, 8.0 : 1 на сцене, 6.8 : 1 на поле"],
+  ["ink-3", "#85817A", "Третичный текст и плейсхолдеры, 5.4 : 1 на сцене, 4.6 : 1 на поле"],
 ] as const;
 
 const SIGNALS = [
@@ -46,9 +46,11 @@ export function Colors() {
                 <span className="text-[14px] font-semibold">{LAMPS[r].name}</span>
               </div>
               <div className="tnum mt-1 text-[12px] leading-relaxed text-[var(--ink-2)]">
-                {i + 1}-lampa · {LAMPS[r].hue}
+                {i + 1}-lampa, {LAMPS[r].hue}
                 <br />
-                yadro {LAMPS[r].core} · chuqur {LAMPS[r].deep}
+                yadro {LAMPS[r].core}
+                <br />
+                chuqur {LAMPS[r].deep}
               </div>
             </li>
           ))}
@@ -84,7 +86,7 @@ export function Colors() {
             ))}
           </ul>
           <h3 className="mt-7 text-[19px] font-semibold tracking-[-0.01em]">Светлая тема (Mini App, Студия)</h3>
-          <p className="mt-1 text-[13px] text-[var(--ink-2)]">Сцена белая, лампы те же. Текст #0D0D11, вторичный #5B5852, LED темнеет до #C26A00 ради контраста.</p>
+          <p className="mt-1 text-[13px] text-[var(--ink-2)]">Сцена белая, лампы те же. Текст #0D0D11 (19.4 : 1), вторичный #5B5852 (7.1 : 1), третичный #6E6A63 (5.4 : 1). LED темнеет до #C26A00: крупные точки, 3.9 : 1.</p>
           <div className="lw mt-3 flex items-center gap-3 rounded-[18px] p-3" data-theme="light" style={{ boxShadow: "inset 0 0 0 1px var(--hair-2)" }}>
             <span className="h-9 w-9 rounded-[10px] bg-[var(--glass)]" aria-hidden />
             <span className="h-9 w-9 rounded-[10px] bg-[var(--glass-2)]" aria-hidden />
@@ -126,7 +128,9 @@ export function Typography() {
           <div key={r.n} className="grid gap-2 bg-[var(--stage)] p-4 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-baseline sm:gap-6 sm:p-5">
             <div className="tnum text-[12.5px] leading-relaxed text-[var(--ink-2)]">
               <span className="block text-[13.5px] font-semibold text-[var(--ink)]">{r.n}</span>
-              {r.px} px · {r.lh} · {r.tr} · {r.w}
+              {r.px} px
+              <br />
+              межстрочный {r.lh}, трекинг {r.tr}, вес {r.w}
             </div>
             <p className={`min-w-0 text-balance ${r.cls}`}>{r.s}</p>
           </div>
@@ -167,8 +171,9 @@ export function Typography() {
 
       <div className="mt-8 flex flex-wrap items-end gap-8 rounded-[22px] bg-[var(--glass)] p-5" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
         <div>
-          <p className="mb-2 text-[13px] text-[var(--ink-2)]">LED 5×7, точка 8 px</p>
-          <Led text="@NAFIS_KIYIM" dot={8} gap={2.5} label="@nafis_kiyim" />
+          <p className="mb-2 text-[13px] text-[var(--ink-2)]">LED 5×7, точка 8 px (на телефоне 4 px)</p>
+          <span className="hidden sm:block"><Led text="@NAFIS_KIYIM" dot={8} gap={2.5} label="@nafis_kiyim" /></span>
+          <span className="sm:hidden"><Led text="@NAFIS_KIYIM" dot={4} gap={1.4} label="@nafis_kiyim" /></span>
         </div>
         <div>
           <p className="mb-2 text-[13px] text-[var(--ink-2)]">точка 4 px, внутри лампы</p>

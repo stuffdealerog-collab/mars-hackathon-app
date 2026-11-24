@@ -1,8 +1,9 @@
 import { Check, Link2, MessagesSquare, Send, Store, Users } from "lucide-react";
 import { LampTile } from "@/components/lamp/LampTile";
-import { Led } from "@/components/lamp/Led";
+import { LedStrip } from "@/components/lamp/Led";
 import { TgPost } from "@/components/lamp/TgPost";
-import { AutopilotSwitch, SAMPLE_RESULT, ScriptSwitch } from "./Live";
+import { AutopilotSwitch, ScriptSwitch } from "./Live";
+import { SAMPLE_RESULT } from "./sample";
 import { Section } from "./Sections";
 
 function Spec({ name, use, children, wide = false }: { name: string; use: string; children: React.ReactNode; wide?: boolean }) {
@@ -133,9 +134,9 @@ export function Inventory() {
         </Spec>
 
         <Spec name="LED-строка" use="Факты канала после вставки ссылки. До вставки — тёмная решётка без огней.">
-          <div className="flex flex-col gap-3 overflow-hidden rounded-[14px] bg-[var(--stage)] p-3" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
-            <Led text="@NAFIS_KIYIM 4 210" dot={4} gap={1.5} />
-            <Led text="                  " dot={4} gap={1.5} label="LED o‘chiq" />
+          <div className="flex flex-col gap-2.5">
+            <LedStrip text="@NAFIS_KIYIM  4 210 OBUNACHI  QAMROV 27%" dot={4} gap={1.5} run label="@nafis_kiyim, 4 210 obunachi, qamrov 27%" />
+            <LedStrip dot={4} gap={1.5} />
           </div>
         </Spec>
 

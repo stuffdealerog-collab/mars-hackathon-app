@@ -2,24 +2,12 @@
 
 import { RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { AgentRole } from "@/lib/uslub/contract";
 import { LampTile } from "@/components/lamp/LampTile";
 import { LAMP_ORDER, type LampState } from "@/components/lamp/lamps";
 import { Led } from "@/components/lamp/Led";
+import { SAMPLE_RESULT } from "./sample";
 
-/* Sample results ("namuna") for the fictional channel t.me/nafis_kiyim. */
-export const SAMPLE_RESULT: Record<AgentRole, React.ReactNode> = {
-  brand: <span className="text-[17px] font-semibold leading-tight">«siz», iliq</span>,
-  analyst: <Led text="27%" dot={4} gap={1.6} color="#fff" grid={false} label="qamrov 27%" />,
-  strategist: <span className="flex items-end gap-1.5"><Led text="7" dot={4} gap={1.6} color="#fff" grid={false} /><span className="text-[13px]">kunlik reja</span></span>,
-  copywriter: <span className="flex items-end gap-1.5"><Led text="7" dot={4} gap={1.6} color="#fff" grid={false} /><span className="text-[13px]">post</span></span>,
-  editor: <span className="flex items-end gap-1.5"><Led text="94" dot={4} gap={1.6} color="#fff" grid={false} /><span className="text-[13px]">inson bali</span></span>,
-  translator: <span className="text-[15px] font-semibold leading-tight">Lotin, Кирилл,<br />Рус, Eng</span>,
-  designer: <span className="text-[15px] font-semibold">3 muqova</span>,
-  video: <span className="flex items-end gap-1.5"><Led text="15" dot={4} gap={1.6} color="#fff" grid={false} /><span className="text-[13px]">soniya Reels</span></span>,
-  radar: <span className="flex items-end gap-1.5"><Led text="10" dot={4} gap={1.6} color="#fff" grid={false} /><span className="text-[13px]">joy</span></span>,
-  publisher: <span className="text-[15px] font-semibold">20:00 da</span>,
-};
+
 
 function useInView<T extends Element>(threshold = 0.45) {
   const ref = useRef<T>(null);
@@ -45,12 +33,12 @@ export function PanelDemo({ cols = "grid-cols-2 sm:grid-cols-5" }: { cols?: stri
   const [run, setRun] = useState(0);
   useEffect(() => {
     if (!seen) return;
-    if (reducedMotion()) {
-      setState(Object.fromEntries(LAMP_ORDER.map((r) => [r, "on" as LampState])));
-      return;
-    }
-    setState({});
     const timers: number[] = [];
+    if (reducedMotion()) {
+      timers.push(window.setTimeout(() => setState(Object.fromEntries(LAMP_ORDER.map((r) => [r, "on" as LampState]))), 0));
+      return () => timers.forEach(clearTimeout);
+    }
+    timers.push(window.setTimeout(() => setState({}), 0));
     let t = 350;
     LAMP_ORDER.forEach((r, i) => {
       timers.push(window.setTimeout(() => setState((s) => ({ ...s, [r]: "warming" })), t));
@@ -102,15 +90,15 @@ export function BallisticNumber({ to = 27, suffix = "%" }: { to?: number; suffix
   const [ref, seen] = useInView<HTMLDivElement>();
   useEffect(() => {
     if (!seen) return;
+    let raf = 0;
     if (reducedMotion()) {
-      setV(to);
-      return;
+      raf = requestAnimationFrame(() => setV(to));
+      return () => cancelAnimationFrame(raf);
     }
-    // critically-under-damped spring: k=170, c=18, m=1
+    // under-damped spring: k=170, c=18, m=1 — a small overshoot, then it settles
     let x = 0;
     let vel = 0;
     let last = performance.now();
-    let raf = 0;
     const step = (now: number) => {
       const dt = Math.min(0.032, (now - last) / 1000);
       last = now;
@@ -121,7 +109,6 @@ export function BallisticNumber({ to = 27, suffix = "%" }: { to?: number; suffix
       if (Math.abs(to - x) > 0.05 || Math.abs(vel) > 0.05) raf = requestAnimationFrame(step);
       else setV(to);
     };
-    setV(0);
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [seen, run, to]);

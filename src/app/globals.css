@@ -264,7 +264,7 @@ body {
   --hair-2: rgb(255 255 255 / 0.13);
   --ink: #f3f1ec;
   --ink-2: #a39f98;
-  --ink-3: #6f6b65;
+  --ink-3: #85817a;
   --led: #ffb547;
   --led-off: rgb(255 181 71 / 0.1);
   --lime: #d7ff3a;
@@ -297,7 +297,7 @@ body {
   --hair-2: rgb(10 10 15 / 0.14);
   --ink: #0d0d11;
   --ink-2: #5b5852;
-  --ink-3: #8b8780;
+  --ink-3: #6e6a63;
   --led: #c26a00;
   --led-off: rgb(194 106 0 / 0.1);
   color-scheme: light;
@@ -403,8 +403,8 @@ body {
   display: flex;
   flex: 1;
   align-items: center;
-  color: #fff;
-  text-shadow: 0 1px 14px rgb(0 0 0 / 0.35);
+  color: var(--on, #fff);
+  text-shadow: var(--on-shadow, 0 1px 14px rgb(0 0 0 / 0.35));
   opacity: 0;
   transition: opacity var(--t-panel) var(--ease-out);
 }
@@ -541,7 +541,7 @@ body {
 }
 .btn-lime:active,
 .btn-quiet:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
 .btn-lime:disabled,
 .btn-quiet:disabled {
@@ -728,3 +728,22 @@ body {
   line-height: 1.5;
   color: var(--ink-2);
 }
+
+/* LED running line: the text enters from the right edge and leaves on the left, like a shop sign. */
+.led-run {
+  display: inline-block;
+  padding-left: 100%;
+  animation: led-run var(--led-run, 9s) linear infinite;
+}
+@keyframes led-run {
+  to {
+    transform: translateX(-100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .led-run {
+    padding-left: 0;
+    animation: none;
+  }
+}
+
