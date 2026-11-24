@@ -3,6 +3,7 @@ import { safeLogEvent } from "@/lib/track";
 import { buildBrand } from "@/lib/uslub/brand";
 import { generatePosts } from "@/lib/uslub/copywriter";
 import { handle, HttpError, json, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
+import type { RadarLead } from "@/lib/uslub/contract";
 import { findLeads } from "@/lib/uslub/radar";
 import { classifySensitivity } from "@/lib/uslub/sensitivity";
 import { countPublished, publicBrand, savePosts } from "@/lib/uslub/store";
@@ -60,7 +61,7 @@ export const POST = handle(async (req) => {
   const deadline = started + 55_000;
   const [postsR, leadsR, videoR, publishedR] = await Promise.allSettled([
     include.has("posts") ? withDeadline(generatePosts(brand, brief, body.count ?? 3), deadline) : Promise.resolve([]),
-    include.has("radar") ? withDeadline(findLeads(brand), deadline) : Promise.resolve([]),
+    include.has("radar") ? withDeadline(findLeads(brand), deadline) : Promise.resolve({ leads: [] }),
     include.has("video") ? withDeadline(planVideo(brand, `${brief}. 20 soniyalik Reels`), deadline) : Promise.resolve(null),
     countPublished(brand.id),
   ]);
@@ -73,7 +74,8 @@ export const POST = handle(async (req) => {
   const posts = postsR.status === "fulfilled" ? postsR.value : [];
   if (posts.length) await savePosts(posts);
   const published = publishedR.status === "fulfilled" ? publishedR.value : 0;
-  const leads = leadsR.status === "fulfilled" ? leadsR.value : [];
+  const radar: { leads: RadarLead[]; reason?: string } = leadsR.status === "fulfilled" ? leadsR.value : { leads: [] };
+  const leads = radar.leads;
   if (include.has("radar") && leadsR.status === "fulfilled") await safeLogEvent(null, "radar_run", { brand_id: brand.id, leads: leads.length });
   const video = videoR.status === "fulfilled" ? videoR.value : null;
   if (video) await safeLogEvent(null, "video_planned", { brand_id: brand.id, scenes: video.scenes.length });
@@ -83,6 +85,7 @@ export const POST = handle(async (req) => {
     cached,
     posts: posts.map((p) => ({ ...p, sensitivity: classifySensitivity(p.variants.uz_latn, brief, { publishedCount: published }) })),
     leads,
+    ...(radar.reason ? { leadsReason: radar.reason } : {}), // why leads is empty (shown in the UI)
     video,
     errors: { posts: errMsg(postsR), radar: errMsg(leadsR), video: errMsg(videoR) },
     pending, // parts that missed the deadline: call that route with { brandId } to get them

@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { BrandProfile, VideoPlan } from "./contract";
 import { llmJson, MODEL_QUALITY } from "./llm";
-import { normalizeUzLatin } from "./translit";
+import { polishUzLatin } from "./translit";
 
 const PlanSchema = z.object({
   hook: z.string(),
@@ -32,12 +32,12 @@ export async function planVideo(brand: BrandProfile, brief: string): Promise<Vid
     maxTokens: 4000,
   });
   return {
-    hook: normalizeUzLatin(plan.hook),
+    hook: polishUzLatin(plan.hook),
     scenes: plan.scenes.slice(0, 6).map((s) => ({
       seconds: Math.max(1, Math.min(10, Math.round(s.seconds))),
-      visual: normalizeUzLatin(s.visual),
-      voiceover: normalizeUzLatin(s.voiceover),
-      caption: normalizeUzLatin(s.caption),
+      visual: polishUzLatin(s.visual),
+      voiceover: polishUzLatin(s.voiceover),
+      caption: polishUzLatin(s.caption),
     })),
     musicMood: plan.musicMood,
   };

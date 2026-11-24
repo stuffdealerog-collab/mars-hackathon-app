@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { latinToCyrillic, normalizeUzLatin } from "../src/lib/uslub/translit";
+import { fixDativeAssimilation, latinToCyrillic, normalizeUzLatin, polishUzLatin } from "../src/lib/uslub/translit";
 
 const cases: Array<[string, string]> = [
   // basic letters and digraphs
@@ -103,6 +103,28 @@ describe("latinToCyrillic", () => {
 
   it("is a no-op on empty text", () => {
     expect(latinToCyrillic("")).toBe("");
+  });
+});
+
+describe("fixDativeAssimilation", () => {
+  it.each([
+    ["Ilovada keshbekga ega bo‘ling", "Ilovada keshbekka ega bo‘ling"],
+    ["qishloqga boramiz", "qishloqqa boramiz"],
+    ["o‘rtoqga ayting", "o‘rtoqqa ayting"],
+    ["Bankga murojaat", "Bankka murojaat"],
+    ["KESHBEKGA", "KESHBEKKA"],
+    ["tilakga!", "tilakka!"],
+  ])("%s -> %s", (input, out) => expect(fixDativeAssimilation(input)).toBe(out));
+
+  it.each(["uyga", "ishga", "kechgacha", "gacha", "bog‘ga", "Toshkentga", "keshbekgacha", "kitobga", "2024-yilga"])(
+    "leaves %s alone",
+    (word) => expect(fixDativeAssimilation(word)).toBe(word),
+  );
+
+  it("polishUzLatin normalizes apostrophes and suffixes, then transliterates correctly", () => {
+    const fixed = polishUzLatin("Yangi mahsulotga ikki karra keshbekga ega bo'ling");
+    expect(fixed).toBe("Yangi mahsulotga ikki karra keshbekka ega boʻling");
+    expect(latinToCyrillic(fixed)).toBe("Янги маҳсулотга икки карра кешбекка эга бўлинг");
   });
 });
 

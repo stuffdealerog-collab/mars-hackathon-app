@@ -197,6 +197,25 @@ export function latinToCyrillic(text: string, keep: string[] = []): string {
   return out;
 }
 
+// Dative "-ga" at the very end of a word whose stem ends in k / q (not "-gacha", not "g‘a").
+const DATIVE_AFTER_KQ = new RegExp(`(?<=\\p{L})([kKqQ])([gG])([aA])(?![\\p{L}\\p{N}${APOSTROPHES}])`, "gu");
+
+/**
+ * Uzbek suffix assimilation for the dative case: after k the suffix is -ka,
+ * after q it is -qa ("keshbekga" -> "keshbekka", "qishloqga" -> "qishloqqa").
+ */
+export function fixDativeAssimilation(text: string): string {
+  return text.replace(DATIVE_AFTER_KQ, (_m, kq: string, g: string, a: string) => {
+    const doubled = g === "G" ? kq.toUpperCase() : kq.toLowerCase();
+    return kq + doubled + a;
+  });
+}
+
+/** Deterministic clean-up for generated Uzbek Latin copy (run before transliteration). */
+export function polishUzLatin(text: string): string {
+  return fixDativeAssimilation(normalizeUzLatin(text));
+}
+
 /** Normalizes o‘/g‘ to the official ʻ (U+02BB) and the tutuq belgisi to ʼ (U+02BC). */
 export function normalizeUzLatin(text: string): string {
   return text
