@@ -301,7 +301,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
                   <span
                     aria-label={c.lampState.you}
                     role="img"
-                    className={`h-1.5 w-1.5 rounded-full bg-lime shadow-[0_0_8px_var(--lime)] ${collapsed ? "absolute right-2 top-2" : ""}`}
+                    className={`hub-wait h-1.5 w-1.5 rounded-full bg-lime ${collapsed ? "absolute right-2 top-2" : ""}`}
                   />
                 )}
               </button>

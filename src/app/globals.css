@@ -1064,4 +1064,57 @@
     animation: none;
     transition: opacity var(--t-on) var(--ease-out);
   }
+
+  /* "Your turn": while posts wait for the owner, the lime dot by Postlar in the hub breathes
+     slowly, like a Mac's sleep light. The only thing that moves on the ready screen besides a
+     Dizayner at work. No glow: lime is never light. */
+  .desk .hub-wait {
+    will-change: opacity;
+    animation: hub-wait 4.8s var(--ease-io) infinite;
+  }
+  @keyframes hub-wait {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .desk .hub-wait {
+      animation: none !important;
+    }
+  }
+
+  /* A picture that did not come out: a short strip of the Dizayner's lamp in its error state
+     (16% light, red filament), the slot's own words on it. */
+  .desk .picture-lamp {
+    position: relative;
+    isolation: isolate;
+  }
+  .desk .picture-lamp::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    z-index: -1;
+    border-radius: 17px;
+    background:
+      radial-gradient(55% 45px at 50% 0%, var(--core) 0%, transparent 100%),
+      radial-gradient(120% 125px at 50% -10px, var(--hue) 0%, var(--mid) 34%, var(--deep-a) 62%, transparent 88%),
+      var(--glass-2);
+    opacity: 0.16;
+    filter: saturate(0.3);
+  }
+  .desk .picture-lamp::after {
+    content: "";
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    width: 26px;
+    height: 3px;
+    margin-left: -13px;
+    border-radius: 3px;
+    background: var(--bad);
+  }
 } /* end .desk */
