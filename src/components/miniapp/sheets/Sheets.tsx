@@ -6,7 +6,7 @@ import { problemOf, useStudio } from "../../studio/store";
 import { ownerText } from "../../ui/format";
 import { fmt, LANGS, useCopy, useLang } from "../../ui/lang";
 import { parseChannel } from "../../ui/parts";
-import { blankNote, blankTokens } from "../blank";
+import { blankNote, blankScript, blankTokens } from "../blank";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons, useNav, type Sheet as SheetT } from "../nav";
 import { scriptOf, usePostScript, useWhen } from "../screens/Posts";
@@ -203,22 +203,19 @@ function EditSheet({ leaving, postId }: { leaving: boolean; postId: string }) {
   const close = useNav((s) => s.closeSheet);
   const say = useNav((s) => s.say);
   const { script } = usePostScript();
-  // The text to edit: the script the server named for a blank, else the one on screen when it still
-  // has the blank, else any script whose text still has it (the server checks the channel's script).
+  // The text to edit: the one on screen when it still has the blank, else the script the server
+  // named in its refusal (postNote.missing), else any script whose text still has one.
   const [s] = useState<Script>(() => {
     if (!post) return script;
-    const named = (note as { script?: Script } | undefined)?.script;
-    if (named && post.variants[named]?.trim()) return named;
     const shown = scriptOf(post, script);
-    const has = (x: Script) => blankTokens(post, x).some((tok) => (post.variants[x] ?? "").includes(tok));
-    if (has(shown)) return shown;
-    return (post.placeholders ?? []).map((x) => x.script).find(has) ?? shown;
+    if (blankTokens(post, shown, note).some((tok) => (post.variants[shown] ?? "").includes(tok))) return shown;
+    return blankScript(post, note) ?? shown;
   });
   const original = post?.variants[s] ?? "";
   const [draft, setDraft] = useState(original);
   const area = useRef<HTMLTextAreaElement>(null);
   const dirty = draft.trim() !== original.trim();
-  const tokens = (post ? blankTokens(post, s) : []).filter((tok) => draft.includes(tok));
+  const tokens = (post ? blankTokens(post, s, note) : []).filter((tok) => draft.includes(tok));
   const hint = (post && blankNote(post)) || (note?.tone === "hint" ? note.text : null);
   // MainApp owns Telegram's closing confirmation; the sheet only reports unsaved text.
   useEffect(() => {
