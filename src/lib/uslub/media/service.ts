@@ -38,6 +38,8 @@ export function media() {
     repo,
     providers,
     dailyLimit: config.dailyLimit,
+    userDailyLimit: config.userDailyLimit,
+    anonDailyLimit: config.anonDailyLimit,
     secrets: () => configSecrets(config),
   });
   cached = { jobs, config, providers };
@@ -59,7 +61,8 @@ export function mediaStatus() {
     demo: config.demo,
     providers: list,
     presets: publicPresets(),
-    dailyLimit: config.dailyLimit,
+    limits: { daily: config.dailyLimit, perUser: config.userDailyLimit, anonymous: config.anonDailyLimit },
+    loginRequired: config.anonDailyLimit === 0,
     message: live.length
       ? undefined
       : config.demo

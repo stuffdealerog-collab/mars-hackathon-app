@@ -64,6 +64,8 @@ export interface MediaJob {
   imageRef: string; // the https URL, or "inline-upload" for data URLs (never stored)
   captions: CaptionCue[];
   brandId?: string;
+  /** Who pays from which quota: "tg:<telegram id>" or "anon" (all anonymous web callers share one pool). Never sent to clients. */
+  ownerKey: string;
   result?: MediaResult;
   error?: string;
   /** Provider bookkeeping (no secrets): request id and the URLs the provider told us to poll. */
@@ -78,12 +80,13 @@ export interface MediaJob {
 }
 
 /** What the API returns to the browser: no provider URLs. */
-export type PublicMediaJob = Omit<MediaJob, "providerStatusUrl" | "providerResultUrl" | "providerCancelUrl">;
+export type PublicMediaJob = Omit<MediaJob, "providerStatusUrl" | "providerResultUrl" | "providerCancelUrl" | "ownerKey">;
 
 export const publicJob = (j: MediaJob): PublicMediaJob => {
   const out: Partial<MediaJob> = { ...j };
   delete out.providerStatusUrl;
   delete out.providerResultUrl;
   delete out.providerCancelUrl;
+  delete out.ownerKey;
   return out as PublicMediaJob;
 };

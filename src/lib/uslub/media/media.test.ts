@@ -181,12 +181,41 @@ describe("MediaJobs lifecycle (mocked provider)", () => {
     expect(job.imageRef).toBe("inline-upload"); // the base64 is never stored
   });
 
-  it("enforces the daily spend cap", async () => {
+  it("enforces the app-wide daily spend cap", async () => {
     const { provider } = mockProvider();
-    const { jobs } = setup([provider], { dailyLimit: 2 });
-    await jobs.create(input());
-    await jobs.create(input());
-    await expect(jobs.create(input())).rejects.toMatchObject({ status: 429, code: "limit" });
+    const { jobs } = setup([provider], { dailyLimit: 2, userDailyLimit: 10 });
+    await jobs.create(input(), { telegramId: 1 });
+    await jobs.create(input(), { telegramId: 2 });
+    await expect(jobs.create(input(), { telegramId: 3 })).rejects.toMatchObject({ status: 429, code: "limit" });
+  });
+
+  it("caps each Telegram user and the shared anonymous pool separately", async () => {
+    const { provider } = mockProvider();
+    const { jobs, repo } = setup([provider], { dailyLimit: 100, userDailyLimit: 2, anonDailyLimit: 1 });
+    await jobs.create(input(), { telegramId: 42 });
+    await jobs.create(input(), { telegramId: 42 });
+    await expect(jobs.create(input(), { telegramId: 42 })).rejects.toMatchObject({ status: 429 });
+    await jobs.create(input(), { telegramId: 7 }); // another user still has quota
+    await jobs.create(input()); // anonymous pool: 1
+    await expect(jobs.create(input())).rejects.toThrow(/Telegram/);
+    const owners = [...repo.jobs.values()].map((j) => j.ownerKey);
+    expect(owners).toEqual(["tg:42", "tg:42", "tg:7", "anon"]);
+    expect(publicJob([...repo.jobs.values()][0])).not.toHaveProperty("ownerKey");
+  });
+
+  it("MEDIA_ANON_DAILY_LIMIT=0 requires a Telegram login (paid providers only)", async () => {
+    const { provider } = mockProvider();
+    const { jobs } = setup([provider], { anonDailyLimit: 0 });
+    await expect(jobs.create(input())).rejects.toMatchObject({ status: 401, code: "login_required" });
+    await expect(jobs.create(input(), { telegramId: 5 })).resolves.toMatchObject({ status: "queued" });
+  });
+
+  it("parallel requests cannot overshoot a cap (check + insert is atomic)", async () => {
+    const { provider, submits } = mockProvider();
+    const { jobs } = setup([provider], { dailyLimit: 3, userDailyLimit: 10 });
+    const results = await Promise.allSettled(Array.from({ length: 8 }, (_, i) => jobs.create(input(), { telegramId: i })));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(3);
+    expect(submits).toHaveLength(3); // nothing was sent to the paid provider beyond the cap
   });
 
   it("times out a stuck job and cancels it at the provider", async () => {
@@ -552,12 +581,14 @@ describe("media config", () => {
     expect(JSON.stringify(c)).not.toContain("no-colon-secret");
   });
 
-  it("with nothing set: no providers configured, default cap", () => {
+  it("with nothing set: no providers configured, default caps", () => {
     const c = readMediaConfig({});
     expect(c.higgsfield).toBeUndefined();
     expect(c.fal).toBeUndefined();
     expect(c.order).toEqual(["higgsfield", "fal"]);
-    expect(c.dailyLimit).toBe(30);
+    expect([c.dailyLimit, c.userDailyLimit, c.anonDailyLimit]).toEqual([30, 5, 5]);
+    expect(readMediaConfig({ MEDIA_ANON_DAILY_LIMIT: "0" }).anonDailyLimit).toBe(0);
+    expect(readMediaConfig({ MEDIA_USER_DAILY_LIMIT: "-3" }).warnings).toEqual(["MEDIA_USER_DAILY_LIMIT"]);
   });
 
   it("redactSecrets scrubs known keys and key-looking tokens", () => {

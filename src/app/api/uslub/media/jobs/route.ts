@@ -28,12 +28,15 @@ const Body = z.object({
 /**
  * POST { kind, imageUrl, productName?, brief?, presetId, aspect, seconds, captions?, brandId? }
  *   -> { job }   (status "queued", or "failed" with `error` if the provider refused it)
- * 503 when no provider key is configured, 429 when the daily cap is reached.
+ * 503 when no provider key is configured; 401 when anonymous use is off; 429 when a daily cap is reached.
  */
 export const POST = handle(async (req) => {
   rateLimit(req, "media_create", 4);
   const body = await readJson(req, Body);
-  if (body.brandId) await loadBrandFor(body.brandId, telegramUserId(req, body.initData));
+  // Paid generation: a verified Telegram user spends their own daily quota; anonymous web
+  // callers share one small pool (MEDIA_ANON_DAILY_LIMIT, 0 = login required). See jobs.ts.
+  const telegramId = telegramUserId(req, body.initData);
+  if (body.brandId) await loadBrandFor(body.brandId, telegramId);
   const job = await mediaCall(() =>
     media().jobs.create({
       kind: body.kind,
@@ -46,7 +49,7 @@ export const POST = handle(async (req) => {
       captions: body.captions,
       brandId: body.brandId,
       provider: body.provider,
-    }),
+    }, { telegramId }),
   );
   await safeLogEvent(null, "media_job_created", {
     job_id: job.id,

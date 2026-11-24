@@ -14,6 +14,8 @@ import type { MediaProviderId } from "./types";
  *   FAL_IMAGE_MODEL         optional, default in providers/fal.ts
  *   MEDIA_PROVIDERS         preference order, default "higgsfield,fal"
  *   MEDIA_DAILY_LIMIT       jobs per rolling 24 h for the whole app, default 30
+ *   MEDIA_USER_DAILY_LIMIT  per verified Telegram user, default 5
+ *   MEDIA_ANON_DAILY_LIMIT  shared by all anonymous web callers, default 5; 0 = Telegram login required
  *   MEDIA_DEMO              "1" = offline demo provider (pre-rendered, labelled "namuna")
  */
 export interface MediaConfig {
@@ -21,6 +23,8 @@ export interface MediaConfig {
   fal?: { key: string; videoModel?: string; imageModel?: string };
   order: MediaProviderId[];
   dailyLimit: number;
+  userDailyLimit: number;
+  anonDailyLimit: number;
   demo: boolean;
   /** Names of env vars that were present but malformed (never their values). */
   warnings: string[];
@@ -76,10 +80,27 @@ export function readMediaConfig(env: Env): MediaConfig {
   const demo = clean(env.MEDIA_DEMO) === "1";
   if (demo) order.push("demo");
 
-  const limitRaw = Number(clean(env.MEDIA_DAILY_LIMIT) ?? 30);
-  const dailyLimit = Number.isFinite(limitRaw) && limitRaw >= 0 ? Math.min(1000, Math.floor(limitRaw)) : 30;
+  const limit = (name: string, fallback: number) => {
+    const raw = clean(env[name]);
+    if (raw === undefined) return fallback;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) {
+      warnings.push(name);
+      return fallback;
+    }
+    return Math.min(1000, Math.floor(n));
+  };
 
-  return { higgsfield, fal, order, dailyLimit, demo, warnings };
+  return {
+    higgsfield,
+    fal,
+    order,
+    dailyLimit: limit("MEDIA_DAILY_LIMIT", 30),
+    userDailyLimit: limit("MEDIA_USER_DAILY_LIMIT", 5),
+    anonDailyLimit: limit("MEDIA_ANON_DAILY_LIMIT", 5),
+    demo,
+    warnings,
+  };
 }
 
 /** All secret values, for scrubbing provider error messages. */
