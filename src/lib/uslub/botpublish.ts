@@ -17,6 +17,7 @@ import {
 } from "./botpublish-core";
 import type { PostDraft, Script } from "./contract";
 import { errorText } from "./errors";
+import { findPlaceholders, placeholderNote } from "./placeholders";
 import { publishErrorCode } from "./publish-errors";
 import { addBotAsAdminLink, publishPost } from "./publish";
 import { parseChannelUsername } from "./scrape";
@@ -84,13 +85,20 @@ const publishData = (post: PostDraft, script: Script) => callbackData("pb", post
 
 function publishKeyboard(locale: Locale, post: PostDraft, script: Script, channel?: string): InlineKeyboard {
   const kb = new InlineKeyboard();
-  if (channel) kb.text(t(locale, "pub.button", { channel }), publishData(post, script)).row();
+  // No publish button for a text with an unfilled slot ("Kod: [kod]"): it can't go out until the owner fills it.
+  if (channel && !findPlaceholders(shownText(post, script)).length) kb.text(t(locale, "pub.button", { channel }), publishData(post, script)).row();
   for (const s of otherScripts(post.variants, script)) kb.text(t(locale, `pub.script.${s}`), callbackData("pv", post.id, s));
   return kb;
 }
 
 /** Sends the post as it will appear (picture first when it is ready) with the publish button. */
 async function sendPreview(api: Api, chatId: number, locale: Locale, post: PostDraft, script: Script, channel?: string) {
+  await sendPreviewOnly(api, chatId, locale, post, script, channel);
+  const blanks = findPlaceholders(shownText(post, script));
+  if (blanks.length) await api.sendMessage(chatId, placeholderNote(blanks, locale));
+}
+
+async function sendPreviewOnly(api: Api, chatId: number, locale: Locale, post: PostDraft, script: Script, channel?: string) {
   const text = shownText(post, script);
   const kb = publishKeyboard(locale, post, script, channel);
   const photo = shownPhoto(post);
@@ -188,6 +196,8 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
     await api.sendMessage(chatId, t(locale, "pub.ask_channel"), { reply_markup: new InlineKeyboard().url(t(locale, "pub.add_bot"), addBotAsAdminLink()) });
     return;
   }
+  const blanks = findPlaceholders(shownText(post, script));
+  if (blanks.length) return void (await api.sendMessage(chatId, placeholderNote(blanks, locale)));
   if (seenHash !== shownHash(post, script)) {
     // Never publish a text or picture the owner has not seen in Telegram.
     await api.sendMessage(chatId, t(locale, "pub.changed"));

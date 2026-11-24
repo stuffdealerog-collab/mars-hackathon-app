@@ -4,7 +4,8 @@ import { z } from "zod";
 import type { BrandProfile, NeuroHit, PlanSlot, PostDraft, Script } from "./contract";
 import { rewriteNeuroBatch, type EditJob } from "./editor";
 import { llmJson, MODEL_QUALITY, type Effort } from "./llm";
-import { analyzeNeuro } from "./neuro";
+import { analyzeNeuro, inventedFacts } from "./neuro";
+import { findPlaceholders } from "./placeholders";
 import { latinToCyrillic, polishUzLatin } from "./translit";
 
 const PostsSchema = z.object({
@@ -22,7 +23,7 @@ const SYSTEM = `You are the "Copywriter" (Kopirayter) of an AI marketing departm
 You write Telegram channel posts that sound like the brand's own admin wrote them, not like an AI.
 
 Hard rules:
-1. FACTS: use only facts present in the brand knowledge or the brand's own posts (prices, addresses, phone numbers, dates, branches, product names, discounts). Never invent them. If the brief needs a fact you don't have, write around it or leave a placeholder in square brackets, e.g. [narx], [manzil], [sana].
+1. FACTS: use only facts present in the brand knowledge or the brand's own posts (prices, addresses, phone numbers, dates, codes, branches, product names, discounts). Never invent them. If the brief needs a fact you don't have, write the post without it, or with a natural line that sends the reader to the admin ("narxini adminga yozing", "manzilni lichkada aytamiz", "уточните цену у администратора"). NEVER write a template slot or placeholder of any kind: no [narx], [kod], {phone}, <address>, ___, XXX. The post must be ready to publish exactly as written.
 2. VOICE: copy the brand's real posts: their length, line breaks, emoji density, address form (siz/sen), call-to-action style and hashtags. Each post must be a ready-to-publish Telegram post (plain text, no Markdown asterisks).
 3. LANGUAGE: uz_latn is the main version: natural, modern Uzbek in Latin script as people in Tashkent write, with o‘ and g‘ written with the ‘ sign and the tutuq belgisi as ’. Respect suffix assimilation: after k / q the dative is -ka / -qa (keshbekka, qishloqqa), never "keshbekga". Avoid word-for-word calques from Russian and bureaucratic style. ru and en are natural adaptations of the same post (not literal translations), with the same facts.
 4. NO "NEURO-WORDS": never use AI clichés such as "zamonaviy dunyoda", "noyob imkoniyat", "qo‘ldan boy bermang", "o‘z ichiga oladi", "kashf eting", "unutilmas taassurotlar", "betakror", "sizni kutmoqda", "nafaqat ..., balki ...", "в современном мире", "уникальная возможность", "не упустите шанс", "откройте для себя", "погрузитесь в", "незабываемые впечатления", "unlock", "elevate", "seamless", "dive into", "game-changer", "look no further". Be concrete: name the product, the price if known, the time, the place.
@@ -83,6 +84,61 @@ async function fillMissingVariants(drafts: { id: string; variants: Record<Script
     console.warn("[uslub/copywriter] variant fill skipped:", err instanceof Error ? err.message : err);
   }
 }
+
+const PLACEHOLDER_SYSTEM = `You fix Telegram posts that still contain unfilled template slots such as [kod], [narx], {phone}, <address>, ___ or XXX.
+Rules:
+- Rewrite ONLY the sentences that contain a slot. Every other word stays exactly as it is.
+- The value is unknown: never invent it. Either drop the slot (and the words that only make sense with it), or replace the sentence with a natural line that sends the reader to the admin ("narxini adminga yozing", "kodni adminga yozing", "уточните у администратора", "message us for details").
+- Do not add numbers, prices, dates, discounts, promises or urgency. Same language and script as the input. Keep emoji, links and line breaks.`;
+
+/**
+ * After the editor: any variant that still has an unfilled slot gets one batched rewrite of just those sentences.
+ * A rewrite is accepted only if the slot is gone and it adds no new facts; otherwise the text is left as is and
+ * the post is held back later (placeholder_left). uz_cyrl always follows uz_latn.
+ */
+async function fixPlaceholders(
+  drafts: { id: string; variants: Record<Script, string> }[],
+  ctx: { left: () => number; keep: string[]; deadline?: number },
+): Promise<void> {
+  const jobs = drafts.flatMap((d) =>
+    (["uz_latn", "ru", "en"] as Script[]).filter((s) => findPlaceholders(d.variants[s]).length).map((s) => ({ d, s, text: d.variants[s] })),
+  );
+  if (!jobs.length) return;
+  if (ctx.left() > 12_000) {
+    try {
+      const res = await llmJson({
+        schema: TranslateSchema,
+        system: PLACEHOLDER_SYSTEM,
+        prompt: jobs
+          .map(({ d, s, text }) => `### id: ${d.id}:${s}\nLanguage: ${LANG_NAME_ALL[s]}\nSlots: ${findPlaceholders(text).join(", ")}\nText:\n${text}`)
+          .join("\n\n"),
+        model: MODEL_QUALITY,
+        effort: "low",
+        maxTokens: 6000,
+        timeoutMs: Math.max(8_000, Math.min(25_000, ctx.left() - 5_000)),
+        purpose: "placeholder_fix",
+        ...(ctx.deadline ? { maxRetries: 0 } : {}),
+      });
+      const byId = new Map(res.items.map((i) => [i.id, i.text.trim()] as const));
+      for (const { d, s, text } of jobs) {
+        const fixed = byId.get(`${d.id}:${s}`);
+        if (fixed && fixed.length > 20 && !findPlaceholders(fixed).length && !inventedFacts(text, fixed).length) {
+          d.variants[s] = s === "uz_latn" ? polishUzLatin(fixed) : fixed;
+        }
+      }
+    } catch (err) {
+      console.warn("[uslub/copywriter] placeholder fix skipped:", err instanceof Error ? err.message : err);
+    }
+  }
+  for (const d of drafts) d.variants.uz_cyrl = latinToCyrillic(d.variants.uz_latn, ctx.keep);
+}
+
+const LANG_NAME_ALL: Record<Script, string> = {
+  uz_latn: "Uzbek (Latin script, o‘ g‘ with ‘)",
+  uz_cyrl: "Uzbek (Cyrillic script)",
+  ru: "Russian",
+  en: "English",
+};
 
 function brandWords(brand: BrandProfile): string[] {
   const words = `${brand.dna.name} ${brand.channel ?? ""}`.match(/[A-Za-z][A-Za-z0-9]{2,}/g) ?? [];
@@ -152,6 +208,10 @@ export async function generatePosts(brand: BrandProfile, brief: string, count = 
       d.variants.uz_cyrl = latinToCyrillic(d.variants.uz_latn, keep);
     }
   }
+
+  // Template slots that slipped through ("Kod: [kod]"): one rewrite of just those sentences, checked again.
+  // Whatever is still left keeps the post out of the channel (approve / publish refuse it, the Studio shows a note).
+  await fixPlaceholders(drafts, { left, keep, deadline: opts.deadline });
 
   return drafts.map((d) => {
     const neuroHits: Partial<Record<Script, NeuroHit[]>> = {};

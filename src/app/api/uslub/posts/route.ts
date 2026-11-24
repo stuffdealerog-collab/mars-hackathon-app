@@ -5,6 +5,8 @@ import { assertDraftAccess, errorBody, handle, HttpError, json, loadBrandFor, ra
 import { classifySensitivity } from "@/lib/uslub/sensitivity";
 import { slotBrief, slotSummary, toPlanSlot } from "@/lib/uslub/slots";
 import { countPublished, findRecentSlotPost, listPosts, savePosts } from "@/lib/uslub/store";
+import { currentContext } from "@/lib/uslub/context";
+import { placeholderNote, placeholdersIn } from "@/lib/uslub/placeholders";
 
 // Up to 7 posts are written in parallel (one Claude call per slot, ≤45 s, + an editor pass that is skipped late).
 // The work is budgeted to ~60 s so the Studio's client timeout is never the first to fire; maxDuration is headroom.
@@ -38,10 +40,24 @@ const Body = z.union([
   }),
 ]);
 
-const withSensitivity = (p: PostDraft, brief: string, published: number) => ({
-  ...p,
-  sensitivity: classifySensitivity(p.variants.uz_latn, brief, { publishedCount: published }),
-});
+const ALL_SCRIPTS = ["uz_latn", "uz_cyrl", "ru", "en"] as const;
+
+/**
+ * A post that still has an unfilled slot ("Kod: [kod]") after the fix pass: needsApproval + an owner-readable note
+ * naming the blank, in the request's language. Approve and publish refuse it until the owner fills or deletes it.
+ */
+function withBlanks<P extends PostDraft>(p: P) {
+  const left = placeholdersIn(p.variants, ALL_SCRIPTS);
+  if (!left.length) return p;
+  const lang = currentContext()?.lang ?? "uz";
+  return { ...p, needsApproval: true, placeholders: left, note: placeholderNote(left.flatMap((l) => l.tokens), lang) };
+}
+
+const withSensitivity = (p: PostDraft, brief: string, published: number) =>
+  withBlanks({
+    ...p,
+    sensitivity: classifySensitivity(p.variants.uz_latn, brief, { publishedCount: published }),
+  });
 
 /**
  * POST { brandId, slots: (PlanSlot & { brief })[], regenerate? } (≤7) -> { posts, failed?, reused? }  one post per slot
@@ -115,5 +131,5 @@ export const GET = handle(async (req) => {
   const brand = await loadBrandFor(brandId, userId);
   await assertDraftAccess(brand, userId);
   const limit = Number(url.searchParams.get("limit") ?? 50);
-  return json({ posts: await listPosts(brand.id, Number.isFinite(limit) ? limit : 50) });
+  return json({ posts: (await listPosts(brand.id, Number.isFinite(limit) ? limit : 50)).map(withBlanks) });
 });

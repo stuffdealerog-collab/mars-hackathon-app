@@ -5,6 +5,8 @@ import { errorText } from "@/lib/uslub/errors";
 import { handle, json, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import { publishPost } from "@/lib/uslub/publish";
 import { publishErrorText } from "@/lib/uslub/publish-errors";
+import { findPlaceholders } from "@/lib/uslub/placeholders";
+import { getBrand, getPost } from "@/lib/uslub/store";
 
 export const maxDuration = 30;
 
@@ -29,6 +31,17 @@ export const POST = handle(async (req) => {
   const lang = currentContext()?.lang ?? "uz";
   if (!getEnv().TELEGRAM_BOT_TOKEN) return json({ ok: false, error: errorText("bot_not_configured", lang), code: "bot_not_configured" }, 503);
   const userId = telegramUserId(req, body.initData);
+  // A text with an unfilled slot ("Kod: [kod]") never goes out. Checked only for the brand's owner, the one
+  // person publishPost would let through (nobody else learns anything about the post).
+  const post = userId != null ? await getPost(body.postId) : null;
+  const brand = post ? await getBrand(post.brandId) : null;
+  if (post && brand?.ownerTelegramId === userId) {
+    const tokens = findPlaceholders(post.variants[body.script] ?? "");
+    if (tokens.length) {
+      const facts = tokens.map((t) => `«${t}»`).join(", ");
+      return json({ ok: false, error: errorText("placeholder_left", lang, { facts }), code: "placeholder_left", missing: [{ script: body.script, tokens }] }, 422);
+    }
+  }
   const { status, ...result } = await publishPost({ postId: body.postId, script: body.script, chat: body.chat, userId });
   if (result.ok) return json(result, status);
   const { code, text } = publishErrorText(lang, status, result.error, result.addAdminUrl);

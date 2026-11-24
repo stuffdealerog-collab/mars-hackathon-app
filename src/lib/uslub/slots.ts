@@ -23,7 +23,7 @@ const GOAL_GUIDE: Record<Goal, string> = {
   trust:
     "TRUST post: show why people can rely on the business — real process, people, place, address and hours, a real customer case. Only facts from the knowledge.",
   sale:
-    "SALE post: one product or service, its price if the knowledge has it (otherwise write [narx]), and exactly how to order. The call to action in the first 3 lines or at the end.",
+    "SALE post: one product or service, its price if the knowledge has it (otherwise invite people to ask the admin for the price — never a blank like [narx]), and exactly how to order. The call to action in the first 3 lines or at the end.",
 };
 
 /** The brief the copywriter gets for one plan slot. Hook and CTA are the plan's; links are kept verbatim. */
@@ -37,6 +37,7 @@ export function slotBrief(slot: SlotInput): string {
       : "",
     cleanBrief(slot.brief) ? `WHAT THE POST IS ABOUT: ${cleanBrief(slot.brief)}` : "",
     "Notes in the brief about which photo or video to take are for the owner: do not put them in the post, do not describe the picture.",
+    "Blanks in the plan such as [narx], [shart], [muddat], [telefon] are facts nobody has given yet: never copy them into the post — write around them.",
   ];
   return lines.filter(Boolean).join("\n");
 }

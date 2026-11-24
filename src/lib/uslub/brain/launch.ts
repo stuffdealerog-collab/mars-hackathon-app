@@ -27,7 +27,7 @@ const COMMON = (lang: Lang) => `You are the Strategist of Mercat, an AI marketin
 The business is launching its Telegram channel from zero: no posts yet, 0–few subscribers. Nothing is known about it except the OWNER'S DESCRIPTION.
 FACT RULES (hard):
 - The owner's description is the ONLY source of facts. Never invent prices, addresses, districts, phone numbers, delivery terms or areas, opening hours, years in business, customer counts, reviews, awards, discounts, gifts or deadlines.
-- If something needs such a fact and the description does not give it, write a placeholder in square brackets: [narx], [manzil], [telefon], [ish vaqti], [shart], [muddat].
+- If something needs such a fact and the description does not give it, leave it out or send the reader to the admin ("narxini adminga yozing"). Never write a blank or placeholder ([narx], [telefon], {…}, XXX): every hook, CTA and brief must read as finished text.
 - Ideas and recommendations are fine (what to post, how to grow); claims about the business are only what the description says.
 ${LANG_RULE[lang]}
 Never use these machine-sounding phrases or their paraphrases: ${LEXICON.join("; ")}.`;
@@ -47,7 +47,7 @@ const ItemsSchema = z.object({ items: z.array(z.object({ slot: z.number(), hook:
 const STRATEGY_TASK = `TASK: the launch strategy.
 - positioning: one sentence — for whom, what, why them (only from the description).
 - audiences: 1–2, by situation (who buys, when, why). whereTheyAre: concrete places in Uzbekistan where these people already are (the district's Telegram groups, the school/mahalla chats, Instagram, the counter) — no invented channel names.
-- offer: one simple launch offer for the first customers, built only from the description; unknown terms as [shart] / [muddat].
+- offer: one simple launch offer for the first customers, built only from the description; if its terms are unknown, say in words that the owner sets the terms and the deadline.
 - proofPoints: only facts the description states (can be empty).
 - pillars: exactly three, one per goal (reach, trust, sale): a short name and 2 example post ideas each.
 - tactics: 3–5 concrete ways to get the FIRST subscribers for a brand-new channel, adapted to THIS business, realistic for Uzbekistan. Choose from these and make them specific (who, where, what exactly to say or print): ${GROWTH_IDEAS.join(" | ")}. Each: title (short), how (2–3 concrete steps), why (one sentence). No buying subscribers, no giveaways that require subscriptions to other channels.
@@ -72,11 +72,11 @@ const PILLAR_NAME: Record<Lang, Record<Goal, string>> = {
   en: { reach: "Useful and engaging", trust: "Trust", sale: "Sales" },
 };
 
-/** When the model's offer used terms the owner never gave: the offer's shape, with the owner's blanks. */
+/** When the model's offer used terms the owner never gave: the offer's shape; the terms are the owner's call. */
 const OFFER_FALLBACK: Record<Lang, string> = {
-  uz: "Kanalning birinchi mijozlari uchun bitta oddiy taklif: [shart], [muddat] gacha. Shartini o‘zingiz belgilaysiz.",
-  ru: "Одно простое предложение для первых клиентов канала: [условие], до [срок]. Условие задаёте вы.",
-  en: "One simple offer for the channel's first customers: [terms], until [deadline]. You set the terms.",
+  uz: "Kanalning birinchi mijozlari uchun bitta oddiy taklif. Nima va qachongacha ekanini o‘zingiz belgilaysiz — yozsangiz, postga qo‘shamiz.",
+  ru: "Одно простое предложение для первых клиентов канала. Что именно и до какого числа — решаете вы; напишите, и мы добавим это в пост.",
+  en: "One simple offer for the channel's first customers. You decide what it is and until when — tell us and we add it to the post.",
 };
 
 const REVIEW: Record<Lang, (day: string, token: string) => string> = {

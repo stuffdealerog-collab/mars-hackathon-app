@@ -33,6 +33,7 @@ export type ErrorCode =
   | "brand_unowned"
   | "channel_admin_required"
   | "bot_not_admin"
+  | "placeholder_left"
   | "internal";
 
 type Msg = Record<ApiLang, string>;
@@ -157,6 +158,11 @@ const MESSAGES: Record<ErrorCode, Msg> = {
     uz: "Botni kanalga admin qiling va «Post yozish» huquqini bering, keyin qayta urinib ko‘ring.",
     ru: "Сделайте бота админом канала с правом «Публикация сообщений» и попробуйте ещё раз.",
     en: "Make the bot an admin of the channel with the \"Post messages\" right, then try again.",
+  },
+  placeholder_left: {
+    uz: "Postda to‘ldirilmagan joy qoldi: {facts}. Shu ma’lumotni yozing yoki o‘sha gapni o‘chiring, keyin qayta tasdiqlang.",
+    ru: "В посте осталось незаполненное место: {facts}. Впишите эти данные или удалите это предложение, затем подтвердите снова.",
+    en: "The post still has a blank to fill: {facts}. Add that detail or delete the sentence, then approve again.",
   },
   internal: {
     uz: "Kutilmagan xatolik. Qayta urinib ko‘ring.",

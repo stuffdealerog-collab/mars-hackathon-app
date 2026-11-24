@@ -57,11 +57,11 @@ export function launchSkeleton(now: number): LaunchSlot[] {
 /** What each kind of slot is for (the writer's instruction, English). */
 export const KIND_BRIEF: Record<LaunchKind, string> = {
   intro:
-    "Pinned first post: who we are, what we sell (2–4 concrete products/services from the description), where/how we work, exactly how to order (contact from the description, else a [kontakt] placeholder). Warm, short, no hype.",
-  product: "One product or service from the description: what it is, who it's for, price only if the description gives it (else [narx]), how to order.",
+    "Pinned first post: who we are, what we sell (2–4 concrete products/services from the description), where/how we work, exactly how to order (the contact from the description; if there is none, 'write to us here'). Warm, short, no hype.",
+  product: "One product or service from the description: what it is, who it's for, price only if the description gives it (otherwise invite people to ask the admin for the price), how to order.",
   trust: "Why people can rely on this business: how it is made or done, the people behind it, the place, hygiene/quality steps, delivery terms — only what the description says; otherwise ask the owner for a real photo of the process.",
   tip: "A useful tip customers can use today, connected to the product (how to choose, store, use, care). No selling in the first lines.",
-  offer: "One simple launch offer for the first customers. Never invent its size or deadline: if the description has no offer, write it with [shart] / [muddat] placeholders for the owner to fill.",
+  offer: "One simple launch offer for the first customers, only if the description gives one. Otherwise a 'first customers' post that invites people to ask the admin about the current offer — never name a discount, gift or deadline nobody gave.",
   question: "A question or a two-option choice that invites replies (which flavour, what to add to the menu). Short.",
 };
 
@@ -125,21 +125,21 @@ const S: Record<Lang, { noData: string; prices: string; noPrices: string; proof:
   uz: {
     noData: "Kanal ma’lumoti hali yo‘q: kanal yangi, ko‘rishlar va obunachilar hali kam. Reja tavsifingiz asosida tuzildi; birinchi raqamlarni 2 haftadan keyin o‘lchaymiz.",
     prices: "Narxlar: tavsifingizda bor, postlarda shu narxlar ishlatiladi.",
-    noPrices: "Narxlar: tavsifda yo‘q — sotuv postlarida [narx] o‘rnini to‘ldirasiz.",
+    noPrices: "Narxlar: tavsifda yo‘q — sotuv postlari hozircha narxni adminga so‘rashga chaqiradi; narxlarni yuborsangiz, postlarga qo‘shamiz.",
     proof: "Ishonch dalillari (mijoz fikrlari, raqamlar): hali yo‘q — ularni birinchi haftada yig‘amiz.",
     time: "Vaqtlar: kanal ma’lumoti yo‘qligi uchun taxminiy (12:40 va 20:40); 2 haftadan keyin o‘zingizning ko‘rishlaringiz bo‘yicha aniqlaymiz.",
   },
   ru: {
     noData: "Данных канала пока нет: канал новый, просмотров и подписчиков мало. План составлен по вашему описанию; первые цифры замерим через 2 недели.",
     prices: "Цены: есть в описании, посты используют их.",
-    noPrices: "Цены: в описании нет — в продающих постах заполните [narx].",
+    noPrices: "Цены: в описании нет — пока продающие посты предлагают уточнить цену у администратора; пришлите цены, и мы добавим их в посты.",
     proof: "Доказательства (отзывы, цифры): пока нет — соберём их в первую неделю.",
     time: "Время: ориентировочное (12:40 и 20:40), данных канала ещё нет; через 2 недели уточним по вашим просмотрам.",
   },
   en: {
     noData: "No channel data yet: the channel is new, with few views and subscribers. The plan is built from your description; we measure the first numbers in 2 weeks.",
     prices: "Prices: in your description; the posts use them.",
-    noPrices: "Prices: not in the description — fill in [narx] in the sale posts.",
+    noPrices: "Prices: not in the description — for now sale posts invite people to ask the admin; send your prices and we add them.",
     proof: "Proof (reviews, numbers): none yet — we collect it in the first week.",
     time: "Times: rule of thumb (12:40 and 20:40) because there is no channel data; in 2 weeks we tune them to your own views.",
   },

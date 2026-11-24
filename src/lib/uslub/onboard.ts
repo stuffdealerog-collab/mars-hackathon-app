@@ -5,6 +5,7 @@ import { type Locale, type MessageKey, t } from "@/lib/i18n";
 import { safeLogEvent } from "@/lib/track";
 import { publishError } from "./botpublish";
 import { pickScript } from "./botpublish-core";
+import { findPlaceholders, placeholderNote } from "./placeholders";
 import { buildBrand } from "./brand";
 import type { BrandProfile } from "./contract";
 import { generatePosts } from "./copywriter";
@@ -46,6 +47,8 @@ export async function publishFromBot(postId: string, userId: number, locale: Loc
   const brand = post ? await getBrand(post.brandId) : null;
   if (!post || !brand?.channel) return { text: t(locale, "bot.need_channel") };
   const script = pickScript(post.variants, undefined, brand.dna?.languages);
+  const blanks = findPlaceholders(post.variants[script] ?? "");
+  if (blanks.length) return { text: placeholderNote(blanks, locale) };
   const res = await publishPost({ postId, script, chat: brand.channel, userId });
   if (res.ok) return { text: t(locale, "pub.done", { url: res.url ?? "" }) };
   // Same localized reasons as the publish link; a missing bot admin comes with the "add the bot" button.

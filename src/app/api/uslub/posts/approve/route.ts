@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { brandWords, MAX_VARIANT, mergeVariants } from "@/lib/uslub/edits";
 import { assertDraftAccess, handle, HttpError, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
+import { pickScript } from "@/lib/uslub/botpublish-core";
+import type { Script } from "@/lib/uslub/contract";
+import { placeholdersIn } from "@/lib/uslub/placeholders";
 import { approvePost, getPost } from "@/lib/uslub/store";
 
 export const maxDuration = 15;
@@ -37,6 +40,17 @@ export const POST = handle(async (req) => {
     const merged = mergeVariants(post.variants, body.variants, brandWords(brand.dna?.name ?? "", brand.channel));
     if (!merged.ok) throw new HttpError(400, `bad edit: ${merged.field}`, "invalid_input", { field: merged.field });
     if (merged.changed.length) edited = { variants: merged.variants, neuroHits: merged.neuroHits, humanScore: merged.humanScore, changed: merged.changed };
+  }
+  // Never approve a text with an unfilled slot ("Kod: [kod]"): the version that will go out (the brand's main
+  // script) and every version the owner just edited must be complete.
+  if (post.status !== "published") {
+    const variants = edited?.variants ?? post.variants;
+    const scripts = [...new Set([pickScript(variants, undefined, brand.dna?.languages), ...((edited?.changed ?? []) as Script[])])];
+    const left = placeholdersIn(variants, scripts);
+    if (left.length) {
+      const tokens = left.flatMap((l) => l.tokens);
+      throw new HttpError(422, `placeholder left: ${tokens.join(" ")}`, "placeholder_left", { facts: tokens.map((t) => `«${t}»`).join(", ") }, { missing: left });
+    }
   }
   const approved = await approvePost(post.id, userId, edited);
   if (!approved) throw new HttpError(404, "Post not found", "post_not_found");

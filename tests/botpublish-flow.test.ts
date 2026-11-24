@@ -112,6 +112,19 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
     expect(sent.find((m) => m.method === "sendPhoto")?.photo).toBe("https://cdn.example/b.jpg");
   });
 
+  it("a post with an unfilled slot gets no publish button, only a note; an old button is refused", async () => {
+    const { post } = await makePost("tortlar9_uz", 7);
+    await store.approvePost(post.id, 7, { variants: { ...post.variants, uz_latn: "Chegirma kodi: [kod]. Buyurtma: @tortlar9_uz" }, neuroHits: {}, humanScore: 80, changed: ["uz_latn"] });
+    const { api, sent } = fakeApi({});
+    await startPublish(api, 7, { id: 7 }, "ru", `publish_${post.id}_uz_latn`);
+    const preview = sent.find((m) => m.text?.includes("[kod]"));
+    expect(buttons(preview?.opts).some((b) => b.callback_data?.startsWith("pb:"))).toBe(false);
+    expect(sent.at(-1)?.text).toMatch(/незаполненное место: «\[kod\]»/);
+    const fresh = await store.getPost(post.id);
+    await publishFromButton(api, 7, { id: 7 }, "ru", post.id, "uz_latn", fresh ? shownHash(fresh, "uz_latn") : undefined);
+    expect(publishPost).not.toHaveBeenCalled();
+  });
+
   it("keeps a brand created in the bot private to its owner", async () => {
     const { brand } = await makePost("bot_brand_uz", 55);
     await expect(loadBrandFor(brand.id, null)).rejects.toMatchObject({ status: 403, code: "brand_forbidden" });
