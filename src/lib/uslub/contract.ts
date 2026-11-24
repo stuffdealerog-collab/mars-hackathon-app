@@ -270,7 +270,9 @@ export type NodeStatus = "idle" | "running" | "done" | "error" | "needs_approval
  * POST /api/uslub/radar    { brandId: string; goal?: string } -> { leads: RadarLead[] }
  * POST /api/uslub/video    { brandId: string; brief: string } -> { plan: VideoPlan }
  * POST /api/uslub/publish  { postId: string; script: Script; chat: string }  (chat = @channel)
- *                          -> { ok: boolean; url?: string; error?: string }
+ *                          -> { ok: boolean; url?: string; error?: string; already?: boolean }
+ *                          idempotent: an already published post returns its link with already:true and is
+ *                          never sent again; a concurrent second call waits briefly, then 409 publish_in_progress
  *                          sends the post's image too when image.status === "ready"
  *                          (sendPhoto; text over the 1024-char caption limit follows as a message)
  * Bot deep link t.me/<bot>?start=publish_<postId>: the bot shows the post (with its image) and a
