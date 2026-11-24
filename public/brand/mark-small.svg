@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Mercat">
+  <title>Mercat</title>
+  <defs>
+    <radialGradient id="ms-body" cx="32" cy="0" r="64" gradientUnits="userSpaceOnUse" gradientTransform="scale(1 .8)">
+      <stop offset="0" stop-color="#3a342e"/>
+      <stop offset=".8" stop-color="#1b1917"/>
+    </radialGradient>
+    <radialGradient id="ms-light" cx="32" cy="16" r="34" gradientUnits="userSpaceOnUse" gradientTransform="translate(0 3.2) scale(1 .8)">
+      <stop offset="0" stop-color="#ffd6a0" stop-opacity=".5"/>
+      <stop offset=".5" stop-color="#b8642f" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#b8642f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ms-fil" x1="16" x2="48" y1="0" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffd6a0"/>
+      <stop offset=".5" stop-color="#fff7ea"/>
+      <stop offset="1" stop-color="#ffd6a0"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="url(#ms-body)"/>
+  <rect width="64" height="64" rx="18" fill="url(#ms-light)"/>
+  <rect x=".5" y=".5" width="63" height="63" rx="17.5" fill="none" stroke="#ffecd6" stroke-opacity=".16" vector-effect="non-scaling-stroke"/>
+  <rect x="16" y="12" width="32" height="8" rx="4" fill="url(#ms-fil)"/>
+</svg>
