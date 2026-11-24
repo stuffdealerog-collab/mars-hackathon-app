@@ -238,7 +238,7 @@ export type LampFacts = {
 };
 
 /** The phone/desktop sheet around LampDetails: dim backdrop, Escape and a close button. */
-export function LampDrawer({ role, onClose }: { role: AgentRole; onClose: () => void }) {
+export function LampDrawer({ role, onClose, fallback }: { role: AgentRole; onClose: () => void; fallback?: string }) {
   const c = useCopy();
   const reduce = useReducedMotion() ?? false;
   const facts = useStudio();
@@ -264,7 +264,7 @@ export function LampDrawer({ role, onClose }: { role: AgentRole; onClose: () => 
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.36, ease: EASE_OUT }}
       >
-        <LampDetails role={role} facts={facts} />
+        <LampDetails role={role} facts={facts} fallback={fallback} />
         <button type="button" onClick={onClose} aria-label={c.pro.close} className="absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-full bg-black/25 text-white">
           <X className="h-5 w-5" strokeWidth={1.75} aria-hidden />
         </button>
@@ -274,7 +274,8 @@ export function LampDrawer({ role, onClose }: { role: AgentRole; onClose: () => 
 }
 
 /** What one employee did: its output in real numbers and how long it took. Any container. */
-export function LampDetails({ role, facts: s }: { role: AgentRole; facts: LampFacts }) {
+/** `fallback`: what the lamp shows when it has nothing to list yet (its result or state word). */
+export function LampDetails({ role, facts: s, fallback }: { role: AgentRole; facts: LampFacts; fallback?: string }) {
   const c = useCopy();
   const lang = useLang((l) => l.lang);
   const took = (key: string) => {
@@ -324,10 +325,10 @@ export function LampDetails({ role, facts: s }: { role: AgentRole; facts: LampFa
         <span className="lamp__filament" aria-hidden />
         <div className="relative flex w-full items-end justify-between gap-3 px-5 pb-3 pt-8">
           <div>
-            <p className="text-[18px] font-semibold text-white [text-shadow:0_1px_10px_rgb(0_0_0/.35)]">{c.lamps[role].name}</p>
-            <p className="text-[13px] text-white/90">{c.lamps[role].job}</p>
+            <p className="lamp-head-ink text-[18px] font-semibold">{c.lamps[role].name}</p>
+            <p className="lamp-head-ink text-[13px] opacity-90">{c.lamps[role].job}</p>
           </div>
-          {time && <span className="tnum text-[13px] text-white/90">{time}</span>}
+          {time && <span className="lamp-head-ink tnum text-[13px] opacity-90">{time}</span>}
         </div>
       </div>
       <div className="px-5 pt-4">
@@ -342,7 +343,7 @@ export function LampDetails({ role, facts: s }: { role: AgentRole; facts: LampFa
             ))}
           </dl>
         ) : (
-          <p className="py-2 text-[15px] text-ink-2">{c.lampState.soon}</p>
+          <p className="py-2 text-[15px] text-ink-2">{role === "video" || role === "radar" ? c.lampState.soon : (fallback ?? c.lampState.on)}</p>
         )}
       </div>
     </div>

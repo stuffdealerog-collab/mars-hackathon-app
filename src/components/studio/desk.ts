@@ -6,7 +6,8 @@
  * components that the hub's tools call, and the toasts.
  */
 import { create } from "zustand";
-import { COPY } from "../ui/copy";
+import type { VisualStyle } from "@/lib/uslub/contract";
+import { COPY, type Copy } from "../ui/copy";
 import { fmt, useLang } from "../ui/lang";
 import { weekday } from "../ui/format";
 import { useStudio } from "./store";
@@ -107,12 +108,19 @@ export function showPost(id: string) {
 
 const copy = () => COPY[useLang.getState().lang];
 
-/** "Du 09:00": a slot's suggested day and time, short. */
+/** "Dushanba 09:00": a slot's suggested day and time. Russian writes the day in lower case mid-sentence. */
 export function whenOf(slot?: { day: string; time: string }): string {
   if (!slot) return "";
   const c = copy();
   const d = weekday(slot.day);
-  return [d != null ? c.weekdays[d] : null, slot.time].filter(Boolean).join(" ");
+  const day = d == null ? null : useLang.getState().lang === "ru" ? c.weekdays[d].toLowerCase() : c.weekdays[d];
+  return [day, slot.time].filter(Boolean).join(" ");
+}
+
+/** "Kanalingizdagi 6 ta rasm asosida": which photos a picture was modelled on, said truthfully. */
+export function refsWording(c: Copy, n: number, fresh: boolean, visual?: VisualStyle | null): string {
+  const owner = visual?.refs.some((r) => r.source === "owner") ?? false;
+  return fmt(fresh ? c.refs.owner : owner ? c.refs.mixed : c.refs.channel, { n });
 }
 
 /**

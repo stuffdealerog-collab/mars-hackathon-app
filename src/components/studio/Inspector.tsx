@@ -4,7 +4,7 @@ import { LAMPS } from "../lamp/lamps";
 import { ownerText } from "../ui/format";
 import { fmt, useCopy, useLang } from "../ui/lang";
 import type { Lamps } from "./Department";
-import { whenOf } from "./desk";
+import { refsWording, whenOf } from "./desk";
 import { slotKey, useStudio } from "./store";
 
 const PlanRowDetails = dynamic(() => import("./pro/ProDetails").then((m) => m.PlanRowDetails), { ssr: false });
@@ -23,6 +23,8 @@ export function Inspector({ post, script, lamps }: { post: PostDraft; script: Sc
   const plan = useStudio((s) => s.plan);
   const edited = useStudio((s) => s.edited[post.id]);
   const setPostScript = useStudio((s) => s.setPostScript);
+  const fresh = useStudio((s) => s.mode === "fresh");
+  const visual = useStudio((s) => s.brand?.visual);
   const slot = post.slot;
   const item = slot ? plan?.items.find((it) => slotKey(it) === slotKey(slot)) : undefined;
   const hits = edited?.[script] ? [] : (post.neuroHits[script] ?? []);
@@ -32,6 +34,7 @@ export function Inspector({ post, script, lamps }: { post: PostDraft; script: Sc
 
   return (
     <aside aria-label={c.pro.label} className="@container card flex flex-col divide-y divide-line">
+      {slot && (
       <Section role="strategist" lamps={lamps} title={c.insp.plan}>
         {slot ? (
           <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13.5px] leading-snug">
@@ -56,6 +59,7 @@ export function Inspector({ post, script, lamps }: { post: PostDraft; script: Sc
         {slot && <p className="tnum mt-2 text-[12.5px] text-ink-3">{fmt(c.queue.suggest, { when: whenOf(slot) })}</p>}
         {item && <PlanRowDetails item={item} />}
       </Section>
+      )}
 
       <Section role="translator" lamps={lamps} title={c.insp.lang}>
         <div className="seg" role="group" aria-label={c.posts.langLabel}>
@@ -79,7 +83,7 @@ export function Inspector({ post, script, lamps }: { post: PostDraft; script: Sc
       <Section role="designer" lamps={lamps} title={c.insp.image}>
         <p className="text-[13.5px]">
           {imgWord}
-          {img?.refsUsed ? <span className="text-ink-2"> · {fmt(c.refs.channel, { n: img.refsUsed })}</span> : null}
+          {img?.refsUsed ? <span className="text-ink-2"> · {refsWording(c, img.refsUsed, fresh, visual)}</span> : null}
         </p>
         {img?.error && <p className="mt-1 text-[12.5px] text-bad">{img.error}</p>}
       </Section>

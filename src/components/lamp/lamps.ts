@@ -12,7 +12,6 @@ export interface Lamp {
   hue: string; // the light
   core: string; // hot centre of the bulb
   deep: string; // where the light falls into the dark
-  darkInk?: boolean; // results sit on a light glow: print them dark
 }
 
 export const LAMP_ORDER: AgentRole[] = [
@@ -29,8 +28,8 @@ export const LAMP_ORDER: AgentRole[] = [
 ];
 
 export const LAMPS: Record<AgentRole, Lamp> = {
-  brand: { role: "brand", hue: "#FFD6A0", core: "#FFF7EA", deep: "#B8642F", darkInk: true },
-  analyst: { role: "analyst", hue: "#FFB547", core: "#FFEBC2", deep: "#A8501A", darkInk: true },
+  brand: { role: "brand", hue: "#FFD6A0", core: "#FFF7EA", deep: "#B8642F" },
+  analyst: { role: "analyst", hue: "#FFB547", core: "#FFEBC2", deep: "#A8501A" },
   strategist: { role: "strategist", hue: "#FF8A3D", core: "#FFD6B8", deep: "#9A2E1A" },
   copywriter: { role: "copywriter", hue: "#FF6152", core: "#FFC9BF", deep: "#931D38" },
   editor: { role: "editor", hue: "#FF4580", core: "#FFC0D5", deep: "#7E1258" },
@@ -64,7 +63,5 @@ export const lampVars = (role: AgentRole) => {
     "--deep-a": rgba(l.deep, 0.55),
     "--hue-a": rgba(l.hue, 0.7),
     "--hue-b": rgba(l.hue, 0.22),
-    "--on": l.darkInk ? "#1c0f05" : "#fff",
-    "--on-shadow": l.darkInk ? "none" : "0 1px 14px rgb(0 0 0 / .35)",
   } as React.CSSProperties;
 };

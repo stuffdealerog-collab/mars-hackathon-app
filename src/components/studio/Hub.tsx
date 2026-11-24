@@ -427,7 +427,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
           document.body,
         )}
 
-      {drawer && <LampDrawer role={drawer} onClose={() => setDrawer(null)} />}
+      {drawer && <LampDrawer role={drawer} onClose={() => setDrawer(null)} fallback={lamps.words[drawer] ?? c.lampState[lamps.state[drawer]]} />}
     </>
   );
 }

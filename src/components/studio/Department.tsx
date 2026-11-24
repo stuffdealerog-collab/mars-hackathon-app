@@ -172,7 +172,7 @@ export const Panel = forwardRef<HTMLUListElement, { lamps: Lamps; size?: "sm" | 
           );
         })}
       </ul>
-      {open && <LampDrawer role={open} onClose={() => setOpen(null)} />}
+      {open && <LampDrawer role={open} onClose={() => setOpen(null)} fallback={lamps.words[open] ?? c.lampState[lamps.state[open]]} />}
     </>
   );
 });

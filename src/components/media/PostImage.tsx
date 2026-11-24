@@ -425,7 +425,7 @@ function ProDetails({ image, t }: { image: PostImageValue; t: ReturnType<typeof 
       </p>
       {image.prompt ? (
         <details className="group rounded-[14px] bg-[var(--mi-glass)] shadow-[inset_0_0_0_1px_var(--mi-hair)]">
-          <summary className="cursor-pointer select-none list-none rounded-[14px] px-3 py-2 text-[var(--mi-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--mi-lime)]">
+          <summary className="cursor-pointer select-none list-none rounded-[14px] px-3 py-2 text-[var(--mi-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--mi-focus)]">
             {t.prompt}
           </summary>
           <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words px-3 pb-3 font-[inherit] text-[12.5px] leading-relaxed">{image.prompt}</pre>

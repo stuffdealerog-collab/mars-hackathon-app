@@ -2,13 +2,13 @@ import type { PostDraft, Script } from "@/lib/uslub/contract";
 import { Check, ExternalLink } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { fmt, keepNumbers, useCopy, useLang } from "../ui/lang";
 import { weekday } from "../ui/format";
 import { parseChannel } from "../ui/parts";
 import { PostImage } from "@/components/media";
 import { authHeader, botPublishUrl, handoffKey } from "./api";
-import { approveWithUndo, useDesk, type ImageHandle } from "./desk";
+import { approveWithUndo, refsWording, useDesk, type ImageHandle } from "./desk";
 import { useStudio } from "./store";
 
 // Professional rejim only, loaded on demand.
@@ -45,11 +45,18 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
   }, []);
   // "Kanalingizdagi 6 ta rasm asosida": which photos the picture was modelled on, under it.
   const n = post.image?.refsUsed ?? 0;
-  const owner = visual?.refs.some((r) => r.source === "owner") ?? false;
-  const refs = n > 0 ? { palette: visual?.palette.slice(0, 4), text: fmt(fresh ? c.refs.owner : owner ? c.refs.mixed : c.refs.channel, { n }) } : undefined;
+  const refs = n > 0 ? { palette: visual?.palette.slice(0, 4), text: refsWording(c, n, fresh, visual) } : undefined;
   const editing = useDesk((s) => s.editingId === post.id);
   const setEditing = (on: boolean) => useDesk.getState().setEditing(on ? post.id : null);
   const confirming = useDesk((s) => s.confirmId === post.id);
+  // Switching posts in the queue while this one is open for editing: let the edit go with the
+  // card, or the keyboard would stay silent on the next post.
+  useEffect(
+    () => () => {
+      if (useDesk.getState().editingId === post.id) useDesk.getState().setEditing(null);
+    },
+    [post.id],
+  );
   const [draft, setDraft] = useState("");
   const [typed, setTyped] = useState("");
   const typedName = parseChannel(typed);
@@ -68,7 +75,9 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
   // A suggestion, not a schedule: nothing is published by itself.
   // Russian writes weekdays in lower case mid-sentence ("Лучше выложить: понедельник, 07:30").
   const dayName = day != null ? (lang === "ru" ? c.weekdays[day].toLowerCase() : c.weekdays[day]) : null;
-  const when = slot ? fmt(c.posts.when, { when: [dayName, slot.time].filter(Boolean).join(", ") }) : post.brief;
+  // No slot (a post the bot wrote): no heading at all. The brief is the copywriter's instruction,
+  // for Pro's Topshiriq only, never a title the owner reads as the post's.
+  const when = slot ? fmt(c.posts.when, { when: [dayName, slot.time].filter(Boolean).join(", ") }) : null;
   const approved = post.status === "approved";
   const published = post.status === "published";
   const name = channelName || "Kanal";
@@ -105,8 +114,8 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
   return (
     <article id={`post-${post.id}`} tabIndex={-1} data-post-scope aria-labelledby={`${id}-h`} className="@container outline-none">
       <header className="flex items-center justify-between gap-3 px-1 pb-2">
-        <h3 id={`${id}-h`} className="min-w-0 text-[14px] text-ink-2">
-          {when}
+        <h3 id={`${id}-h`} className={when ? "min-w-0 text-[14px] text-ink-2" : "sr-only"}>
+          {when ?? c.posts.untimed}
         </h3>
         {(approved || published) && (
           <span className="inline-flex shrink-0 items-center gap-1 text-[14px] font-medium text-ok">

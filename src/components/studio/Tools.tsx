@@ -73,7 +73,7 @@ export function Tools({ collapsed }: { collapsed: boolean }) {
         key: "new",
         icon: PenLine,
         label: c.tools.newPost,
-        off: notInSample ?? (!ready ? true : !next ? c.tools.needPlan : next && s.writingSlot[slotKey(next)] ? true : undefined),
+        off: notInSample ?? (!ready ? true : !s.plan ? c.tools.needPlan : !next ? c.tools.allWritten : s.writingSlot[slotKey(next)] ? true : undefined),
         run: () => next && void s.writeSlot(next),
       },
       {

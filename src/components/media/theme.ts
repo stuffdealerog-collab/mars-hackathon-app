@@ -16,6 +16,8 @@ export const MEDIA_VARS = {
   "--mi-ink-3": "var(--ink-3, color-mix(in srgb, currentColor 48%, transparent))",
   "--mi-stage": "var(--stage, #000)",
   "--mi-lime": "var(--lime, #d7ff3a)",
+  // Focus follows the page's own ring colour, so it stays visible on a light stage too.
+  "--mi-focus": "var(--focus, #d7ff3a)",
   "--mi-bad": "var(--bad, #ff5a4e)",
 } as CSSProperties;
 
@@ -27,6 +29,6 @@ export const QUIET_PILL =
   "inline-flex h-9 select-none items-center gap-1.5 rounded-full bg-[var(--mi-glass-2)] px-3.5 text-[13.5px] font-medium " +
   "text-[var(--mi-ink)] shadow-[inset_0_0_0_1px_var(--mi-hair-2)] transition-colors duration-150 hover:bg-[var(--mi-glass-3)] " +
   "disabled:pointer-events-none disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] " +
-  "focus-visible:outline-[var(--mi-lime)]";
+  "focus-visible:outline-[var(--mi-focus)]";
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");

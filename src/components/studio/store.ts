@@ -160,8 +160,11 @@ const lostAnswer = (f: Fail) => f.code === "timeout" || f.code === "network";
 const missedOf = (sent: PlanItem[], failed: api.MissedSlot[] | undefined): PlanItem[] =>
   (failed ?? []).map((f) => sent[f.index]).filter((it): it is PlanItem => Boolean(it));
 
-/** A plan slot's identity, shared by the plan row and the post written from it. */
-export const slotKey = (s: { day: string; time: string }) => `${s.day} ${s.time}`;
+/**
+ * A plan slot's identity, shared by the plan row and the post written from it. Day and time
+ * repeat in busy plans (8+ posts a week share a day and an hour), so the hook is part of it.
+ */
+export const slotKey = (s: { day: string; time: string; hook?: string }) => `${s.day} ${s.time} ${s.hook ?? ""}`;
 
 function stepsFor(mode: Mode, hasPhotos: boolean): Step[] {
   const keys: StepKey[] = ["read", "voice"];

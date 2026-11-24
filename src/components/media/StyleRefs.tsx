@@ -188,7 +188,7 @@ export function StyleRefs({
                   type="button"
                   onClick={() => remove(r.url)}
                   aria-label={t.remove}
-                  className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-[color-mix(in_srgb,var(--mi-stage)_72%,transparent)] text-[var(--mi-ink)] transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mi-lime)]"
+                  className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-[color-mix(in_srgb,var(--mi-stage)_72%,transparent)] text-[var(--mi-ink)] transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mi-focus)]"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden />
                 </button>
