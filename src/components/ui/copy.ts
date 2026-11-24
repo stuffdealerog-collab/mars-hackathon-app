@@ -143,10 +143,6 @@ const uz = {
     scriptNames: { uz_latn: "O‘zbekcha (lotin)", uz_cyrl: "Ўзбекча (кирилл)", ru: "Русский", en: "English" },
     image: {
       running: "Rasm tayyorlanmoqda…",
-      failed: "Rasm chiqmadi",
-      retry: "Qayta urinish",
-      none: "Rasmsiz post",
-      alt: "Post uchun rasm",
     },
   },
 
@@ -388,10 +384,6 @@ const ru: Copy = {
     scriptNames: { uz_latn: "Узбекский (латиница)", uz_cyrl: "Узбекский (кириллица)", ru: "Русский", en: "Английский" },
     image: {
       running: "Готовим картинку…",
-      failed: "Картинка не получилась",
-      retry: "Попробовать ещё раз",
-      none: "Пост без картинки",
-      alt: "Картинка к посту",
     },
   },
 
@@ -630,10 +622,6 @@ const en: Copy = {
     scriptNames: { uz_latn: "Uzbek (Latin)", uz_cyrl: "Uzbek (Cyrillic)", ru: "Russian", en: "English" },
     image: {
       running: "Preparing the picture…",
-      failed: "The picture didn’t work",
-      retry: "Try again",
-      none: "Post without a picture",
-      alt: "Picture for the post",
     },
   },
 

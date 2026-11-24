@@ -5,8 +5,9 @@ import dynamic from "next/dynamic";
 import { useId, useState } from "react";
 import { fmt, keepNumbers, useCopy, useLang } from "../ui/lang";
 import { weekday } from "../ui/format";
-import { botPublishUrl } from "./api";
-import { PostPicture } from "./PostPicture";
+import { PostImage } from "@/components/media";
+import { botPublishUrl, tgInitData } from "./api";
+import { PictureWaiting } from "./PostPicture";
 import { useStudio } from "./store";
 
 // Professional rejim only, loaded on demand.
@@ -23,13 +24,13 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
   const editPost = useStudio((s) => s.editPost);
   const approve = useStudio((s) => s.approve);
   const publish = useStudio((s) => s.publish);
-  const retryImage = useStudio((s) => s.retryImage);
+  const imageChanged = useStudio((s) => s.imageChanged);
   const sample = useStudio((s) => s.sample);
   const pro = useStudio((s) => s.pro);
   const channelName = useStudio((s) => s.brand?.dna.name || s.brand?.channel || (s.input.channel ? `@${s.input.channel}` : ""));
-  // Reserve the picture slot while pictures are on their way (not in sample mode, not when the
-  // picture service is unavailable), so the card never jumps when one arrives.
-  const picturesExpected = useStudio((s) => !s.sample && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")));
+  // The run starts every picture itself (so they come even while the owner reads Kanal); until
+  // this post's has started, the slot is reserved with the Dizayner's lamp so the card never jumps.
+  const waiting = useStudio((s) => !s.sample && !post.image && s.steps.some((x) => x.key === "images" && x.status === "run"));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [pulse, setPulse] = useState(false);
@@ -87,7 +88,23 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
             />
           )}
         </AnimatePresence>
-        <PostPicture image={post.image} alt={c.posts.image.alt} expected={picturesExpected} onRetry={sample ? undefined : () => void retryImage(post.id)} />
+        {sample ? null : waiting ? (
+          <PictureWaiting />
+        ) : (
+          // The images session's card: develops the picture, "Boshqa variant", and in Pro the
+          // product photo, refs and prompt. It re-mounts once the run's own start lands.
+          <PostImage
+            key={post.image ? "started" : "none"}
+            postId={post.id}
+            initial={post.image ?? null}
+            lang={lang}
+            pro={pro}
+            autoStart={false}
+            initData={tgInitData()}
+            onChange={(img) => imageChanged(post.id, img)}
+            className="p-1.5 [&>div:first-child]:rounded-[17px] [&>figcaption]:mt-1.5 [&>figcaption]:px-2.5 [&>figcaption~div]:px-2.5 [&>figcaption~div]:pb-1"
+          />
+        )}
         <div className="px-4 pb-2.5 pt-3">
           <div className="mb-2 flex items-center gap-2.5">
             <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[14px] font-semibold text-white" style={{ background: "linear-gradient(160deg, #C86B3C, #6b3115)" }}>

@@ -97,6 +97,7 @@ export function useLamps(gate = false): Lamps {
       state.designer = "on";
       result.designer = count(c.lampResult.pictures, ready);
     } else if (images.length) state.designer = "error";
+    else if (imgStep === "run") state.designer = "warming"; // studying the channel's photos first
     else if (imgStep === "skip") soon.add("designer");
 
     const published = posts.filter((p) => p.status === "published").length;

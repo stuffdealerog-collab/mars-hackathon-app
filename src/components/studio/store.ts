@@ -7,7 +7,7 @@
  * Each step keeps its result, so "Qayta urinish" resumes from the step that failed.
  * No sample data unless the page was opened with ?mock=1.
  */
-import type { BrandProfile, ChannelAudit, ContentPlan, PlanItem, PostDraft, PostImage, Script, Strategy } from "@/lib/uslub/contract";
+import type { BrandProfile, ChannelAudit, ContentPlan, PlanItem, PostDraft, PostImage, Script, Strategy, VisualStyle } from "@/lib/uslub/contract";
 import { create } from "zustand";
 import { COPY } from "../ui/copy";
 import { useLang, type Lang } from "../ui/lang";
@@ -94,7 +94,12 @@ interface StudioState {
   editPost: (id: string, script: Script, text: string) => void;
   approve: (id: string) => Promise<void>;
   publish: (id: string, script: Script) => Promise<void>;
-  retryImage: (id: string) => Promise<void>;
+  /** A picture card reports its post's picture (it starts, polls and regenerates on its own). */
+  imageChanged: (id: string, image: PostImage) => void;
+  /** The run is learning the picture style from the channel's (or the owner's) photos. */
+  styleLearning: boolean;
+  /** The style card reports a re-learned style (the owner added or removed photos). */
+  styleChanged: (visual: VisualStyle) => void;
 }
 
 const lang = (): Lang => useLang.getState().lang;
@@ -148,6 +153,10 @@ function rememberBrand(id: string | null) {
 let runId = 0;
 let visualRun: Promise<"ok" | "none"> | null = null;
 let pollRun = 0;
+let polling = false;
+/** When a mounted picture last reported (it polls on its own; the store then leaves that post alone). */
+const seen = new Map<string, number>();
+const isOpen = (i?: PostImage | null) => i?.status === "queued" || i?.status === "running";
 
 export const useStudio = create<StudioState>((set, get) => {
   const step = (key: StepKey, patch: Partial<Step>) =>
@@ -213,14 +222,23 @@ export const useStudio = create<StudioState>((set, get) => {
   const countImages = () => {
     const ps = get().posts;
     const ready = ps.filter((p) => p.image?.status === "ready").length;
-    const open = ps.filter((p) => p.image && (p.image.status === "queued" || p.image.status === "running")).length;
-    step("images", { n: ready, m: ps.length, status: open ? "run" : ready ? "done" : get().steps.find((s) => s.key === "images")?.status });
+    const open = ps.filter((p) => isOpen(p.image)).length;
+    const failed = ps.some((p) => p.image?.status === "failed");
+    const was = get().steps.find((s) => s.key === "images")?.status;
+    step("images", { n: ready, m: ps.length, status: open ? "run" : ready ? "done" : failed ? "fail" : was });
   };
 
   /** Learns the picture style once per brand (channel photos and/or the owner's photos). */
   const learnStyle = (brandId: string, photos?: string[]) => {
     if (!visualRun) {
-      visualRun = api.learnVisual(brandId, photos, lang()).then((r) => (r.ok ? "ok" : "none"));
+      set({ styleLearning: true });
+      const run: Promise<"ok" | "none"> = api.learnVisual(brandId, photos, lang()).then((r) => {
+        const b = get().brand;
+        // A newer run (another channel, start over) owns the flag by now.
+        if (visualRun === run) set({ styleLearning: false, ...(r.ok && b?.id === brandId ? { brand: { ...b, visual: r.data.visual } } : {}) });
+        return r.ok ? "ok" : "none";
+      });
+      visualRun = run;
     }
     return visualRun;
   };
@@ -251,23 +269,33 @@ export const useStudio = create<StudioState>((set, get) => {
     void poll(my);
   };
 
+  /**
+   * Keeps the pictures (and the Dizayner lamp) current while no card is on screen to do it:
+   * a mounted PostImage polls its own post, so posts it reported on lately are skipped.
+   */
   const poll = async (my: number) => {
     const mine = ++pollRun;
+    polling = true;
     const until = Date.now() + IMAGE_POLL_LIMIT_MS;
-    while (Date.now() < until) {
-      await sleep(IMAGE_POLL_MS);
-      if (my !== runId || mine !== pollRun) return;
-      const open = get().posts.filter((p) => p.image && (p.image.status === "queued" || p.image.status === "running"));
-      if (!open.length) break;
-      await Promise.all(
-        open.map(async (p) => {
-          const r = await api.getPostImage(p.id, lang());
-          if (r.ok && my === runId) setPostImage(p.id, r.data.image);
-        }),
-      );
+    try {
+      while (Date.now() < until) {
+        await sleep(IMAGE_POLL_MS);
+        if (my !== runId || mine !== pollRun) return;
+        const open = get().posts.filter((p) => isOpen(p.image));
+        if (!open.length) break;
+        const stale = open.filter((p) => Date.now() - (seen.get(p.id) ?? 0) > IMAGE_POLL_MS * 1.5);
+        await Promise.all(
+          stale.map(async (p) => {
+            const r = await api.getPostImage(p.id, lang());
+            if (r.ok && my === runId && r.data.image) setPostImage(p.id, r.data.image);
+          }),
+        );
+        countImages();
+      }
       countImages();
+    } finally {
+      if (mine === pollRun) polling = false;
     }
-    countImages();
   };
 
   /** Plan -> posts -> pictures, resuming from what is already there. */
@@ -320,6 +348,8 @@ export const useStudio = create<StudioState>((set, get) => {
     set({ phase: "ready", tab: "posts", problem: null });
     if (typeof window !== "undefined") window.scrollTo({ top: 0 });
     // Pictures wait for the style; without one the picture route decides what it can do.
+    // The Dizayner is already at work while it studies the channel's photos.
+    if (get().posts.some((p) => !p.image)) step("images", { status: "run", n: 0, m: get().posts.length });
     await learnStyle(brand.id, get().input.photos);
     if (my !== runId) return;
     void pictures(my);
@@ -476,6 +506,7 @@ export const useStudio = create<StudioState>((set, get) => {
 
     startChannel: (channel) => {
       visualRun = null;
+      set({ styleLearning: false });
       set({
         mode: "channel",
         input: { channel },
@@ -501,6 +532,7 @@ export const useStudio = create<StudioState>((set, get) => {
 
     startFresh: ({ knowledge, channel, photos }) => {
       visualRun = null;
+      set({ styleLearning: false });
       set({
         mode: "fresh",
         input: { knowledge, channel, photos },
@@ -535,6 +567,7 @@ export const useStudio = create<StudioState>((set, get) => {
       runId++;
       pollRun++;
       visualRun = null;
+      set({ styleLearning: false });
       rememberBrand(null);
       set({
         phase: "start",
@@ -690,17 +723,18 @@ export const useStudio = create<StudioState>((set, get) => {
       note({ text: msg, href: blank ? undefined : admin, tone: blank ? "hint" : "bad" });
     },
 
-    retryImage: async (id) => {
-      const my = runId;
-      setPostImage(id, { status: "queued", refsUsed: 0 });
-      const r = await api.startPostImage(id, lang());
-      if (my !== runId) return;
-      if (!r.ok) {
-        setPostImage(id, { status: "failed", refsUsed: 0, error: problemOf(r).message });
-        return;
-      }
-      setPostImage(id, r.data.image);
-      void poll(my);
+    imageChanged: (id, image) => {
+      seen.set(id, Date.now());
+      setPostImage(id, image);
+      countImages();
+      // A new version started from the card keeps the lamp honest even if the owner leaves the tab.
+      if (isOpen(image) && !polling) void poll(runId);
+    },
+
+    styleLearning: false,
+    styleChanged: (visual) => {
+      const b = get().brand;
+      if (b) set({ brand: { ...b, visual } });
     },
   };
 });

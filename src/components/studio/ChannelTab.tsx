@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Led } from "../lamp/Led";
 import { useCopy, useLang, fmt, num } from "../ui/lang";
 import { isMachineEvidence, ownerText, weekday } from "../ui/format";
-import type { PlanItemExtra } from "./api";
+import { copyFor as mediaCopy, StyleRefs } from "@/components/media";
+import { tgInitData, type PlanItemExtra } from "./api";
 import { slotKey, useStudio } from "./store";
 
 // Professional rejim only, loaded on demand: simple mode never downloads it.
@@ -30,6 +31,7 @@ export function ChannelTab({ wide = false }: { wide?: boolean }) {
       {mode === "channel" ? <Numbers /> : <p className="text-[15px] leading-relaxed text-ink-2">{c.channel.freshNoStats}</p>}
       {mode === "fresh" && <Launch />}
       <Voice />
+      <PictureStyle />
     </>
   );
   const todo = (
@@ -244,6 +246,42 @@ function Finding({ kind, text, evidence }: { kind: "problem" | "opportunity" | "
           </button>
         ))}
     </li>
+  );
+}
+
+/**
+ * The photos new pictures are modelled on (the images session's card). The run learns the style
+ * itself before the first pictures; the card only re-learns when the owner adds or removes photos.
+ */
+function PictureStyle() {
+  const lang = useLang((s) => s.lang);
+  const brand = useStudio((s) => s.brand);
+  const learning = useStudio((s) => s.styleLearning);
+  const pro = useStudio((s) => s.pro);
+  const sample = useStudio((s) => s.sample);
+  const styleChanged = useStudio((s) => s.styleChanged);
+  if (!brand || sample) return null;
+  const t = mediaCopy(lang);
+  return (
+    <div className="card p-4 sm:p-5">
+      {learning ? (
+        <div role="status">
+          <h3 className="text-[15px] font-semibold tracking-[-0.01em]">{t.styleTitle}</h3>
+          <p className="breathe mt-1 text-[13.5px] text-ink-2">{t.styleLearning}</p>
+        </div>
+      ) : (
+        <StyleRefs
+          key={brand.visual ? "learned" : "none"}
+          brandId={brand.id}
+          initial={brand.visual ?? null}
+          lang={lang}
+          pro={pro}
+          autoLearn={false}
+          initData={tgInitData()}
+          onChange={styleChanged}
+        />
+      )}
+    </div>
   );
 }
 
