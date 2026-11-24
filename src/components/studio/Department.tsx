@@ -17,7 +17,7 @@ export type Lamps = { state: Record<AgentRole, LampState>; soon: Set<AgentRole>;
 
 function Num({ n, word }: { n: number | string; word: string }) {
   return (
-    <span className="flex flex-col items-start gap-1.5">
+    <span className="flex flex-col items-start gap-2">
       <Led text={String(n)} dot={3.4} gap={1.3} color="currentColor" grid={false} label={`${n} ${word}`} />
       <span className="text-[12.5px] leading-none">{word}</span>
     </span>
