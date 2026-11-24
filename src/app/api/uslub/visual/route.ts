@@ -87,7 +87,10 @@ async function read(req: Request): Promise<Response> {
     rateLimit(req, "visual_read", 60);
     const brandId = new URL(req.url).searchParams.get("brandId")?.trim() ?? "";
     if (!brandId) throw new PictureError(400, "bad_input");
-    await loadBrandFor(brandId, telegramUserId(req));
+    const telegramId = telegramUserId(req);
+    const brand = await loadBrandFor(brandId, telegramId);
+    // Same rule as the POST: the style (incl. the owner's own photos) is the owner's draft material.
+    await assertDraftAccess(brand, telegramId);
     const { visual } = await getBrandVisualInfo(brandId);
     return json({ visual: visual ?? null });
   } catch (err) {
