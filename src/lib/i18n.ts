@@ -11,11 +11,11 @@ const dictionaries = {
     "bot.greeting_no_app": "Assalomu alaykum, {name}! Xush kelibsiz.",
     "bot.open_app": "Ilovani ochish",
     "bot.help":
-      "Qanday ishlaydi:\n\n1. Kanalingiz havolasini yuboring (@kanal yoki https://t.me/kanal). Kanal yo‘q bo‘lsa, biznesingizni 2-3 gapda yozing: nima sotasiz, kimga, qayerda.\n2. Bir daqiqada brendingiz ovozi va tayyor postlarni yuboraman.\n3. Joylash uchun botni kanalingizga admin qiling va «Post yozish» huquqini bering.\n4. Post ostidagi 📢 tugmasini bosing — post kanalda paydo bo‘ladi.\n\n/natija — haftalik natijalar\n/start — qaytadan boshlash",
+      "Qanday ishlaydi:\n\n1. Kanalingiz havolasini yuboring (@kanal yoki https://t.me/kanal). Kanal yo‘q bo‘lsa, biznesingizni 2-3 gapda yozing: nima sotasiz, kimga, qayerda.\n2. Bir daqiqada brendingiz ovozi va tayyor postlarni yuboraman.\n3. Joylash uchun {bot} botini kanalingizga admin qiling va «Yozuvli xabarlar» huquqini bering.\n4. Post ostidagi 📢 tugmasini bosing — post kanalda paydo bo‘ladi.\n\n/natija — haftalik natijalar\n/start — qaytadan boshlash",
     // Bot profile (bot-profile.ts): short description ≤120, description ≤512, command descriptions ≤256.
     "bot.profile.short": "Kichik biznes uchun marketing bo‘limi: kanalingizni o‘qiydi, postlar yozadi, siz tasdiqlagach kanalga joylaydi.",
     "bot.profile.description":
-      "Kanal havolasini yuboring — Mercat kanalingizni o‘qiydi, haftalik reja va rasmli postlar tayyorlaydi; siz tasdiqlaysiz, bot joylaydi.\n\nKanal yo‘qmi? Biznesingizni 2-3 gapda yozing: nima sotasiz, kimga, qayerda.\n\nPostlar o‘zbekcha (lotin va kirill), ruscha va inglizcha. Joylash uchun botni kanalingizga admin qiling.",
+      "Kanal havolasini yuboring — Mercat kanalingizni o‘qiydi, haftalik reja va rasmli postlar tayyorlaydi; siz tasdiqlaysiz, bot joylaydi.\n\nKanal yo‘qmi? Biznesingizni 2-3 gapda yozing: nima sotasiz, kimga, qayerda.\n\nPostlar o‘zbekcha (lotin va kirill), ruscha va inglizcha. Joylash uchun {bot} botini kanalingizga admin qiling.",
     "bot.cmd.start": "Boshlash: kanal havolasi yoki biznes tavsifi",
     "bot.cmd.natija": "Haftalik natijalar",
     "bot.cmd.help": "Qanday ishlaydi",
@@ -37,13 +37,13 @@ const dictionaries = {
     "bot.emoji.low": "kam",
     "bot.emoji.medium": "o‘rtacha",
     "bot.emoji.high": "ko‘p",
-    "bot.post_header": "✍️ Post {i} · insoniylik: {score}/100",
+    "bot.post_header": "✍️ Post {i} · tabiiylik: {score}/100",
     "bot.publish_to": "📢 @{channel} ga joylash",
     "bot.too_slow_channel": "Bu safar uzoq davom etyapti — Telegram yoki AI sekin javob beryapti. Tayyor bo‘lsa, natijani shu yerga yuboraman; 2–3 daqiqada kelmasa, tugmani bosing.",
     "bot.too_slow_text": "Bu safar uzoq davom etyapti — AI sekin javob beryapti. Tayyor bo‘lsa, natijani shu yerga yuboraman; 2–3 daqiqada kelmasa, biznesingiz tavsifini yana bir marta yuboring.",
-    "bot.done": "Tayyor! Postlarning kirill, rus va ingliz variantlari Studio’da. Hech narsa sizning tasdig‘ingizsiz e’lon qilinmaydi.",
+    "bot.done": "Tayyor! Postlarning kirill, rus va ingliz variantlari Studiya’da. Hech narsa sizning tasdig‘ingizsiz e’lon qilinmaydi.",
     "bot.open_in_app": "📱 Ilovada ochish",
-    "bot.open_studio": "🧩 Studio’da ochish",
+    "bot.open_studio": "🧩 Studiya’da ochish",
     "bot.or_describe": "Yoki biznesingizni 2-3 gapda yozing.",
     "bot.need_channel": "Avval kanal havolasini yuboring: post shu kanalga joylanadi.",
     "bot.link_inactive": "Rahmat! Bu havola hozir faol emas. Kanaldagi telefon yoki manzil orqali bog‘laning.",
@@ -52,7 +52,7 @@ const dictionaries = {
     "bot.link_expired": "Kechirasiz, bu havola eskirgan.",
     "bot.link_sent": "Rahmat! Kontaktingiz yuborildi — tez orada sizga o‘zlari yozishadi.",
     "bot.link_failed": "Hozir yuborib bo‘lmadi. Kanaldagi telefon yoki manzil orqali bog‘laning.",
-    "bot.results_no_plan": "Hali reja yo‘q. Studio’da rejani tuzing — reja postlaridagi havolalar natijani o‘lchaydi.",
+    "bot.results_no_plan": "Hali reja yo‘q. Studiya’da rejani tuzing — reja postlaridagi havolalar natijani o‘lchaydi.",
     "bot.results_summary": "Reja {week}: {n} ta post, kanalda topildi: {found}, o‘lchandi: {measured}.",
     "bot.results_starts": "Reja havolalari orqali botga o‘tganlar: {n}.",
     "bot.results_unreadable": "Reja {week}: kanalni hozir o‘qib bo‘lmadi, keyinroq qayta urinib ko‘ring.",
@@ -60,22 +60,26 @@ const dictionaries = {
     "bot.not_your_plan": "Bu reja sizniki emas.",
     "bot.sold_recorded": "Yozib qo‘ydim: +1 sotuv",
     "bot.sold_again": "✅ Sotildi (yana +1)",
+    "bot.lead_alert": "🔔 Yangi so‘rov: {who}\n{post} ({day}) havolasi orqali.\nUnga o‘zingiz yozing. Sotuv bo‘lsa — tugmani bosing, reja shundan o‘rganadi.",
+    "bot.lead_sold": "✅ Sotildi",
+    "bot.lead_customer": "Mijoz",
+    "bot.lead_post": "{slot}-post",
     "bot.orders_recorded": "Yozib qo‘ydim: {label}",
-    "pub.not_found": "Post topilmadi. Studio’da postni qayta yarating va «Kanalga joylash»ni yana bosing.",
+    "pub.not_found": "Post topilmadi. Studiya’da postni qayta yarating va «Kanalga joylash»ni yana bosing.",
     "pub.not_yours": "Bu post boshqa foydalanuvchining brendiga tegishli.",
     "pub.preview": "Post tayyor. Tekshiring va kanalga joylang:",
     "pub.button": "📢 Kanalga joylash (@{channel})",
-    "pub.ask_channel": "Bu post qaysi kanalga joylansin? Kanal nomini yuboring, masalan: @kanal_nomi\n\nAvval botni kanalga admin qiling va «Post yozish» huquqini bering.",
+    "pub.ask_channel": "Bu post qaysi kanalga joylansin? Kanal nomini yuboring, masalan: @kanal_nomi\n\nAvval {bot} botini kanalga admin qiling va «Yozuvli xabarlar» huquqini bering.",
     "pub.channel_bad": "Kanal nomi noto‘g‘ri. Misol: @kanal_nomi",
     "pub.user_not_admin": "Siz @{channel} kanalining egasi yoki admini emassiz. Postni faqat kanal egasi yoki post yozish huquqi bor admin joylay oladi.",
     "pub.user_cannot_post": "Sizda @{channel} kanalida post yozish huquqi yo‘q. Kanal egasidan bu huquqni so‘rang.",
-    "pub.bot_not_admin": "Botni @{channel} kanaliga admin qiling va «Post yozish» huquqini bering, keyin tugmani yana bosing.",
+    "pub.bot_not_admin": "Botni @{channel} kanaliga admin qiling va «Yozuvli xabarlar» huquqini bering, keyin tugmani yana bosing.",
     "pub.add_bot": "➕ Botni kanalga qo‘shish",
     "pub.channel_linked": "✅ @{channel} ulandi. Endi postni joylashingiz mumkin:",
     "pub.channel_taken": "Bu brend boshqa kanalga ulangan: @{channel}.",
     "pub.publishing": "Joylanmoqda…",
     "pub.button_retry": "🔁 Qayta urinish",
-    "pub.bot_not_admin_send": "Botni @{channel} kanaliga admin qiling va «Post yozish» huquqini bering, keyin kanal nomini shu yerga qayta yuboring.",
+    "pub.bot_not_admin_send": "{bot} botini @{channel} kanaliga admin qiling va «Yozuvli xabarlar» huquqini bering, keyin kanal nomini shu yerga qayta yuboring.",
     "pub.changed": "Post matni yoki rasmi o‘zgargan. Mana yangi variant — tekshirib, tugmani qayta bosing:",
     "pub.done": "✅ Kanalga joylandi: {url}",
     "pub.failed": "⚠️ Joylab bo‘lmadi: {error}",
@@ -97,10 +101,10 @@ const dictionaries = {
     "bot.greeting_no_app": "Здравствуйте, {name}! Добро пожаловать.",
     "bot.open_app": "Открыть приложение",
     "bot.help":
-      "Как это работает:\n\n1. Пришлите ссылку на канал (@kanal или https://t.me/kanal). Канала нет — опишите бизнес в 2–3 предложениях: что продаёте, кому, где.\n2. Через минуту пришлю голос вашего бренда и готовые посты.\n3. Чтобы публиковать, сделайте бота админом канала с правом «Публикация сообщений».\n4. Нажмите 📢 под постом — он появится в канале.\n\n/natija — итоги недели\n/start — начать заново",
+      "Как это работает:\n\n1. Пришлите ссылку на канал (@kanal или https://t.me/kanal). Канала нет — опишите бизнес в 2–3 предложениях: что продаёте, кому, где.\n2. Через минуту пришлю голос вашего бренда и готовые посты.\n3. Чтобы публиковать, сделайте бота {bot} админом канала с правом «Публикация сообщений».\n4. Нажмите 📢 под постом — он появится в канале.\n\n/natija — итоги недели\n/start — начать заново",
     "bot.profile.short": "Маркетинг для малого бизнеса: читает ваш канал, пишет посты и публикует их, когда вы одобрите.",
     "bot.profile.description":
-      "Пришлите ссылку на канал — Mercat прочитает его, подготовит план на неделю и посты с картинками; вы утверждаете, бот публикует.\n\nКанала нет? Опишите бизнес в 2–3 предложениях: что продаёте, кому, где.\n\nПосты на узбекском (латиница и кириллица), русском и английском. Чтобы публиковать, сделайте бота админом канала.",
+      "Пришлите ссылку на канал — Mercat прочитает его, подготовит план на неделю и посты с картинками; вы утверждаете, бот публикует.\n\nКанала нет? Опишите бизнес в 2–3 предложениях: что продаёте, кому, где.\n\nПосты на узбекском (латиница и кириллица), русском и английском. Чтобы публиковать, сделайте бота {bot} админом канала.",
     "bot.cmd.start": "Начать: ссылка на канал или описание бизнеса",
     "bot.cmd.natija": "Итоги недели",
     "bot.cmd.help": "Как это работает",
@@ -122,13 +126,13 @@ const dictionaries = {
     "bot.emoji.low": "мало",
     "bot.emoji.medium": "средне",
     "bot.emoji.high": "много",
-    "bot.post_header": "✍️ Пост {i} · человечность: {score}/100",
+    "bot.post_header": "✍️ Пост {i} · естественность: {score}/100",
     "bot.publish_to": "📢 Опубликовать в @{channel}",
     "bot.too_slow_channel": "В этот раз получается долго — Telegram или ИИ отвечают медленно. Как будет готово, пришлю сюда; если через 2–3 минуты ничего не придёт, нажмите кнопку.",
     "bot.too_slow_text": "В этот раз получается долго — ИИ отвечает медленно. Как будет готово, пришлю сюда; если через 2–3 минуты ничего не придёт, пришлите описание бизнеса ещё раз.",
-    "bot.done": "Готово! Кириллица, русская и английская версии постов — в Studio. Без вашего одобрения ничего не публикуется.",
+    "bot.done": "Готово! Версии на кириллице, русском и английском — в Студии. Без вашего одобрения ничего не публикуется.",
     "bot.open_in_app": "📱 Открыть в приложении",
-    "bot.open_studio": "🧩 Открыть Studio",
+    "bot.open_studio": "🧩 Открыть Студию",
     "bot.or_describe": "Или опишите бизнес в 2–3 предложениях.",
     "bot.need_channel": "Сначала пришлите ссылку на канал: пост будет опубликован в нём.",
     "bot.link_inactive": "Спасибо! Эта ссылка сейчас не активна. Свяжитесь по телефону или адресу из канала.",
@@ -137,7 +141,7 @@ const dictionaries = {
     "bot.link_expired": "Извините, эта ссылка устарела.",
     "bot.link_sent": "Спасибо! Ваш контакт отправлен — вам скоро напишут.",
     "bot.link_failed": "Сейчас не получилось отправить. Свяжитесь по телефону или адресу из канала.",
-    "bot.results_no_plan": "Плана пока нет. Составьте план в Studio — ссылки в постах плана измеряют результат.",
+    "bot.results_no_plan": "Плана пока нет. Составьте план в Студии — ссылки в постах плана измеряют результат.",
     "bot.results_summary": "План {week}: постов {n}, найдено в канале: {found}, измерено: {measured}.",
     "bot.results_starts": "Перешли в бота по ссылкам плана: {n}.",
     "bot.results_unreadable": "План {week}: канал сейчас не читается, попробуйте позже.",
@@ -145,12 +149,16 @@ const dictionaries = {
     "bot.not_your_plan": "Это не ваш план.",
     "bot.sold_recorded": "Записал: +1 продажа",
     "bot.sold_again": "✅ Продано (ещё +1)",
+    "bot.lead_alert": "🔔 Новая заявка: {who}\nпо ссылке из поста {post} ({day}).\nНапишите клиенту сами. Если купит — нажмите кнопку, план это учтёт.",
+    "bot.lead_sold": "✅ Продано",
+    "bot.lead_customer": "Клиент",
+    "bot.lead_post": "пост {slot}",
     "bot.orders_recorded": "Записал: {label}",
-    "pub.not_found": "Пост не найден. Создайте пост в Studio заново и снова нажмите «Опубликовать».",
+    "pub.not_found": "Пост не найден. Создайте пост в Студии заново и снова нажмите «Опубликовать».",
     "pub.not_yours": "Этот пост принадлежит бренду другого пользователя.",
     "pub.preview": "Пост готов. Проверьте и опубликуйте в канал:",
     "pub.button": "📢 Опубликовать в канал (@{channel})",
-    "pub.ask_channel": "В какой канал опубликовать пост? Пришлите имя канала, например: @kanal_nomi\n\nСначала сделайте бота админом канала с правом «Публикация сообщений».",
+    "pub.ask_channel": "В какой канал опубликовать пост? Пришлите имя канала, например: @kanal_nomi\n\nСначала сделайте бота {bot} админом канала с правом «Публикация сообщений».",
     "pub.channel_bad": "Неверное имя канала. Пример: @kanal_nomi",
     "pub.user_not_admin": "Вы не владелец и не админ канала @{channel}. Публиковать может только владелец или админ с правом публикации.",
     "pub.user_cannot_post": "У вас нет права публиковать в канале @{channel}. Попросите его у владельца канала.",
@@ -160,7 +168,7 @@ const dictionaries = {
     "pub.channel_taken": "Этот бренд уже привязан к другому каналу: @{channel}.",
     "pub.publishing": "Публикую…",
     "pub.button_retry": "🔁 Попробовать ещё раз",
-    "pub.bot_not_admin_send": "Сделайте бота админом канала @{channel} с правом «Публикация сообщений», затем снова пришлите сюда имя канала.",
+    "pub.bot_not_admin_send": "Сделайте бота {bot} админом канала @{channel} с правом «Публикация сообщений», затем снова пришлите сюда имя канала.",
     "pub.changed": "Текст или картинка поста изменились. Вот новая версия — проверьте и нажмите кнопку ещё раз:",
     "pub.done": "✅ Опубликовано: {url}",
     "pub.failed": "⚠️ Не удалось опубликовать: {error}",
@@ -181,10 +189,10 @@ const dictionaries = {
     "bot.greeting_no_app": "Hi {name}! Welcome.",
     "bot.open_app": "Open app",
     "bot.help":
-      "How it works:\n\n1. Send your channel link (@channel or https://t.me/channel). No channel? Describe your business in 2–3 sentences: what you sell, to whom, where.\n2. In a minute I'll send your brand voice and ready posts.\n3. To publish, make the bot an admin of your channel with the \"Post messages\" right.\n4. Tap 📢 under a post — it appears in your channel.\n\n/natija — this week's results\n/start — start over",
+      "How it works:\n\n1. Send your channel link (@channel or https://t.me/channel). No channel? Describe your business in 2–3 sentences: what you sell, to whom, where.\n2. In a minute I'll send your brand voice and ready posts.\n3. To publish, make {bot} an admin of your channel with the \"Post messages\" right.\n4. Tap 📢 under a post — it appears in your channel.\n\n/natija — this week's results\n/start — start over",
     "bot.profile.short": "Marketing for small businesses: reads your channel, writes posts and publishes them once you approve.",
     "bot.profile.description":
-      "Send your channel link — Mercat reads your channel, prepares a weekly plan and posts with pictures; you approve, the bot publishes.\n\nNo channel yet? Describe your business in 2–3 sentences: what you sell, to whom, where.\n\nPosts in Uzbek (Latin and Cyrillic), Russian and English. To publish, make the bot an admin of your channel.",
+      "Send your channel link — Mercat reads your channel, prepares a weekly plan and posts with pictures; you approve, the bot publishes.\n\nNo channel yet? Describe your business in 2–3 sentences: what you sell, to whom, where.\n\nPosts in Uzbek (Latin and Cyrillic), Russian and English. To publish, make {bot} an admin of your channel.",
     "bot.cmd.start": "Start: a channel link or a business description",
     "bot.cmd.natija": "This week's results",
     "bot.cmd.help": "How it works",
@@ -206,7 +214,7 @@ const dictionaries = {
     "bot.emoji.low": "few",
     "bot.emoji.medium": "some",
     "bot.emoji.high": "many",
-    "bot.post_header": "✍️ Post {i} · sounds human: {score}/100",
+    "bot.post_header": "✍️ Post {i} · natural: {score}/100",
     "bot.publish_to": "📢 Post to @{channel}",
     "bot.too_slow_channel": "This is taking long — Telegram or the AI is slow. I'll send the result here when it's ready; if nothing arrives in 2–3 minutes, tap the button.",
     "bot.too_slow_text": "This is taking long — the AI is slow. I'll send the result here when it's ready; if nothing arrives in 2–3 minutes, send your business description once more.",
@@ -229,12 +237,16 @@ const dictionaries = {
     "bot.not_your_plan": "This plan isn't yours.",
     "bot.sold_recorded": "Noted: +1 sale",
     "bot.sold_again": "✅ Sold (+1 more)",
+    "bot.lead_alert": "🔔 New request: {who}\nvia the link in {post} ({day}).\nWrite to them yourself. If they buy, tap the button — the plan learns from it.",
+    "bot.lead_sold": "✅ Sold",
+    "bot.lead_customer": "Customer",
+    "bot.lead_post": "post {slot}",
     "bot.orders_recorded": "Noted: {label}",
     "pub.not_found": "Post not found. Create it again in the Studio and tap Publish again.",
     "pub.not_yours": "This post belongs to another user's brand.",
     "pub.preview": "Your post is ready. Check it and post it to the channel:",
     "pub.button": "📢 Post to the channel (@{channel})",
-    "pub.ask_channel": "Which channel should this go to? Send its name, for example: @channel_name\n\nFirst make the bot an admin of the channel with the \"Post messages\" right.",
+    "pub.ask_channel": "Which channel should this go to? Send its name, for example: @channel_name\n\nFirst make {bot} an admin of the channel with the \"Post messages\" right.",
     "pub.channel_bad": "That channel name is not valid. Example: @channel_name",
     "pub.user_not_admin": "You are not the owner or an admin of @{channel}. Only the owner or an admin who can post may publish there.",
     "pub.user_cannot_post": "You don't have the right to post in @{channel}. Ask the channel owner for it.",
@@ -244,7 +256,7 @@ const dictionaries = {
     "pub.channel_taken": "This brand is already linked to another channel: @{channel}.",
     "pub.publishing": "Posting…",
     "pub.button_retry": "🔁 Try again",
-    "pub.bot_not_admin_send": "Make the bot an admin of @{channel} with the \"Post messages\" right, then send the channel name here again.",
+    "pub.bot_not_admin_send": "Make {bot} an admin of @{channel} with the \"Post messages\" right, then send the channel name here again.",
     "pub.changed": "The post text or picture has changed. Here is the new version — check it and tap the button again:",
     "pub.done": "✅ Posted: {url}",
     "pub.failed": "⚠️ Could not post: {error}",
@@ -276,13 +288,33 @@ export function pickLocale(code?: string | null): Locale {
   return DEFAULT_LOCALE;
 }
 
+/** The bot's handle when a caller passes none (servers pass "@" + BOT_USERNAME). */
+export const DEFAULT_BOT_HANDLE = "@mercatai";
+
 export function t(
   locale: Locale,
   key: MessageKey,
   vars: Record<string, string | number> = {},
 ): string {
   const template: string = dictionaries[locale]?.[key] ?? dictionaries[DEFAULT_LOCALE][key];
+  const all: Record<string, string | number> = { bot: DEFAULT_BOT_HANDLE, ...vars };
   return template.replace(/\{(\w+)\}/g, (match, name: string) =>
-    name in vars ? String(vars[name]) : match,
+    name in all ? String(all[name]) : match,
   );
+}
+
+const MONTHS: Record<Locale, string[]> = {
+  uz: ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"],
+  ru: ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"],
+  en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+};
+
+/** "2026-11-26" -> "26-noyabr" / "26 ноября" / "26 November" (an unparsable value comes back as is). */
+export function formatDay(isoDate: string, locale: Locale): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate);
+  if (!m) return isoDate;
+  const day = Number(m[3]);
+  const month = MONTHS[locale]?.[Number(m[2]) - 1];
+  if (!month) return isoDate;
+  return locale === "uz" ? `${day}-${month}` : `${day} ${month}`;
 }

@@ -6,7 +6,7 @@ import { authenticateRequest, validateInitData } from "@/lib/telegram-auth";
 import { canAccessBrand } from "./access";
 import { BrainScrapeError } from "./brain/scrape";
 import { currentContext, flushUsage, runWithContext, setContextLang, setContextUser } from "./context";
-import { type ApiLang, codeForStatus, type ErrorCode, errorText, isApiLang, pickApiLang } from "./errors";
+import { type ApiLang, codeForStatus, type ErrorCode, errorText, type InputIssue, invalidInputText, isApiLang, pickApiLang } from "./errors";
 import { verifyHandoff } from "./handoff";
 import { RateLimiter } from "./limit";
 import { LlmError } from "./llm";
@@ -117,6 +117,7 @@ function scrapeToHttp(err: ScrapeError): HttpError {
 }
 
 function brainScrapeToHttp(err: BrainScrapeError): HttpError {
+  if (err.code === "PRIVATE_LINK") return channelEmpty("", "private", 0);
   if (err.code === "BAD_CHANNEL") return new HttpError(400, err.message, "channel_invalid");
   if (err.code === "NO_PUBLIC_PREVIEW") return channelEmpty(err.channel ?? "", "no_preview", 0);
   return new HttpError(504, err.message, "telegram_unavailable");
@@ -162,7 +163,9 @@ export async function readJson<S extends z.ZodType>(req: Request, schema: S): Pr
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     const field = issue?.path.join(".") || "body";
-    throw new HttpError(400, `Invalid input: ${field} ${issue?.message ?? ""}`.trim(), "invalid_input", { field });
+    // The owner reads which field and what is wrong, in their language (a union names the branch they meant).
+    const detail = invalidInputText(issue as unknown as InputIssue | undefined, currentContext()?.lang ?? "uz");
+    throw new HttpError(400, `Invalid input: ${field} ${issue?.message ?? ""}`.trim(), "invalid_input", { field, detail });
   }
   return parsed.data;
 }

@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { loadKnowledge } from "@/lib/uslub/brain/kbstore";
 import { buildLaunchStrategy } from "@/lib/uslub/brain/launch";
+import { loadPlanView, savePlanView } from "@/lib/uslub/brain/memory";
 import { respond } from "@/lib/uslub/brain/route-utils";
 import { buildStrategy } from "@/lib/uslub/brain/strategy";
 import { spendClaude } from "@/lib/uslub/budget";
-import { HttpError, handle, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
+import { assertDraftAccess, HttpError, handle, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 
 // Node.js runtime is the default (an explicit `runtime` export is rejected with cacheComponents).
 // The channel strategy returns by ~45 s; the fresh launch plan by ~35 s. Vercel allows up to 300 s.
@@ -71,10 +72,27 @@ export const POST = handle(async (req) => {
   if (!knowledge.trim() && !channel) throw new HttpError(400, "Provide brandId, knowledge or channel", "knowledge_needed");
   if (fresh && knowledge.trim().length < 30) throw new HttpError(400, "fresh mode needs the owner's description", "knowledge_needed");
   await spendClaude(req, userId, "strategy");
+  const lang = body.lang ?? "uz";
+  // The brand's latest plan is kept as the owner saw it, so a reload can show it again (GET below).
+  const remember = async <R extends { plan: unknown; strategy: unknown; ownerQuestions: string[]; planTag: string | null; launch?: unknown }>(r: R): Promise<R> => {
+    if (brandId) {
+      await savePlanView(brandId, {
+        mode: fresh ? "fresh" : "channel",
+        plan: r.plan,
+        strategy: r.strategy,
+        ownerQuestions: r.ownerQuestions,
+        planTag: r.planTag,
+        ...(r.launch ? { launch: r.launch } : {}),
+        lang,
+        createdAt: new Date().toISOString(),
+      }).catch(() => {});
+    }
+    return r;
+  };
   if (fresh) {
     if (knowledge.trim().length < 30) throw new HttpError(400, "fresh mode needs the owner's description", "knowledge_needed");
     return respond(Boolean(body.stream), (onStage) =>
-      buildLaunchStrategy({ knowledge, brandName, channel: channel?.replace(/^@/, ""), goal: body.goal, lang: body.lang ?? "uz", onStage }),
+      buildLaunchStrategy({ knowledge, brandName, channel: channel?.replace(/^@/, ""), goal: body.goal, lang, onStage }).then(remember),
     );
   }
   return respond(Boolean(body.stream), (onStage) =>
@@ -91,6 +109,22 @@ export const POST = handle(async (req) => {
       ownerVerified,
       approvedPosts: body.approvedPosts,
       onStage,
-    }),
+    }).then(remember),
   );
+});
+
+/**
+ * GET ?brandId= -> { plan: ContentPlan | null, strategy, mode, ownerQuestions, planTag, launch?, lang, createdAt }
+ * The brand's latest week plan (or 2-week launch plan) as it was shown, so the Studio can reopen it after a reload.
+ * plan is null when the brand has no plan yet (or it is older than 30 days). An owned brand's plan is private.
+ */
+export const GET = handle(async (req) => {
+  rateLimit(req, "brain-strategy-get", 60);
+  const brandId = new URL(req.url).searchParams.get("brandId") ?? "";
+  const userId = telegramUserId(req);
+  const brand = await loadBrandFor(brandId, userId);
+  if (brand.ownerTelegramId != null) await assertDraftAccess(brand, userId);
+  const view = await loadPlanView(brand.id).catch(() => null);
+  if (!view) return json({ plan: null });
+  return json(view);
 });

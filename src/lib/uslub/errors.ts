@@ -46,10 +46,11 @@ const MESSAGES: Record<ErrorCode, Msg> = {
     ru: "Некорректный запрос. Обновите страницу и попробуйте ещё раз.",
     en: "The request was not valid. Reload the page and try again.",
   },
+  // {detail} is a whole sentence from invalidInputText (which field, what is wrong, in the owner's words).
   invalid_input: {
-    uz: "Ma’lumot to‘liq emas yoki noto‘g‘ri: {field}.",
-    ru: "Данные неполные или неверные: {field}.",
-    en: "Some input is missing or wrong: {field}.",
+    uz: "{detail}",
+    ru: "{detail}",
+    en: "{detail}",
   },
   auth_required: {
     uz: "Bu amal uchun Telegram orqali kiring: botni oching.",
@@ -167,7 +168,7 @@ const MESSAGES: Record<ErrorCode, Msg> = {
     en: "Only the channel's owner or an admin who can post may publish there.",
   },
   bot_not_admin: {
-    uz: "Botni kanalga admin qiling va «Post yozish» huquqini bering, keyin qayta urinib ko‘ring.",
+    uz: "Botni kanalga admin qiling va «Yozuvli xabarlar» huquqini bering, keyin qayta urinib ko‘ring.",
     ru: "Сделайте бота админом канала с правом «Публикация сообщений» и попробуйте ещё раз.",
     en: "Make the bot an admin of the channel with the \"Post messages\" right, then try again.",
   },
@@ -198,6 +199,8 @@ export function pickApiLang(...candidates: (string | null | undefined)[]): ApiLa
 }
 
 export function errorText(code: ErrorCode, lang: ApiLang, vars: Record<string, string | number> = {}): string {
+  // invalid_input without a ready sentence (a thrower that only knows the field): build it here.
+  if (code === "invalid_input" && !vars.detail) vars = { ...vars, detail: invalidInputText({ code: "custom", path: String(vars.field ?? "").split(".") }, lang) };
   const tpl = MESSAGES[code]?.[lang] ?? MESSAGES.internal[lang];
   return tpl.replace(/\{(\w+)\}/g, (_m, k: string) => (k in vars ? String(vars[k]) : "")).replace(/\s+([.:,])/g, "$1").replace(/:\s*\.$/, ".");
 }
@@ -217,3 +220,109 @@ export function codeForStatus(status: number): ErrorCode {
 
 /** Codes whose message is always the localized dictionary text (never a thrower's raw message). */
 export const hasMessage = (code: string): code is ErrorCode => code in MESSAGES;
+
+/* ------------------------------------------------------------ validation errors in the owner's words */
+
+/** The parts of a zod issue we read (zod 4). */
+export type InputIssue = {
+  code: string;
+  path: PropertyKey[];
+  origin?: string;
+  maximum?: number | bigint;
+  minimum?: number | bigint;
+  input?: unknown;
+  errors?: InputIssue[][];
+};
+
+const FIELD: Record<string, Msg> = {
+  knowledge: { uz: "Tavsif", ru: "Описание", en: "The description" },
+  channel: { uz: "Kanal havolasi", ru: "Ссылка на канал", en: "The channel link" },
+  samplePosts: { uz: "Namuna postlar", ru: "Примеры постов", en: "Sample posts" },
+  slots: { uz: "Postlar", ru: "Посты", en: "Posts" },
+  brief: { uz: "Topshiriq", ru: "Задание", en: "The brief" },
+  text: { uz: "Matn", ru: "Текст", en: "The text" },
+  goal: { uz: "Maqsad", ru: "Цель", en: "The goal" },
+  category: { uz: "Soha", ru: "Сфера", en: "The category" },
+  brandName: { uz: "Brend nomi", ru: "Название бренда", en: "The brand name" },
+  competitors: { uz: "Raqobatchilar", ru: "Конкуренты", en: "Competitors" },
+  count: { uz: "Postlar soni", ru: "Число постов", en: "The number of posts" },
+  urls: { uz: "Havolalar", ru: "Ссылки", en: "Links" },
+  products: { uz: "Mahsulotlar", ru: "Товары", en: "Products" },
+  brandId: { uz: "Brend", ru: "Бренд", en: "The brand" },
+  postId: { uz: "Post", ru: "Пост", en: "The post" },
+  hook: { uz: "Birinchi qator", ru: "Первая строка", en: "The opening line" },
+  cta: { uz: "Chaqiriq", ru: "Призыв", en: "The call to action" },
+  day: { uz: "Kun", ru: "День", en: "The day" },
+  time: { uz: "Vaqt", ru: "Время", en: "The time" },
+  address: { uz: "Manzil", ru: "Адрес", en: "The address" },
+  hours: { uz: "Ish vaqti", ru: "Часы работы", en: "The opening hours" },
+  phone: { uz: "Telefon", ru: "Телефон", en: "The phone" },
+  lang: { uz: "Til", ru: "Язык", en: "The language" },
+};
+
+const SAY: Record<ApiLang, Record<string, (f: string, n?: string) => string>> = {
+  uz: {
+    longText: (f, n) => `${f} ${n} belgidan oshmasin.`,
+    manyItems: (f, n) => `${f}: ko‘pi bilan ${n} ta.`,
+    shortText: (f) => `${f} juda qisqa.`,
+    fewItems: (f, n) => `${f}: kamida ${n} ta kerak.`,
+    bigNumber: (f, n) => `${f} ${n} dan oshmasin.`,
+    required: (f) => `${f} kerak.`,
+    wrong: (f) => `${f} noto‘g‘ri.`,
+  },
+  ru: {
+    longText: (f, n) => `${f}: не больше ${n} знаков.`,
+    manyItems: (f, n) => `${f}: не больше ${n}.`,
+    shortText: (f) => `${f}: слишком коротко.`,
+    fewItems: (f, n) => `${f}: нужно хотя бы ${n}.`,
+    bigNumber: (f, n) => `${f}: не больше ${n}.`,
+    required: (f) => `Нужно указать: ${f.toLowerCase()}.`,
+    wrong: (f) => `${f}: неверное значение.`,
+  },
+  en: {
+    longText: (f, n) => `${f} must be at most ${n} characters.`,
+    manyItems: (f, n) => `${f}: at most ${n}.`,
+    shortText: (f) => `${f} is too short.`,
+    fewItems: (f, n) => `${f}: at least ${n} needed.`,
+    bigNumber: (f, n) => `${f} must be at most ${n}.`,
+    required: (f) => `${f} is required.`,
+    wrong: (f) => `${f} is not valid.`,
+  },
+};
+
+const GENERIC: Msg = { uz: "Ma’lumot to‘liq emas yoki noto‘g‘ri.", ru: "Данные неполные или неверные.", en: "Some input is missing or wrong." };
+
+/** A union body (e.g. /posts: slots or a brief): the branch the caller meant is the one with the fewest problems. */
+function innermost(issue: InputIssue): InputIssue {
+  if (issue.code !== "invalid_union" || !issue.errors?.length) return issue;
+  const branch = [...issue.errors].filter((b) => b.length).sort((a, b) => a.length - b.length)[0];
+  if (!branch) return issue;
+  const inner = innermost(branch[0]);
+  return { ...inner, path: [...issue.path, ...inner.path] };
+}
+
+/** One sentence for the owner: which field, what is wrong ("Tavsif 8000 belgidan oshmasin."). */
+export function invalidInputText(raw: InputIssue | undefined, lang: ApiLang): string {
+  if (!raw) return GENERIC[lang];
+  const issue = innermost(raw);
+  const keys = issue.path.filter((k): k is string => typeof k === "string");
+  const index = issue.path.find((k): k is number => typeof k === "number");
+  const key = keys.at(-1);
+  if (!key) return GENERIC[lang];
+  // A field the owner never typed (initData, an internal id) has no name in their words: the plain sentence.
+  let field = FIELD[key]?.[lang];
+  if (!field) return GENERIC[lang];
+  if (index != null && keys.length > 1 && FIELD[keys[0]]) field = `${FIELD[keys[0]][lang]} #${index + 1}: ${field.charAt(0).toLowerCase()}${field.slice(1)}`;
+  const say = SAY[lang];
+  const n = (v: number | bigint | undefined) => String(v ?? "");
+  switch (issue.code) {
+    case "too_big":
+      return issue.origin === "string" ? say.longText(field, n(issue.maximum)) : issue.origin === "array" ? say.manyItems(field, n(issue.maximum)) : say.bigNumber(field, n(issue.maximum));
+    case "too_small":
+      return issue.origin === "array" ? say.fewItems(field, n(issue.minimum)) : issue.origin === "string" ? (issue.input === "" || Number(issue.minimum) <= 1 ? say.required(field) : say.shortText(field)) : say.wrong(field);
+    case "invalid_type":
+      return issue.input === undefined || issue.input === null ? say.required(field) : say.wrong(field);
+    default:
+      return say.wrong(field);
+  }
+}

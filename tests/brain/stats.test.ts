@@ -191,7 +191,9 @@ describe("skeleton", () => {
       lang: "uz",
       calendar: [{ id: "blackfriday", name: "Qora juma", daysAway: 3 }],
     });
-    expect(sk.weekOf).toBe("2026-11-25");
+    // The plan starts tomorrow (Wed 25 Nov); weekOf is that week's Monday (contract: "ISO date of Monday").
+    expect(sk.weekOf).toBe("2026-11-23");
+    expect(sk.slots[0].day).toBe("2026-11-25");
     expect(sk.slots.length).toBe(3);
     for (const s of sk.slots) {
       expect(s.time.endsWith(":00")).toBe(false);

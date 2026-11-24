@@ -297,6 +297,31 @@ export async function saveBrainCache(key: string, value: unknown, now = Date.now
   `.catch(soft("save cache", undefined));
 }
 
+/* ------------------------------------------------------ latest plan view
+ * What the owner last saw for a brand's plan (plan items with briefs and CTAs, the strategy, owner questions),
+ * so the Studio can reopen the week plan after a reload. One per brand, the newest wins; kept 30 days. */
+
+export const PLAN_VIEW_MS = 30 * 86_400_000;
+
+export type PlanView = {
+  mode: "channel" | "fresh";
+  plan: unknown;
+  strategy: unknown;
+  ownerQuestions: string[];
+  planTag: string | null;
+  launch?: unknown;
+  lang?: string;
+  createdAt: string;
+};
+
+export async function savePlanView(brandId: string, view: PlanView): Promise<void> {
+  await saveBrainCache(`planview:${brandId}`, view);
+}
+
+export async function loadPlanView(brandId: string): Promise<PlanView | null> {
+  return loadBrainCache<PlanView>(`planview:${brandId}`, PLAN_VIEW_MS);
+}
+
 /* ------------------------------------------------------------ facts cache */
 
 const factsMem = new Map<string, { at: number; facts: unknown[] }>();

@@ -61,7 +61,7 @@ export const KIND_BRIEF: Record<LaunchKind, string> = {
   product: "One product or service from the description: what it is, who it's for, price only if the description gives it (otherwise invite people to ask the admin for the price), how to order.",
   trust: "Why people can rely on this business: how it is made or done, the people behind it, the place, hygiene/quality steps, delivery terms — only what the description says; otherwise ask the owner for a real photo of the process.",
   tip: "A useful tip customers can use today, connected to the product (how to choose, store, use, care). No selling in the first lines.",
-  offer: "One simple launch offer for the first customers, only if the description gives one. Otherwise a 'first customers' post that invites people to ask the admin about the current offer — never name a discount, gift or deadline nobody gave.",
+  offer: "One simple launch offer for the first customers, only if the description gives one. Otherwise a 'first customers' post about the product and exactly how to order it, with no offer at all: never hint at a discount, gift, bonus, 'special offer' or deadline nobody gave.",
   question: "A question or a two-option choice that invites replies (which flavour, what to add to the menu). Short.",
 };
 

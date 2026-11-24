@@ -24,7 +24,7 @@ const GOAL_GUIDE: Record<Goal, string> = {
   trust:
     "TRUST post: show why people can rely on the business — real process, people, place, address and hours, a real customer case. Only facts from the knowledge.",
   sale:
-    "SALE post: one product or service, its price if the knowledge has it (otherwise invite people to ask the admin for the price — never a blank like [narx]), and exactly how to order. The call to action in the first 3 lines or at the end.",
+    "SALE post: one product or service, its price if the knowledge has it (otherwise write [narx] / [цена] / [price] where the price goes — the owner fills it in; never 'ask the admin for the price'), and exactly how to order. The call to action in the first 3 lines or at the end.",
 };
 
 /** The brief the copywriter gets for one plan slot. Hook and CTA are the plan's; links are kept verbatim. */
@@ -42,7 +42,7 @@ export function slotBrief(slot: SlotInput): string {
       : "FORMAT: the post goes out with a picture (or as text), not a video: never mention a video, never ask people to watch or save one.",
     `DATES: the post goes out on ${slot.day}. An opening, promotion or event dated before that day is over: never announce it as coming or happening now; mention it in the past tense or leave it out.`,
     "Notes in the brief about which photo or video to take are for the owner: do not put them in the post, do not describe the picture.",
-    "Blanks in the plan such as [narx], [shart], [muddat], [telefon] are facts nobody has given yet: never copy them into the post — write around them.",
+    "Blanks in the plan such as [shart], [muddat], [telefon] are facts nobody has given yet: never copy them into the post — write around them. A missing price is the one exception: [narx] / [цена] / [price].",
   ];
   return lines.filter(Boolean).join("\n");
 }
