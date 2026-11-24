@@ -11,6 +11,7 @@ const publishPost = vi.fn(async (args: { postId: string; userId: number | null; 
 vi.mock("../src/lib/uslub/publish", () => ({ publishPost, addBotAsAdminLink: () => "https://t.me/test_bot?startchannel&admin=post_messages" }));
 
 const { startPublish, publishFromButton, answerPendingChannel } = await import("../src/lib/uslub/botpublish");
+const { parseCallback, textHash } = await import("../src/lib/uslub/botpublish-core");
 const store = await import("../src/lib/uslub/store");
 const { assertDraftAccess, loadBrandFor } = await import("../src/lib/uslub/http");
 import type { BrandDNA, PostDraft } from "../src/lib/uslub/contract";
@@ -77,9 +78,12 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
     const photo = sent.find((m) => m.method === "sendPhoto");
     expect(photo?.photo).toBe("https://cdn.example/p.jpg");
     expect(photo?.opts?.caption).toBe("Бенто-торт от 150 000 сум.");
-    expect(buttons(photo?.opts).some((b) => b.callback_data === `pb:${post.id}:r`)).toBe(true);
+    const pb = buttons(photo?.opts).find((b) => b.callback_data?.startsWith(`pb:${post.id}:r:`));
+    expect(pb).toBeDefined();
+    const data = parseCallback(pb?.callback_data ?? "");
+    expect(data?.hash).toBe(textHash("Бенто-торт от 150 000 сум."));
 
-    await publishFromButton(api, 7, { id: 7 }, "uz", post.id, "ru");
+    await publishFromButton(api, 7, { id: 7 }, "uz", post.id, "ru", data?.hash);
     expect((await store.getBrand(brand.id))?.ownerTelegramId).toBe(7);
     expect(publishPost).toHaveBeenCalledWith({ postId: post.id, script: "ru", chat: "tortlar_uz", userId: 7 });
     expect(sent.at(-1)?.text).toContain("https://t.me/tortlar_uz/42");
@@ -100,14 +104,28 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
     const { post } = await makePost("tortlar5_uz", 7);
     await store.approvePost(post.id, 7, { variants: { ...post.variants, en: "" }, neuroHits: {}, humanScore: 90, changed: ["en"] });
     const { api } = fakeApi({});
-    await publishFromButton(api, 7, { id: 7 }, "en", post.id, "en");
+    await publishFromButton(api, 7, { id: 7 }, "en", post.id, "en", textHash(post.variants.uz_latn));
     expect(publishPost).toHaveBeenCalledWith(expect.objectContaining({ script: "uz_latn" }));
+  });
+
+  it("never publishes a text the owner has not seen: an edit after the preview shows the new version instead", async () => {
+    const { post } = await makePost("tortlar6_uz", 7);
+    const seen = textHash(post.variants.uz_latn);
+    await store.approvePost(post.id, null, { variants: { ...post.variants, uz_latn: "Boshqa odam yozgan matn." }, neuroHits: {}, humanScore: 90, changed: ["uz_latn"] });
+    const { api, sent } = fakeApi({});
+    await publishFromButton(api, 7, { id: 7 }, "uz", post.id, "uz_latn", seen);
+    expect(publishPost).not.toHaveBeenCalled();
+    expect(sent[0].text).toMatch(/o‘zgargan/);
+    expect(sent[1].text).toBe("Boshqa odam yozgan matn.");
+    // A button without a hash (old message) is treated the same way.
+    await publishFromButton(api, 7, { id: 7 }, "uz", post.id, "uz_latn");
+    expect(publishPost).not.toHaveBeenCalled();
   });
 
   it("never lets a non-admin claim or publish", async () => {
     const { brand, post } = await makePost("tortlar2_uz", null);
     const { api, sent } = fakeApi({ "@tortlar2_uz": { 8: { status: "member" }, [BOT_ID]: { status: "administrator", can_post_messages: true } } });
-    await publishFromButton(api, 8, { id: 8 }, "ru", post.id, "uz_latn");
+    await publishFromButton(api, 8, { id: 8 }, "ru", post.id, "uz_latn", textHash(post.variants.uz_latn));
     expect(publishPost).not.toHaveBeenCalled();
     expect((await store.getBrand(brand.id))?.ownerTelegramId).toBeNull();
     expect(sent.at(-1)?.text).toMatch(/не владелец и не админ/);
@@ -116,7 +134,7 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
   it("asks to add the bot first when it cannot post (and does not claim)", async () => {
     const { brand, post } = await makePost("tortlar3_uz", null);
     const { api, sent } = fakeApi({ "@tortlar3_uz": { 7: { status: "creator" } } });
-    await publishFromButton(api, 7, { id: 7 }, "en", post.id, "uz_latn");
+    await publishFromButton(api, 7, { id: 7 }, "en", post.id, "uz_latn", textHash(post.variants.uz_latn));
     expect(publishPost).not.toHaveBeenCalled();
     expect((await store.getBrand(brand.id))?.ownerTelegramId).toBeNull();
     expect(sent.at(-1)?.text).toMatch(/Make the bot an admin/);
@@ -144,7 +162,7 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
     const linked = await store.getBrand(brand.id);
     expect(linked?.channel).toBe("yangi_tortlar");
     expect(linked?.ownerTelegramId).toBe(7);
-    expect(buttons(sent.at(-1)?.opts).some((b) => b.callback_data === `pb:${post.id}:l`)).toBe(true);
+    expect(buttons(sent.at(-1)?.opts).some((b) => b.callback_data === `pb:${post.id}:l:${textHash(post.variants.uz_latn)}`)).toBe(true);
     // Nothing pending any more: the next channel link is onboarding again.
     expect(await answerPendingChannel(api, 7, { id: 7 }, "uz", "@boshqa_kanal")).toBe(false);
   });

@@ -206,7 +206,7 @@ function registerHandlers(b: Bot) {
     const locale = pickLocale(ctx.from.language_code);
     if (!data) return void (await ctx.answerCallbackQuery().catch(() => undefined));
     await ctx.answerCallbackQuery(data.kind === "pb" ? { text: t(locale, "pub.publishing") } : {}).catch(() => undefined);
-    if (data.kind === "pb") await publishFromButton(ctx.api, chatId, ctx.from, locale, data.postId, data.script);
+    if (data.kind === "pb") await publishFromButton(ctx.api, chatId, ctx.from, locale, data.postId, data.script, data.hash);
     else await switchScript(ctx.api, chatId, ctx.from, locale, data.postId, data.script);
   });
 

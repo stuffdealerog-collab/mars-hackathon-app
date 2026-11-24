@@ -10,6 +10,7 @@ import {
   parsePublishPayload,
   pickScript,
   splitForPhoto,
+  textHash,
   type ClaimDecision,
 } from "./botpublish-core";
 import type { PostDraft, Script } from "./contract";
@@ -70,16 +71,22 @@ function refusal(api: Api, chatId: number, locale: Locale, reason: Exclude<Claim
   return api.sendMessage(chatId, t(locale, key, { channel }), reason === "bot_not_admin" ? { reply_markup: kb } : {});
 }
 
+/** The text of a variant as the bot shows and publishes it. */
+const shownText = (post: PostDraft, script: Script) => post.variants[script]?.trim() || post.variants.uz_latn;
+
+/** "Kanalga joylash" button bound to the text the owner is looking at (see publishFromButton). */
+const publishData = (post: PostDraft, script: Script) => callbackData("pb", post.id, script, textHash(shownText(post, script)));
+
 function publishKeyboard(locale: Locale, post: PostDraft, script: Script, channel?: string): InlineKeyboard {
   const kb = new InlineKeyboard();
-  if (channel) kb.text(t(locale, "pub.button", { channel }), callbackData("pb", post.id, script)).row();
+  if (channel) kb.text(t(locale, "pub.button", { channel }), publishData(post, script)).row();
   for (const s of otherScripts(post.variants, script)) kb.text(t(locale, `pub.script.${s}`), callbackData("pv", post.id, s));
   return kb;
 }
 
 /** Sends the post as it will appear (picture first when it is ready) with the publish button. */
 async function sendPreview(api: Api, chatId: number, locale: Locale, post: PostDraft, script: Script, channel?: string) {
-  const text = post.variants[script]?.trim() || post.variants.uz_latn;
+  const text = shownText(post, script);
   const kb = publishKeyboard(locale, post, script, channel);
   const photo = post.image?.status === "ready" && post.image.url?.startsWith("https://") ? post.image.url : null;
   if (photo) {
@@ -147,8 +154,12 @@ export async function switchScript(api: Api, chatId: number, user: User, locale:
   await sendPreview(api, chatId, locale, post, pickScript(post.variants, script, brand.dna?.languages), brand.channel);
 }
 
-/** "pb" button ("Kanalga joylash"): authorize (claim an unowned brand), then publish through publishPost. */
-export async function publishFromButton(api: Api, chatId: number, user: User, locale: Locale, postId: string, wanted: Script): Promise<void> {
+/**
+ * "pb" button ("Kanalga joylash"): authorize (claim an unowned brand), then publish through publishPost.
+ * The button carries a hash of the text the owner saw; if the stored text changed since (an edit in the Studio),
+ * nothing is published — the bot shows the new version with a fresh button instead.
+ */
+export async function publishFromButton(api: Api, chatId: number, user: User, locale: Locale, postId: string, wanted: Script, shownHash?: string): Promise<void> {
   const post = await getPost(postId);
   const brand = post ? await getBrand(post.brandId) : null;
   if (!post || !brand) return void (await api.sendMessage(chatId, t(locale, "pub.not_found")));
@@ -164,14 +175,20 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
     await api.sendMessage(chatId, t(locale, "pub.ask_channel"), { reply_markup: new InlineKeyboard().url(t(locale, "pub.add_bot"), addBotAsAdminLink()) });
     return;
   }
+  if (shownHash !== textHash(shownText(post, script))) {
+    // Never publish a text the owner has not seen in Telegram.
+    await api.sendMessage(chatId, t(locale, "pub.changed"));
+    await sendPreview(api, chatId, locale, post, script, brand.channel);
+    return;
+  }
   const decision = await authorize(api, brand, brand.channel, user);
-  if (!decision.ok) return void (await refusal(api, chatId, locale, decision.reason, brand.channel, callbackData("pb", post.id, script)));
+  if (!decision.ok) return void (await refusal(api, chatId, locale, decision.reason, brand.channel, publishData(post, script)));
   const res = await publishPost({ postId: post.id, script, chat: brand.channel, userId: user.id });
   if (res.ok) {
     await api.sendMessage(chatId, t(locale, "pub.done", { url: res.url ?? "" }), { link_preview_options: { is_disabled: true } });
     return;
   }
-  const kb = res.addAdminUrl ? new InlineKeyboard().url(t(locale, "pub.add_bot"), res.addAdminUrl).row().text(t(locale, "pub.button", { channel: brand.channel }), callbackData("pb", post.id, script)) : undefined;
+  const kb = res.addAdminUrl ? new InlineKeyboard().url(t(locale, "pub.add_bot"), res.addAdminUrl).row().text(t(locale, "pub.button", { channel: brand.channel }), publishData(post, script)) : undefined;
   await api.sendMessage(chatId, t(locale, "pub.failed", { error: publishError(locale, res.status, res.error) }), {
     ...(kb ? { reply_markup: kb } : {}),
     link_preview_options: { is_disabled: true },
@@ -237,7 +254,7 @@ export async function answerPendingChannel(api: Api, chatId: number, user: User,
   await clearPendingPublish(user.id);
   await safeLogEvent(user.id, "brand_channel_linked", { brand_id: brand.id, channel });
   await api.sendMessage(chatId, t(locale, "pub.channel_linked", { channel }), {
-    reply_markup: new InlineKeyboard().text(t(locale, "pub.button", { channel }), callbackData("pb", post.id, pending.script)),
+    reply_markup: new InlineKeyboard().text(t(locale, "pub.button", { channel }), publishData(post, pickScript(post.variants, pending.script, brand.dna?.languages))),
   });
   return true;
 }

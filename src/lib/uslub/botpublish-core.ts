@@ -18,14 +18,28 @@ export function parsePublishPayload(payload: string): { postId: string; script?:
 
 export const publishPayload = (postId: string, script?: Script) => `publish_${postId}${script ? `_${script}` : ""}`;
 
-/** Callback data for the "Kanalga joylash" button (pb) and the script switch (pv): ≤ 64 bytes. */
-export const callbackData = (kind: "pb" | "pv", postId: string, script: Script) => `${kind}:${postId}:${SHORT[script]}`;
+/** FNV-1a 32-bit of the text, 8 hex chars: binds a publish button to the exact text the owner saw. */
+export function textHash(text: string): string {
+  let h = 0x811c9dc5;
+  for (const ch of text.trim()) {
+    h ^= ch.codePointAt(0) as number;
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0");
+}
 
-export const CALLBACK_RE = new RegExp(`^(pb|pv):(${UUID}):([lcre])$`);
+/**
+ * Callback data for the "Kanalga joylash" button (pb, with the hash of the text shown) and the script switch (pv).
+ * ≤ 64 bytes: "pb:" + uuid + ":l:" + 8 hex = 49.
+ */
+export const callbackData = (kind: "pb" | "pv", postId: string, script: Script, hash?: string) =>
+  `${kind}:${postId}:${SHORT[script]}${kind === "pb" && hash ? `:${hash}` : ""}`;
 
-export function parseCallback(data: string): { kind: "pb" | "pv"; postId: string; script: Script } | null {
+export const CALLBACK_RE = new RegExp(`^(pb|pv):(${UUID}):([lcre])(?::([0-9a-f]{8}))?$`);
+
+export function parseCallback(data: string): { kind: "pb" | "pv"; postId: string; script: Script; hash?: string } | null {
   const m = CALLBACK_RE.exec(data);
-  return m ? { kind: m[1] as "pb" | "pv", postId: m[2], script: FROM_SHORT[m[3]] } : null;
+  return m ? { kind: m[1] as "pb" | "pv", postId: m[2], script: FROM_SHORT[m[3]], ...(m[4] ? { hash: m[4] } : {}) } : null;
 }
 
 /** The owner's chosen script, else the brand's main language, else Uzbek Latin; never an empty variant. */

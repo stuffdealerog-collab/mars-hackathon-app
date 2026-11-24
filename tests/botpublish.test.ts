@@ -8,6 +8,7 @@ import {
   pickScript,
   publishPayload,
   splitForPhoto,
+  textHash,
 } from "../src/lib/uslub/botpublish-core";
 
 const ID = "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed";
@@ -33,6 +34,11 @@ describe("publish deep link", () => {
       expect(Buffer.byteLength(data)).toBeLessThanOrEqual(64);
       expect(parseCallback(data)).toEqual({ kind: "pb", postId: ID, script: s });
     }
+    const withHash = callbackData("pb", ID, "uz_cyrl", textHash("Салом"));
+    expect(Buffer.byteLength(withHash)).toBeLessThanOrEqual(64);
+    expect(parseCallback(withHash)).toEqual({ kind: "pb", postId: ID, script: "uz_cyrl", hash: textHash("Салом") });
+    expect(textHash("Salom")).not.toBe(textHash("Salom!"));
+    expect(textHash("  Salom ")).toBe(textHash("Salom"));
     expect(parseCallback(`pub:${ID}`)).toBeNull();
     expect(parseCallback(`pb:${ID}:x`)).toBeNull();
   });
