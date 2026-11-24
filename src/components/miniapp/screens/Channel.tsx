@@ -29,6 +29,8 @@ export function ChannelScreen({ onOpenPost }: { onOpenPost: (index: number) => v
   const mode = useStudio((s) => s.mode);
   const pro = useStudio((s) => s.pro);
   const sample = useStudio((s) => s.sample);
+  const audit = useStudio((s) => s.audit);
+  const sufficiency = useStudio((s) => s.sufficiency);
   const postsRead = useStudio((s) => s.postsRead ?? s.audit?.postsAnalyzed ?? null);
   const openSheet = useNav((s) => s.openSheet);
   const lamps = useLamps();
@@ -79,8 +81,8 @@ export function ChannelScreen({ onOpenPost }: { onOpenPost: (index: number) => v
           {pro && <StrategyDetails />}
           {pro && (
             <div className="ma-pro mt-8 flex flex-col gap-8">
-              <AuditFull />
-              <SufficiencyPanel />
+              <AuditFull audit={audit} />
+              <SufficiencyPanel items={sufficiency} />
             </div>
           )}
         </div>
