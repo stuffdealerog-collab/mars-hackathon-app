@@ -46,7 +46,7 @@ export function Start({ initialView = "link", initialChannel = "" }: { initialVi
   const reopenId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("brand") : null;
   if (problem?.code === "brand_forbidden") return <Forbidden />;
   return (
-    <div className="pt-6 sm:pt-12">
+    <div className="pt-6 sm:pt-12 lg:pt-8 [@media(min-width:1024px)_and_(max-height:819px)]:pt-2">
       {view === "link" ? (
         <LinkForm initialChannel={initialChannel} onEmpty={() => setView("fresh")} onTyped={setArmed} />
       ) : (
@@ -114,7 +114,8 @@ function HowItWorks() {
       <div className="mt-12 max-w-[560px] lg:hidden">
         <Steps />
       </div>
-      <StepsLine className="mt-8 hidden lg:flex" />
+      {/* Short windows drop this line: the housing must fit the first screen (1366×660). */}
+      <StepsLine className="mt-8 hidden lg:flex [@media(min-width:1024px)_and_(max-height:819px)]:hidden" />
     </section>
   );
 }
@@ -127,7 +128,7 @@ function HowItWorks() {
 function Standby({ armed }: { armed: boolean }) {
   const lamps = useLamps();
   return (
-    <div className="mt-12 hidden lg:block">
+    <div className="mt-12 hidden lg:block [@media(min-width:1024px)_and_(max-height:819px)]:mt-8">
       <Panel lamps={lamps} housing compact armed={armed} />
     </div>
   );

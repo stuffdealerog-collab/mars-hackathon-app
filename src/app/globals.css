@@ -979,8 +979,8 @@
   .desk .room-light {
     position: absolute;
     z-index: -1;
-    width: 26%;
-    left: calc((var(--k) + 0.5) * 20% - 13%);
+    width: 19%;
+    left: calc((var(--k) + 0.5) * 20% - 9.5%);
     pointer-events: none;
     mix-blend-mode: plus-lighter;
     opacity: 0;
@@ -1020,7 +1020,7 @@
   }
   .desk .lamp[data-state="off"]:not(.lamp--soon) .lamp__filament {
     background: var(--ember);
-    box-shadow: 0 0 6px var(--ember-glow);
+    box-shadow: 0 0 8px var(--ember-glow);
   }
   .desk .lamp--soon .lamp__filament {
     background: #0f0e0c;
@@ -1029,7 +1029,9 @@
   /* Armed: a valid link is typed; the embers heat one after another, still no light in the room. */
   .desk .panel-stage[data-armed] .lamp[data-state="off"]:not(.lamp--soon) .lamp__filament {
     background: var(--core);
-    box-shadow: 0 0 8px var(--hue-b);
+    box-shadow:
+      0 0 3px var(--core),
+      0 0 10px var(--hue-a);
     transition:
       background 200ms var(--ease-out) calc(var(--i, 0) * 70ms),
       box-shadow 200ms var(--ease-out) calc(var(--i, 0) * 70ms);

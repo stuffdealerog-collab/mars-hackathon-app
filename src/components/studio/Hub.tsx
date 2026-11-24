@@ -603,11 +603,16 @@ function ChannelChip({ collapsed, side }: { collapsed: boolean; side: Side }) {
  */
 export function StageLight({ lamps }: { lamps: Lamps }) {
   const spots = useHub((s) => s.spots);
+  const side = useHub((s) => s.side);
+  const collapsed = useHub((s) => s.collapsed);
+  // The light stays under the glass: nothing of it reaches the page beside the hub.
+  const w = collapsed ? RAIL_W : HUB_W;
+  const clip = side === "left" ? `inset(12px calc(100% - ${12 + w}px) 12px 12px round 24px)` : `inset(12px 12px 12px calc(100% - ${12 + w}px) round 24px)`;
   const checking = useHub((s) => s.checking);
   const blink = useHub((s) => s.blink);
   const level = (r: AgentRole) => (lamps.state[r] === "warming" ? 0.7 : lamps.state[r] === "on" || lamps.state[r] === "you" ? 1 : 0);
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 isolate">
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 isolate" style={{ clipPath: clip }}>
       {LAMP_ORDER.map((r, i) => {
         const at = spots[r];
         if (!at) return null;

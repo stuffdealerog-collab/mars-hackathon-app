@@ -94,7 +94,7 @@ const varsOf = (role: AgentRole) => {
     // Computer screens: the standby ember in the filament, its light only around the slot, and
     // the lamp's light on the room (wall above the panel, floor under it).
     "--ember": rgba(l.hue, 0.6),
-    "--ember-glow": rgba(l.hue, 0.35),
+    "--ember-glow": rgba(l.hue, 0.45),
     "--room": light(l.hue, 0.5),
   } as React.CSSProperties;
 };
