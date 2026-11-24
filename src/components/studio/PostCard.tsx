@@ -9,7 +9,6 @@ import { parseChannel } from "../ui/parts";
 import { PostImage } from "@/components/media";
 import { authHeader, botPublishUrl, handoffKey } from "./api";
 import { approveWithUndo, useDesk, type ImageHandle } from "./desk";
-import { PictureWaiting } from "./PostPicture";
 import { useStudio } from "./store";
 
 // Professional rejim only, loaded on demand.
@@ -134,7 +133,12 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
         </AnimatePresence>
         {sample ? (
           // The sample draws no pictures; the Dizayner's slot says so instead of pretending.
-          <PictureWaiting caption={c.sample.noImage} dark />
+          // One quiet line instead of an empty 4:5 frame (which reads as broken): the Dizayner's
+          // filament, dark, and why there is no picture.
+          <p className="flex items-center gap-2.5 px-4 pt-3.5 text-[12.5px] text-ink-3">
+            <span aria-hidden className="h-[3px] w-4 shrink-0 rounded-full bg-[var(--hair-2)]" />
+            {c.sample.noImage}
+          </p>
         ) : (
           // Develops the picture, "Boshqa variant", and in Pro the product photo, refs and prompt.
           // The run starts every picture itself; this card follows it and polls while it renders.

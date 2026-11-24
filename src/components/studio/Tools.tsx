@@ -130,8 +130,8 @@ export function Tools({ collapsed }: { collapsed: boolean }) {
               key={t.key}
               type="button"
               aria-disabled={off || undefined}
-              aria-label={collapsed ? t.label : undefined}
-              title={why ?? (collapsed ? t.label : undefined)}
+              aria-label={why ? `${t.label}. ${why}` : t.label}
+              title={why ? `${t.label} · ${why}` : t.label}
               onClick={() => !off && t.run()}
               className={`flex min-h-11 items-center gap-2 rounded-[12px] py-1 text-left text-[12.5px] leading-[1.2] transition-[background-color,color,transform] duration-150 active:scale-[0.96] ${
                 collapsed ? "justify-center" : "px-2.5"
