@@ -14,10 +14,12 @@ import { clip } from "../text";
 const SYSTEM = `You research the local market for a small business in Tashkent, Uzbekistan, for its weekly Telegram plan.
 Use web search (at most 2 searches). Search for the business by name with "Tashkent", and for "<category> Tashkent" prices or offers (Uzbek or Russian queries work best, e.g. "tort narxi Toshkent", "торт цена Ташкент"). Report only facts that appear in search results; every sentence must rest on a cited source.
 Look for: (1) prices and current offers of competitors in this category in Tashkent, (2) dated events in Tashkent in the next 14 days that matter to this category, (3) public facts about this business (address, ratings, reviews) if any.
-Short factual sentences. No advice, no opinions. If nothing relevant is found, say so in one sentence. Write in English.`;
+Short factual sentences. No advice, no opinions. If nothing relevant is found, say so in one sentence.`;
+
+const WRITE_IN = { uz: "Write in Uzbek (Latin script).", ru: "Write in Russian.", en: "Write in English." } as const;
 
 export async function webContext(
-  q: { brandName: string; category: string; channel?: string; competitors?: string[]; now: number },
+  q: { brandName: string; category: string; channel?: string; competitors?: string[]; now: number; lang?: "uz" | "ru" | "en" },
   timeoutMs = 15_000,
 ): Promise<LedgerEntry[]> {
   const today = new Date(q.now + 5 * 3_600_000).toISOString().slice(0, 10);
@@ -35,7 +37,7 @@ export async function webContext(
         output_config: { effort: "low" },
         betas: ["server-side-fallback-2026-07-01"],
         fallbacks: "default",
-        system: SYSTEM,
+        system: `${SYSTEM}\n${WRITE_IN[q.lang ?? "en"]}`,
         tools: [
           {
             // The basic variant: the dynamic-filtering one (_20260209) spent its uses in code execution and returned no citations.

@@ -172,7 +172,7 @@ describe("approve and publish refuse a post with a blank (placeholder_left)", ()
     const post = await postWithBlank(8);
     await store.approvePost(post.id, 8, { variants: { ...post.variants, uz_latn: "Chegirma kodini adminga yozing." }, neuroHits: {}, humanScore: 80, changed: ["uz_latn"] });
     // The bot is in the channel but cannot post: publishPost refuses with access.ts's message and no addAdminUrl.
-    publishPost.mockImplementationOnce(async () => ({ ok: false, status: 403, error: "Botni kanalga admin qiling va «Post yozish» huquqini bering: " }));
+    publishPost.mockImplementationOnce(async () => ({ ok: false, status: 403, error: "Botni kanalga admin qiling va «Yozuvli xabarlar» huquqini bering: " }));
     const res = await publishRoute.POST(req("http://x/api/uslub/publish", { postId: post.id, script: "uz_latn", chat: "@lifesmileuz", lang: "ru" }, 8));
     const body = (await res.json()) as { code: string; error: string; addAdminUrl?: string };
     expect(res.status).toBe(403);

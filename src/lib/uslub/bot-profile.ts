@@ -1,7 +1,8 @@
 import "server-only";
 import type { Api } from "grammy";
 import type { BotCommand, MenuButton } from "grammy/types";
-import { LOCALES, type Locale, t } from "@/lib/i18n";
+import { getEnv } from "@/lib/env";
+import { DEFAULT_BOT_HANDLE, LOCALES, type Locale, t } from "@/lib/i18n";
 import { clip } from "./text";
 
 /**
@@ -15,6 +16,12 @@ import { clip } from "./text";
  */
 
 export const BOT_NAME = "Mercat";
+
+/** "@mercatai": the bot's own handle (BOT_USERNAME), named in the texts that tell owners which bot to add. */
+export function botHandle(): string {
+  const name = getEnv().BOT_USERNAME?.replace(/^@/, "").trim();
+  return name ? `@${name}` : DEFAULT_BOT_HANDLE;
+}
 
 /** Telegram limits (Bot API): name 64, short description 120, description 512, command description 256. */
 const LIMIT = { name: 64, short: 120, description: 512, command: 256, menuText: 64 } as const;
@@ -32,16 +39,19 @@ export type BotProfile = {
 /** The commands the bot really handles (bot.ts). */
 const COMMANDS = ["start", "natija", "help"] as const;
 
-const textsFor = (locale: Locale): ProfileTexts => ({
+const textsFor = (locale: Locale, bot: string): ProfileTexts => ({
   shortDescription: clip(t(locale, "bot.profile.short"), LIMIT.short),
-  description: clip(t(locale, "bot.profile.description"), LIMIT.description),
+  description: clip(t(locale, "bot.profile.description", { bot }), LIMIT.description),
   commands: COMMANDS.map((command) => ({ command, description: clip(t(locale, `bot.cmd.${command}`), LIMIT.command) })),
 });
 
-/** What the profile should be. `appUrl` = the public https origin; `menuText` = MENU_BUTTON_TEXT when set. */
-export function botProfile(appUrl: string | undefined, menuText?: string): BotProfile {
-  const texts = { "": textsFor("uz") } as BotProfile["texts"];
-  for (const locale of LOCALES) texts[locale] = textsFor(locale);
+/**
+ * What the profile should be. `appUrl` = the public https origin; `menuText` = MENU_BUTTON_TEXT when set;
+ * `bot` = the bot's "@handle" named in the description.
+ */
+export function botProfile(appUrl: string | undefined, menuText?: string, bot = DEFAULT_BOT_HANDLE): BotProfile {
+  const texts = { "": textsFor("uz", bot) } as BotProfile["texts"];
+  for (const locale of LOCALES) texts[locale] = textsFor(locale, bot);
   const text = clip(menuText?.trim() || BOT_NAME, LIMIT.menuText);
   return {
     name: BOT_NAME,

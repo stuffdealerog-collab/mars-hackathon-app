@@ -55,8 +55,9 @@ export async function buildBrand(input: BuildBrandInput): Promise<BuildBrandResu
     try {
       scraped = await scrapeChannel(input.channel);
     } catch (err) {
+      // An invite link names no public channel: the fresh brand is built without one (linked when the owner publishes).
       if (err instanceof ScrapeError && err.code === "channel_empty" && knowledge.length >= MIN_DESCRIPTION && given.length < MIN_CHANNEL_POSTS)
-        return { brand: await buildFresh(input.channel, knowledge, owner, lang), cached: false, switchedToFresh: true };
+        return { brand: await buildFresh(err.reason === "private" ? undefined : input.channel, knowledge, owner, lang), cached: false, switchedToFresh: true };
       throw err;
     }
     // Empty = few messages of ANY kind (albums and reels without captions count). The voice is then learned from

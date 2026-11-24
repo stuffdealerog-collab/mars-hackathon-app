@@ -3,6 +3,7 @@ import type { BotCommand, MenuButton } from "grammy/types";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/i18n", async () => await import("../src/lib/i18n"));
+vi.mock("@/lib/env", () => ({ getEnv: () => ({ BOT_USERNAME: "mercatai" }) }));
 
 const { botProfile, syncBotProfile, BOT_NAME } = await import("../src/lib/uslub/bot-profile");
 type ProfileApi = import("../src/lib/uslub/bot-profile").ProfileApi;

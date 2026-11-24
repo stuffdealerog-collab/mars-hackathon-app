@@ -6,11 +6,12 @@
  */
 import type { ChannelData, Media, RawPost } from "./types";
 import { previewRedirected, serviceTexts } from "./validity";
-import { wellFormed } from "../text";
+import { isInviteLink } from "../scrape";
+import { wellFormed, withoutLinkLabelLines } from "../text";
 
 export class BrainScrapeError extends Error {
   constructor(
-    readonly code: "BAD_CHANNEL" | "NO_PUBLIC_PREVIEW" | "FETCH_FAILED",
+    readonly code: "BAD_CHANNEL" | "NO_PUBLIC_PREVIEW" | "FETCH_FAILED" | "PRIVATE_LINK",
     message: string,
     readonly status = 400,
     /** The channel handle the error is about (no @), when known. */
@@ -63,12 +64,7 @@ export function decode(s: string): string {
 
 /** innerText-like: keeps line breaks, drops tags. */
 export function toText(html: string): string {
-  return decode(
-    html
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/(p|div)>/gi, "\n")
-      .replace(/<[^>]+>/g, ""),
-  )
+  return decode(withoutLinkLabelLines(html).replace(/<[^>]+>/g, ""))
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -182,6 +178,7 @@ export async function scrapeChannelData(
   input: string,
   opts: { maxPosts?: number; maxPages?: number; timeoutMs?: number; now?: number; onPage?: (pages: number, posts: number) => void } = {},
 ): Promise<ChannelData> {
+  if (isInviteLink(input)) throw new BrainScrapeError("PRIVATE_LINK", "private channel invite link", 422);
   const channel = normalizeChannel(input);
   if (!channel) throw new BrainScrapeError("BAD_CHANNEL", "Kanal nomi noto‘g‘ri. Masalan: @kanal_nomi");
   const key = channel.toLowerCase();

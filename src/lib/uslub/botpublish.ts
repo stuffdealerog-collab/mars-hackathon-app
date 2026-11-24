@@ -1,6 +1,7 @@
 import "server-only";
 import { GrammyError, InlineKeyboard, type Api } from "grammy";
 import { type Locale, t } from "@/lib/i18n";
+import { botHandle } from "./bot-profile";
 import { safeLogEvent } from "@/lib/track";
 import type { MemberInfo } from "./access";
 import {
@@ -79,7 +80,7 @@ function refusal(api: Api, chatId: number, locale: Locale, reason: Exclude<Claim
     kb.url(t(locale, "pub.add_bot"), addBotAsAdminLink()).row();
     if (retry) kb.text(t(locale, "pub.button", { channel }), retry);
   }
-  return api.sendMessage(chatId, t(locale, key, { channel }), reason === "bot_not_admin" ? { reply_markup: kb } : {});
+  return api.sendMessage(chatId, t(locale, key, { channel, bot: botHandle() }), reason === "bot_not_admin" ? { reply_markup: kb } : {});
 }
 
 /** "Kanalga joylash" button bound to the text and picture the owner is looking at (see publishFromButton). */
@@ -173,7 +174,7 @@ export async function startPublish(api: Api, chatId: number, user: User, locale:
   await sendPreview(api, chatId, locale, post, script, brand.channel);
   if (!brand.channel) {
     await setPendingPublish(user.id, post.id, script);
-    await api.sendMessage(chatId, t(locale, "pub.ask_channel"), { reply_markup: new InlineKeyboard().url(t(locale, "pub.add_bot"), addBotAsAdminLink()) });
+    await api.sendMessage(chatId, t(locale, "pub.ask_channel", { bot: botHandle() }), { reply_markup: new InlineKeyboard().url(t(locale, "pub.add_bot"), addBotAsAdminLink()) });
   } else if (await getPendingPublish(user.id)) {
     // A newer link replaces an older "which channel?" question.
     await clearPendingPublish(user.id);
@@ -211,7 +212,7 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
   }
   if (!brand.channel) {
     await setPendingPublish(user.id, post.id, script);
-    await api.sendMessage(chatId, t(locale, "pub.ask_channel"), { reply_markup: new InlineKeyboard().url(t(locale, "pub.add_bot"), addBotAsAdminLink()) });
+    await api.sendMessage(chatId, t(locale, "pub.ask_channel", { bot: botHandle() }), { reply_markup: new InlineKeyboard().url(t(locale, "pub.add_bot"), addBotAsAdminLink()) });
     return;
   }
   const blanks = findPlaceholders(shownText(post, script));

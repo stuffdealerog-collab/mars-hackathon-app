@@ -99,3 +99,39 @@ export function ownerFacing(st: Strategy, lang: Lang, unknownWhere: string): voi
   }));
   st.pillars = st.pillars.map((p) => ({ ...p, name: clean(p.name), examples: p.examples.filter(keep).map(clean) }));
 }
+
+const TIME_SOURCE: Record<Lang, Record<string, string>> = {
+  uz: { data: "kanalingiz ma’lumotlari bo‘yicha", learned: "o‘tgan rejalar natijasi bo‘yicha", competitor: "raqobatchilar bo‘yicha", benchmark: "sohadagi kanallar bo‘yicha", prior: "taxminiy" },
+  ru: { data: "по данным вашего канала", learned: "по итогам прошлых планов", competitor: "по конкурентам", benchmark: "по каналам вашей ниши", prior: "ориентировочно" },
+  en: { data: "from your channel's data", learned: "from past plans' results", competitor: "from competitors", benchmark: "from channels in your niche", prior: "a rule of thumb" },
+};
+
+const REASON: Record<Lang, Record<string, string>> = {
+  uz: { narx: "narx", video: "video", "birinchi postlar": "birinchi postlar", bayram: "bayram", aksiya: "aksiya", raqobatchi: "raqobatchi nomi", "da'vo": "da’vo", mijoz: "mijoz fikri", til: "kanal yozmaydigan til", critic: "tekshiruv izohi" },
+  ru: { narx: "цена", video: "видео", "birinchi postlar": "первые посты", bayram: "праздник", aksiya: "акция", raqobatchi: "имя конкурента", "da'vo": "обещание", mijoz: "отзыв клиента", til: "язык, на котором канал не пишет", critic: "замечание проверки" },
+  en: { narx: "price", video: "video", "birinchi postlar": "first posts", bayram: "holiday", aksiya: "promotion", raqobatchi: "competitor name", "da'vo": "claim", mijoz: "customer review", til: "a language the channel doesn't use", critic: "review note" },
+};
+
+const EXP: Record<Lang, { label: string; v: Record<string, string> }> = {
+  uz: { label: "Sinov", v: { hour: "vaqt", format: "format", hookType: "boshlanish", length: "uzunlik", language: "til" } },
+  ru: { label: "Тест", v: { hour: "время", format: "формат", hookType: "первая строка", length: "длина", language: "язык" } },
+  en: { label: "Test", v: { hour: "time", format: "format", hookType: "opening line", length: "length", language: "language" } },
+};
+
+const META_LABEL: Record<Lang, { time: string; approve: string; none: string }> = {
+  uz: { time: "Vaqt", approve: "Tasdiq", none: "shart emas" },
+  ru: { time: "Время", approve: "Подтвердить", none: "не нужно" },
+  en: { time: "Time", approve: "Approve", none: "not needed" },
+};
+
+/**
+ * Why a slot has its time and why it waits for approval, in the owner's language and without ledger ids
+ * ("Время: по данным вашего канала · Подтвердить: цена, первые посты · Тест: время").
+ */
+export function briefMetaText(s: { timeSource: string; reasons: string[]; exp?: string }, lang: Lang): string {
+  const L = META_LABEL[lang] ?? META_LABEL.uz;
+  const reasons = [...new Set(s.reasons.map((r) => (r.startsWith("critic:") ? REASON[lang].critic : (REASON[lang][r] ?? r))))];
+  const parts = [`${L.time}: ${TIME_SOURCE[lang][s.timeSource] ?? TIME_SOURCE[lang].prior}`, `${L.approve}: ${reasons.join(", ") || L.none}`];
+  if (s.exp) parts.push(`${EXP[lang].label}: ${EXP[lang].v[s.exp] ?? s.exp}`);
+  return parts.join(" · ");
+}
