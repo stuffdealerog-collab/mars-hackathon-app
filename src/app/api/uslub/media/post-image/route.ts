@@ -120,7 +120,10 @@ async function poll(req: Request): Promise<Response> {
     const postId = new URL(req.url).searchParams.get("postId")?.trim() ?? "";
     if (!postId) throw new PictureError(400, "bad_input");
     const telegramId = telegramUserId(req);
-    const { post } = await loadPost(postId, telegramId);
+    const { post, brand } = await loadPost(postId, telegramId);
+    // Same rule as the POST: a post's picture is draft material. The poll below refreshes the job as
+    // authorised (pollPostImage passes { authorized: true }) only after this check.
+    await assertDraftAccess(brand, telegramId);
     if (!post.image) return json({ image: null });
     const image = await pollPostImage({ post, actor: { telegramId } }, postImageDeps());
     return json({ image: image ? publicPostImage(image) : null });

@@ -25,6 +25,8 @@ vi.mock("@/lib/uslub/media/route-errors", async () => await import("./route-erro
 vi.mock("@/lib/uslub/visual/images", async () => await import("../visual/images"));
 vi.mock("@/lib/uslub/visual/service", async () => await import("../visual/service"));
 vi.mock("@/lib/uslub/visual/storage", async () => await import("../visual/storage"));
+vi.mock("@/lib/uslub/visual/learn", async () => await import("../visual/learn"));
+vi.mock("@/lib/uslub/visual/repo", async () => await import("../visual/repo"));
 
 // The provider: a scripted fal stand-in behind the real job system (memory repo).
 const { MediaJobs } = await import("./jobs");
@@ -55,13 +57,14 @@ vi.mock("@/lib/uslub/media/post-image-service", () => ({
 }));
 
 const store = await import("../store");
-const { POST } = await import("../../../app/api/uslub/media/post-image/route");
+const { POST, GET } = await import("../../../app/api/uslub/media/post-image/route");
+const visualRoute = await import("../../../app/api/uslub/visual/route");
 import type { BrandDNA, PostDraft } from "../contract";
 
 const dna = { name: "Test", oneLiner: "Uyda tort", products: [], languages: ["uz_latn"] } as unknown as BrandDNA;
 
-async function makePost(owner: number | null) {
-  const brand = await store.saveBrand({ channel: "tortchi_test", knowledge: "Uyda tort pishiraman.", samplePosts: [], dna, mode: "channel" }, owner, "custom");
+async function makePost(owner: number | null, source: "custom" | "channel_only" = "custom") {
+  const brand = await store.saveBrand({ channel: "tortchi_test", knowledge: "Uyda tort pishiraman.", samplePosts: [], dna, mode: "channel" }, owner, source);
   const post: PostDraft = {
     id: crypto.randomUUID(),
     brandId: brand.id,
@@ -111,5 +114,35 @@ describe("POST /api/uslub/media/post-image and claimed web brands", () => {
     const res = await anonymousPost(crypto.randomUUID());
     expect(res.status).toBe(404);
     expect(await res.json()).toMatchObject({ code: "not_found" });
+  });
+});
+
+const anonymousGet = (path: string) =>
+  new Request(`https://mercat.test${path}`, { headers: { "x-forwarded-for": "203.0.113.8" } });
+
+describe("GET routes follow the same draft rule as the POSTs", () => {
+  // channel_only rows are readable by anyone with the id (public channel data); a post's picture and
+  // the brand's style (with the owner's photos) are drafts: owner, unowned brand, or claimed web brand only.
+  it("an owned channel_only brand: anonymous poll and style read are refused, nothing is polled", async () => {
+    const { brand, post } = await makePost(777, "channel_only");
+    await savePostImage(post.id, { status: "running", jobId: "00000000-0000-4000-8000-00000000abcd", refsUsed: 2, url: "https://v3b.fal.media/files/x.jpg" });
+    const poll = await GET(anonymousGet(`/api/uslub/media/post-image?postId=${post.id}&lang=en`));
+    expect(poll.status).toBe(403);
+    expect(await poll.json()).toEqual({ error: "This brand belongs to another Telegram user.", code: "forbidden" });
+    const style = await visualRoute.GET(anonymousGet(`/api/uslub/visual?brandId=${brand.id}&lang=ru`));
+    expect(style.status).toBe(403);
+    expect(await style.json()).toMatchObject({ code: "forbidden" });
+  });
+
+  it("a web brand claimed in the bot: the anonymous id holder still polls its picture and reads its style", async () => {
+    const { brand, post } = await makePost(null, "channel_only");
+    await anonymousPost(post.id); // starts a picture while the brand is unowned
+    expect(await store.claimBrand(brand.id, 4243)).not.toBeNull();
+    const poll = await GET(anonymousGet(`/api/uslub/media/post-image?postId=${post.id}`));
+    expect(poll.status).toBe(200);
+    expect((await poll.json()).image).toMatchObject({ status: expect.stringMatching(/queued|running/) });
+    const style = await visualRoute.GET(anonymousGet(`/api/uslub/visual?brandId=${brand.id}`));
+    expect(style.status).toBe(200);
+    expect(await style.json()).toEqual({ visual: null });
   });
 });
