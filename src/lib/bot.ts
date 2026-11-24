@@ -90,7 +90,10 @@ async function startOnboarding(
   await runLater(() =>
     runWithContext({ route: "bot/onboard", lang: locale, telegramId: userId }, async () => {
       try {
-        await runOnboardingInTime(api, chatId, userId, input, locale);
+        const run = await runOnboardingInTime(api, chatId, userId, input, locale);
+        // After "this is taking long" the owner has an answer, but the run itself goes on: keep the spend gate (and
+        // this after() task, so the function stays up) until it really ends — a retry tap meanwhile is "busy".
+        await run.settled;
       } finally {
         onboardGate.leave(userId);
         await flushUsage();

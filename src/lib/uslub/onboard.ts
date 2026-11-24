@@ -153,9 +153,11 @@ export const retryOnboardData = (channel: string) => `ob:${channel}`;
 export const RETRY_ONBOARD_RE = /^ob:([A-Za-z][A-Za-z0-9_]{3,31})$/;
 
 /**
- * runOnboarding within ONBOARD_BUDGET_MS. If it is not done by then, the owner gets a localized "this took too
- * long" message (with a "try again" button for a channel link, or a request to resend the description), and the
- * late run stays silent. Returns "done" or "timeout".
+ * runOnboarding within ONBOARD_BUDGET_MS. If it is not done by then, the owner gets a localized "this is taking
+ * long" message right away (with a "try again" button for a channel link, or a request to resend the description)
+ * instead of silence. The slow run is NOT abandoned: `settled` resolves when it really ends (it still delivers its
+ * result if it finishes in time). Callers keep the spend gate — and the function alive — until `settled`, so a
+ * retry tap can never start a second paid run next to the first one.
  */
 export async function runOnboardingInTime(
   api: Api,
@@ -164,18 +166,16 @@ export async function runOnboardingInTime(
   input: Exclude<OnboardInput, null>,
   locale: Locale = "uz",
   budgetMs = ONBOARD_BUDGET_MS,
-): Promise<"done" | "timeout"> {
+): Promise<{ result: "done" | "timeout"; settled: Promise<void> }> {
   const started = Date.now();
-  let timedOut = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const work = runOnboarding(api, chatId, userId, input, locale, { deadline: started + budgetMs - 10_000, cancelled: () => timedOut }).then(() => "done" as const);
+  const settled = runOnboarding(api, chatId, userId, input, locale, { deadline: started + budgetMs - 10_000 });
   const late = new Promise<"timeout">((resolve) => {
     timer = setTimeout(() => resolve("timeout"), budgetMs);
   });
-  const result = await Promise.race([work, late]);
+  const result = await Promise.race([settled.then(() => "done" as const), late]);
   clearTimeout(timer);
-  if (result === "done") return "done";
-  timedOut = true;
+  if (result === "done") return { result, settled };
   await safeLogEvent(userId, "bot_onboard_timeout", { ms: Date.now() - started, kind: "channel" in input ? "channel" : "text" });
   if ("channel" in input) {
     await api
@@ -186,5 +186,5 @@ export async function runOnboardingInTime(
   } else {
     await api.sendMessage(chatId, t(locale, "bot.too_slow_text")).catch(() => undefined);
   }
-  return "timeout";
+  return { result: "timeout", settled };
 }
