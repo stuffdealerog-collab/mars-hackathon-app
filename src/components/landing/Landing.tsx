@@ -110,7 +110,10 @@ function Hero() {
           {c.start.emptyToggle}
         </Link>
         <p className="text-[15px] text-ink-2">
-          {c.landing.price} <span className="ml-1 rounded-md border border-line-2 px-1.5 py-0.5 text-[12.5px] text-ink-2">{c.landing.beta}</span>
+          {/* The no-break space keeps the beta tag on the price's last line. */}
+          {keepNumbers(c.landing.price)}
+          {" "}
+          <span className="ml-1 whitespace-nowrap rounded-md border border-line-2 px-1.5 py-0.5 text-[12.5px] text-ink-2">{c.landing.beta}</span>
         </p>
       </div>
     </section>
@@ -127,7 +130,7 @@ function Example() {
       </h2>
       <p className="mt-2 max-w-[60ch] text-[15px] leading-relaxed text-ink-2">{l.exampleNote}</p>
 
-      <div className="mt-7 grid gap-4 md:grid-cols-2 md:items-start">
+      <div className="mt-7 grid gap-4 md:grid-cols-2">
         <div className="card p-5">
           <p className="text-[14px] text-ink-3">{l.exampleFindingLabel}</p>
           <p className="mt-2 text-[17px] font-medium leading-snug">{l.exampleFinding}</p>

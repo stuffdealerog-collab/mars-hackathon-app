@@ -2,7 +2,8 @@
 
 import { Check, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { fmt, useCopy, useInitLang } from "../ui/lang";
+import type { Script } from "@/lib/uslub/contract";
+import { fmt, useCopy, useInitLang, useLang, type Lang } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel } from "../ui/parts";
 import { ChannelTab } from "./ChannelTab";
 import { PostCard } from "./PostCard";
@@ -25,21 +26,23 @@ export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: stri
   useEffect(() => {
     if (booted.current) return;
     booted.current = true;
-    const st = useStudio.getState();
-    st.configure({ bot });
+    useStudio.getState().configure({ bot });
+    const st = useStudio.getState(); // read after configure: it sets `sample`
+    // Sample mode shows the made-up bakery straight away: a link form there would only pretend.
+    if (st.sample) {
+      st.startChannel("namuna");
+      return;
+    }
     const p = new URLSearchParams(window.location.search);
     const brand = p.get("brand");
-    const channel = p.get("channel");
-    if (brand && !st.sample) {
+    if (brand) {
       void st.reopen(brand);
       return;
     }
     // The landing's "Boshlash" hands over the channel: the owner already pressed start.
+    const channel = p.get("channel");
     const name = channel ? parseChannel(channel) : null;
-    if (name) {
-      if (st.sample) useStudio.setState({ entry: { view: "link", channel: `t.me/${name}` } });
-      else st.startChannel(name);
-    }
+    if (name) st.startChannel(name);
   }, [bot]);
 
   return (
@@ -144,15 +147,18 @@ function Working() {
 
   return (
     <div className="pt-6 sm:pt-12">
-      <h1 ref={head} tabIndex={-1} className="text-[28px] font-semibold leading-tight tracking-[-0.02em] outline-none sm:text-[34px]">
-        {problem ? c.error.title : c.work.title}
-      </h1>
+      <div className="flex items-baseline justify-between gap-4">
+        <h1 ref={head} tabIndex={-1} className="text-[28px] font-semibold leading-tight tracking-[-0.02em] outline-none sm:text-[34px]">
+          {problem ? c.error.title : c.work.title}
+        </h1>
+        {!problem && (
+          <span className="shrink-0 text-[15px] text-ink-3">
+            <Elapsed />
+          </span>
+        )}
+      </div>
       {input.channel && <p className="mt-1 text-[16px] text-ink-2">@{input.channel}</p>}
-      {!problem && (
-        <p className="mt-3 text-[15px] text-ink-2">
-          {c.work.note} <Elapsed />
-        </p>
-      )}
+      {!problem && <p className="mt-3 text-[15px] text-ink-2">{c.work.note}</p>}
 
       <ol className="mt-7 flex flex-col gap-3.5" aria-live="polite">
         {steps.map((s) => {
@@ -267,15 +273,41 @@ function Ready({ inTelegram }: { inTelegram: boolean }) {
   );
 }
 
+const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
+const SCRIPT_FOR: Record<Lang, Script> = { uz: "uz_latn", ru: "ru", en: "en" };
+
 function PostsTab({ inTelegram }: { inTelegram: boolean }) {
   const c = useCopy();
+  const lang = useLang((s) => s.lang);
   const posts = useStudio((s) => s.posts);
+  const picked = useStudio((s) => s.postScript);
+  const setPostScript = useStudio((s) => s.setPostScript);
   if (!posts.length) return <p className="text-[15px] text-ink-2">{c.posts.none}</p>;
+
+  // One switch for the whole list; it follows the page language until the owner picks.
+  const available = SCRIPTS.filter((s) => posts.some((p) => p.variants[s]?.trim()));
+  const fallback = available.includes(SCRIPT_FOR[lang]) ? SCRIPT_FOR[lang] : (available[0] ?? "uz_latn");
+  const script = picked && available.includes(picked) ? picked : fallback;
+
   return (
     <div className="flex flex-col gap-5">
       <p className="text-[15px] leading-relaxed text-ink-2">{c.posts.intro}</p>
+      {available.length > 1 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="text-[14px] text-ink-2" id="post-lang">
+            {c.posts.langLabel}
+          </span>
+          <div className="seg" role="group" aria-labelledby="post-lang">
+            {available.map((s) => (
+              <button key={s} type="button" aria-pressed={script === s} title={c.posts.scriptNames[s]} onClick={() => setPostScript(s)}>
+                {c.posts.scripts[s]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {posts.map((p) => (
-        <PostCard key={p.id} post={p} inTelegram={inTelegram} />
+        <PostCard key={p.id} post={p} script={p.variants[script]?.trim() ? script : "uz_latn"} inTelegram={inTelegram} />
       ))}
     </div>
   );

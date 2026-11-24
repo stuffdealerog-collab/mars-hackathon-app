@@ -2,7 +2,7 @@
 
 import { ArrowLeft, ImagePlus, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
-import { useCopy } from "../ui/lang";
+import { keepNumbers, useCopy } from "../ui/lang";
 import { parseChannel, Steps } from "../ui/parts";
 import { useStudio } from "./store";
 
@@ -48,7 +48,8 @@ export function Start({ initialView = "link", initialChannel = "" }: { initialVi
           {problem.message}
         </p>
       )}
-      <HowItWorks />
+      {/* Once the owner chose the description path, the overview is behind them. */}
+      {view === "link" && <HowItWorks />}
     </div>
   );
 }
@@ -191,7 +192,7 @@ function FreshForm({ onBack }: { onBack: () => void }) {
           <textarea
             id={`${id}-d`}
             className="input min-h-[150px]"
-            placeholder={c.fresh.descPh}
+            placeholder={keepNumbers(c.fresh.descPh)}
             value={desc}
             aria-invalid={descBad || undefined}
             aria-describedby={`${id}-dh`}

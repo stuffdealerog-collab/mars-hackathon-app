@@ -62,29 +62,29 @@ const PLAN: { day: number; time: string; goal: Goal; hook: L3 }[] = [
 
 const POSTS: { uz: string; ru: string; en: string }[] = [
   {
-    uz: "Ertalab 7:00 dan issiq patir bor 🫓\n\nKatta patir — 12 000 so‘m, kichigi — 7 000 so‘m. Chilonzor 9-kvartal, bozor yonida.\n\nOldindan buyurtma: shu kanalga yozing, soat 7 ga tayyorlab qo‘yamiz.",
-    ru: "С 7:00 утра горячие лепёшки 🫓\n\nБольшая патыр — 12 000 сум, маленькая — 7 000 сум. Чиланзар, 9-й квартал, рядом с базаром.\n\nЗаказ заранее: напишите в этот канал, приготовим к 7 утра.",
-    en: "Hot flatbread from 7:00 in the morning 🫓\n\nLarge patir — 12,000 UZS, small — 7,000 UZS. Chilonzor, block 9, next to the bazaar.\n\nOrder ahead: write to this channel and we’ll have it ready by 7.",
+    uz: "Ertalab 7:00 dan issiq patir bor 🫓\n\nKatta patir — 12 000 so‘m, kichigi — 7 000 so‘m. Chilonzor 9-kvartal, bozor yonida.\n\nOldindan buyurtma uchun adminga yozing — soat 7 ga tayyorlab qo‘yamiz.",
+    ru: "С 7:00 утра горячие лепёшки 🫓\n\nБольшой патыр — 12 000 сум, маленький — 7 000 сум. Чиланзар, 9-й квартал, рядом с базаром.\n\nЗаказ заранее: напишите админу, приготовим к 7 утра.",
+    en: "Hot flatbread from 7:00 in the morning 🫓\n\nLarge patir — 12,000 UZS, small — 7,000 UZS. Chilonzor, block 9, next to the bazaar.\n\nOrder ahead: message the admin and we’ll have it ready by 7.",
   },
   {
     uz: "Tandirni har kuni soat 5 da yoqamiz. Bir soatda kerakli issiqlik chiqadi — shundan keyingina birinchi xamir kiradi.\n\nShuning uchun patirimizning tagi qarsillaydi, ichi yumshoq bo‘ladi.\n\nErtalab o‘tib keting, issig‘idan oling.",
-    ru: "Тандыр мы разжигаем каждый день в 5 утра. За час он набирает нужный жар — только потом идёт первое тесто.\n\nПоэтому у нашей патыр хрустящее дно и мягкая середина.\n\nЗаходите утром, берите горячую.",
+    ru: "Тандыр мы разжигаем каждый день в 5 утра. За час он набирает нужный жар — только потом идёт первое тесто.\n\nПоэтому у нашего патыра хрустящее дно и мягкая середина.\n\nЗаходите утром, берите горячий.",
     en: "We light the tandir at 5 every morning. It takes an hour to reach the right heat — only then does the first dough go in.\n\nThat’s why our patir is crisp underneath and soft inside.\n\nCome by in the morning and take one hot.",
   },
   {
-    uz: "Oldindan buyurtma bersangiz, navbat kutmaysiz.\n\nKechqurun shu kanalga yozing: qaysi non va nechta. Ertalab 7:00 da nomingiz yozilgan qopda tayyor turadi.\n\nPatir — 12 000 so‘m, obi non — 5 000 so‘m.",
-    ru: "Закажите заранее — и не стойте в очереди.\n\nВечером напишите в этот канал: какой хлеб и сколько. В 7:00 утра всё будет готово, в пакете с вашим именем.\n\nПатыр — 12 000 сум, оби нон — 5 000 сум.",
-    en: "Order ahead and skip the queue.\n\nWrite to this channel in the evening: which bread and how many. It’ll be ready at 7:00, in a bag with your name on it.\n\nPatir — 12,000 UZS, obi non — 5,000 UZS.",
+    uz: "Oldindan buyurtma bersangiz, navbat kutmaysiz.\n\nKechqurun adminga yozing: qaysi non va nechta. Ertalab 7:00 da nomingiz yozilgan qopda tayyor turadi.\n\nPatir — 12 000 so‘m, obi non — 5 000 so‘m.",
+    ru: "Закажите заранее — и не стойте в очереди.\n\nВечером напишите админу: какой хлеб и сколько. В 7:00 утра всё будет готово, в пакете с вашим именем.\n\nПатыр — 12 000 сум, оби нон — 5 000 сум.",
+    en: "Order ahead and skip the queue.\n\nMessage the admin in the evening: which bread and how many. It’ll be ready at 7:00, in a bag with your name on it.\n\nPatir — 12,000 UZS, obi non — 5,000 UZS.",
   },
   {
-    uz: "Qaysi non nimaga mos?\n\n🍲 Sho‘rvaga — obi non: ichi yumshoq, sho‘rvani yaxshi shimib oladi.\n🍚 Oshga — yupqa patir.\n🫖 Choyga — kunjutli kulcha.\n\nSiz qaysi birini olasiz? Izohda yozing.",
-    ru: "Какой хлеб к чему?\n\n🍲 К шурпе — оби нон: мягкий, хорошо впитывает бульон.\n🍚 К плову — тонкая патыр.\n🫖 К чаю — кульча с кунжутом.\n\nА вы какой берёте? Напишите в комментариях.",
-    en: "Which bread goes with what?\n\n🍲 With shurpa — obi non: soft, soaks up the broth.\n🍚 With plov — thin patir.\n🫖 With tea — sesame kulcha.\n\nWhich one do you take? Tell us in the comments.",
+    uz: "Qaysi non nimaga mos?\n\nSho‘rvaga — obi non: ichi yumshoq, sho‘rvani yaxshi shimib oladi. Oshga — yupqa patir. Choyga — kunjutli kulcha.\n\nSiz qaysi birini ko‘proq olasiz?",
+    ru: "Какой хлеб к чему?\n\nК шурпе — оби нон: мягкий, хорошо впитывает бульон. К плову — тонкий патыр. К чаю — кульча с кунжутом.\n\nА вы какой берёте чаще?",
+    en: "Which bread goes with what?\n\nWith shurpa — obi non: soft, it soaks up the broth. With plov — a thin patir. With tea — sesame kulcha.\n\nWhich one do you buy most?",
   },
   {
-    uz: "Juma kuni uyda osh bo‘lsa, katta patirni oldindan buyurtma qiling.\n\nKatta patir — 12 000 so‘m. Payshanba kechqurungacha yozing, juma ertalab 7:00 da tayyor bo‘ladi.\n\nChilonzor 9-kvartal, bozor yonida.",
-    ru: "Если в пятницу дома плов — закажите большую патыр заранее.\n\nБольшая патыр — 12 000 сум. Напишите до вечера четверга, в пятницу в 7:00 будет готово.\n\nЧиланзар, 9-й квартал, рядом с базаром.",
-    en: "Having plov at home on Friday? Order a large patir ahead.\n\nLarge patir — 12,000 UZS. Write by Thursday evening and it’ll be ready on Friday at 7:00.\n\nChilonzor, block 9, next to the bazaar.",
+    uz: "Juma kuni uyda osh bo‘lsa, katta patirni oldindan buyurtma qiling.\n\nKatta patir — 12 000 so‘m. Payshanba kechqurungacha adminga yozing, juma ertalab 7:00 da tayyor bo‘ladi.\n\nChilonzor 9-kvartal, bozor yonida.",
+    ru: "Если в пятницу дома плов — закажите большой патыр заранее.\n\nБольшой патыр — 12 000 сум. Напишите админу до вечера четверга, в пятницу в 7:00 будет готово.\n\nЧиланзар, 9-й квартал, рядом с базаром.",
+    en: "Having plov at home on Friday? Order a large patir ahead.\n\nLarge patir — 12,000 UZS. Message the admin by Thursday evening and it’ll be ready on Friday at 7:00.\n\nChilonzor, block 9, next to the bazaar.",
   },
 ];
 
@@ -114,7 +114,7 @@ export function sampleBrand(lang: Lang): BrandProfile {
       address: "siz",
       emojiDensity: "low",
       avgPostLength: 320,
-      ctaStyle: L({ uz: "«Kanalga yozing, olib qo‘yamiz»", ru: "«Напишите в канал, отложим для вас»", en: "“Write to the channel, we’ll keep one for you”" }),
+      ctaStyle: L({ uz: "«Adminga yozing, olib qo‘yamiz»", ru: "«Напишите админу, отложим для вас»", en: "“Message the admin, we’ll keep one for you”" }),
       hashtags: [],
       recurringFormats: [],
       products: ["patir", "obi non", "kulcha"],

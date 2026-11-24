@@ -1,7 +1,7 @@
 import type { ChannelAudit } from "@/lib/uslub/contract";
 import { useCopy, useLang, fmt, num } from "../ui/lang";
 import { isMachineEvidence, ownerText, weekday } from "../ui/format";
-import { useStudio } from "./store";
+import { slotKey, useStudio } from "./store";
 
 const KIND_ORDER = { problem: 0, opportunity: 1, strength: 2 } as const;
 
@@ -124,6 +124,7 @@ function Voice() {
 
 function Plan() {
   const c = useCopy();
+  const lang = useLang((s) => s.lang);
   const mode = useStudio((s) => s.mode);
   const plan = useStudio((s) => s.plan);
   const posts = useStudio((s) => s.posts);
@@ -131,6 +132,10 @@ function Plan() {
   const planStep = useStudio((s) => s.steps.find((x) => x.key === "plan"));
   const rebuild = useStudio((s) => s.rebuildPlan);
   const setTab = useStudio((s) => s.setTab);
+  const writeSlot = useStudio((s) => s.writeSlot);
+  const writing = useStudio((s) => s.writingSlot);
+  const sample = useStudio((s) => s.sample);
+  const brand = useStudio((s) => s.brand);
   const title = mode === "fresh" ? c.channel.planFreshTitle : c.channel.planTitle;
 
   if (!plan) {
@@ -160,24 +165,36 @@ function Plan() {
       <ol className="card divide-y divide-line">
         {plan.items.map((it, i) => {
           const d = weekday(it.day);
-          const has = posts.some((p) => p.slot && p.slot.day === it.day && p.slot.time === it.time);
+          const key = slotKey(it);
+          const has = posts.some((p) => p.slot && slotKey(p.slot) === key);
+          const busy = writing[key];
           return (
             <li key={i} className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 px-4 py-3.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:px-5">
               <div className="text-[14px] leading-snug text-ink-2">
                 <span className="block">{d != null ? c.weekdays[d] : it.day}</span>
-                <span className="tnum block text-ink-3">{it.time}</span>
+                <span className="block text-ink-3">{it.time}</span>
               </div>
               <div className="min-w-0">
-                <p className="text-[15px] leading-snug">{it.hook}</p>
+                <p className="text-[15px] leading-snug">{ownerText(it.hook, lang)}</p>
                 <p className="mt-1 text-[13.5px] text-ink-3">
                   {c.channel.goal[it.goal]}
-                  {has && (
+                  {has ? (
                     <>
                       {" · "}
                       <button type="button" onClick={() => setTab("posts")} className="link text-ink-2">
                         {c.channel.planHasPost}
                       </button>
                     </>
+                  ) : (
+                    !sample &&
+                    brand && (
+                      <>
+                        {" · "}
+                        <button type="button" disabled={busy} onClick={() => void writeSlot(it)} className={`link text-ink-2 ${busy ? "breathe no-underline" : ""}`}>
+                          {busy ? c.channel.writingSlot : c.channel.writeSlot}
+                        </button>
+                      </>
+                    )
                   )}
                 </p>
               </div>

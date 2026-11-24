@@ -7,7 +7,7 @@
  * Each step keeps its result, so "Qayta urinish" resumes from the step that failed.
  * No sample data unless the page was opened with ?mock=1.
  */
-import type { BrandProfile, ChannelAudit, ContentPlan, PostDraft, PostImage, Script, Strategy } from "@/lib/uslub/contract";
+import type { BrandProfile, ChannelAudit, ContentPlan, PlanItem, PostDraft, PostImage, Script, Strategy } from "@/lib/uslub/contract";
 import { create } from "zustand";
 import { COPY } from "../ui/copy";
 import { useLang, type Lang } from "../ui/lang";
@@ -63,8 +63,14 @@ interface StudioState {
   edited: Record<string, Partial<Record<Script, string>>>;
   busy: Record<string, "approve" | "publish" | undefined>;
   postNote: Record<string, { text: string; href?: string; link?: string; tone: "ok" | "bad" } | undefined>;
+  /** The script the post list shows (one switch for all cards); null = follow the page language. */
+  postScript: Script | null;
+  /** Plan slots ("day time") whose post is being written on request. */
+  writingSlot: Record<string, boolean>;
 
   configure: (o: { bot: string }) => void;
+  setPostScript: (s: Script) => void;
+  writeSlot: (item: PlanItem) => Promise<void>;
   startChannel: (channel: string) => void;
   startFresh: (input: { knowledge: string; channel?: string; photos?: string[] }) => void;
   retry: () => void;
@@ -96,6 +102,9 @@ const isEmptyChannel = (f: Fail) => f.code === "channel_empty";
 const missingRoute = (f: Fail) => f.status === 404 && f.code !== "brand_not_found" && f.code !== "post_not_found";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** A plan slot's identity, shared by the plan row and the post written from it. */
+export const slotKey = (s: { day: string; time: string }) => `${s.day} ${s.time}`;
 
 function stepsFor(mode: Mode, hasPhotos: boolean): Step[] {
   const keys: StepKey[] = ["read", "voice"];
@@ -346,10 +355,32 @@ export const useStudio = create<StudioState>((set, get) => {
     edited: {},
     busy: {},
     postNote: {},
+    postScript: null,
+    writingSlot: {},
 
     configure: ({ bot }) => {
       const p = new URLSearchParams(window.location.search);
       set({ bot, sample: api.sampleMode(), entry: { view: p.get("mode") === "fresh" ? "fresh" : "link", channel: "" } });
+    },
+
+    setPostScript: (postScript) => set({ postScript }),
+
+    /** Writes the post for one more plan slot (the run writes only the first few). */
+    writeSlot: async (item) => {
+      const brand = get().brand;
+      if (!brand || get().sample) return;
+      const key = slotKey(item);
+      const my = runId;
+      set({ writingSlot: { ...get().writingSlot, [key]: true }, problem: null });
+      const r = await api.writePosts(brand.id, [api.slotOf(item)], lang());
+      set({ writingSlot: { ...get().writingSlot, [key]: false } });
+      if (my !== runId) return;
+      if (!r.ok) {
+        set({ problem: problemOf(r) });
+        return;
+      }
+      set({ posts: [...get().posts, ...r.data.posts] });
+      void pictures(my);
     },
 
     startChannel: (channel) => {
