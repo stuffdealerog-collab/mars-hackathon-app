@@ -2,10 +2,10 @@ import { z } from "zod";
 import { safeLogEvent } from "@/lib/track";
 import { buildBrand } from "@/lib/uslub/brand";
 import { generatePosts } from "@/lib/uslub/copywriter";
-import { handle, HttpError, json, rateLimit, readJson } from "@/lib/uslub/http";
+import { handle, HttpError, json, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import { findLeads } from "@/lib/uslub/radar";
 import { classifySensitivity } from "@/lib/uslub/sensitivity";
-import { countPublished, savePosts } from "@/lib/uslub/store";
+import { countPublished, publicBrand, savePosts } from "@/lib/uslub/store";
 import { planVideo } from "@/lib/uslub/video";
 
 export const maxDuration = 120;
@@ -16,6 +16,7 @@ const Body = z.object({
   brief: z.string().max(1000).optional(),
   count: z.number().int().min(1).max(5).optional(),
   include: z.array(z.enum(["posts", "radar", "video"])).optional(),
+  initData: z.string().max(8192).optional(),
 });
 
 const errMsg = (r: PromiseSettledResult<unknown>) =>
@@ -33,7 +34,7 @@ export const POST = handle(async (req) => {
   const include = new Set(body.include ?? ["posts", "radar", "video"]);
   const started = Date.now();
 
-  const { brand, cached } = await buildBrand({ channel: body.channel, knowledge: body.knowledge });
+  const { brand, cached } = await buildBrand({ channel: body.channel, knowledge: body.knowledge, ownerTelegramId: telegramUserId(req, body.initData) });
   const brief = body.brief?.trim() || "Kanal uchun bu haftaning eng foydali postlari: mahsulot, mijozlar savoli va taklif";
 
   const [postsR, leadsR, videoR, publishedR] = await Promise.allSettled([
@@ -52,7 +53,7 @@ export const POST = handle(async (req) => {
   if (video) await safeLogEvent(null, "video_planned", { brand_id: brand.id, scenes: video.scenes.length });
 
   return json({
-    brand,
+    brand: publicBrand(brand),
     cached,
     posts: posts.map((p) => ({ ...p, sensitivity: classifySensitivity(p.variants.uz_latn, brief, { publishedCount: published }) })),
     leads,

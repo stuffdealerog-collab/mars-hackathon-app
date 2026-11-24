@@ -1,30 +1,41 @@
 import "server-only";
-import type { BrandProfile } from "./contract";
+import { brandSourceFor, isReusableBrand } from "./access";
 import { extractBrandDNA } from "./dna";
 import { scrapeChannel, ScrapeError, type ScrapedChannel } from "./scrape";
-import { findRecentBrandByChannel, saveBrand } from "./store";
+import { findChannelOnlyBrand, saveBrand, type StoredBrand } from "./store";
 
 export interface BuildBrandInput {
   channel?: string;
   knowledge?: string;
   samplePosts?: string[];
+  /** Verified Telegram user (bot ctx.from or validated Mini App initData); null for anonymous web. */
   ownerTelegramId?: number | null;
-  /** Reuse a brand built from the same channel in the last 24 h (default true when only a channel is given). */
-  useCache?: boolean;
 }
 
-/** Channel link and/or owner notes -> Brand DNA -> saved BrandProfile. */
-export async function buildBrand(input: BuildBrandInput): Promise<{ brand: BrandProfile; cached: boolean; channel?: ScrapedChannel }> {
+/**
+ * Channel link and/or owner notes -> Brand DNA -> saved brand.
+ * Cache: only pure channel scrapes are reused (never rows with owner-supplied text),
+ * and every caller gets their own row, so ownership is never shared.
+ */
+export async function buildBrand(input: BuildBrandInput): Promise<{ brand: StoredBrand; cached: boolean; channel?: ScrapedChannel }> {
   const knowledge = (input.knowledge ?? "").trim();
   const given = (input.samplePosts ?? []).map((p) => p.trim()).filter((p) => p.length > 1);
+  const owner = input.ownerTelegramId ?? null;
+  const source = brandSourceFor({ channel: input.channel, knowledge, samplePosts: given });
 
   let scraped: ScrapedChannel | undefined;
   if (input.channel?.trim()) {
     scraped = await scrapeChannel(input.channel);
-    const onlyChannel = !knowledge && !given.length;
-    if ((input.useCache ?? onlyChannel) && onlyChannel) {
-      const cached = await findRecentBrandByChannel(scraped.username);
-      if (cached) return { brand: cached, cached: true, channel: scraped };
+    const cached = source === "channel_only" ? await findChannelOnlyBrand(scraped.username) : null;
+    if (cached && isReusableBrand(cached, { channel: scraped.username })) {
+      if (cached.ownerTelegramId === owner) return { brand: cached, cached: true, channel: scraped };
+      // Same public DNA, but a separate row owned by this caller.
+      const copy = await saveBrand(
+        { channel: scraped.username, knowledge: "", samplePosts: cached.samplePosts, dna: cached.dna },
+        owner,
+        "channel_only",
+      );
+      return { brand: copy, cached: true, channel: scraped };
     }
   }
 
@@ -40,9 +51,6 @@ export async function buildBrand(input: BuildBrandInput): Promise<{ brand: Brand
     channelDescription: scraped?.description,
   });
 
-  const brand = await saveBrand(
-    { channel: scraped?.username, knowledge, samplePosts, dna },
-    input.ownerTelegramId ?? null,
-  );
+  const brand = await saveBrand({ channel: scraped?.username, knowledge, samplePosts, dna }, owner, source);
   return { brand, cached: false, channel: scraped };
 }

@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { getSql, isDbConfigured } from "@/lib/db";
 import { safeLogEvent } from "@/lib/track";
+import { BRAND_CACHE_MAX_AGE_HOURS, type BrandSource } from "./access";
 import type { BrandDNA, BrandProfile, Flow, NeuroHit, PostDraft, Script } from "./contract";
 
 /**
@@ -9,8 +10,20 @@ import type { BrandDNA, BrandProfile, Flow, NeuroHit, PostDraft, Script } from "
  * in-memory store when DATABASE_URL is missing (local dev / tests).
  */
 
+/** A brand as stored: the contract's BrandProfile plus ownership. Never send owner ids to clients (see publicBrand). */
+export type StoredBrand = BrandProfile & { ownerTelegramId: number | null; source: BrandSource };
+
+export const publicBrand = (b: StoredBrand): BrandProfile => ({
+  id: b.id,
+  channel: b.channel,
+  knowledge: b.knowledge,
+  samplePosts: b.samplePosts,
+  dna: b.dna,
+  createdAt: b.createdAt,
+});
+
 const mem = {
-  brands: new Map<string, BrandProfile & { ownerTelegramId?: number | null }>(),
+  brands: new Map<string, StoredBrand>(),
   posts: new Map<string, PostDraft>(),
   flows: new Map<string, Flow & { brandId?: string }>(),
 };
@@ -22,6 +35,8 @@ const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 
 type BrandRow = {
   id: string;
+  owner_telegram_id: string | number | null; // bigint arrives as string
+  source: string;
   channel: string | null;
   knowledge: string;
   sample_posts: string[];
@@ -29,13 +44,15 @@ type BrandRow = {
   created_at: Date | string;
 };
 
-const toBrand = (r: BrandRow): BrandProfile => ({
+const toBrand = (r: BrandRow): StoredBrand => ({
   id: r.id,
   channel: r.channel ?? undefined,
   knowledge: r.knowledge,
   samplePosts: r.sample_posts ?? [],
   dna: r.dna,
   createdAt: iso(r.created_at),
+  ownerTelegramId: r.owner_telegram_id == null ? null : Number(r.owner_telegram_id),
+  source: r.source === "channel_only" ? "channel_only" : "custom",
 });
 
 type PostRow = {
@@ -64,50 +81,69 @@ const toPost = (r: PostRow): PostDraft => ({
 
 /* ----------------------------------------------------------------- brands */
 
+const normChannel = (c?: string | null) => c?.replace(/^@/, "").toLowerCase() || null;
+
 export async function saveBrand(
   input: Omit<BrandProfile, "id" | "createdAt">,
-  ownerTelegramId: number | null = null,
-): Promise<BrandProfile> {
-  const channel = input.channel?.replace(/^@/, "").toLowerCase() || null;
+  ownerTelegramId: number | null,
+  source: BrandSource,
+): Promise<StoredBrand> {
+  const channel = normChannel(input.channel);
+  let brand: StoredBrand;
   if (!isDbConfigured()) {
-    const brand = { ...input, channel: channel ?? undefined, id: randomUUID(), createdAt: new Date().toISOString(), ownerTelegramId };
+    brand = { ...input, channel: channel ?? undefined, id: randomUUID(), createdAt: new Date().toISOString(), ownerTelegramId, source };
     mem.brands.set(brand.id, brand);
-    await safeLogEvent(ownerTelegramId, "brand_created", { brand_id: brand.id, channel });
-    return brand;
+  } else {
+    const rows = (await getSql()`
+      INSERT INTO brands (owner_telegram_id, source, channel, knowledge, sample_posts, dna)
+      VALUES (${ownerTelegramId}, ${source}, ${channel}, ${input.knowledge},
+              ${JSON.stringify(input.samplePosts)}::jsonb, ${JSON.stringify(input.dna)}::jsonb)
+      RETURNING id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, created_at
+    `) as BrandRow[];
+    brand = toBrand(rows[0]);
   }
-  const rows = (await getSql()`
-    INSERT INTO brands (owner_telegram_id, channel, knowledge, sample_posts, dna)
-    VALUES (${ownerTelegramId}, ${channel}, ${input.knowledge}, ${JSON.stringify(input.samplePosts)}::jsonb, ${JSON.stringify(input.dna)}::jsonb)
-    RETURNING id, channel, knowledge, sample_posts, dna, created_at
-  `) as BrandRow[];
-  const brand = toBrand(rows[0]);
-  await safeLogEvent(ownerTelegramId, "brand_created", { brand_id: brand.id, channel, samples: input.samplePosts.length });
+  await safeLogEvent(ownerTelegramId, "brand_created", { brand_id: brand.id, channel, source, samples: input.samplePosts.length });
   return brand;
 }
 
-export async function getBrand(id: string): Promise<BrandProfile | null> {
+export async function getBrand(id: string): Promise<StoredBrand | null> {
   if (!isUuid(id)) return null;
   if (!isDbConfigured()) return mem.brands.get(id) ?? null;
   const rows = (await getSql()`
-    SELECT id, channel, knowledge, sample_posts, dna, created_at FROM brands WHERE id = ${id}
+    SELECT id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, created_at FROM brands WHERE id = ${id}
   `) as BrandRow[];
   return rows[0] ? toBrand(rows[0]) : null;
 }
 
-/** Most recent brand built from this channel within `maxAgeHours` (cache for the 60-second demo path). */
-export async function findRecentBrandByChannel(channel: string, maxAgeHours = 24): Promise<BrandProfile | null> {
-  const key = channel.replace(/^@/, "").toLowerCase();
-  const since = new Date(Date.now() - maxAgeHours * 3600_000);
+/** Most recent channel_only brand for this channel (cache candidate; callers still check isReusableBrand). */
+export async function findChannelOnlyBrand(channel: string): Promise<StoredBrand | null> {
+  const key = normChannel(channel);
+  if (!key) return null;
+  const since = new Date(Date.now() - BRAND_CACHE_MAX_AGE_HOURS * 3600_000);
   if (!isDbConfigured()) {
-    const hits = [...mem.brands.values()].filter((b) => b.channel === key && new Date(b.createdAt) >= since);
+    const hits = [...mem.brands.values()].filter(
+      (b) => b.channel === key && b.source === "channel_only" && new Date(b.createdAt) >= since,
+    );
     return hits.at(-1) ?? null;
   }
   const rows = (await getSql()`
-    SELECT id, channel, knowledge, sample_posts, dna, created_at FROM brands
-    WHERE channel = ${key} AND created_at >= ${since.toISOString()} AND knowledge = ''
+    SELECT id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, created_at FROM brands
+    WHERE channel = ${key} AND source = 'channel_only' AND created_at >= ${since.toISOString()}
     ORDER BY created_at DESC LIMIT 1
   `) as BrandRow[];
   return rows[0] ? toBrand(rows[0]) : null;
+}
+
+/** Links a verified channel to a brand that had none (first authorized publish). */
+export async function linkBrandChannel(brandId: string, channel: string): Promise<void> {
+  const key = normChannel(channel);
+  if (!key) return;
+  if (!isDbConfigured()) {
+    const b = mem.brands.get(brandId);
+    if (b && !b.channel) mem.brands.set(brandId, { ...b, channel: key });
+    return;
+  }
+  await getSql()`UPDATE brands SET channel = ${key} WHERE id = ${brandId} AND channel IS NULL`;
 }
 
 /* ------------------------------------------------------------------ posts */
@@ -141,14 +177,14 @@ export async function getPost(id: string): Promise<PostDraft | null> {
   return rows[0] ? toPost(rows[0]) : null;
 }
 
-export async function markPublished(id: string, url: string | null, chat: string): Promise<void> {
+export async function markPublished(id: string, url: string | null, chat: string, telegramId: number): Promise<void> {
   if (!isDbConfigured()) {
     const p = mem.posts.get(id);
     if (p) mem.posts.set(id, { ...p, status: "published", publishedUrl: url ?? undefined });
   } else {
     await getSql()`UPDATE posts SET status = 'published', published_url = ${url} WHERE id = ${id}`;
   }
-  await safeLogEvent(null, "post_published", { post_id: id, chat });
+  await safeLogEvent(telegramId, "post_published", { post_id: id, chat });
 }
 
 export async function countPublished(brandId: string): Promise<number> {

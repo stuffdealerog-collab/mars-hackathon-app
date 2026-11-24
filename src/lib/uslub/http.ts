@@ -1,7 +1,36 @@
 import "server-only";
 import type { z } from "zod";
+import { getEnv } from "@/lib/env";
+import { authenticateRequest, validateInitData } from "@/lib/telegram-auth";
+import { canAccessBrand } from "./access";
+import { RateLimiter } from "./limit";
 import { LlmError } from "./llm";
 import { ScrapeError } from "./scrape";
+import { getBrand, type StoredBrand } from "./store";
+
+/**
+ * Verified Telegram user id from the Mini App: `Authorization: tma <initData>`
+ * header, or an `initData` body field. initData older than 24 h is rejected.
+ * Returns null for anonymous web callers.
+ */
+export function telegramUserId(req: Request, initData?: string): number | null {
+  const fromHeader = authenticateRequest(req);
+  if (fromHeader) return fromHeader.id;
+  const token = getEnv().TELEGRAM_BOT_TOKEN;
+  if (initData && token) {
+    const r = validateInitData(initData, token);
+    if (r.ok) return r.user.id;
+  }
+  return null;
+}
+
+/** Loads a brand the caller may use, or throws 404/403. */
+export async function loadBrandFor(brandId: string, userId: number | null): Promise<StoredBrand> {
+  const brand = await getBrand(brandId);
+  if (!brand) throw new HttpError(404, "Brand not found");
+  if (!canAccessBrand(brand, userId)) throw new HttpError(403, "This brand belongs to another Telegram user");
+  return brand;
+}
 
 /** Error with an HTTP status, rendered as `{ error }`. */
 export class HttpError extends Error {
@@ -21,7 +50,7 @@ export const errorResponse = (status: number, error: string) => json({ error }, 
 /* ------------------------------------------------------------- rate limit
  * Per-instance, per-IP sliding window. Protects API spend from a booth crowd
  * or a script; not a security boundary. */
-const buckets = new Map<string, number[]>();
+const limiters = new Map<string, RateLimiter>();
 
 export function clientIp(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for");
@@ -29,16 +58,11 @@ export function clientIp(req: Request): string {
 }
 
 export function rateLimit(req: Request, route: string, limit: number, windowMs = 60_000): void {
-  const key = `${route}:${clientIp(req)}`;
-  const now = Date.now();
-  const hits = (buckets.get(key) ?? []).filter((t) => now - t < windowMs);
-  if (hits.length >= limit) {
-    throw new HttpError(429, "Juda ko‘p so‘rov. Bir daqiqadan keyin qayta urinib ko‘ring.");
-  }
-  hits.push(now);
-  buckets.set(key, hits);
-  if (buckets.size > 5000) {
-    for (const [k, v] of buckets) if (!v.some((t) => now - t < windowMs)) buckets.delete(k);
+  let limiter = limiters.get(route);
+  if (!limiter) limiters.set(route, (limiter = new RateLimiter(limit, windowMs)));
+  const r = limiter.take(clientIp(req));
+  if (!r.ok) {
+    throw new HttpError(429, `Juda ko‘p so‘rov. ${Math.ceil(r.retryAfterMs / 1000)} soniyadan keyin qayta urinib ko‘ring.`);
   }
 }
 

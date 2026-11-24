@@ -5,7 +5,14 @@ import { isAiConfigured } from "./ai";
 import { getEnv, getPublicUrl } from "./env";
 import { pickLocale, t } from "./i18n";
 import { parseSource, safeLogEvent, track } from "./track";
-import { classifyOnboardText, ONBOARD_PROMPT, runOnboarding } from "./uslub/onboard";
+import {
+  classifyOnboardText,
+  gateMessage,
+  ONBOARD_PROMPT,
+  onboardGate,
+  publishFromBot,
+  runOnboarding,
+} from "./uslub/onboard";
 
 /**
  * Runs slow work after the webhook has answered Telegram (no retries on slow
@@ -82,15 +89,39 @@ function registerHandlers(b: Bot) {
       await ctx.reply(t(locale, "bot.ai_unavailable"));
       return;
     }
-    await ctx.reply(
-      "channel" in input
-        ? `Ishlayapman… @${input.channel} kanalini o‘qiyapman va brendingiz DNK-sini tuzyapman (taxminan 40 soniya).`
-        : "Ishlayapman… brendingiz DNK-sini tuzyapman va postlar yozyapman (taxminan 40 soniya).",
-    );
-    await ctx.replyWithChatAction("typing").catch(() => undefined);
+    // LLM spend guard: one onboarding in flight per user, at most 5 per hour.
+    const gate = onboardGate.enter(from.id);
+    if (!gate.ok) {
+      await ctx.reply(gateMessage(gate, locale));
+      return;
+    }
+    try {
+      await ctx.reply(
+        "channel" in input
+          ? `Ishlayapman… @${input.channel} kanalini o‘qiyapman va brendingiz DNK-sini tuzyapman (taxminan 40 soniya).`
+          : "Ishlayapman… brendingiz DNK-sini tuzyapman va postlar yozyapman (taxminan 40 soniya).",
+      );
+      await ctx.replyWithChatAction("typing").catch(() => undefined);
+    } catch (err) {
+      onboardGate.leave(from.id);
+      throw err;
+    }
     const api = ctx.api;
     const chatId = ctx.chat.id;
-    await runLater(() => runOnboarding(api, chatId, from.id, input));
+    await runLater(async () => {
+      try {
+        await runOnboarding(api, chatId, from.id, input);
+      } finally {
+        onboardGate.leave(from.id);
+      }
+    });
+  });
+
+  // "📢 Publish" under a generated post. ctx.from is trusted (comes from Telegram).
+  b.callbackQuery(/^pub:([0-9a-f-]{36})$/, async (ctx) => {
+    await ctx.answerCallbackQuery({ text: "E’lon qilinyapti…" }).catch(() => undefined);
+    const message = await publishFromBot(ctx.match[1], ctx.from.id);
+    await ctx.reply(message, { link_preview_options: { is_disabled: true } });
   });
 
   // Telegram Business: log connections (the bot was added to a business account).

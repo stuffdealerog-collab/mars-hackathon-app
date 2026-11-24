@@ -47,6 +47,10 @@ CREATE TABLE IF NOT EXISTS brands (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- 'channel_only' = built from public channel posts alone (safe to reuse as a cache);
+-- 'custom' = includes owner-supplied knowledge/sample posts (never reused, scoped to its owner).
+ALTER TABLE brands ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'custom';
+
 CREATE INDEX IF NOT EXISTS brands_channel_created_idx ON brands (channel, created_at DESC);
 CREATE INDEX IF NOT EXISTS brands_owner_idx ON brands (owner_telegram_id);
 

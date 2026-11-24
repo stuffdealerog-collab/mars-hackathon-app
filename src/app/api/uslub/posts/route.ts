@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { generatePosts } from "@/lib/uslub/copywriter";
-import { handle, HttpError, json, rateLimit, readJson } from "@/lib/uslub/http";
+import { handle, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import { classifySensitivity } from "@/lib/uslub/sensitivity";
-import { countPublished, getBrand, savePosts } from "@/lib/uslub/store";
+import { countPublished, savePosts } from "@/lib/uslub/store";
 
 export const maxDuration = 60;
 
@@ -16,8 +16,7 @@ const Body = z.object({
 export const POST = handle(async (req) => {
   rateLimit(req, "posts", 10);
   const body = await readJson(req, Body);
-  const brand = await getBrand(body.brandId);
-  if (!brand) throw new HttpError(404, "Brand not found");
+  const brand = await loadBrandFor(body.brandId, telegramUserId(req));
 
   const [posts, published] = await Promise.all([
     generatePosts(brand, body.brief, body.count ?? 3),
