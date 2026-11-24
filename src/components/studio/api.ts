@@ -187,6 +187,13 @@ export function analyzeChannel(channel: string, lang: Lang) {
 /* --------------------------------------------------------------- strategy */
 
 /** Empty-channel brands also get launch tactics (how to get the first subscribers). */
+/** GET /strategy: the brand's latest plan as the server kept it (any device), or `plan: null`. */
+export type SavedPlan = { plan: ContentPlan | null; strategy?: Strategy | null; launch?: Launch | null; createdAt?: string };
+
+export function savedPlan(brandId: string, lang: Lang) {
+  return call<SavedPlan>(`/strategy?brandId=${encodeURIComponent(brandId)}&${q(lang)}`, { method: "GET" }, 20_000);
+}
+
 export type Launch = { weeks?: number; tactics: { title: string; how: string; why?: string }[] };
 /** Brain v2 "sufficiency": for each part of the plan, whether it rests on the channel's data, a benchmark or a prior. */
 export type Sufficiency = { key: string; status: "data" | "benchmark" | "prior" | "insufficient"; n: number; need: number; text: string };

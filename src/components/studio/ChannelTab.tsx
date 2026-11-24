@@ -360,6 +360,7 @@ function Plan() {
   const plan = useStudio((s) => s.plan);
   const posts = useStudio((s) => s.posts);
   const progress = useStudio((s) => s.planProgress);
+  const loading = useStudio((s) => s.planLoading);
   const planStep = useStudio((s) => s.steps.find((x) => x.key === "plan"));
   const rebuild = useStudio((s) => s.rebuildPlan);
   const setTab = useStudio((s) => s.setTab);
@@ -379,9 +380,14 @@ function Plan() {
             <p className="breathe text-[15px] text-ink-2" role="status">
               {progress?.m ? fmt(c.work.plan.count, { n: progress.n, m: progress.m }) : c.work.plan.run}
             </p>
+          ) : loading ? (
+            // A reopen on a device without its own copy: the server's saved plan is on its way.
+            <p className="breathe text-[15px] text-ink-2" role="status">
+              {c.reopen.loading}
+            </p>
           ) : (
             <>
-              {/* No plan is kept on the server: after a reopen this device has none, and says so. */}
+              {/* Neither the server nor this device has a plan for this brand: build one. */}
               <p className="text-[15px] text-ink-2">{c.reopen.noPlan}</p>
               <button type="button" className="btn-2" disabled={sample} title={sample ? c.tools.notInSample : undefined} onClick={() => void rebuild()}>
                 {c.reopen.buildPlan}
