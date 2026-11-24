@@ -12,7 +12,7 @@ export function Mark({ href = "/", label = "Uslub" }: { href?: string | null; la
   );
   if (!href) return <span className="flex items-center gap-2">{inner}</span>;
   return (
-    <Link href={href} className="flex items-center gap-2" aria-label="Uslub AI, bosh sahifa">
+    <Link href={href} className="-my-2.5 flex min-h-11 items-center gap-2 py-2.5" aria-label="Uslub AI, bosh sahifa">
       {inner}
     </Link>
   );

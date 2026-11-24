@@ -359,7 +359,7 @@ function VideoView() {
 
 /* ------------------------------------------------------------ shell */
 
-export function Studio({ inTelegram = false }: { inTelegram?: boolean }) {
+export function Studio({ inTelegram = false, theme = "dark" }: { inTelegram?: boolean; theme?: "light" | "dark" }) {
   const view = useStudio((s) => s.view);
   const setView = useStudio((s) => s.setView);
   const run = useStudio((s) => s.run);
@@ -401,7 +401,7 @@ export function Studio({ inTelegram = false }: { inTelegram?: boolean }) {
   const waiting = useMemo(() => inbox.filter((i) => i.state === "waiting").length, [inbox]);
 
   return (
-    <div className="lw flex min-h-dvh flex-col">
+    <div className="lw flex min-h-dvh flex-col" data-theme={theme === "light" ? "light" : undefined}>
       <header className="sticky top-0 z-30 border-b border-[var(--hair)] bg-[color-mix(in_oklab,var(--stage)_86%,transparent)] backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between gap-3 px-4 pt-3 sm:px-8">
           <Mark href={inTelegram ? null : "/"} />

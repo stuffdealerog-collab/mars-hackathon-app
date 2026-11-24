@@ -441,7 +441,8 @@ body {
 }
 .lamp:is([data-state="on"], [data-state="you"]) .lamp__state,
 .lamp:is([data-state="on"], [data-state="you"]) .lamp__job {
-  color: rgb(255 255 255 / 0.72);
+  color: rgb(255 255 255 / 0.9);
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.35);
 }
 .lamp[data-state="off"] .lamp__title {
   font-weight: 450;
@@ -568,6 +569,7 @@ body {
   width: 0;
   min-width: 0;
   flex: 1;
+  align-self: stretch;
   background: transparent;
   font-size: 17px;
   color: var(--ink);
@@ -750,3 +752,12 @@ body {
   }
 }
 
+
+/* Older Studio views keep their dark material; inside a light Telegram theme they sit on a dark sheet. */
+.lw[data-theme="light"] .uslub-legacy {
+  padding: 16px;
+  border-radius: 24px;
+  background: #000;
+  color: var(--color-fog);
+  color-scheme: dark;
+}

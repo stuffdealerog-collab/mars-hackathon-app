@@ -79,7 +79,7 @@ export function Hero() {
       <LedStrip text={typed ? `@${typed.toUpperCase()}` : undefined} dot={3} gap={1.5} className="mb-6 max-w-[460px]" label={typed ? `@${typed}` : undefined} />
       <div role="radiogroup" aria-label="Til / Язык / Language" className="seg w-fit">
         {LANGS.map((l) => (
-          <button key={l} type="button" role="radio" aria-checked={lang === l} onClick={() => setLang(l)} className="seg__item !min-h-8 !px-3 !text-[13px] uppercase">
+          <button key={l} type="button" role="radio" aria-checked={lang === l} onClick={() => setLang(l)} className="seg__item !min-h-11 !px-3.5 !text-[13px] uppercase">
             {l}
           </button>
         ))}
@@ -125,7 +125,7 @@ export function Hero() {
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-2 text-[13.5px]">
         <span className="text-[var(--ink-3)]">{c.price}</span>
-        <Link href="/studio?demo=bir-havola&mock=1" className="text-[var(--ink)] underline decoration-[var(--hair-2)] underline-offset-4 hover:decoration-[var(--ink-2)]">
+        <Link href="/studio?demo=bir-havola&mock=1" className="inline-flex min-h-11 items-center text-[var(--ink)] underline decoration-[var(--hair-2)] underline-offset-4 hover:decoration-[var(--ink-2)]">
           {c.sample}
         </Link>
       </div>

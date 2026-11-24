@@ -60,7 +60,7 @@ export function PanelDemo({ cols = "grid-cols-2 sm:grid-cols-5" }: { cols?: stri
         <span className="flex items-center gap-2">
           <span className="namuna">namuna</span> t.me/nafis_kiyim
         </span>
-        <button type="button" className="btn-quiet !min-h-9 !px-3.5 !text-[13px]" onClick={() => setRun((n) => n + 1)}>
+        <button type="button" className="btn-quiet !min-h-11 !px-4 !text-[13px]" onClick={() => setRun((n) => n + 1)}>
           <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Yana yoqish
         </button>
       </div>

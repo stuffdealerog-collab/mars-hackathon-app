@@ -3,6 +3,7 @@ import { onest } from "@/components/lamp/font";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.PUBLIC_URL ?? "https://mars-hackathon-app.vercel.app"),
   title: { default: "Uslub AI — marketing bo‘limi bir havoladan", template: "%s · Uslub AI" },
   description:
     "Telegram kanalingiz havolasini bering: 10 ta AI xodim kanalni o‘qiydi va bir daqiqada brend ovozi, bir haftalik postlar, Reels ssenariysi va mijozlaringiz turgan joylarni tayyorlaydi. Siz faqat tasdiqlaysiz.",

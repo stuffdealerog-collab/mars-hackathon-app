@@ -141,7 +141,7 @@ function TaskBox({ fieldRef, compact }: { fieldRef: React.RefObject<HTMLFormElem
               setV(t.task);
               start(t.task);
             }}
-            className="shrink-0 rounded-full px-3.5 py-2 text-[13.5px] font-medium text-[var(--ink-2)] transition-colors duration-200 hover:text-[var(--ink)] disabled:opacity-40"
+            className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3.5 text-[13.5px] font-medium text-[var(--ink-2)] transition-colors duration-200 hover:text-[var(--ink)] disabled:opacity-40"
             style={{ boxShadow: "inset 0 0 0 1px var(--hair-2)" }}
           >
             {t.name}
@@ -284,6 +284,13 @@ export function Home({ inTelegram = false }: { inTelegram?: boolean }) {
     if (!running && waiting > 0) deckRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [running, waiting]);
 
+  // Safety net: if the intro cannot animate (hidden tab, no rAF), never keep the lamps dark.
+  useEffect(() => {
+    if (!intro?.gate) return;
+    const id = window.setTimeout(() => setIntro((i) => (i ? { ...i, gate: false } : i)), 2500);
+    return () => clearTimeout(id);
+  }, [intro?.gate]);
+
   const lamps = useLampStates(!!intro?.gate);
   const onBloom = useCallback(() => setIntro((i) => (i ? { ...i, gate: false } : i)), []);
   const onDone = useCallback(() => setIntro(null), []);
@@ -347,8 +354,8 @@ export function Home({ inTelegram = false }: { inTelegram?: boolean }) {
 
         {flow && (
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-[22px] font-semibold tracking-[-0.02em]">{running ? "Bo‘lim ishlayapti" : "Bo‘lim tayyor"}</h2>
-            <span className="tnum text-[13px] text-[var(--ink-2)]">
+            <h1 className="text-[22px] font-semibold tracking-[-0.02em]">{running ? "Bo‘lim ishlayapti" : "Bo‘lim tayyor"}</h1>
+            <span className="tnum text-[13px] text-[var(--ink-2)]" aria-live="polite">
               {done}/{flow.nodes.length} xodim
             </span>
           </div>
