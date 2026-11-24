@@ -16,6 +16,7 @@ import type { MediaProviderId } from "./types";
  *   MEDIA_DAILY_LIMIT       jobs per rolling 24 h for the whole app, default 30
  *   MEDIA_USER_DAILY_LIMIT  per verified Telegram user, default 5
  *   MEDIA_ANON_DAILY_LIMIT  shared by all anonymous web callers, default 5; 0 = Telegram login required
+ *   MEDIA_ANON_ACTOR_DAILY_LIMIT  per anonymous caller (hashed IP) inside that pool, default 2
  *   MEDIA_DEMO              "1" = offline demo provider (pre-rendered, labelled "namuna")
  *   MEDIA_VISUAL_DAILY_LIMIT        style analyses (Claude vision) per rolling 24 h, whole app, default 60
  *   MEDIA_VISUAL_BRAND_DAILY_LIMIT  style analyses per brand per rolling 24 h, default 8
@@ -24,6 +25,9 @@ import type { MediaProviderId } from "./types";
  * Pictures (kind "image") have their own pools, so they never eat the video quota (and vice versa):
  *   MEDIA_IMAGE_DAILY_LIMIT         pictures per rolling 24 h, whole app (the spend ceiling), default 150
  *   MEDIA_IMAGE_ANON_DAILY_LIMIT    shared by all anonymous web callers, default 100; 0 = Telegram login required
+ *   MEDIA_IMAGE_ANON_ACTOR_DAILY_LIMIT  per anonymous caller (hashed IP) inside that pool, default 30
+ *                                   (four 7-post runs, or two with a few "another version"): one IP
+ *                                   cannot use up the guests' pool. Office or mobile-carrier NAT shares an IP.
  *   MEDIA_IMAGE_USER_DAILY_LIMIT    per verified Telegram user, default 60
  *   MEDIA_IMAGE_BRAND_DAILY_LIMIT   per brand, default 24 (7 posts with ~2 more versions each): one brand,
  *                                   or a stranger's brand, cannot drain the shared pool
@@ -36,7 +40,8 @@ export interface MediaConfig {
   dailyLimit: number;
   userDailyLimit: number;
   anonDailyLimit: number;
-  image: { dailyLimit: number; anonDailyLimit: number; userDailyLimit: number; brandDailyLimit: number };
+  anonActorDailyLimit: number;
+  image: { dailyLimit: number; anonDailyLimit: number; anonActorDailyLimit: number; userDailyLimit: number; brandDailyLimit: number };
   visualDailyLimit: number;
   visualBrandDailyLimit: number;
   visualActorDailyLimit: number;
@@ -113,9 +118,11 @@ export function readMediaConfig(env: Env): MediaConfig {
     dailyLimit: limit("MEDIA_DAILY_LIMIT", 30),
     userDailyLimit: limit("MEDIA_USER_DAILY_LIMIT", 5),
     anonDailyLimit: limit("MEDIA_ANON_DAILY_LIMIT", 5),
+    anonActorDailyLimit: limit("MEDIA_ANON_ACTOR_DAILY_LIMIT", 2),
     image: {
       dailyLimit: limit("MEDIA_IMAGE_DAILY_LIMIT", 150),
       anonDailyLimit: limit("MEDIA_IMAGE_ANON_DAILY_LIMIT", 100),
+      anonActorDailyLimit: limit("MEDIA_IMAGE_ANON_ACTOR_DAILY_LIMIT", 30),
       userDailyLimit: limit("MEDIA_IMAGE_USER_DAILY_LIMIT", 60),
       brandDailyLimit: limit("MEDIA_IMAGE_BRAND_DAILY_LIMIT", 24),
     },

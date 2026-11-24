@@ -10,14 +10,23 @@ export interface Quota {
   global: number; // jobs of this kind in the app
   owner: number; // jobs of this kind of this job's ownerKey
   brand?: number; // jobs of this kind for this job's brandId (when the job has one)
+  actor?: number; // jobs of this kind for this job's actorKey (an anonymous caller's hashed IP, when known)
 }
 
-export type QuotaResult = "ok" | "global" | "owner" | "brand";
+export type QuotaResult = "ok" | "global" | "owner" | "brand" | "actor";
 
 export interface QuotaUsage {
   total: number;
   owner: number;
   brand: number;
+  actor: number;
+}
+
+/** Whose jobs to count besides the whole app: the quota owner, and optionally a brand and an anonymous caller. */
+export interface QuotaKeys {
+  ownerKey: string;
+  brandId?: string;
+  actorKey?: string;
 }
 
 /** Storage for media jobs. Postgres in production (pg-repo.ts), memory in tests and local dev. */
@@ -29,8 +38,8 @@ export interface MediaJobRepo {
    */
   insertWithinQuota(job: MediaJob, quota: Quota): Promise<QuotaResult>;
   update(job: MediaJob): Promise<void>;
-  /** Billable jobs of a kind since `sinceIso`: app-wide, for one owner and for one brand (a cheap pre-check). */
-  countSince?(sinceIso: string, kind: MediaKind, ownerKey: string, brandId?: string): Promise<QuotaUsage>;
+  /** Billable jobs of a kind since `sinceIso`: app-wide, for one owner, brand and anonymous caller (a cheap pre-check). */
+  countSince?(sinceIso: string, kind: MediaKind, keys: QuotaKeys): Promise<QuotaUsage>;
 }
 
 /** Counts toward a quota: inside the window, same kind, and not refused at submit. */
@@ -47,10 +56,11 @@ export class MemoryMediaJobRepo implements MediaJobRepo {
   // No await between the check and the write: atomic on the JS event loop.
   async insertWithinQuota(job: MediaJob, quota: Quota): Promise<QuotaResult> {
     if (this.jobs.has(job.id)) throw new Error(`Duplicate media job ${job.id}`);
-    const used = this.count(quota.sinceIso, job.kind, job.ownerKey, job.brandId);
+    const used = this.count(quota.sinceIso, job.kind, job);
     if (used.total >= quota.global) return "global";
     if (used.owner >= quota.owner) return "owner";
     if (quota.brand !== undefined && job.brandId && used.brand >= quota.brand) return "brand";
+    if (quota.actor !== undefined && job.actorKey && used.actor >= quota.actor) return "actor";
     this.jobs.set(job.id, structuredClone(job));
     return "ok";
   }
@@ -59,18 +69,19 @@ export class MemoryMediaJobRepo implements MediaJobRepo {
     this.jobs.set(job.id, structuredClone(job));
   }
 
-  async countSince(sinceIso: string, kind: MediaKind, ownerKey: string, brandId?: string) {
-    return this.count(sinceIso, kind, ownerKey, brandId);
+  async countSince(sinceIso: string, kind: MediaKind, keys: QuotaKeys) {
+    return this.count(sinceIso, kind, keys);
   }
 
-  private count(sinceIso: string, kind: MediaKind, ownerKey: string, brandId?: string): QuotaUsage {
+  private count(sinceIso: string, kind: MediaKind, keys: QuotaKeys): QuotaUsage {
     const since = Date.parse(sinceIso);
-    const u = { total: 0, owner: 0, brand: 0 };
+    const u = { total: 0, owner: 0, brand: 0, actor: 0 };
     for (const j of this.jobs.values()) {
       if (Date.parse(j.createdAt) < since || j.kind !== kind || !isBillable(j)) continue;
       u.total++;
-      if (j.ownerKey === ownerKey) u.owner++;
-      if (brandId && j.brandId === brandId) u.brand++;
+      if (j.ownerKey === keys.ownerKey) u.owner++;
+      if (keys.brandId && j.brandId === keys.brandId) u.brand++;
+      if (keys.actorKey && j.actorKey === keys.actorKey) u.actor++;
     }
     return u;
   }

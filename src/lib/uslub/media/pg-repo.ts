@@ -1,6 +1,6 @@
 import "server-only";
 import { getSql, pgErrorCode } from "@/lib/db";
-import type { MediaJobRepo, Quota, QuotaResult, QuotaUsage } from "./repo";
+import type { MediaJobRepo, Quota, QuotaKeys, QuotaResult, QuotaUsage } from "./repo";
 import type { MediaJob } from "./types";
 
 /**
@@ -57,11 +57,14 @@ export class PgMediaJobRepo implements MediaJobRepo {
     const sql = getSql();
     const cap = (n: number | undefined) => (n !== undefined && Number.isFinite(n) ? n : 2_147_483_647);
     const brandCap = job.brandId ? cap(q.brand) : 2_147_483_647;
+    const actorCap = job.actorKey ? cap(q.actor) : 2_147_483_647;
+    const actorKey = job.actorKey ?? ""; // "" matches no row: jobs without an actor key have NULL there
     // Billable jobs of this kind in the window (a job refused at submit has no provider request id).
     const counts = sql`SELECT
         count(*)::int AS total,
         count(*) FILTER (WHERE owner_key = ${job.ownerKey})::int AS mine,
-        count(*) FILTER (WHERE brand_id = ${job.brandId ?? ""})::int AS brand
+        count(*) FILTER (WHERE brand_id = ${job.brandId ?? ""})::int AS brand,
+        count(*) FILTER (WHERE data->>'actorKey' = ${actorKey})::int AS actor
       FROM media_jobs
       WHERE created_at >= ${q.sinceIso} AND kind = ${job.kind}
         AND NOT (status = 'failed' AND data->>'providerRequestId' IS NULL)`;
@@ -75,32 +78,35 @@ export class PgMediaJobRepo implements MediaJobRepo {
             FROM (
               SELECT count(*) AS total,
                      count(*) FILTER (WHERE owner_key = ${job.ownerKey}) AS mine,
-                     count(*) FILTER (WHERE brand_id = ${job.brandId ?? ""}) AS brand
+                     count(*) FILTER (WHERE brand_id = ${job.brandId ?? ""}) AS brand,
+                     count(*) FILTER (WHERE data->>'actorKey' = ${actorKey}) AS actor
               FROM media_jobs
               WHERE created_at >= ${q.sinceIso} AND kind = ${job.kind}
                 AND NOT (status = 'failed' AND data->>'providerRequestId' IS NULL)
             ) c
-            WHERE c.total < ${cap(q.global)} AND c.mine < ${cap(q.owner)} AND c.brand < ${brandCap}
+            WHERE c.total < ${cap(q.global)} AND c.mine < ${cap(q.owner)} AND c.brand < ${brandCap} AND c.actor < ${actorCap}
             RETURNING id`,
       ]),
     );
     if ((results[2] as unknown[]).length) return "ok";
-    const c = (results[1] as { total: number; mine: number; brand: number }[])[0];
+    const c = (results[1] as { total: number; mine: number; brand: number; actor: number }[])[0];
     if (!c || c.total >= cap(q.global)) return "global";
     if (c.mine >= cap(q.owner)) return "owner";
-    return "brand";
+    if (c.brand >= brandCap) return "brand";
+    return "actor";
   }
 
-  async countSince(sinceIso: string, kind: MediaJob["kind"], ownerKey: string, brandId?: string): Promise<QuotaUsage> {
+  async countSince(sinceIso: string, kind: MediaJob["kind"], keys: QuotaKeys): Promise<QuotaUsage> {
     const rows = (await withTable(
       () => getSql()`SELECT count(*)::int AS total,
-                            count(*) FILTER (WHERE owner_key = ${ownerKey})::int AS owner,
-                            count(*) FILTER (WHERE brand_id = ${brandId ?? ""})::int AS brand
+                            count(*) FILTER (WHERE owner_key = ${keys.ownerKey})::int AS owner,
+                            count(*) FILTER (WHERE brand_id = ${keys.brandId ?? ""})::int AS brand,
+                            count(*) FILTER (WHERE data->>'actorKey' = ${keys.actorKey ?? ""})::int AS actor
                      FROM media_jobs
                      WHERE created_at >= ${sinceIso} AND kind = ${kind}
                        AND NOT (status = 'failed' AND data->>'providerRequestId' IS NULL)`,
     )) as QuotaUsage[];
-    return rows[0] ?? { total: 0, owner: 0, brand: 0 };
+    return rows[0] ?? { total: 0, owner: 0, brand: 0, actor: 0 };
   }
 
   async update(job: MediaJob): Promise<void> {

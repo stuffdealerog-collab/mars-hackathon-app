@@ -40,6 +40,7 @@ export function media() {
     dailyLimit: config.dailyLimit,
     userDailyLimit: config.userDailyLimit,
     anonDailyLimit: config.anonDailyLimit,
+    anonActorDailyLimit: config.anonActorDailyLimit,
     image: config.image,
     secrets: () => configSecrets(config),
   });
@@ -62,7 +63,13 @@ export function mediaStatus() {
     demo: config.demo,
     providers: list,
     presets: publicPresets(),
-    limits: { daily: config.dailyLimit, perUser: config.userDailyLimit, anonymous: config.anonDailyLimit, image: config.image },
+    limits: {
+      daily: config.dailyLimit,
+      perUser: config.userDailyLimit,
+      anonymous: config.anonDailyLimit,
+      perGuest: config.anonActorDailyLimit,
+      image: config.image,
+    },
     loginRequired: config.anonDailyLimit === 0,
     message: live.length
       ? undefined

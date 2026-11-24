@@ -1,4 +1,5 @@
 import type { VisualStyle } from "../contract";
+import type { VisualStyleWithWords } from "./words";
 import { normalizeAnalysis, type AnalysisImage, type AnalyzeFn, type BrandBrief } from "./analyze";
 import { pickCandidates, type ChannelPhoto } from "./channel";
 import { ImageInputError, parseDataUrl, type ImageBytes } from "./images";
@@ -34,7 +35,7 @@ interface Candidate {
   hostedUrl?: string; // already on our storage
 }
 
-export async function learnVisualStyle(input: LearnInput, deps: LearnDeps): Promise<VisualStyle> {
+export async function learnVisualStyle(input: LearnInput, deps: LearnDeps): Promise<VisualStyleWithWords> {
   const owner = input.ownerImages ?? [];
   if (owner.length > MAX_OWNER_IMAGES) throw new ImageInputError(`at most ${MAX_OWNER_IMAGES} photos`);
 

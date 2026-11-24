@@ -4,6 +4,7 @@ import { extractChannelPhotos, fetchChannelPhotos, isTelegramCdn, normalizeChann
 import { isPublicHttps, parseDataUrl, sniffImageType, type ImageBytes } from "./images";
 import { learnVisualStyle, MAX_REFS, type LearnDeps } from "./learn";
 import { falUpload, isFalMedia } from "./storage";
+import { styleWords, type VisualStyleWithWords } from "./words";
 
 /* ---------------------------------------------------------------- fixtures */
 
@@ -158,6 +159,11 @@ const analysis = (over: Partial<StyleAnalysis> = {}): StyleAnalysis => ({
   mood: "warm",
   avoid: ["neon light"],
   prompt: 'Warm natural photo of one product on a wooden table."}',
+  ownerText: {
+    uz: { summary: "Mahsulot yog'och taxtada, deraza yonida.", light: "kunduzgi yorug'", composition: "yaqindan, yon tomondan", mood: "iliq", avoid: ["neon"] },
+    ru: { summary: "Товар на деревянной доске у окна.", light: "дневной свет", composition: "крупно, сбоку", mood: "тёплое", avoid: ["Надписи на фото"] },
+    en: { summary: "One product on a wooden board by the window.", light: "daylight", composition: "close, from the side", mood: "warm", avoid: ["neon"] },
+  },
   ...over,
 });
 
@@ -177,6 +183,29 @@ describe("style analysis output", () => {
     expect(style.palette).toEqual(["#f4efe6", "#3b2a20"]);
     expect(style.avoid[0]).toMatch(/text, letters or logos/);
     expect(style.prompt.endsWith("table.")).toBe(true);
+  });
+
+  it("writes the style for the owner in uz, ru and en; the English prompt stays for the image model", () => {
+    const { style } = normalizeAnalysis(analysis(), 0);
+    const { uz, ru, en } = style.ownerText;
+    // Uzbek gets the official oʻ/gʻ, also at the very end of a field (where clipping strips stray quotes)
+    expect(uz.light).toBe("kunduzgi yorugʻ");
+    expect(uz.summary).toBe("Mahsulot yogʻoch taxtada, deraza yonida.");
+    // the "no text or logos" rule is there in every language, added only when missing
+    expect(uz.avoid).toEqual(["Rasm ichida yozuv va logotip", "neon"]);
+    expect(ru.avoid).toEqual(["Надписи на фото"]);
+    expect(en.avoid[0]).toMatch(/text, letters or logos/i);
+    expect(style.prompt).toMatch(/^Warm natural photo/);
+  });
+
+  it("styleWords reads the owner's words for a language, and nothing for a style learned before them", () => {
+    const { style } = normalizeAnalysis(analysis(), 0);
+    const saved: VisualStyleWithWords = { refs: [], learnedAt: "2026-11-25T08:00:00Z", ...style };
+    expect(styleWords(saved, "ru")).toMatchObject({ light: "дневной свет", mood: "тёплое" });
+    const before: VisualStyleWithWords = { ...saved, ownerText: undefined }; // as saved before 2026-11-25
+    expect(styleWords(before, "uz")).toBeNull();
+    expect(styleWords({ ...before, ownerText: { uz: "x" } } as unknown as VisualStyleWithWords, "uz")).toBeNull();
+    expect(styleWords(null, "en")).toBeNull();
   });
 
   it("labels every image and puts the brand description last", () => {

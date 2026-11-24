@@ -4,6 +4,7 @@ import { ImagePlus, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type Ref, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { VisualStyle } from "@/lib/uslub/contract";
+import { styleWords } from "@/lib/uslub/visual/words";
 import { copyFor, type Lang } from "./copy";
 import { resizeImageFile } from "./resize";
 import { cx, EASE_OUT, MEDIA_VARS, QUIET_PILL } from "./theme";
@@ -156,6 +157,7 @@ export function StyleRefs({
   const remove = (url: string) => void learn(ownerRefs.filter((u) => u !== url));
 
   const refs = visual?.refs ?? [];
+  const rows = styleRows(visual, lang, t);
   const tile = { duration: reduce ? 0.15 : 0.32, ease: EASE_OUT };
   return (
     <section style={MEDIA_VARS} className={cx("w-full text-[var(--mi-ink)]", className)} aria-busy={learning}>
@@ -242,26 +244,55 @@ export function StyleRefs({
         />
       </div>
 
-      {pro && visual ? (
+      {pro && rows.length ? (
         <dl className="mt-3 grid grid-cols-[minmax(0,7.5rem)_1fr] gap-x-3 gap-y-1.5 text-[12.5px]">
-          {[
-            [t.styleLight, visual.light],
-            [t.styleFraming, visual.composition],
-            [t.styleMood, visual.mood],
-            [t.styleAvoid, visual.avoid.join("; ")],
-            [t.styleText, visual.prompt],
-          ]
+          {rows
             .filter(([, v]) => v)
-            .map(([k, v]) => (
-              <div key={k} className="contents">
-                <dt className="text-[var(--mi-ink-3)]">{k}</dt>
-                <dd className="text-[var(--mi-ink-2)]">{v}</dd>
-              </div>
-            ))}
+            .map(([k, v]) =>
+              // The description is a sentence or two: full width, so it never wraps into a thin column.
+              k === t.styleText ? (
+                <div key={k} className="col-span-2 mb-1">
+                  <dt className="text-[var(--mi-ink-3)]">{k}</dt>
+                  <dd className="mt-0.5 text-[var(--mi-ink-2)]">{v}</dd>
+                </div>
+              ) : (
+                <div key={k} className="contents">
+                  <dt className="text-[var(--mi-ink-3)]">{k}</dt>
+                  <dd className="text-[var(--mi-ink-2)]">{v}</dd>
+                </div>
+              ),
+            )}
         </dl>
       ) : null}
     </section>
   );
+}
+
+/**
+ * Pro mode's style rows in the owner's language. A style learned before the owner's words existed
+ * has only the English descriptors: those are shown in English only, never mixed into uz/ru
+ * (the next run learns the style again with the owner's words).
+ */
+function styleRows(visual: VisualStyle | null, lang: Lang, t: ReturnType<typeof copyFor>): [string, string][] {
+  if (!visual) return [];
+  const w = styleWords(visual, lang);
+  if (w) {
+    return [
+      [t.styleText, w.summary],
+      [t.styleLight, w.light],
+      [t.styleFraming, w.composition],
+      [t.styleMood, w.mood],
+      [t.styleAvoid, w.avoid.join("; ")],
+    ];
+  }
+  if (lang !== "en") return [];
+  return [
+    [t.styleLight, visual.light],
+    [t.styleFraming, visual.composition],
+    [t.styleMood, visual.mood],
+    [t.styleAvoid, visual.avoid.join("; ")],
+    [t.styleText, visual.prompt],
+  ];
 }
 
 /** A reference thumbnail that fades in once its bytes have loaded (opacity only). */

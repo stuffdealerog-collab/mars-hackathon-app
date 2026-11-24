@@ -75,6 +75,8 @@ export interface MediaJob {
   brandId?: string;
   /** Who pays from which quota: "tg:<telegram id>" or "anon" (all anonymous web callers share one pool). Never sent to clients. */
   ownerKey: string;
+  /** An anonymous caller's hashed IP ("ip:<16 hex>", never the raw IP), for the per-caller cap inside the anonymous pool. Never sent to clients. */
+  actorKey?: string;
   result?: MediaResult;
   error?: string;
   /** Provider bookkeeping (no secrets): request id and the URLs the provider told us to poll. */
@@ -89,7 +91,7 @@ export interface MediaJob {
 }
 
 /** What the API returns to the browser: no provider URLs. */
-export type PublicMediaJob = Omit<MediaJob, "providerStatusUrl" | "providerResultUrl" | "providerCancelUrl" | "ownerKey">;
+export type PublicMediaJob = Omit<MediaJob, "providerStatusUrl" | "providerResultUrl" | "providerCancelUrl" | "ownerKey" | "actorKey">;
 
 export const publicJob = (j: MediaJob): PublicMediaJob => {
   const out: Partial<MediaJob> = { ...j };
@@ -97,5 +99,6 @@ export const publicJob = (j: MediaJob): PublicMediaJob => {
   delete out.providerResultUrl;
   delete out.providerCancelUrl;
   delete out.ownerKey;
+  delete out.actorKey;
   return out as PublicMediaJob;
 };

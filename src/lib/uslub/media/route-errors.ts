@@ -18,6 +18,7 @@ export type PictureErrorCode =
   | "login_required"
   | "rate_limited"
   | "daily_limit"
+  | "guest_limit"
   | "post_limit"
   | "style_limit"
   | "not_configured"
@@ -63,6 +64,11 @@ const TEXT: Record<PictureErrorCode, Record<Lang, string>> = {
     uz: "Bugungi rasm limiti tugadi. Ertaga yana urinib ko‘ring.",
     ru: "Лимит картинок на сегодня закончился. Попробуйте завтра.",
     en: "Today's picture limit is used up. Try again tomorrow.",
+  },
+  guest_limit: {
+    uz: "Mehmonlar uchun bugungi rasm limiti tugadi. Davom etish uchun Telegram bot orqali kiring.",
+    ru: "Гостевой лимит картинок на сегодня закончился. Чтобы продолжить, войдите через Telegram-бота.",
+    en: "Today's guest picture limit is used up. Sign in through the Telegram bot to keep going.",
   },
   post_limit: {
     uz: "Bu post uchun variantlar tugadi.",
@@ -133,6 +139,7 @@ const MEDIA_CODES: Record<MediaError["code"], PictureErrorCode> = {
   not_configured: "not_configured",
   bad_input: "bad_image",
   limit: "daily_limit",
+  guest_limit: "guest_limit",
   not_found: "not_found",
   login_required: "login_required",
 };
