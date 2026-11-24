@@ -22,6 +22,7 @@ All in [`public/brand/`](../../public/brand), served at `https://mercat-ai.verce
 | `github-social.png` | 1280×640 | GitHub Settings → Social preview. |
 | `tg-cover.png`, `tg-cover-ru.png`, `tg-cover-en.png` | 1280×720 | Channel post announcing the product. |
 | `bot-avatar.png` | 640×640 | BotFather `/setuserpic`. Safe for the circular crop. |
+| `bot-description-640x360.png`, `bot-description-ru-640x360.png` | 640×360 | BotFather `/setdescriptionpic`: the picture in an empty chat with the bot. Drawn at this size, lamps without names. |
 | `miniapp-loading.svg` | vector | BotFather Mini App loading icon: one path of M/L/C/Z, one colour. Colours: light `#F2F2F6`, dark `#000000` (the Mini App's own stage). |
 | `readme-hero.png` | 1920×840 | README header. |
 

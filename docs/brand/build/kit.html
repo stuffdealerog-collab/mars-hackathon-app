@@ -94,6 +94,7 @@ const LINE = {
   ru: "Посты на неделю для вашего канала",
   en: "A week of posts for your channel",
 };
+const BOT = "t.me/mercatai";
 const HEAD = {
   uz: "Kanalingizga postlarni Mercat yozadi. Siz faqat tasdiqlaysiz.",
   ru: "Посты для вашего канала пишет Mercat. Вы только утверждаете.",
@@ -166,7 +167,15 @@ if (s === "og") {
     `<div style="position:absolute;left:72px;top:60px"><img src="${LOGO}" height="40"></div>
      <h1 style="position:absolute;left:72px;top:140px;width:1100px;font-size:60px">${HEAD[lang]}</h1>` +
     panel({ x: 72, y: 330, w: 1136, cols: 5, tileH: 124, lang }) +
-    `<div class="line quiet" style="left:72px;bottom:48px;font-size:22px;letter-spacing:-0.01em">mercat-ai.vercel.app <span style="padding:0 12px">·</span> t.me/hackathonproj1_bot</div>`);
+    `<div class="line quiet" style="left:72px;bottom:48px;font-size:22px;letter-spacing:-0.01em">mercat-ai.vercel.app <span style="padding:0 12px">·</span> ${BOT}</div>`);
+} else if (s === "desc") {
+  /* BotFather /setdescriptionpic, 640×360: the picture above "What can this bot do?" in an empty
+     chat. Drawn at its own size: names would be 6 px on a phone, so the lamps carry none. */
+  html = scene(640, 360, roomGlow(640, 360, 320, 250) +
+    `<div style="position:absolute;left:28px;top:24px"><img src="${LOGO}" height="24"></div>
+     <h1 style="position:absolute;left:28px;top:66px;width:584px;font-size:29px">${HEAD[lang]}</h1>` +
+    panel({ x: 28, y: 152, w: 584, cols: 5, tileH: 60, lang, small: true, names: false }) +
+    `<div class="line quiet" style="left:28px;bottom:16px;font-size:14px">mercat-ai.vercel.app <span style="padding:0 8px">·</span> ${BOT}</div>`);
 } else if (s === "hero") {
   html = scene(1280, 560, roomGlow(1280, 560, 640, 330) +
     `<div style="position:absolute;left:0;right:0;top:56px;display:flex;justify-content:center"><img src="${LOGO}" height="52"></div>
