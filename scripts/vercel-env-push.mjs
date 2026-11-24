@@ -5,11 +5,12 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
-// Only these names are pushed (the DB password and Vercel's own tokens stay local).
+// Vars that Vercel integrations manage (Neon: DATABASE_URL, DATABASE_URL_UNPOOLED,
+// PG*, POSTGRES_*, NEON_*) and Vercel's own VERCEL_* vars are never pushed.
+const MANAGED = /^(DATABASE_URL|PG[A-Z_]*|POSTGRES_[A-Z0-9_]*|NEON_[A-Z0-9_]*|VERCEL_[A-Z0-9_]*)$/;
+
+// Only these names are pushed (Vercel's own tokens stay local).
 const ALLOWED = [
-  "NEXT_PUBLIC_SUPABASE_URL",
-  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-  "SUPABASE_SERVICE_ROLE_KEY",
   "TELEGRAM_BOT_TOKEN",
   "BOT_USERNAME",
   "TELEGRAM_WEBHOOK_SECRET",
@@ -34,8 +35,11 @@ for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
   values.set(match[1], value);
 }
 
+const managed = [...values.keys()].filter((name) => MANAGED.test(name) || name.startsWith("DATABASE_URL"));
+if (managed.length) console.log(`skip  ${managed.join(", ")} (managed by Vercel / the Neon integration)`);
+
 let failed = false;
-for (const name of ALLOWED) {
+for (const name of ALLOWED.filter((n) => !MANAGED.test(n) && !n.startsWith("DATABASE_URL"))) {
   const value = values.get(name)?.trim();
   if (!value) {
     console.log(`skip  ${name} (empty)`);

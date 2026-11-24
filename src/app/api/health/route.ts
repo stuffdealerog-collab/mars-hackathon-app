@@ -1,25 +1,22 @@
 import { connection } from "next/server";
-import { getSupabaseAdmin, isDbConfigured } from "@/lib/supabase";
+import { getSql, isDbConfigured, pgErrorCode } from "@/lib/db";
 
 type DbStatus =
   | { ok: true; users: number; latency_ms: number }
-  | { ok: false; error: "not_configured" | "query_failed" };
+  | { ok: false; error: "not_configured" | "schema_missing" | "query_failed" };
 
+/** Real database round trip (count of app_users). Never returns connection details. */
 async function checkDb(): Promise<DbStatus> {
   if (!isDbConfigured()) return { ok: false, error: "not_configured" };
   const started = performance.now();
   try {
-    const { count, error } = await getSupabaseAdmin()
-      .from("app_users")
-      .select("*", { count: "exact", head: true });
-    if (error) {
-      console.error("[health] db error:", error.message);
-      return { ok: false, error: "query_failed" };
-    }
-    return { ok: true, users: count ?? 0, latency_ms: Math.round(performance.now() - started) };
+    const rows = await getSql()`SELECT count(*)::int AS users FROM app_users`;
+    const users = Number(rows[0]?.users ?? 0);
+    return { ok: true, users, latency_ms: Math.round(performance.now() - started) };
   } catch (err) {
     console.error("[health] db error:", err instanceof Error ? err.message : err);
-    return { ok: false, error: "query_failed" };
+    // 42P01 = undefined_table: connected, but `pnpm db:migrate` has not been run.
+    return { ok: false, error: pgErrorCode(err) === "42P01" ? "schema_missing" : "query_failed" };
   }
 }
 

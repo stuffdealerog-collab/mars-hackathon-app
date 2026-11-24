@@ -1,6 +1,3 @@
-# never upload local secrets
-.env
-.env.local
-.env*.local
-supabase/.temp
-supabase/.branches
+# never upload local secrets (.env.local, .env.neon, ...); only the template ships
+.env*
+!.env.example

@@ -5,16 +5,16 @@ import { z } from "zod";
  * Server-side environment, validated with zod.
  *
  * Every variable is optional at parse time so `next build` never fails because
- * a secret is missing (the team adds TELEGRAM_BOT_TOKEN / ANTHROPIC_API_KEY
- * later). Features check for the values they need at call time instead.
+ * a secret is missing (the team adds DATABASE_URL / TELEGRAM_BOT_TOKEN /
+ * ANTHROPIC_API_KEY later). Features check for the values they need at call time instead.
  * Invalid values are ignored with a warning that names the variable but never
  * prints its value.
  */
 const schemas = {
-  // Supabase
-  NEXT_PUBLIC_SUPABASE_URL: z.url(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string(),
+  // Neon Postgres (pooled connection string, set on Vercel by the Neon integration)
+  DATABASE_URL: z
+    .string()
+    .regex(/^postgres(ql)?:\/\/\S+$/, "expected a postgres:// connection string"),
   // Telegram
   TELEGRAM_BOT_TOKEN: z
     .string()

@@ -2,13 +2,13 @@
 
 Idea-agnostic, production-deployed starter for a **Telegram-first** product built at the
 MARS AI Hackathon (Techstars Startup Week, Tashkent): a Telegram bot + Mini App, Postgres
-(Supabase), optional Claude, and a public live stats page to prove real users to the jury.
+(Neon), optional Claude, and a public live stats page to prove real users to the jury.
 
 ## Stack
 
 - Next.js 16 (App Router, TypeScript, Tailwind CSS 4, Cache Components), pnpm, deployed on Vercel (`fra1`)
 - [grammY](https://grammy.dev) bot over a secured webhook
-- Supabase Postgres (`@supabase/supabase-js`, server-side service role key only, RLS on)
+- Neon Postgres via the Vercel Marketplace (`@neondatabase/serverless` HTTP driver, server-only, parameterized tagged-template queries)
 - Claude via `@anthropic-ai/sdk` (default model `claude-sonnet-5-5`, optional)
 - zod for env and input validation, `qrcode` for venue QR codes
 - UI strings in Uzbek (Latin), Russian and English (`src/lib/i18n.ts`, default `uz`)
@@ -35,10 +35,8 @@ See [`.env.example`](.env.example) for every name with comments. Summary:
 
 | Name | Required | Notes |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | yes | `https://<ref>.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | yes | Server only. Bypasses RLS; never expose it |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | no | Public key, unused by the server today |
-| `SUPABASE_DB_PASSWORD` | local only | For `supabase link` / `supabase db push` |
+| `DATABASE_URL` | yes | Neon pooled connection string. Server only. Managed on Vercel by the Neon integration |
+| `DATABASE_URL_UNPOOLED` | local only | Neon direct connection string, used by `pnpm db:migrate` (falls back to `DATABASE_URL`) |
 | `TELEGRAM_BOT_TOKEN` | for the bot | From @BotFather |
 | `BOT_USERNAME` | for links/QR | Without `@` |
 | `TELEGRAM_WEBHOOK_SECRET` | for the bot | 16-256 chars `A-Z a-z 0-9 _ -` |
@@ -47,6 +45,8 @@ See [`.env.example`](.env.example) for every name with comments. Summary:
 | `ANTHROPIC_MODEL` | no | Default `claude-sonnet-5-5` |
 
 Missing optional values never break `pnpm build`; features that need them degrade gracefully.
+`pnpm env:push` pushes the other names from `.env.local` to Vercel and always skips the
+integration-managed ones (`DATABASE_URL*`, `PG*`, `POSTGRES_*`, `NEON_*`).
 On Vercel, changing an env var requires a redeploy (`vercel deploy --prod`).
 
 ## Run locally
@@ -60,16 +60,24 @@ pnpm dev                     # http://localhost:3000
 The Mini App only authenticates inside Telegram. To test the bot locally, expose your dev
 server over HTTPS (e.g. a tunnel), set `PUBLIC_URL` to it and run `pnpm set-webhook`.
 
-## Database (Supabase)
+## Database (Neon Postgres)
 
-Schema lives in [`supabase/migrations`](supabase/migrations): `app_users`, `events`, and two
-SQL functions (`upsert_app_user`, `app_stats`). RLS is enabled with **no** policies and the
-public API roles have no privileges, so only the server can touch the data.
+Neon was added through the Vercel Marketplace, which creates `DATABASE_URL` (pooled) and
+`DATABASE_URL_UNPOOLED` on the Vercel project. The schema lives in [`db/schema.sql`](db/schema.sql)
+(`app_users`, `events` + indexes) and is idempotent (`CREATE ... IF NOT EXISTS`), so it is safe to re-run.
 
 ```bash
-supabase link --project-ref <ref> -p "$SUPABASE_DB_PASSWORD"
-supabase db push -p "$SUPABASE_DB_PASSWORD"
+# pull only the DB vars, without overwriting your other local secrets
+vercel env pull .env.neon --environment=production --yes
+grep -E '^DATABASE_URL(_UNPOOLED)?=' .env.neon >> .env.local   # remove older DATABASE_URL lines first
+rm .env.neon
+
+pnpm db:migrate   # applies db/schema.sql; prints only table names and row counts
 ```
+
+All queries go through `getSql()` from `src/lib/db.ts` using tagged templates
+(`` sql`... WHERE telegram_id = ${id}` ``), which always sends values as bound parameters.
+`GET /api/health` reports `db.error = "schema_missing"` until the migration has been run.
 
 ## Telegram webhook
 
@@ -98,7 +106,7 @@ Env vars are managed with `vercel env add <NAME> production` (and `preview`).
 - Mini App auth: `initData` HMAC validated exactly per Telegram docs, timing-safe compare, 24 h max age.
   For your own endpoints send `Authorization: tma <initData>` and call `authenticateRequest(req)`
   from `src/lib/telegram-auth.ts`.
-- The service role key is only imported by `server-only` modules.
+- `DATABASE_URL` is only read by `server-only` modules and never sent to the browser or logged.
 - `/stats` exposes aggregates plus first names and signup times only (no usernames or ids).
 - Security headers: `nosniff`, strict referrer policy, `frame-ancestors` limited to Telegram.
 
@@ -107,12 +115,13 @@ Env vars are managed with `vercel env add <NAME> production` (and `preview`).
 ```
 src/app/            routes (pages + API)
 src/lib/env.ts      zod-validated env (tolerant of missing optional secrets)
-src/lib/supabase.ts server-only service-role client
+src/lib/db.ts      server-only Neon client (lazy, tagged-template queries)
 src/lib/telegram-auth.ts  Mini App initData validation
 src/lib/bot.ts      grammY bot (lazy, built on first webhook call)
 src/lib/track.ts    user upsert + event logging
 src/lib/i18n.ts     uz / ru / en strings
 src/lib/ai.ts       Claude helper with fallback text
 scripts/set-webhook.mjs
-supabase/migrations/
+scripts/db-migrate.mjs   applies db/schema.sql
+db/schema.sql
 ```

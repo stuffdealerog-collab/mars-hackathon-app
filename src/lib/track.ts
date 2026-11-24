@@ -1,5 +1,5 @@
 import "server-only";
-import { getSupabaseAdmin, isDbConfigured } from "./supabase";
+import { getSql, isDbConfigured } from "./db";
 
 export type TrackedUser = {
   id: number;
@@ -29,28 +29,46 @@ let warned = false;
 function dbMissing(): boolean {
   if (isDbConfigured()) return false;
   if (!warned) {
-    console.warn("[track] Supabase is not configured; analytics are disabled.");
+    console.warn("[track] DATABASE_URL is not configured; analytics are disabled.");
     warned = true;
   }
   return true;
 }
 
-/** Creates or refreshes a user. `source` is first-touch: it is never overwritten. */
+/**
+ * Creates or refreshes a user. `source` is first-touch: it is never overwritten.
+ * `isNew` is true when the row was just inserted (xmax = 0 on a fresh insert).
+ */
 export async function upsertUser(
   user: TrackedUser,
   source?: string | null,
 ): Promise<{ isNew: boolean } | null> {
   if (dbMissing()) return null;
-  const { data, error } = await getSupabaseAdmin().rpc("upsert_app_user", {
-    p_telegram_id: user.id,
-    p_username: clip(user.username, 64),
-    p_first_name: clip(user.first_name, 128),
-    p_last_name: clip(user.last_name, 128),
-    p_language_code: clip(user.language_code, 16),
-    p_source: clip(source, 64),
-  });
-  if (error) throw new Error(`upsert_app_user failed: ${error.message}`);
-  return { isNew: data === true };
+  try {
+    const rows = await getSql()`
+      INSERT INTO app_users AS u
+        (telegram_id, username, first_name, last_name, language_code, source)
+      VALUES (
+        ${user.id},
+        ${clip(user.username, 64)},
+        ${clip(user.first_name, 128)},
+        ${clip(user.last_name, 128)},
+        ${clip(user.language_code, 16)},
+        ${clip(source, 64)}
+      )
+      ON CONFLICT (telegram_id) DO UPDATE SET
+        username      = COALESCE(EXCLUDED.username, u.username),
+        first_name    = COALESCE(EXCLUDED.first_name, u.first_name),
+        last_name     = COALESCE(EXCLUDED.last_name, u.last_name),
+        language_code = COALESCE(EXCLUDED.language_code, u.language_code),
+        source        = COALESCE(u.source, EXCLUDED.source),
+        last_seen_at  = now()
+      RETURNING (u.xmax = 0) AS is_new
+    `;
+    return { isNew: rows[0]?.is_new === true };
+  } catch (err) {
+    throw new Error(`app_users upsert failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export async function logEvent(
@@ -59,10 +77,14 @@ export async function logEvent(
   props: Record<string, unknown> = {},
 ): Promise<void> {
   if (dbMissing()) return;
-  const { error } = await getSupabaseAdmin()
-    .from("events")
-    .insert({ telegram_id: telegramId, type: type.slice(0, 64), props });
-  if (error) throw new Error(`events insert failed: ${error.message}`);
+  try {
+    await getSql()`
+      INSERT INTO events (telegram_id, type, props)
+      VALUES (${telegramId}, ${type.slice(0, 64)}, ${JSON.stringify(props ?? {})}::jsonb)
+    `;
+  } catch (err) {
+    throw new Error(`events insert failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 /**
