@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 const NAV = [
-  ["mood", "Мудборд"],
+  ["mood", "Референсы"],
   ["rules", "Правила"],
   ["color", "Цвет"],
   ["type", "Шрифт"],
@@ -24,7 +24,6 @@ const NAV = [
   ["journey", "Путь"],
   ["screens", "Экраны"],
   ["signature", "Анимация"],
-  ["decide", "Решение"],
 ] as const;
 
 export default function ConceptPage() {
@@ -53,26 +52,6 @@ export default function ConceptPage() {
         <Journey />
         <Screens />
         <SignatureSection />
-        <section id="decide" aria-labelledby="decide-h" className="scroll-mt-16 border-t border-[var(--hair)] py-16 sm:py-24">
-          <h2 id="decide-h" className="max-w-[18ch] text-balance text-[34px] font-semibold leading-[1.04] tracking-[-0.03em] sm:text-[52px]">
-            Два решения, и я пересобираю продукт
-          </h2>
-          <ol className="mt-8 grid gap-4 md:grid-cols-2">
-            <li className="rounded-[24px] bg-[var(--glass)] p-6" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
-              <p className="text-[20px] font-semibold tracking-[-0.01em]">Борд целиком</p>
-              <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink-2)]">
-                Одобряешь мир «Chiroqlar yonadi» с правилами света, цветом, шрифтом и движением? Или назови, что поменять: я поправлю борд до пересборки.
-              </p>
-            </li>
-            <li className="rounded-[24px] bg-[var(--glass)] p-6" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
-              <p className="text-[20px] font-semibold tracking-[-0.01em]">Фирменная анимация: A, B или C</p>
-              <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink-2)]">
-                Её увидит каждый, кто вставит ссылку, и её же снимаем для Reels. Выбранную сделаю боевой на лендинге и отрендерю в MP4 9:16 со звуком.
-              </p>
-            </li>
-          </ol>
-          <p className="mt-6 text-[14px] text-[var(--ink-3)]">Ответ — в чат сессии. После него: лендинг, Студия и Mini App в этом мире, превью на Vercel и PR.</p>
-        </section>
       </div>
     </main>
   );

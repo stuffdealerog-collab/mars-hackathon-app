@@ -3,7 +3,7 @@
 import type { NodeKind } from "@/lib/uslub/contract";
 import { Activity, BookOpen, Clapperboard, Clock3, Compass, Home as HomeIcon, Radar, Send, Settings2, Users, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Mark } from "../lamp/Mark";
 import { AgentAvatar } from "../uslub/AgentAvatar";
 import { AGENT_ORDER, AGENTS, GRAD, TG_BOT_URL } from "../uslub/agents";
@@ -11,7 +11,7 @@ import { GlowCard } from "../uslub/GlowCard";
 import { Orb } from "../uslub/Orb";
 import { AnalysisView } from "./AnalysisView";
 import * as api from "./api";
-import { STATUS_TEXT, StatusIcon } from "./FlowCanvas";
+import { STATUS_TEXT, StatusIcon } from "./flowParts";
 import { Home } from "./Home";
 import { TEMPLATES } from "./mocks";
 import { DnaCard, LeadList, Storyboard } from "./Panels";
@@ -29,6 +29,8 @@ const NAV: { key: View; name: string; icon: typeof HomeIcon }[] = [
   { key: "rules", name: "Avtopilot", icon: Settings2 },
   { key: "team", name: "Jamoa", icon: Users },
 ];
+
+const noSubscribe = () => () => {};
 
 const RULE_NAME: Record<RuleKey, string> = Object.fromEntries(RULES.map((r) => [r.key, r.name.toLowerCase()])) as Record<RuleKey, string>;
 
@@ -398,6 +400,14 @@ export function Studio({ inTelegram = false, theme = "dark" }: { inTelegram?: bo
   }, [inbox, flow, status]);
 
   const live = sources.brand === "live";
+  // Hydration-safe read of ?channel= (the page is prerendered without a query).
+  const search = useSyncExternalStore(noSubscribe, () => window.location.search, () => "");
+  const urlChannel = useMemo(() => {
+    const m = new URLSearchParams(search).get("channel")?.match(/(?:t\.me\/|@)?([A-Za-z][A-Za-z0-9_]{3,31})/);
+    return m ? `@${m[1]}` : null;
+  }, [search]);
+  const reading = !sources.brand && (!!urlChannel || !!flow);
+  const shownChannel = reading ? (urlChannel ?? brand.channel) : brand.channel;
   const waiting = useMemo(() => inbox.filter((i) => i.state === "waiting").length, [inbox]);
 
   return (
@@ -406,8 +416,12 @@ export function Studio({ inTelegram = false, theme = "dark" }: { inTelegram?: bo
         <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between gap-3 px-4 pt-3 sm:px-8">
           <Mark href={inTelegram ? null : "/"} />
           <div className="flex min-w-0 items-center gap-2">
-            {brand.channel && <span className="truncate text-[13.5px] text-[var(--ink-2)]">{brand.channel}</span>}
-            {live ? (
+            {shownChannel && <span className="truncate text-[13.5px] text-[var(--ink-2)]">{shownChannel}</span>}
+            {reading ? (
+              <span className="rounded-full px-2.5 py-1 text-[12px] text-[var(--ink-2)]" style={{ boxShadow: "inset 0 0 0 1px var(--hair-2)" }}>
+                o‘qilmoqda
+              </span>
+            ) : live ? (
               <span className="rounded-full px-2.5 py-1 text-[12px] font-medium text-[var(--ink)]" style={{ boxShadow: "inset 0 0 0 1px var(--hair-2)" }}>
                 jonli
               </span>
@@ -450,10 +464,15 @@ export function Studio({ inTelegram = false, theme = "dark" }: { inTelegram?: bo
         )}
       </header>
       <main className="mx-auto w-full min-w-0 max-w-[1180px] flex-1 px-4 py-6 sm:px-8 lg:py-10">
-        {view === "delegate" || inTelegram ? (
+        {view === "delegate" || (inTelegram && view !== "video") ? (
           <Home inTelegram={inTelegram} />
         ) : (
           <div className="uslub-legacy">
+            {inTelegram && (
+              <button type="button" onClick={() => setView("delegate")} className="btn-quiet mb-5 !min-h-11 !px-4 !text-[14px]">
+                Bo‘limga qaytish
+              </button>
+            )}
             {view === "analysis" && <AnalysisView />}
             {view === "strategy" && <StrategyView />}
             {view === "team" && <TeamView />}

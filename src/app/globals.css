@@ -429,7 +429,9 @@ body {
   font-size: 13.5px;
 }
 .lamp__job {
+  min-height: 2.5em; /* two lines, so tiles in a row line up */
   font-size: 12.5px;
+  line-height: 1.25;
   color: var(--ink-2);
 }
 .lamp__state {
@@ -578,6 +580,9 @@ body {
   font-size: 17px;
   color: var(--ink);
   outline: none;
+}
+.field input:focus-visible {
+  outline: none; /* the field's own lime ring shows focus */
 }
 .field input::placeholder {
   color: var(--ink-3);

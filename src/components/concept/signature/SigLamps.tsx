@@ -33,7 +33,7 @@ const DECAY = 0.88;
 const WARM = 0.5;
 const ON_AT = LAMP_ORDER.map((_, i) => START + (GAP0 * (1 - Math.pow(DECAY, i))) / (1 - DECAY));
 
-const SIGN = "@NAFIS_KIYIM  4 210 OBUNACHI";
+const SIGN = "@KANALINGIZ  4 210 OBUNACHI";
 const LOOP = `${SIGN}    `;
 const DOT = 3;
 const GAP = 1;
@@ -60,8 +60,8 @@ const RESULT: Record<AgentRole, React.ReactNode> = {
   copywriter: <Num n="7" unit="post" />,
   editor: <Num n="94" unit="inson bali" />,
   translator: <Txt>4 yozuv</Txt>,
-  designer: <Txt>3 muqova</Txt>,
-  video: <Num n="15" unit="s Reels" />,
+  designer: <Txt>3 muqova g‘oyasi</Txt>,
+  video: <Num n="15" unit="s ssenariy" />,
   radar: <Num n="10" unit="joy" />,
   publisher: <Txt>tayyor</Txt>,
 };
@@ -77,7 +77,7 @@ function Sign({ t, reduced }: { t: number; reduced: boolean }) {
   let text = SIGN;
   let x = 0;
   if (reduced) {
-    text = "@NAFIS_KIYIM";
+    text = "@KANALINGIZ";
   } else if (t < 3) {
     text = SIGN.slice(0, Math.round(seg(t, 1.7, 3) * SIGN.length));
     x = Math.min(0, INNER - ledLayout(text, DOT, GAP).width);
@@ -98,7 +98,7 @@ function Sign({ t, reduced }: { t: number; reduced: boolean }) {
       }}
     >
       <div style={{ transform: `translateX(${x}px)`, width: "max-content" }}>
-        {text && <Led text={text} dot={DOT} gap={GAP} grid={false} label="@nafis_kiyim, 4 210 obunachi" />}
+        {text && <Led text={text} dot={DOT} gap={GAP} grid={false} label="@kanalingiz, 4 210 obunachi" />}
       </div>
     </div>
   );

@@ -173,8 +173,8 @@ export function Typography() {
       <div className="mt-8 flex flex-wrap items-end gap-8 rounded-[22px] bg-[var(--glass)] p-5" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
         <div>
           <p className="mb-2 text-[13px] text-[var(--ink-2)]">LED 5×7, точка 8 px (на телефоне 4 px)</p>
-          <span className="hidden sm:block"><Led text="@NAFIS_KIYIM" dot={8} gap={2.5} label="@nafis_kiyim" /></span>
-          <span className="sm:hidden"><Led text="@NAFIS_KIYIM" dot={4} gap={1.4} label="@nafis_kiyim" /></span>
+          <span className="hidden sm:block"><Led text="@KANALINGIZ" dot={8} gap={2.5} label="@kanalingiz" /></span>
+          <span className="sm:hidden"><Led text="@KANALINGIZ" dot={4} gap={1.4} label="@kanalingiz" /></span>
         </div>
         <div>
           <p className="mb-2 text-[13px] text-[var(--ink-2)]">точка 4 px, внутри лампы</p>

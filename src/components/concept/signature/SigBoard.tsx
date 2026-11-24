@@ -18,7 +18,7 @@ export const BEATS: Beat[] = [
   { t: 2.25, sound: "дождь точек, сухой шорох (0.28 с)", picture: "ссылка осыпается" },
   { t: 2.55, sound: "щелчок, строка встаёт", picture: "OVOZ: SIZ, ILIQ" },
   { t: 4.5, sound: "шорох за 0.3 с до, затем щелчок", picture: "QAMROV 27%" },
-  { t: 6.5, sound: "шорох за 0.3 с до, затем щелчок", picture: "7 POST ×4 TIL" },
+  { t: 6.5, sound: "шорох за 0.3 с до, затем щелчок", picture: "7 POST ×4 YOZUV" },
   { t: 8.5, sound: "шорох за 0.3 с до, щелчок выше", picture: "MIJOZ: 10 JOY" },
   { t: 10.3, sound: "шорох, пауза, мягкий тон", picture: "POST TAYYOR." },
   { t: 11.9, sound: "нажатие и «динь»", picture: "лаймовая Tasdiqlash" },
@@ -38,10 +38,10 @@ type Dot = { col: number; row: number; k: number };
 type Phase = { lines: string[]; inAt: number; outAt: number; typed?: boolean };
 
 const PHASES: Phase[] = [
-  { lines: ["T.ME/", "NAFIS_", "KIYIM"], inAt: 0.05, outAt: 2.25, typed: true },
+  { lines: ["T.ME/", "KANAL", "INGIZ"], inAt: 0.05, outAt: 2.25, typed: true },
   { lines: ["OVOZ:", "SIZ,", "ILIQ"], inAt: 2.55, outAt: 4.2 },
   { lines: ["QAMROV", "27%"], inAt: 4.5, outAt: 6.2 },
-  { lines: ["7 POST", "×4 TIL"], inAt: 6.5, outAt: 8.2 },
+  { lines: ["7 POST", "×4", "YOZUV"], inAt: 6.5, outAt: 8.2 },
   { lines: ["MIJOZ:", "10 JOY"], inAt: 8.5, outAt: 10.0 },
   { lines: ["POST", "TAYYOR."], inAt: 10.3, outAt: Infinity },
 ];
@@ -138,7 +138,7 @@ export function SigBoard(props: SigProps) {
         }}
       />
       <p className="sr-only">
-        t.me/nafis_kiyim. Ovoz: siz, iliq. Qamrov 27%. 7 post, 4 tilda. Mijozlar: 10 joy. Post tayyor.
+        t.me/kanalingiz. Ovoz: siz, iliq. Qamrov 27%. 7 post, 4 yozuvda. Mijozlar: 10 joy. Post tayyor.
       </p>
       {PHASES.map((p, id) =>
         t >= p.inAt && t < p.outAt + FALL ? (

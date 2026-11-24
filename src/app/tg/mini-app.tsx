@@ -65,6 +65,7 @@ function useTelegramTheme(active: boolean) {
 function useMainButton(active: boolean) {
   const inbox = useStudio((s) => s.inbox);
   const running = useStudio((s) => s.running);
+  const reviewing = useStudio((s) => s.reviewing);
   const handler = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -73,7 +74,8 @@ function useMainButton(active: boolean) {
     const { setItem, review, setView } = useStudio.getState();
     const waiting = inbox.filter((i) => i.state === "waiting");
     const approved = inbox.filter((i) => i.state === "approved");
-    if (running || inbox.length === 0) {
+    // While a post is open for review, its own buttons decide; the MainButton must not act on another card.
+    if (running || inbox.length === 0 || reviewing) {
       mb.hide();
       return;
     }
@@ -95,7 +97,7 @@ function useMainButton(active: boolean) {
     } else {
       mb.hide();
     }
-  }, [active, running, inbox]);
+  }, [active, running, inbox, reviewing]);
 
   useEffect(() => {
     const mb = webApp()?.MainButton;
@@ -175,12 +177,12 @@ export default function MiniApp() {
             {status === "outside" && (
               <>
                 <h1 className="max-w-[16ch] text-balance text-[30px] font-semibold leading-[1.05] tracking-[-0.03em]">Bu ekran Telegram ichida ochiladi</h1>
-                <p className="max-w-[40ch] text-[15px] leading-relaxed text-[var(--ink-2)]">{t(locale, "app.open_in_telegram")}</p>
-                <div className="flex flex-wrap gap-2">
-                  <a href={TG_BOT_URL} className="btn-lime">
+                <p className="max-w-[40ch] text-[15px] leading-relaxed text-[var(--ink-2)]">Botni oching va «Ochish» tugmasini bosing yoki Studiyani brauzerda oching.</p>
+                <div className="grid w-full max-w-[360px] gap-2">
+                  <a href={TG_BOT_URL} className="btn-lime w-full">
                     <Send className="h-4 w-4" aria-hidden /> Botni ochish
                   </a>
-                  <a href="/studio" className="btn-quiet">
+                  <a href="/studio" className="btn-quiet w-full">
                     Brauzerda Studiya
                   </a>
                 </div>

@@ -171,7 +171,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   inbox: [],
   reviewing: null,
   notice: null,
-  autopilot: { routine: true, promo: false, prices: false, video: false, first: false },
+  autopilot: { routine: false, promo: false, prices: false, video: false, first: false },
   publishedCount: 0,
   setView: (view) => set({ view }),
   select: (selected) => set({ selected }),
@@ -220,6 +220,8 @@ export const useStudio = create<StudioState>((set, get) => ({
     const tick = setInterval(() => alive() && set({ elapsed: (Date.now() - start) / 1000 }), 100);
 
     const channel = task.match(/(?:t\.me\/|@)([A-Za-z0-9_]{4,32})/)?.[1];
+    // Never show the sample channel while the owner's own channel is being read.
+    if (channel) set({ brand: { ...get().brand, channel: "@" + channel }, sources: { ...get().sources, brand: undefined } });
     // Channel onboarding uses the fixed "Bir havola" graph so it draws instantly;
     // free-text tasks ask the strategist (POST /plan) for a graph.
     const planP = channel
@@ -252,22 +254,31 @@ export const useStudio = create<StudioState>((set, get) => ({
       ? auditP.then((a) => api.buildStrategy(brandId, a?.data, task))
       : Promise.resolve(null);
 
-    const wait: Partial<Record<string, Promise<unknown>>> = { copywriter: postsP, radar: radarP, video: videoP, analyst: auditP, strategist: strategyP };
+    // Each employee starts in graph order (a short stagger per layer) but finishes when ITS OWN answer
+    // arrives, so a lamp lights the moment its result exists instead of waiting for slower siblings.
+    // Editor and translator work on the posts; the approval step waits for posts and video.
+    const wait: Partial<Record<string, Promise<unknown>>> = {
+      copywriter: postsP,
+      editor: postsP,
+      translator: postsP,
+      radar: radarP,
+      video: videoP,
+      analyst: auditP,
+      strategist: strategyP,
+      approval: Promise.all([postsP, videoP]),
+    };
     const order = layers(flow);
-    for (const layer of order) {
-      if (!alive()) break;
-      const ids = layer.filter((id) => {
-        const k = flow.nodes.find((n) => n.id === id)!.kind;
-        return k !== "publisher";
-      });
-      set({ status: { ...get().status, ...Object.fromEntries(ids.map((id) => [id, "running" as NodeStatus])) } });
-      await Promise.all(
-        ids.map(async (id, i) => {
-          const node = flow.nodes.find((n) => n.id === id)!;
-          await sleep(node.kind === "input" ? 600 : 1500 + i * 350 + Math.random() * 600);
-          const pending = wait[node.kind];
-          if (pending) await pending;
-          if (!alive()) return;
+    await Promise.all(
+      order.flatMap((layer, li) =>
+        layer
+          .filter((id) => flow.nodes.find((n) => n.id === id)!.kind !== "publisher")
+          .map(async (id, i) => {
+            const node = flow.nodes.find((n) => n.id === id)!;
+            await sleep(node.kind === "input" ? 0 : li * 450 + i * 150);
+            if (!alive()) return;
+            set({ status: { ...get().status, [id]: "running" as NodeStatus } });
+            await Promise.all([sleep(node.kind === "input" ? 600 : 1200 + Math.random() * 500), wait[node.kind] ?? Promise.resolve()]);
+            if (!alive()) return;
           if (node.kind === "analyst") {
             const r = await auditP;
             if (r) set({ audit: r.data, sources: { ...get().sources, audit: r.source } });
@@ -292,9 +303,9 @@ export const useStudio = create<StudioState>((set, get) => ({
           const cur = get().flow;
           if (label && cur) set({ flow: { ...cur, nodes: cur.nodes.map((x) => (x.id === id ? { ...x, label } : x)) } });
           set({ status: { ...get().status, [id]: node.kind === "approval" ? "needs_approval" : "done" } });
-        }),
-      );
-    }
+          }),
+      ),
+    );
     clearInterval(tick);
     if (!alive()) return;
     const { posts, video, autopilot, publishedCount } = get();

@@ -4,7 +4,7 @@ import { Check, Eye } from "lucide-react";
 import { LAMP_ORDER, LAMPS } from "@/components/lamp/lamps";
 import { easeOut, seg } from "./clock";
 
-export const LINK = "t.me/nafis_kiyim";
+export const LINK = "t.me/kanalingiz";
 
 /** Honest label: everything in these prototypes is sample data. */
 export function Namuna() {

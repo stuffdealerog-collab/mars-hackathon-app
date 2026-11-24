@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { Check } from "lucide-react";
 import { Deck } from "@/components/lamp/Deck";
 import { LampTile } from "@/components/lamp/LampTile";
@@ -23,7 +22,7 @@ export function Section({ id, title, lead, children }: { id: string; title: stri
 }
 
 const SHIFTS = [
-  ["Копия Dribbble-шота про погоду", "Каждый приём получил работу: плитка — сотрудник, свет — его труд, LED — цифры канала"],
+  ["Шаблонные виджеты", "Каждый приём получил работу: плитка — сотрудник, свет — его труд, LED — цифры канала"],
   ["Всё светится одинаково", "Светится только то, что работает. Пустой экран — тёмный. Лайм — один на экран"],
   ["Моно-капс, «·», серые полузаголовки", "Один шрифт, нормальный регистр, заголовок говорит сам; капс живёт только в LED-строке"],
   ["Нет нашего мира", "Telegram-пост как главный объект, бегущая строка ташкентского магазина, канал владельца вместо демо"],
@@ -39,7 +38,6 @@ export function Cover() {
             Отдел маркетинга — это панель ламп. Лампа горит, пока сотрудник работает или держит результат. Тёмная — значит ждёт.
             Всё, что решаешь ты, — лаймовое. Цифры канала бегут по LED-строке, как над витриной на Чорсу.
           </p>
-          <p className="mt-6 text-[13px] text-[var(--ink-3)]">Концепт-борд для одобрения основателем, 24 ноября. Внутренняя страница.</p>
         </div>
         <PanelDemo />
       </div>
@@ -57,61 +55,44 @@ export function Cover() {
 
 const REFS = [
   {
-    src: "/concept/refs/853222d1.jpg",
-    alt: "AI OS: светящиеся градиентные виджеты на чёрном, стопки карточек, радиальное меню",
-    who: "AI OS, Slava Komilov",
+    who: "AI OS — Slava Komilov",
     take: "Материал света: плотный градиент сверху, уходящий в черноту; стопка карточек как очередь; лаймовая кнопка как единственное действие.",
     drop: "Радиальное меню из шаров и цвет ради цвета: у нас у каждого оттенка есть хозяин.",
   },
   {
-    src: "/concept/refs/27a918c7.jpg",
-    alt: "AI OS, светлая версия: те же виджеты на светлом фоне",
-    who: "AI OS, светлая версия",
-    take: "Доказательство, что свет работает и на белом: так выглядят Студия и Mini App в светлой теме Telegram.",
-    drop: "Декоративные dot-matrix цифры без смысла (температура, «85»).",
+    who: "AI OS, светлая версия — Slava Komilov",
+    take: "Свет работает и на белом: так выглядят Студия и Mini App в светлой теме Telegram.",
+    drop: "Декоративные dot-matrix цифры без смысла.",
   },
   {
-    src: "/concept/refs/f0b6e770.jpg",
-    alt: "Приложение дыхательного теста: dot-matrix цифры, крупные скруглённые карточки",
-    who: "Breathing test app",
-    take: "Dot-matrix цифры как прибор: показывают измерение, а не украшают. Спокойная иерархия: одно число, одна подпись.",
-    drop: "Фото-фон с размытием: у владельца нет времени на атмосферу, есть 5 секунд.",
+    who: "Приложение для дыхательного теста",
+    take: "Dot-matrix цифры как прибор: показывают измерение, а не украшают. Одно число, одна подпись.",
+    drop: "Фото-фон с размытием: у владельца есть пять секунд, не атмосфера.",
   },
   {
-    src: "/concept/refs/76992ebe.jpg",
-    alt: "Умный дом: плитки-светильники, свет падает сверху на тёмную плитку",
-    who: "Умный дом, «большая практика»",
-    take: "Главная метафора: плитка = прибор, свет = включён. Отсюда «лампа горит — сотрудник работает».",
-    drop: "Моно-капс подписи LIGHT / LED STRIP: у нас подписи пишутся как речь.",
+    who: "Умный дом — «большая практика»",
+    take: "Главная метафора: плитка — прибор, свет — включён. Отсюда «лампа горит, значит сотрудник работает».",
+    drop: "Моно-капс подписи: у нас подписи пишутся как речь.",
   },
 ];
 
 export function Moodboard() {
   return (
-    <Section
-      id="mood"
-      title="Мудборд"
-      lead="Твои четыре референса задают планку крафта и отдают материал. Под каждым — что берём и от чего отказываемся."
-    >
-      <div className="grid gap-4 sm:grid-cols-2">
+    <Section id="mood" title="Референсы" lead="Четыре чужие работы задали планку крафта и материал. Изображения не публикуем, здесь только то, что мы взяли и от чего отказались.">
+      <ul className="grid gap-4 sm:grid-cols-2">
         {REFS.map((r) => (
-          <figure key={r.src} className="overflow-hidden rounded-[22px] bg-[var(--glass)]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
-            <div className="relative aspect-[4/5]">
-              <Image src={r.src} alt={r.alt} fill sizes="(min-width: 1024px) 420px, (min-width: 640px) 45vw, 92vw" className="object-cover" />
-            </div>
-            <figcaption className="space-y-2 p-4 text-[14px] leading-relaxed">
-              <p className="font-semibold">{r.who}</p>
-              <p>
-                <span className="text-[var(--lime)]">Берём.</span> {r.take}
-              </p>
-              <p className="text-[var(--ink-2)]">
-                <span className="text-[var(--ink)]">Не берём.</span> {r.drop}
-              </p>
-            </figcaption>
-          </figure>
+          <li key={r.who} className="space-y-2 rounded-[22px] bg-[var(--glass)] p-5 text-[14px] leading-relaxed" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
+            <p className="text-[15px] font-semibold">{r.who}</p>
+            <p>
+              <span className="text-[var(--lime)]">Берём.</span> {r.take}
+            </p>
+            <p className="text-[var(--ink-2)]">
+              <span className="text-[var(--ink)]">Не берём.</span> {r.drop}
+            </p>
+          </li>
         ))}
-      </div>
-      <p className="mt-4 text-[12.5px] text-[var(--ink-3)]">Референсы принадлежат авторам и показаны только как мудборд для внутреннего обсуждения.</p>
+      </ul>
+      <p className="mt-4 text-[12.5px] text-[var(--ink-3)]">Права на референсы принадлежат их авторам.</p>
     </Section>
   );
 }

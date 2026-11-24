@@ -35,10 +35,11 @@ export function Deck({
   const approve = () => {
     if (!top || leaving) return;
     setLeaving(true);
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.setTimeout(() => {
       setLeft((l) => l.slice(1));
       setLeaving(false);
-    }, 320);
+    }, reduce ? 0 : 320);
   };
   return (
     <div className="flex flex-col gap-3">

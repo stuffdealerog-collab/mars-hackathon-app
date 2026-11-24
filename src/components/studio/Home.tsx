@@ -3,14 +3,14 @@
 import type { AgentRole, NodeKind, NodeStatus } from "@/lib/uslub/contract";
 import { ArrowUp, Check, ChevronDown, Link2, PencilLine, Send } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { DnaCard, dnaRows } from "@/components/lamp/Dna";
 import { LampTile } from "@/components/lamp/LampTile";
 import { LAMP_ORDER, LAMPS, type LampState } from "@/components/lamp/lamps";
 import { Led, LedStrip } from "@/components/lamp/Led";
 import { DeckStack } from "@/components/lamp/DeckStack";
 import { TgPost } from "@/components/lamp/TgPost";
-import { StepList } from "./FlowCanvas";
+import { StepList } from "./flowParts";
 import { TEMPLATES } from "./mocks";
 import { SpectrumIntro } from "./SpectrumIntro";
 import { KIND_SOURCE, useStudio, type InboxItem, type RuleKey, type View } from "./store";
@@ -27,6 +27,8 @@ const RULE_WHY: Record<RuleKey, string> = {
   video: "Video, siz tasdiqlaysiz",
   first: "Birinchi beshta postdan biri",
 };
+
+const noSubscribe = () => () => {};
 
 const TO_LAMP: Record<NodeStatus, LampState> = {
   idle: "off",
@@ -106,7 +108,13 @@ function useResults() {
 function TaskBox({ fieldRef, compact }: { fieldRef: React.RefObject<HTMLFormElement | null>; compact: boolean }) {
   const run = useStudio((s) => s.run);
   const running = useStudio((s) => s.running);
-  const [v, setV] = useState("");
+  // Pre-filled with the pasted channel so the field the Spektr beams leave from shows what was sent.
+  // Read hydration-safely: the page is prerendered without a query string.
+  const search = useSyncExternalStore(noSubscribe, () => window.location.search, () => "");
+  const fromUrl = new URLSearchParams(search).get("channel")?.slice(0, 64) ?? "";
+  const [typed, setTyped] = useState<string | null>(null);
+  const v = typed ?? fromUrl;
+  const setV = (x: string) => setTyped(x);
   const start = (t: string) => {
     if (!t.trim() || running) return;
     const isLink = /^(?:https?:\/\/)?(?:t\.me\/|@)?[A-Za-z][A-Za-z0-9_]{3,31}\/?$/.test(t.trim()) && !/\s/.test(t.trim());
@@ -188,10 +196,11 @@ export function ApprovalDeck({ inTelegram }: { inTelegram: boolean }) {
   const approve = (i: InboxItem) => {
     if (leaving) return;
     setLeaving(i.id);
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.setTimeout(() => {
       setItem(i.id, { state: "approved" });
       setLeaving(null);
-    }, 320);
+    }, reduce ? 0 : 320);
   };
 
   if (inbox.length === 0) {
@@ -216,7 +225,7 @@ export function ApprovalDeck({ inTelegram }: { inTelegram: boolean }) {
               depth={Math.min(2, waiting.length - 1)}
               leaving={leaving === waiting[0].id}
             >
-              <TgPost name={brand.dna.name || brand.channel || "Kanal"} text={<span className="line-clamp-6">{bodyOf(waiting[0])}</span>} time="20:00" sample={sample(waiting[0])} />
+              <TgPost name={brand.dna.name || brand.channel || "Kanal"} text={<span className="line-clamp-6">{bodyOf(waiting[0])}</span>} time="qoralama" sample={sample(waiting[0])} />
             </DeckStack>
             {hitsOf(waiting[0]).length > 0 && (
               <p className="mt-2.5 px-1 text-[13px] leading-snug text-[var(--ink-2)]">
@@ -301,7 +310,10 @@ export function Home({ inTelegram = false }: { inTelegram?: boolean }) {
   // When the department finishes, bring the approval deck into view.
   const waiting = inbox.filter((i) => i.state === "waiting").length;
   useEffect(() => {
-    if (!running && waiting > 0) deckRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (!running && waiting > 0) {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      deckRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" });
+    }
   }, [running, waiting]);
 
   // Safety net: if the intro cannot animate (hidden tab, no rAF), never keep the lamps dark.
@@ -327,6 +339,8 @@ export function Home({ inTelegram = false }: { inTelegram?: boolean }) {
     return m;
   }, [sources]);
 
+  const usedSources = Object.values(sources).filter(Boolean);
+  const allSample = !!flow && usedSources.length > 1 && !usedSources.some((v) => v === "live");
   const channel = brand.channel?.replace(/^@/, "") ?? "";
   const led = audit
     ? `@${channel || audit.channel.replace(/^@/, "")}  ${audit.subscribers ? `${audit.subscribers.toLocaleString("ru-RU").replace(/ /g, " ")} OBUNACHI  ` : ""}${audit.reachRate ? `QAMROV ${Math.round(audit.reachRate * 100)}%  ` : ""}${audit.bestHours[0] !== undefined ? `ENG YAXSHI SOAT ${String(audit.bestHours[0]).padStart(2, "0")}:00` : ""}`
@@ -367,10 +381,15 @@ export function Home({ inTelegram = false }: { inTelegram?: boolean }) {
               </span>
             )}
           </div>
-          {(notice || (sources.audit && sources.audit !== "live")) && (
-            <p className="flex items-start gap-2 px-1 text-[13px] leading-snug text-[var(--ink-2)]">
-              <span className="namuna shrink-0">namuna</span>
-              <span>{notice ?? "Raqamlar namuna: kanal hali o‘qilmadi."}</span>
+          {flow && (
+            // Space is reserved for this line so the panel never moves under the Spektr beams.
+            <p className="flex min-h-[38px] items-start gap-2 px-1 text-[13px] leading-snug text-[var(--ink-2)]">
+              {(notice || allSample || (sources.audit && sources.audit !== "live")) && (
+                <>
+                  <span className="namuna shrink-0">namuna</span>
+                  <span>{notice ?? (allSample ? "Natijalar namuna: haqiqiy kanal hali o‘qilmadi." : "Raqamlar namuna: kanal hali o‘qilmadi.")}</span>
+                </>
+              )}
             </p>
           )}
         </div>
@@ -433,7 +452,18 @@ export function Home({ inTelegram = false }: { inTelegram?: boolean }) {
             {layer2 && (
               <div className="px-3 pb-3">
                 <div className="hidden md:block">
-                  <FlowCanvas flow={flow} status={status} selected={null} onSelect={(id) => select(id)} follow className="h-[460px] rounded-[18px]" />
+                  <FlowCanvas
+                    flow={flow}
+                    status={status}
+                    selected={null}
+                    onSelect={(id) => {
+                      select(id);
+                      const kind = flow.nodes.find((n) => n.id === id)?.kind;
+                      if (kind && kind !== "input" && kind !== "approval") openLamp(kind);
+                    }}
+                    follow
+                    className="h-[460px] rounded-[18px]"
+                  />
                 </div>
                 <div className="md:hidden">
                   <StepList flow={flow} status={status} />
@@ -461,7 +491,7 @@ export function Home({ inTelegram = false }: { inTelegram?: boolean }) {
         </div>
         <ApprovalDeck inTelegram={inTelegram} />
         <p className="text-[12.5px] leading-relaxed text-[var(--ink-3)]">
-          Aksiya, narx, video va birinchi beshta post doim sizning tasdig‘ingiz bilan chiqadi.
+          Hech narsa siz «Joylash»ni bosmaguningizcha kanalga chiqmaydi. Narx, aksiya, video va birinchi beshta post alohida belgilanadi.
         </p>
       </aside>
     </div>

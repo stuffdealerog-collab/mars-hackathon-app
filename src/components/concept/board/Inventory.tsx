@@ -135,7 +135,7 @@ export function Inventory() {
 
         <Spec name="LED-строка" use="Факты канала после вставки ссылки. До вставки — тёмная решётка без огней.">
           <div className="flex flex-col gap-2.5">
-            <LedStrip text="@NAFIS_KIYIM  4 210 OBUNACHI  QAMROV 27%" dot={4} gap={1.5} run label="@nafis_kiyim, 4 210 obunachi, qamrov 27%" />
+            <LedStrip text="@KANALINGIZ  4 210 OBUNACHI  QAMROV 27%" dot={4} gap={1.5} run label="@kanalingiz, 4 210 obunachi, qamrov 27%" />
             <LedStrip dot={4} gap={1.5} />
           </div>
         </Spec>
@@ -148,7 +148,7 @@ export function Inventory() {
         </Spec>
 
         <Spec name="Namuna" use="Пунктир и слово «namuna» на всём ненастоящем. Никогда не одеваем образец в имя реального канала.">
-          <div className="flex items-center gap-3"><span className="namuna">namuna</span><span className="text-[14px] text-[var(--ink-2)]">t.me/nafis_kiyim — вымышленный магазин</span></div>
+          <div className="flex items-center gap-3"><span className="namuna">namuna</span><span className="text-[14px] text-[var(--ink-2)]">t.me/kanalingiz — вымышленный магазин</span></div>
         </Spec>
       </div>
     </Section>

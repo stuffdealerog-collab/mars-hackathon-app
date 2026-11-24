@@ -88,7 +88,7 @@ export function Screens() {
 
         <Phone label="2. Отдел работает" note="LED читает канал, лампы загораются по конвейеру. Строка внизу говорит, кто что делает.">
           <div className="flex flex-col gap-3 px-4 pt-2">
-            <LedStrip text="@NAFIS_KIYIM  4 210 OBUNACHI" dot={3} gap={1.2} run label="@nafis_kiyim, 4 210 obunachi" />
+            <LedStrip text="@KANALINGIZ  4 210 OBUNACHI" dot={3} gap={1.2} run label="@kanalingiz, 4 210 obunachi" />
             <div className="flex items-baseline justify-between">
               <h3 className="text-[22px] font-semibold tracking-[-0.02em]">Bo‘lim ishlayapti</h3>
               <Led text="0:24" dot={3} gap={1.2} label="24 soniya" />

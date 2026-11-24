@@ -19,7 +19,7 @@ const SAMPLE_DNA: [string, string][] = [
 ];
 
 const RULES: { name: string; hint: string; auto: boolean }[] = [
-  { name: "Oddiy postlar", hint: "Maslahat, yangi mahsulot, mijoz obrazi", auto: true },
+  { name: "Oddiy postlar", hint: "Maslahat, yangi mahsulot, mijoz obrazi", auto: false },
   { name: "Narx va aksiya", hint: "Matnda so‘m, foiz yoki chegirma bor", auto: false },
   { name: "Video", hint: "Reels va TikTok", auto: false },
   { name: "Birinchi 5 post", hint: "Yangi ovozni siz tekshirasiz", auto: false },
@@ -84,7 +84,7 @@ export default function Home() {
               Siz faqat tasdiqlaysiz
             </h2>
             <p className="mt-3 max-w-[46ch] text-[16px] leading-relaxed text-[var(--ink-2)]">
-              Tayyor ishlar navbatga tushadi: bitta karta, bitta qaror. Narx, aksiya, video va birinchi beshta post doim sizning «ha»ingizni kutadi.
+              Tayyor ishlar navbatga tushadi: bitta karta, bitta qaror. Hech narsa siz «Joylash»ni bosmaguningizcha kanalga chiqmaydi. Narx, aksiya, video va birinchi beshta post alohida belgilanadi.
             </p>
             <ul className="mt-8 divide-y divide-[var(--hair)] rounded-[22px] bg-[var(--glass)] px-5" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
               {RULES.map((r) => (
@@ -93,7 +93,7 @@ export default function Home() {
                     <span className="block text-[15px] font-semibold">{r.name}</span>
                     <span className="block text-[13px] text-[var(--ink-2)]">{r.hint}</span>
                   </span>
-                  <span className="text-right text-[13px] text-[var(--ink-2)]">{r.auto ? "o‘zi chiqadi, beta" : "tasdiq bilan"}</span>
+                  <span className="text-right text-[13px] text-[var(--ink-2)]">tasdiq bilan</span>
                   <span aria-hidden className="switch pointer-events-none" data-on={r.auto}>
                     <span className="switch__knob" />
                   </span>
@@ -104,9 +104,9 @@ export default function Home() {
           <div className="max-w-[420px] lg:pt-24">
             <Deck
               items={[
-                { id: "1", why: "Narx bor, siz tasdiqlaysiz", time: "20:00", text: "Kuzgi palto 690 000 so‘m. Shu hafta do‘konda o‘lchab ko‘ring." },
-                { id: "2", why: "Birinchi beshta postdan biri", time: "19:30", text: "Yangi kuzgi paltolar keldi — issiq, yengil va har kuni kiyishga qulay." },
-                { id: "3", why: "Aksiya, siz tasdiqlaysiz", time: "18:00", text: "Juma kuni ikkinchi sharfga −30%. Faqat do‘konda." },
+                { id: "1", why: "Narx bor, siz tasdiqlaysiz", time: "qoralama", text: "Kuzgi palto 690 000 so‘m. Shu hafta do‘konda o‘lchab ko‘ring." },
+                { id: "2", why: "Birinchi beshta postdan biri", time: "qoralama", text: "Yangi kuzgi paltolar keldi — issiq, yengil va har kuni kiyishga qulay." },
+                { id: "3", why: "Aksiya, siz tasdiqlaysiz", time: "qoralama", text: "Juma kuni ikkinchi sharfga −30%. Faqat do‘konda." },
               ]}
               publishHref="#havola"
             />

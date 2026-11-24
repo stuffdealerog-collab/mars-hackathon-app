@@ -37,7 +37,7 @@ export const LAMPS: Record<AgentRole, Lamp> = {
   copywriter: { role: "copywriter", name: "Kopirayter", ru: "Копирайтер", job: "Postlarni ovozingizda yozadi", hue: "#FF6152", core: "#FFC9BF", deep: "#931D38" },
   editor: { role: "editor", name: "Muharrir", ru: "Редактор", job: "Neyro-so‘zlarni o‘chiradi", hue: "#FF4580", core: "#FFC0D5", deep: "#7E1258" },
   translator: { role: "translator", name: "Tarjimon", ru: "Переводчик", job: "Lotin, kirill, rus, ingliz", hue: "#E04BC9", core: "#F8C2EE", deep: "#561A86" },
-  designer: { role: "designer", name: "Dizayner", ru: "Дизайнер", job: "Muqova va rasmlar", hue: "#9E62FF", core: "#DECBFF", deep: "#341C98" },
+  designer: { role: "designer", name: "Dizayner", ru: "Дизайнер", job: "Muqova g‘oyalari", hue: "#9E62FF", core: "#DECBFF", deep: "#341C98" },
   video: { role: "video", name: "Videograf", ru: "Видеограф", job: "Reels ssenariysi", hue: "#6273FF", core: "#CBD1FF", deep: "#1A2788" },
   radar: { role: "radar", name: "Mijoz radar", ru: "Радар клиентов", job: "Mijozlaringiz qayerda", hue: "#2F9CFF", core: "#BEE3FF", deep: "#0C4A8C" },
   publisher: { role: "publisher", name: "SMM-menejer", ru: "SMM-менеджер", job: "Kanalga joylaydi", hue: "#25D0C2", core: "#BDFFF7", deep: "#0A6B74" },

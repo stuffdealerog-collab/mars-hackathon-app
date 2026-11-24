@@ -13,9 +13,9 @@ import { toCyrillic } from "./translit";
 
 export const MOCK_BRAND: BrandProfile = {
   id: "demo-nafis",
-  channel: "@nafis_kiyim",
+  channel: "@kanalingiz",
   knowledge:
-    "Nafis — Toshkent, Olmazor tumanidagi ayollar kiyimi do‘koni (Chorsu yonida). 2019-yildan beri. Kuzgi-qishki paltolar, trikotaj, sharflar. Narxlar: palto 690 000 – 1 450 000 so‘m, sviter 240 000 – 380 000 so‘m. Ish vaqti 10:00–21:00. Yetkazib berish Toshkent bo‘ylab 1 kunda. Buyurtma: @nafis_admin.",
+    "Nafis — Toshkent, Olmazor tumanidagi ayollar kiyimi do‘koni (Chorsu yonida). 2019-yildan beri. Kuzgi-qishki paltolar, trikotaj, sharflar. Narxlar: palto 690 000 – 1 450 000 so‘m, sviter 240 000 – 380 000 so‘m. Ish vaqti 10:00–21:00. Yetkazib berish Toshkent bo‘ylab 1 kunda. Buyurtma: @kanalingiz_admin.",
   samplePosts: [],
   createdAt: "2026-11-24T09:00:00.000Z",
   dna: {
@@ -26,7 +26,7 @@ export const MOCK_BRAND: BrandProfile = {
     address: "siz",
     emojiDensity: "low",
     avgPostLength: 420,
-    ctaStyle: "Aniq qadam: «@nafis_admin ga razmeringizni yozing»",
+    ctaStyle: "Aniq qadam: «@kanalingiz_admin ga razmeringizni yozing»",
     hashtags: ["#nafis", "#toshkentkiyim", "#palto", "#trikotaj"],
     recurringFormats: ["Yangi kelgan mahsulot", "Mijoz obrazi", "Razmer bo‘yicha maslahat", "Haftalik chegirma"],
     products: ["Kuzgi palto", "Qishki palto", "Trikotaj sviter", "Kashemir sharf"],
@@ -74,27 +74,27 @@ export const MOCK_POSTS: PostDraft[] = [
   draft(
     "p-bf-3",
     "Mijoz obrazi: karamel palto",
-    "Dilnoza opa karamel paltoni sut rang sviter bilan oldi. Bo‘yi 165, razmeri M — yelkasi bemalol, uzunligi tizzadan sal pastda.\n\nShu obraz Black Friday kuni 980 000 o‘rniga 690 000 so‘m.\n\nSizga qaysi razmer kerak? @nafis_admin",
-    "Дилноза-опа взяла карамельное пальто с молочным свитером. Рост 165, размер M — в плечах свободно, длина чуть ниже колена.\n\nВ Black Friday этот образ стоит 690 000 сум вместо 980 000.\n\nКакой размер нужен вам? @nafis_admin",
-    "Dilnoza chose the caramel coat with a milk-coloured sweater. Height 165, size M: room in the shoulders, length just below the knee.\n\nOn Black Friday this look is 690,000 sum instead of 980,000.\n\nWhich size do you need? @nafis_admin",
+    "Dilnoza opa karamel paltoni sut rang sviter bilan oldi. Bo‘yi 165, razmeri M — yelkasi bemalol, uzunligi tizzadan sal pastda.\n\nShu obraz Black Friday kuni 980 000 o‘rniga 690 000 so‘m.\n\nSizga qaysi razmer kerak? @kanalingiz_admin",
+    "Дилноза-опа взяла карамельное пальто с молочным свитером. Рост 165, размер M — в плечах свободно, длина чуть ниже колена.\n\nВ Black Friday этот образ стоит 690 000 сум вместо 980 000.\n\nКакой размер нужен вам? @kanalingiz_admin",
+    "Dilnoza chose the caramel coat with a milk-coloured sweater. Height 165, size M: room in the shoulders, length just below the knee.\n\nOn Black Friday this look is 690,000 sum instead of 980,000.\n\nWhich size do you need? @kanalingiz_admin",
     { uz: [], ru: [], en: [] },
     94,
   ),
   draft(
     "p-bf-1",
     "Black Friday e’loni",
-    "Black Friday Nafis’da 27-noyabrdan boshlanadi 🛍\n\nKuzgi paltolar, trikotaj va sharflarga 30% dan 50% gacha chegirma. Ommabop razmerlar birinchi kuniyoq tugaydi. Chegirma do‘konda ham, kanal orqali buyurtmada ham amal qiladi.\n\nOlmazor, Chorsu yonida, 10:00–21:00.\nRazmeringizni @nafis_admin ga yozing.\n\n#nafis #palto",
-    "Black Friday в Nafis начинается 27 ноября 🛍\n\nОсенние пальто, трикотаж и шарфы со скидкой от 30% до 50%. Ходовые размеры разбирают в первый же день. Скидка действует в магазине и при заказе через канал.\n\nОлмазор, рядом с Чорсу, 10:00–21:00.\nНапишите свой размер @nafis_admin.\n\n#nafis #palto",
-    "Black Friday at Nafis starts on November 27 🛍\n\nAutumn coats, knitwear and scarves are 30–50% off. Popular sizes usually sell out on day one. The discount works in store and for orders through the channel.\n\nOlmazor, next to Chorsu, 10:00–21:00.\nSend your size to @nafis_admin.\n\n#nafis #palto",
+    "Black Friday Nafis’da 27-noyabrdan boshlanadi 🛍\n\nKuzgi paltolar, trikotaj va sharflarga 30% dan 50% gacha chegirma. Ommabop razmerlar birinchi kuniyoq tugaydi. Chegirma do‘konda ham, kanal orqali buyurtmada ham amal qiladi.\n\nOlmazor, Chorsu yonida, 10:00–21:00.\nRazmeringizni @kanalingiz_admin ga yozing.\n\n#nafis #palto",
+    "Black Friday в Nafis начинается 27 ноября 🛍\n\nОсенние пальто, трикотаж и шарфы со скидкой от 30% до 50%. Ходовые размеры разбирают в первый же день. Скидка действует в магазине и при заказе через канал.\n\nОлмазор, рядом с Чорсу, 10:00–21:00.\nНапишите свой размер @kanalingiz_admin.\n\n#nafis #palto",
+    "Black Friday at Nafis starts on November 27 🛍\n\nAutumn coats, knitwear and scarves are 30–50% off. Popular sizes usually sell out on day one. The discount works in store and for orders through the channel.\n\nOlmazor, next to Chorsu, 10:00–21:00.\nSend your size to @kanalingiz_admin.\n\n#nafis #palto",
     { uz: [], ru: [], en: [] },
     91,
   ),
   draft(
     "p-bf-2",
     "Yangi qishki trikotaj",
-    "Qishki trikotaj keldi. Bu zamonaviy va sifatli yechim sovuq kunlar uchun.\n\nYumshoq merinos, 4 xil rang: sut, karamel, grafit, olcha. Razmerlar S–XL, narxi 290 000 so‘m.\n\nKiyib ko‘rish uchun do‘konga keling yoki rasmini @nafis_admin dan so‘rang.",
-    "Зимний трикотаж уже в магазине. Это современное и качественное решение для холодных дней.\n\nМягкий мериносовый трикотаж, 4 цвета: молочный, карамель, графит, вишня. Размеры S–XL, цена 290 000 сум.\n\nПримерьте в магазине или попросите фото у @nafis_admin.",
-    "Winter knitwear is in. It is a modern and high-quality solution for cold days.\n\nSoft merino in 4 colours: milk, caramel, graphite and cherry. Sizes S–XL, 290,000 sum.\n\nTry it on in store or ask @nafis_admin for photos.",
+    "Qishki trikotaj keldi. Bu zamonaviy va sifatli yechim sovuq kunlar uchun.\n\nYumshoq merinos, 4 xil rang: sut, karamel, grafit, olcha. Razmerlar S–XL, narxi 290 000 so‘m.\n\nKiyib ko‘rish uchun do‘konga keling yoki rasmini @kanalingiz_admin dan so‘rang.",
+    "Зимний трикотаж уже в магазине. Это современное и качественное решение для холодных дней.\n\nМягкий мериносовый трикотаж, 4 цвета: молочный, карамель, графит, вишня. Размеры S–XL, цена 290 000 сум.\n\nПримерьте в магазине или попросите фото у @kanalingiz_admin.",
+    "Winter knitwear is in. It is a modern and high-quality solution for cold days.\n\nSoft merino in 4 colours: milk, caramel, graphite and cherry. Sizes S–XL, 290,000 sum.\n\nTry it on in store or ask @kanalingiz_admin for photos.",
     {
       uz: [["Bu zamonaviy va sifatli yechim sovuq kunlar uchun.", "Ichiga issiq, tashqarisi tikanak emas."]],
       ru: [["Это современное и качественное решение для холодных дней.", "Тёплый и совсем не колется."]],
@@ -184,7 +184,7 @@ export const MOCK_VIDEO: VideoPlan = {
     { seconds: 3, visual: "Sut rang sviter bilan, ofis oldida", voiceover: "Ishga — sviter bilan.", caption: "Ish uchun" },
     { seconds: 3, visual: "Sharf va jinsi bilan, Chorsu yonida", voiceover: "Dam olishga — sharf bilan.", caption: "Dam olish" },
     { seconds: 3, visual: "Kechki ko‘ylak ustidan, chiroqlar", voiceover: "Kechqurun — ko‘ylak ustidan.", caption: "Kechki" },
-    { seconds: 4, visual: "Narx yorlig‘i: 980 000 → 690 000", voiceover: "27-noyabrdan 690 ming. Razmeringizni yozing.", caption: "@nafis_admin" },
+    { seconds: 4, visual: "Narx yorlig‘i: 980 000 → 690 000", voiceover: "27-noyabrdan 690 ming. Razmeringizni yozing.", caption: "@kanalingiz_admin" },
   ],
 };
 
@@ -196,12 +196,12 @@ export const TEMPLATES: { key: string; name: string; hint: string; task: string;
     key: "bir-havola",
     name: "Bir havola",
     hint: "Kanal havolasidan butun bo‘lim ishga tushadi",
-    task: "t.me/nafis_kiyim — butun marketingni yo‘lga qo‘ying",
+    task: "t.me/kanalingiz — butun marketingni yo‘lga qo‘ying",
     flow: {
       id: "f-bir-havola",
       title: "Bir havola — butun marketing bo‘limi",
       nodes: [
-        n("in", "input", "t.me/nafis_kiyim"),
+        n("in", "input", "t.me/kanalingiz"),
         n("brand", "brand", "Brend DNK"),
         n("an", "analyst", "60 post tahlili"),
         n("strat", "strategist", "Strategiya + reja"),

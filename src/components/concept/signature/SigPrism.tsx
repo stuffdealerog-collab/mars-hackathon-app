@@ -47,10 +47,10 @@ const SHORT: Record<AgentRole, React.ReactNode> = {
   copywriter: <span className="text-[14px] font-semibold leading-none">7 post</span>,
   editor: <span className="text-[14px] font-semibold leading-none">inson bali 94</span>,
   translator: <span className="text-[14px] font-semibold leading-none">4 yozuv</span>,
-  designer: <span className="text-[14px] font-semibold leading-none">3 muqova</span>,
-  video: <span className="text-[14px] font-semibold leading-none">15 s Reels</span>,
+  designer: <span className="text-[14px] font-semibold leading-none">3 muqova g‘oyasi</span>,
+  video: <span className="text-[14px] font-semibold leading-none">15 s ssenariy</span>,
   radar: <span className="text-[14px] font-semibold leading-none">10 joy</span>,
-  publisher: <span className="text-[14px] font-semibold leading-none">20:00 da</span>,
+  publisher: <span className="text-[14px] font-semibold leading-none">Tasdiqingizni kutadi</span>,
 };
 
 function state(t: number, i: number): LampState {
