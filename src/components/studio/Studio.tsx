@@ -277,6 +277,7 @@ function Working() {
   const reset = useStudio((s) => s.reset);
   const input = useStudio((s) => s.input);
   const sample = useStudio((s) => s.sample);
+  const bot = useStudio((s) => s.bot);
   const head = useRef<HTMLHeadingElement>(null);
   const ledRef = useRef<HTMLSpanElement>(null);
   const panelRef = useRef<HTMLUListElement>(null);
@@ -344,7 +345,7 @@ function Working() {
         tabIndex={-1}
         className="mt-6 text-[28px] font-semibold leading-tight tracking-[-0.03em] outline-none sm:text-[34px] lg:mt-8 lg:text-[44px] lg:leading-[1.05] lg:tracking-[-0.035em] [@media(min-width:64rem)_and_(max-height:819px)]:text-[34px]"
       >
-        {problem ? c.error.title : c.dept.working}
+        {problem ? (problem.limit ? c.limit.title : c.error.title) : c.dept.working}
       </h1>
       <p className="mt-1.5 min-h-6 text-[16px] text-ink-2 lg:mt-2.5 lg:text-[17px]" aria-live="polite">
         {nowLabel}
@@ -361,7 +362,19 @@ function Working() {
         <div role="alert" className="relative mt-8 rounded-2xl border border-line bg-card p-4 sm:p-5 lg:mt-[140px]">
           <p className="text-[16px] leading-relaxed">{problem.message}</p>
           <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
-            {fixLink ? (
+            {problem.limit ? (
+              // A day limit: retrying today fails the same way. A guest can carry on in the bot.
+              <>
+                {problem.limit === "anonymous" && (
+                  <a className="btn" href={`https://t.me/${bot}`} target="_blank" rel="noreferrer">
+                    {c.limit.openBot}
+                  </a>
+                )}
+                <button type="button" className={problem.limit === "anonymous" ? "btn-2" : "btn"} onClick={reset}>
+                  {c.error.startOver}
+                </button>
+              </>
+            ) : fixLink ? (
               <button type="button" className="btn" onClick={reset}>
                 {c.error.startOver}
               </button>
@@ -491,10 +504,20 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
 function ReadyProblem() {
   const c = useCopy();
   const problem = useStudio((s) => s.problem);
+  const bot = useStudio((s) => s.bot);
   if (!problem) return null;
+  // A day limit is not a failure: a calm card, not the red one.
   return (
-    <div role="alert" className="mb-6 flex flex-wrap items-center gap-3 rounded-[16px] bg-[var(--bad-soft)] px-4 py-3 text-[15px] shadow-[inset_0_0_0_1px_var(--hair)]">
+    <div
+      role="alert"
+      className={`mb-6 flex flex-wrap items-center gap-3 rounded-[16px] px-4 py-3 text-[15px] shadow-[inset_0_0_0_1px_var(--hair)] ${problem.limit ? "bg-glass" : "bg-[var(--bad-soft)]"}`}
+    >
       <p className="mr-auto leading-relaxed">{problem.message}</p>
+      {problem.limit === "anonymous" && (
+        <a className="btn !min-h-9 !px-4 !text-[14px]" href={`https://t.me/${bot}`} target="_blank" rel="noreferrer">
+          {c.limit.openBot}
+        </a>
+      )}
       <button type="button" className="btn-2 !min-h-9 !px-4 !text-[14px]" onClick={() => useStudio.setState({ problem: null })}>
         {c.problem.dismiss}
       </button>

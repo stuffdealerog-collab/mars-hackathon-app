@@ -9,7 +9,7 @@ import { authHeader, type PlanItemExtra } from "./api";
 import { useDesk, type RefsHandle } from "./desk";
 import { slotKey, useStudio } from "./store";
 
-// Professional rejim only, loaded on demand: simple mode never downloads it.
+// Pro rejim only, loaded on demand: simple mode never downloads it.
 const AuditFull = dynamic(() => import("./pro/ProDetails").then((m) => m.AuditFull), { ssr: false });
 const SufficiencyPanel = dynamic(() => import("./pro/ProDetails").then((m) => m.SufficiencyPanel), { ssr: false });
 const PlanRowDetails = dynamic(() => import("./pro/ProDetails").then((m) => m.PlanRowDetails), { ssr: false });
@@ -114,7 +114,7 @@ function Launch() {
   );
 }
 
-/** Professional rejim only: the strategist's reasoning behind the plan. */
+/** Pro rejim only: the strategist's reasoning behind the plan. */
 function StrategyDetails() {
   const c = useCopy();
   const lang = useLang((s) => s.lang);

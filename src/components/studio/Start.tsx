@@ -43,6 +43,7 @@ async function toDataUrl(file: File): Promise<string> {
 export function Start({ initialView = "link", initialChannel = "" }: { initialView?: "link" | "fresh"; initialChannel?: string }) {
   const emptyChannel = useStudio((s) => s.emptyChannel);
   const problem = useStudio((s) => s.problem);
+  const bot = useStudio((s) => s.bot);
   const [view, setView] = useState<"link" | "fresh">(emptyChannel ? "fresh" : initialView);
   const [armed, setArmed] = useState(false);
   const c = useCopy();
@@ -56,10 +57,18 @@ export function Start({ initialView = "link", initialChannel = "" }: { initialVi
         <FreshForm onBack={() => setView("link")} />
       )}
       {problem && view === "link" && (
-        <div role="alert" className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-bad-soft px-4 py-3 text-[15px] text-bad">
+        <div
+          role="alert"
+          className={`mt-4 flex flex-wrap items-center gap-3 rounded-xl px-4 py-3 text-[15px] ${problem.limit ? "bg-glass text-ink shadow-[inset_0_0_0_1px_var(--hair)]" : "bg-bad-soft text-bad"}`}
+        >
           <p className="mr-auto">{problem.message}</p>
+          {problem.limit === "anonymous" && (
+            <a className="btn !min-h-9 !px-4 !text-[14px]" href={`https://t.me/${bot}`} target="_blank" rel="noreferrer">
+              {c.limit.openBot}
+            </a>
+          )}
           {/* A saved brand that did not open (network, server): try that brand again. */}
-          {reopenId && (
+          {reopenId && !problem.limit && (
             <button type="button" className="btn-2 !min-h-9 !px-4 !text-[14px]" onClick={() => void useStudio.getState().reopen(reopenId)}>
               {c.error.retry}
             </button>

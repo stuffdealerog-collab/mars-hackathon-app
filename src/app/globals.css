@@ -288,7 +288,7 @@
     color: var(--ink);
   }
 
-  /* An owner setting (Professional rejim): lime when on. */
+  /* An owner setting (Pro rejim): lime when on. */
   .switch {
     position: relative;
     width: 52px;

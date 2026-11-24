@@ -11,6 +11,7 @@ import { lampVars } from "../lamp/lamps";
 import { authHeader, botPublishUrl, handoffKey } from "./api";
 import { approveWithUndo, refsWording, useDesk, type ImageHandle } from "./desk";
 import { useDesktop } from "./Hub";
+import { latestBatch } from "./batch";
 import { useStudio } from "./store";
 
 // Professional rejim only, loaded on demand.
@@ -36,9 +37,12 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
   const desktop = useDesktop();
   const pro = useStudio((s) => s.pro);
   const channelName = useStudio((s) => s.brand?.dna.name || s.brand?.channel || (s.input.channel ? `@${s.input.channel}` : ""));
-  // The run starts every picture itself (so they come even while the owner reads Kanal); until
-  // this post's has started, the slot shows the skeleton so the card never jumps.
-  const waiting = useStudio((s) => !s.sample && !post.image && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")));
+  // The run starts the pictures of its own posts itself (so they come even while the owner reads
+  // Kanal); until this post's has started, the slot shows the skeleton so the card never jumps.
+  // An older draft without one is not started for the owner: its card offers «Rasm yaratish».
+  const waiting = useStudio(
+    (s) => !s.sample && !post.image && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")) && latestBatch(s.posts).has(post.id),
+  );
   const visual = useStudio((s) => s.brand?.visual);
   const fresh = useStudio((s) => s.mode === "fresh");
   // The hub's Asboblar act on the post in focus through its picture's handle.
