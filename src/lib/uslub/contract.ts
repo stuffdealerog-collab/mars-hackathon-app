@@ -284,7 +284,11 @@ export type NodeStatus = "idle" | "running" | "done" | "error" | "needs_approval
  *                          ("delegate a task": the strategist assembles a node graph)
  * POST /api/uslub/analyze  { channel: string; competitors?: string[] } -> { audit: ChannelAudit }
  * POST /api/uslub/strategy { brandId: string; audit?: ChannelAudit; goal?: string }
- *                          -> { strategy: Strategy; plan: ContentPlan }
+ *                          -> { strategy: Strategy; plan: ContentPlan }   (stored per brand for 30 days)
+ * GET  /api/uslub/strategy?brandId= -> { plan, strategy, mode, ownerQuestions, planTag, launch?, lang, createdAt }
+ *                          or { plan: null } — the brand's latest plan, so a reopen shows it without a new run
+ * Errors may be 429 { code: "budget_exhausted", scope: "app" | "anonymous" } (daily Claude cap) and, on media
+ * routes, 429 { code: "guest_limit" } (per-guest picture cap).
  */
 
 export type ApiError = { error: string };
