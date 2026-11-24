@@ -7,17 +7,18 @@ import { canAccessBrand } from "./access";
 import { BrainScrapeError } from "./brain/scrape";
 import { currentContext, flushUsage, runWithContext, setContextLang, setContextUser } from "./context";
 import { type ApiLang, codeForStatus, type ErrorCode, errorText, isApiLang, pickApiLang } from "./errors";
+import { verifyHandoff } from "./handoff";
 import { RateLimiter } from "./limit";
 import { LlmError } from "./llm";
 import { type ChannelEmptyReason, ScrapeError } from "./scrape";
 import { getBrand, type StoredBrand, wasClaimed } from "./store";
 
 /**
- * Verified Telegram user id from the Mini App: `Authorization: tma <initData>`
- * header, or an `initData` body field. initData older than 24 h is rejected.
- * Returns null for anonymous web callers.
+ * Verified Telegram user id from Telegram itself (the Mini App): `Authorization: tma <initData>` header, or an
+ * `initData` body field. initData older than 24 h is rejected. Null for everyone else, handoff keys included —
+ * use this where only a live Telegram session may act (minting a handoff key).
  */
-export function telegramUserId(req: Request, initData?: string): number | null {
+export function miniAppUserId(req: Request, initData?: string): number | null {
   const fromHeader = authenticateRequest(req);
   if (fromHeader) {
     setContextUser(fromHeader.id);
@@ -32,6 +33,20 @@ export function telegramUserId(req: Request, initData?: string): number | null {
     }
   }
   return null;
+}
+
+/**
+ * Verified Telegram user id: the Mini App (`tma` header or `initData`), else the desktop Studio's handoff key
+ * (`Authorization: handoff <k>`, signed by the bot for that user, see handoff.ts). Null for anonymous web callers.
+ * The key is a bearer secret: it is never logged or echoed (only the user id goes into the request context).
+ */
+export function telegramUserId(req: Request, initData?: string): number | null {
+  const fromTelegram = miniAppUserId(req, initData);
+  if (fromTelegram != null) return fromTelegram;
+  const m = /^handoff\s+(\S+)$/i.exec(req.headers.get("authorization") ?? "");
+  const fromHandoff = m ? verifyHandoff(m[1]) : null;
+  if (fromHandoff != null) setContextUser(fromHandoff);
+  return fromHandoff;
 }
 
 /**

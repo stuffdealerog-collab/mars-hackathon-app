@@ -14,9 +14,7 @@ import { errorBody } from "./http";
 import { publishPost } from "./publish";
 import { parseChannelUsername, ScrapeError } from "./scrape";
 import { getBrand, getPost, savePosts } from "./store";
-
-/** Studio link in the bot (PUBLIC_URL first; production domain renamed to Mercat on 24 Nov). */
-const studioUrl = () => `${getPublicUrl() ?? "https://mercat-ai.vercel.app"}/studio`;
+import { studioLink } from "./handoff";
 
 /** "Send your channel link or describe your business" in the user's language. */
 export const onboardPrompt = (locale: Locale) => t(locale, "bot.onboard_prompt");
@@ -135,7 +133,8 @@ export async function runOnboarding(
     const app = getPublicUrl();
     const kb = new InlineKeyboard();
     if (app?.startsWith("https://")) kb.webApp(t(locale, "bot.open_in_app"), `${app}/tg?brand=${brand.id}`).row();
-    kb.url(t(locale, "bot.open_studio"), `${studioUrl()}?brand=${brand.id}`);
+    // The desktop Studio has no Telegram identity: the link carries this owner's signed handoff key (handoff.ts).
+    kb.url(t(locale, "bot.open_studio"), studioLink(brand.id, userId));
     await api.sendMessage(chatId, t(locale, "bot.done"), { reply_markup: kb });
     await safeLogEvent(userId, "bot_onboarded", { brand_id: brand.id, ms: Date.now() - started });
   } catch (err) {
