@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { cleanText } from "@/lib/uslub/editor";
-import { handle, json, rateLimit, readJson } from "@/lib/uslub/http";
+import { spendClaude } from "@/lib/uslub/budget";
+import { handle, json, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import { analyzeNeuro } from "@/lib/uslub/neuro";
 
 export const maxDuration = 60;
@@ -33,5 +34,6 @@ export const POST = handle(async (req) => {
       mode: "unchanged",
     });
   }
+  await spendClaude(req, telegramUserId(req), "neuro");
   return json(await cleanText(body.text, body.script));
 });

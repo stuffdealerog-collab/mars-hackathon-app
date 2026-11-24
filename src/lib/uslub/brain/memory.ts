@@ -152,6 +152,20 @@ export async function loadPlans(q: { channel?: string; brandId?: string; limit?:
   return rows.map(toPlan);
 }
 
+/**
+ * A brand was just claimed in the bot: its plans made on the web (no owner yet) now belong to that Telegram user,
+ * so their tracked links pass leads on and /natija finds them. Plans that already have an owner are left alone.
+ */
+export async function adoptBrandPlans(brandId: string, telegramId: number): Promise<void> {
+  if (!isDbConfigured()) {
+    for (const p of mem.plans) if (p.brandId === brandId && p.ownerTelegramId == null) p.ownerTelegramId = telegramId;
+    return;
+  }
+  await getSql()`
+    UPDATE brain_plans SET owner_telegram_id = ${telegramId} WHERE brand_id = ${brandId} AND owner_telegram_id IS NULL
+  `.catch(soft("adopt plans", undefined));
+}
+
 /** Latest plan created by this Telegram user (for the bot's /natija). */
 export async function latestPlanForOwner(telegramId: number): Promise<StoredPlan | null> {
   if (!isDbConfigured()) {
@@ -165,6 +179,10 @@ export async function latestPlanForOwner(telegramId: number): Promise<StoredPlan
   return rows[0] ? toPlan(rows[0]) : null;
 }
 
+/**
+ * The plan behind a tracked link and who receives its leads: the Telegram user who made the plan, else the
+ * brand's owner (a plan made on the web before the brand was claimed in the bot has no owner of its own).
+ */
 export async function planByTag(tag: string): Promise<(StoredPlan & { ownerTelegramId: number | null }) | null> {
   if (!/^[a-z0-9]{6}$/.test(tag)) return null;
   if (!isDbConfigured()) {
@@ -172,7 +190,10 @@ export async function planByTag(tag: string): Promise<(StoredPlan & { ownerTeleg
     return p ? { ...p, ownerTelegramId: p.ownerTelegramId ?? null } : null;
   }
   const rows = (await getSql()`
-    SELECT id, tag, channel, week_of, items, baseline, created_at, owner_telegram_id FROM brain_plans WHERE tag = ${tag}
+    SELECT p.id, p.tag, p.channel, p.week_of, p.items, p.baseline, p.created_at,
+           COALESCE(p.owner_telegram_id, b.owner_telegram_id) AS owner_telegram_id
+    FROM brain_plans p LEFT JOIN brands b ON b.id = p.brand_id
+    WHERE p.tag = ${tag}
   `.catch(soft("plan by tag", []))) as (PlanRow & { owner_telegram_id: string | number | null })[];
   const r = rows[0];
   return r ? { ...toPlan(r), ownerTelegramId: r.owner_telegram_id == null ? null : Number(r.owner_telegram_id) } : null;
@@ -245,6 +266,35 @@ export async function loadOutcomes(plans: StoredPlan[]): Promise<{ weekOrders: M
     else if (r.kind === "sold" && r.slot != null) sold.set(`${tag}:${r.slot}`, (sold.get(`${tag}:${r.slot}`) ?? 0) + r.value);
   }
   return { weekOrders, sold };
+}
+
+/* -------------------------------------------------------- small JSON cache
+ * Keyed JSON values that every instance can reuse (e.g. an audit's written findings). Stored in
+ * brain_facts_cache under a prefixed key ("audit:…"), which never collides with a KB sha256: no new table. */
+
+const cacheMem = new Map<string, { at: number; value: unknown }>();
+
+export async function loadBrainCache<T>(key: string, maxAgeMs: number, now = Date.now()): Promise<T | null> {
+  const hit = cacheMem.get(key);
+  if (hit && now - hit.at < maxAgeMs) return hit.value as T;
+  if (!isDbConfigured()) return null;
+  const since = new Date(now - maxAgeMs).toISOString();
+  const rows = (await getSql()`
+    SELECT facts, created_at FROM brain_facts_cache WHERE kb_hash = ${key} AND created_at > ${since}::timestamptz
+  `.catch(soft("load cache", []))) as { facts: unknown; created_at: string | Date }[];
+  if (!rows[0]) return null;
+  cacheMem.set(key, { at: new Date(rows[0].created_at).getTime(), value: rows[0].facts });
+  return rows[0].facts as T;
+}
+
+export async function saveBrainCache(key: string, value: unknown, now = Date.now()): Promise<void> {
+  cacheMem.set(key, { at: now, value });
+  if (cacheMem.size > 200) cacheMem.delete(cacheMem.keys().next().value as string);
+  if (!isDbConfigured()) return;
+  await getSql()`
+    INSERT INTO brain_facts_cache (kb_hash, facts) VALUES (${key}, ${JSON.stringify(value)}::jsonb)
+    ON CONFLICT (kb_hash) DO UPDATE SET facts = EXCLUDED.facts, created_at = now()
+  `.catch(soft("save cache", undefined));
 }
 
 /* ------------------------------------------------------------ facts cache */

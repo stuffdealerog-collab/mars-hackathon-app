@@ -1,12 +1,14 @@
 import { z } from "zod";
 import type { PostDraft } from "@/lib/uslub/contract";
 import { generatePosts } from "@/lib/uslub/copywriter";
+import { spendClaude } from "@/lib/uslub/budget";
 import { assertDraftAccess, errorBody, handle, HttpError, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import { classifySensitivity } from "@/lib/uslub/sensitivity";
 import { slotBrief, slotSummary, toPlanSlot } from "@/lib/uslub/slots";
 import { countPublished, findRecentSlotPost, listPosts, savePosts } from "@/lib/uslub/store";
 import { currentContext } from "@/lib/uslub/context";
 import { placeholderNote, placeholdersIn } from "@/lib/uslub/placeholders";
+import { pastDateNote } from "@/lib/uslub/postguard";
 
 // Up to 7 posts are written in parallel (one Claude call per slot, ≤45 s, + an editor pass that is skipped late).
 // The work is budgeted to ~60 s so the Studio's client timeout is never the first to fire; maxDuration is headroom.
@@ -22,6 +24,8 @@ const Slot = z.object({
   hook: z.string().max(400).default(""),
   cta: z.string().max(600).default(""),
   brief: z.string().max(2000).default(""),
+  /** The plan item's format (text | photo | album | video): a post that is not a video never mentions one. */
+  format: z.string().trim().max(20).optional(),
 });
 
 const Body = z.union([
@@ -45,12 +49,15 @@ const ALL_SCRIPTS = ["uz_latn", "uz_cyrl", "ru", "en"] as const;
 /**
  * A post that still has an unfilled slot ("Kod: [kod]") after the fix pass: needsApproval + an owner-readable note
  * naming the blank, in the request's language. Approve and publish refuse it until the owner fills or deletes it.
+ * A plan post that names a date before its own day (an opening that already happened) also needs the owner's look.
  */
 function withBlanks<P extends PostDraft>(p: P) {
-  const left = placeholdersIn(p.variants, ALL_SCRIPTS);
-  if (!left.length) return p;
   const lang = currentContext()?.lang ?? "uz";
-  return { ...p, needsApproval: true, placeholders: left, note: placeholderNote(left.flatMap((l) => l.tokens), lang) };
+  const left = placeholdersIn(p.variants, ALL_SCRIPTS);
+  const past = p.slot?.day && p.status !== "published" ? pastDateNote(p.variants, p.slot.day, lang) : null;
+  if (!left.length && !past) return p;
+  const note = [left.length ? placeholderNote(left.flatMap((l) => l.tokens), lang) : "", past ?? ""].filter(Boolean).join(" ");
+  return { ...p, needsApproval: true, ...(left.length ? { placeholders: left } : {}), note };
 }
 
 const withSensitivity = (p: PostDraft, brief: string, published: number) =>
@@ -72,9 +79,12 @@ export const POST = handle(async (req) => {
   const body = await readJson(req, Body);
   const userId = telegramUserId(req);
   const brand = await loadBrandFor(body.brandId, userId);
+  // An owned brand's queue takes drafts only from someone who may read them: a public channel_only id is not enough.
+  if (brand.ownerTelegramId != null) await assertDraftAccess(brand, userId);
   const published = await countPublished(brand.id);
 
   if ("brief" in body) {
+    await spendClaude(req, userId, "posts");
     const posts = await generatePosts(brand, body.brief, body.count ?? 3, { deadline: started + BUDGET_MS });
     await savePosts(posts);
     return json({ posts: posts.map((p) => withSensitivity(p, body.brief, published)) });
@@ -97,17 +107,21 @@ export const POST = handle(async (req) => {
       seen.add(key);
       return true;
     });
+  // Reuse only the exact same slot (day, time, goal, hook, CTA, brief): a new plan always gets new posts.
+  const existing = await Promise.all(slots.map(({ s }) => (mayReuse ? findRecentSlotPost(brand.id, toPlanSlot(s), slotSummary(s), REUSE_MINUTES) : null)));
+  // A retry that only hands back posts already written costs nothing; anything new takes today's budget
+  // (an anonymous "write them all again" counts double).
+  if (existing.some((e) => !e)) await spendClaude(req, userId, "posts", { weight: body.regenerate && userId == null ? 2 : 1 });
   const settled = await Promise.allSettled(
-    slots.map(async ({ s }) => {
+    slots.map(async ({ s }, i) => {
       const planSlot = toPlanSlot(s);
       const storedBrief = slotSummary(s);
-      // Reuse only the exact same slot (day, time, goal, hook, CTA, brief): a new plan always gets new posts.
-      const existing = mayReuse ? await findRecentSlotPost(brand.id, planSlot, storedBrief, REUSE_MINUTES) : null;
-      if (existing) {
-        reused.push(existing.id);
-        return [existing];
+      const found = existing[i];
+      if (found) {
+        reused.push(found.id);
+        return [found];
       }
-      const [post] = await generatePosts(brand, slotBrief(s), 1, { slot: planSlot, storedBrief, deadline });
+      const [post] = await generatePosts(brand, slotBrief(s), 1, { slot: planSlot, storedBrief, deadline, format: s.format });
       if (!post) return [];
       post.createdAt = batchAt;
       await savePosts([post]);

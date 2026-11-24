@@ -5,7 +5,7 @@
 import type { Goal, PlanSlot } from "./contract";
 import { clip } from "./text";
 
-export type SlotInput = PlanSlot & { brief: string };
+export type SlotInput = PlanSlot & { brief: string; format?: string };
 
 /** Ledger ids ("[F3, S.ctaRate]") and the strategist's meta line ("— Dalil: … | Vaqt: …") are not for the copywriter. */
 export function cleanBrief(brief: string): string {
@@ -37,6 +37,10 @@ export function slotBrief(slot: SlotInput): string {
       ? `CALL TO ACTION (from the plan): "${cleanBrief(slot.cta)}" — use it once. Copy any link or @handle in it exactly, character for character.`
       : "",
     cleanBrief(slot.brief) ? `WHAT THE POST IS ABOUT: ${cleanBrief(slot.brief)}` : "",
+    slot.format === "video"
+      ? "FORMAT: a short video the owner films; the text goes under it."
+      : "FORMAT: the post goes out with a picture (or as text), not a video: never mention a video, never ask people to watch or save one.",
+    `DATES: the post goes out on ${slot.day}. An opening, promotion or event dated before that day is over: never announce it as coming or happening now; mention it in the past tense or leave it out.`,
     "Notes in the brief about which photo or video to take are for the owner: do not put them in the post, do not describe the picture.",
     "Blanks in the plan such as [narx], [shart], [muddat], [telefon] are facts nobody has given yet: never copy them into the post — write around them.",
   ];

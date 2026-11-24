@@ -6,6 +6,7 @@ import { rewriteNeuroBatch, type EditJob } from "./editor";
 import { llmJson, MODEL_QUALITY, type Effort } from "./llm";
 import { analyzeNeuro, inventedFacts } from "./neuro";
 import { findPlaceholders } from "./placeholders";
+import { dropVideoMentions } from "./postguard";
 import { latinToCyrillic, polishUzLatin } from "./translit";
 import { clip } from "./text";
 
@@ -157,6 +158,8 @@ export interface GenerateOptions {
   storedBrief?: string;
   /** Wall-clock deadline (ms epoch): the optional translation and editor calls are skipped near it. */
   deadline?: number;
+  /** The plan slot's format. Anything but "video" goes out with a picture: no sentence may mention a video. */
+  format?: string;
 }
 
 /** Generates `count` posts in 4 scripts, then runs the editor (neuro-word) pass. */
@@ -206,6 +209,14 @@ export async function generatePosts(brand: BrandProfile, brief: string, count = 
         const text = cleaned.get(`${d.id}:${script}`)?.text;
         if (text) d.variants[script] = script === "uz_latn" ? polishUzLatin(text) : text;
       }
+      d.variants.uz_cyrl = latinToCyrillic(d.variants.uz_latn, keep);
+    }
+  }
+
+  // A plan post that is not a video ("Videoni saqlab qo‘ying" under a photo): the sentence goes.
+  if (opts.slot && opts.format !== "video") {
+    for (const d of drafts) {
+      for (const script of ["uz_latn", "ru", "en"] as Script[]) d.variants[script] = dropVideoMentions(d.variants[script]);
       d.variants.uz_cyrl = latinToCyrillic(d.variants.uz_latn, keep);
     }
   }

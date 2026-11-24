@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { spendClaude } from "@/lib/uslub/budget";
 import { buildBrand } from "@/lib/uslub/brand";
 import { handle, HttpError, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import { publicBrand } from "@/lib/uslub/store";
@@ -30,6 +31,7 @@ export const POST = handle(async (req) => {
     throw new HttpError(400, "Send a channel, knowledge or samplePosts", "knowledge_needed");
   }
   const ownerTelegramId = telegramUserId(req, body.initData);
+  await spendClaude(req, ownerTelegramId, "brand");
   const { brand, cached, channel, switchedToFresh } = await buildBrand({ ...body, ownerTelegramId });
   return json({
     brand: publicBrand(brand),
