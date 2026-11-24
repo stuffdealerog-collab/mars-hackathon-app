@@ -68,6 +68,15 @@ const GIVE_UP_MS = 8 * 60_000;
 
 const isPending = (img: PostImageValue | null) => img?.status === "queued" || img?.status === "running";
 
+/** 429s that mean "today's pictures are used up" (the app's, a guest's, or Claude's daily budget). */
+const DAY_LIMIT_CODES = new Set(["daily_limit", "guest_limit", "budget_exhausted"]);
+
+/**
+ * What the status line says. `quiet`: a limit, not a fault, shown in the normal ink (never red).
+ * `retry`: trying again later can work, so the box offers "Qayta urinish".
+ */
+type Notice = { text: string; quiet?: boolean; retry?: boolean };
+
 const sameImage = (a: PostImageValue | null, b: PostImageValue | null) =>
   a === b || (!!a && !!b && a.status === b.status && a.url === b.url && a.error === b.error);
 
@@ -94,7 +103,7 @@ export function PostImage({
   // renders or after it fails, and it is exactly what publishing sends. Shown dimmed while rendering.
   const [shown, setShown] = useState<string | undefined>(initial?.url);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Notice | null>(null);
   const [slow, setSlow] = useState(false);
 
   // A new `initial` from the parent is adopted during render (no effect). Skipped while our own
@@ -112,6 +121,7 @@ export function PostImage({
     }
   }
   const startedAt = useRef(0);
+  const lastStart = useRef<{ regenerate?: boolean; photo?: string }>({});
   const autoStarted = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const onChangeRef = useRef(onChange);
@@ -137,6 +147,7 @@ export function PostImage({
       setBusy(true);
       setError(null);
       setSlow(false);
+      lastStart.current = opts;
       startedAt.current = Date.now();
       let next: PostImageValue | null = null;
       try {
@@ -145,18 +156,26 @@ export function PostImage({
           headers: headers(),
           body: JSON.stringify({ postId, lang, ...opts }),
         });
-        const data = (await res.json().catch(() => ({}))) as { image?: PostImageValue; error?: string };
+        const data = (await res.json().catch(() => ({}))) as { image?: PostImageValue; error?: string; code?: string };
         if (data.image) apply((next = data.image));
-        if (!res.ok && data.image?.status !== "failed") setError(data.error ?? (res.status === 429 ? t.limit : t.failed));
+        if (res.status === 429) {
+          // Our own calm line for the daily caps: a guest can continue in the bot, a signed-in owner
+          // tomorrow. Other 429s (too many requests, this post's versions used up) keep the server's words.
+          const day = !data.code || DAY_LIMIT_CODES.has(data.code);
+          const text = day ? (auth ? t.limit : t.limitGuest) : (data.error ?? t.limit);
+          setError({ text, quiet: true, retry: data.code !== "post_limit" });
+        } else if (!res.ok && data.image?.status !== "failed") {
+          setError({ text: data.error ?? t.failed });
+        }
       } catch {
-        setError(t.network);
+        setError({ text: t.network });
       } finally {
         // Nothing to poll: stop the clock, so a later run starts its own.
         if (!isPending(next)) startedAt.current = 0;
         setBusy(false);
       }
     },
-    [apply, headers, lang, postId, t],
+    [apply, auth, headers, lang, postId, t],
   );
 
   // First picture for a post that has none. Once per mount, never cancelled: StrictMode re-runs
@@ -212,7 +231,7 @@ export function PostImage({
       const photo = await resizeImageFile(file, { maxSide: 1536, maxBytes: 1_200_000 });
       await start({ photo });
     } catch {
-      setError(t.badFile);
+      setError({ text: t.badFile });
     }
   };
 
@@ -222,7 +241,7 @@ export function PostImage({
   const failed = !working && image?.status === "failed";
   const ready = !working && image?.status === "ready";
   const idle = !working && !image && !expected;
-  const status = working ? (slow ? t.slow : t.making) : waiting ? t.making : (error ?? (failed ? t.failed : ""));
+  const status = working ? (slow ? t.slow : t.making) : waiting ? t.making : (error?.text ?? (failed ? t.failed : ""));
   const refsRow = ready && !error && refs && (image?.refsUsed ?? 0) > 0 ? refs : null;
 
   useImperativeHandle(
@@ -293,8 +312,9 @@ export function PostImage({
         ) : null}
         {idle && !locked && !shown ? (
           <div className="absolute inset-0 flex items-center justify-center p-6">
-            <Pill reduce={reduce} onClick={() => void start()}>
-              {t.create}
+            {/* After a limit the same button tries the same request again. */}
+            <Pill reduce={reduce} onClick={() => void start(error?.retry ? lastStart.current : {})}>
+              {error?.retry ? t.retry : t.create}
             </Pill>
           </div>
         ) : null}
@@ -302,13 +322,13 @@ export function PostImage({
 
       <figcaption className="mt-2.5 flex min-h-9 flex-wrap items-center gap-2">
         {refsRow ? <RefsRow palette={refsRow.palette} text={refsRow.text} reduce={reduce} /> : null}
-        <span role="status" aria-live="polite" className={cx("mr-auto text-[12.5px]", error ? "text-[var(--mi-bad)]" : "text-[var(--mi-ink-2)]")}>
+        <span role="status" aria-live="polite" className={cx("mr-auto text-[12.5px]", error && !error.quiet ? "text-[var(--mi-bad)]" : "text-[var(--mi-ink-2)]")}>
           {status}
         </span>
         {ready && !locked ? (
-          <Pill reduce={reduce} onClick={() => void start({ regenerate: true })}>
+          <Pill reduce={reduce} onClick={() => void start(error?.retry ? lastStart.current : { regenerate: true })}>
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-            {t.another}
+            {error?.retry ? t.retry : t.another}
           </Pill>
         ) : null}
         {failed && !locked ? (
