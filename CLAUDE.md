@@ -9,6 +9,7 @@ Next.js 16 App Router · React 19 · TypeScript · Tailwind 4 · @xyflow/react (
 - **Studio UI agent:** `src/app/page.tsx`, `src/app/concept/**`, `src/app/studio/**`, `src/app/pitch/**`, `src/components/**`, `src/app/globals.css`, `src/app/layout.tsx`, `public/**` except `public/generated/**`.
 - **Engine agent:** `src/lib/uslub/**` (except `contract.ts`), `src/app/api/uslub/**`, `src/lib/bot.ts`, `db/schema.sql`, `tests/**`, `docs/quality/**`.
 - **Assets agent:** `public/generated/**`, `docs/marketing/**`.
+- **Brain agent:** `src/lib/uslub/brain/**`, `src/app/api/uslub/analyze/**`, `src/app/api/uslub/strategy/**`, `tests/brain/**`, `docs/brain/**`.
 - **Lead (main session) only:** `package.json`, `pnpm-lock.yaml`, `src/lib/uslub/contract.ts`, `src/lib/env.ts`, `CLAUDE.md`, merges and production deploys. Ask the lead for new dependencies — do not run `pnpm add`.
 
 ## Rules

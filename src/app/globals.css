@@ -41,6 +41,26 @@
   --color-bad: var(--bad);
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     sans-serif;
+  --font-ui: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-unbounded), var(--font-manrope), ui-sans-serif, sans-serif;
+
+  /* Uslub AI — modern Samarkand tile palette */
+  --color-paper: #faf7f2;
+  --color-shell: #f3eee5;
+  --color-sand: #e6dfd3;
+  --color-ink: #13151c;
+  --color-stone: #5d616e;
+  --color-lapis: #2747c8;
+  --color-lapis-deep: #1b2f8a;
+  --color-lapis-soft: #e7ebfb;
+  --color-turq: #16a394;
+  --color-turq-soft: #ddf3ef;
+  --color-saffron: #f2a93b;
+  --color-saffron-soft: #fdf0d9;
+  --color-clay: #c8553d;
+  --color-clay-soft: #f8e3dc;
+  --color-night: #0e1430;
+  --color-night-2: #172048;
 }
 
 body {
@@ -67,5 +87,77 @@ body {
   body {
     background: #ffffff;
     color: #000000;
+  }
+}
+
+/* ---------------------------------------------------------------- Uslub AI */
+.uslub {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+  font-feature-settings: "ss01", "cv11";
+}
+.uslub ::selection {
+  background: var(--color-saffron);
+  color: var(--color-ink);
+}
+.uslub :focus-visible {
+  outline: 2px solid var(--color-lapis);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Girih accent: an 8-point star lattice drawn as an SVG tile. */
+.girih {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%232747C8' stroke-opacity='.14' stroke-width='1'%3E%3Cpath d='M28 6l6 16 16 6-16 6-6 16-6-16-16-6 16-6z'/%3E%3Cpath d='M12.4 12.4L28 19l15.6-6.6L37 28l6.6 15.6L28 37l-15.6 6.6L19 28z'/%3E%3C/g%3E%3C/svg%3E");
+}
+.girih-night {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.06' stroke-width='1'%3E%3Cpath d='M28 6l6 16 16 6-16 6-6 16-6-16-16-6 16-6z'/%3E%3Cpath d='M12.4 12.4L28 19l15.6-6.6L37 28l6.6 15.6L28 37l-15.6 6.6L19 28z'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* React Flow: quiet chrome so the employee cards carry the canvas. */
+.uslub-flow .react-flow__attribution {
+  display: none;
+}
+.uslub-flow .react-flow__handle {
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--color-night);
+  background: #8ea2f0;
+}
+.uslub-flow .react-flow__controls {
+  box-shadow: none;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.uslub-flow .react-flow__controls-button {
+  background: var(--color-night-2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  fill: #c9d2f5;
+}
+.uslub-flow .react-flow__controls-button:hover {
+  background: #22306a;
+}
+
+@keyframes uslub-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+.uslub-edge-live {
+  stroke-dasharray: 6 6;
+  animation: uslub-dash 0.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uslub-edge-live {
+    animation: none;
+  }
+  .uslub *,
+  .uslub *::before,
+  .uslub *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }
