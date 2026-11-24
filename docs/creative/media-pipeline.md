@@ -4,7 +4,7 @@ The flow is: product photo → brand-styled ad clip or still → captions as our
 
 - Code: `src/lib/uslub/media/**`
 - Routes: `src/app/api/uslub/media/**`
-- Tests: `src/lib/uslub/media/media.test.ts` (39 tests: lifecycle, quotas, adapters with mocked `fetch`, captions, config)
+- Tests: `src/lib/uslub/media/media.test.ts` (40 tests: lifecycle, quotas, owner checks, adapters with mocked `fetch`, captions, config)
 
 ## Status at a glance
 | Piece | State |
@@ -58,7 +58,7 @@ POST /api/uslub/media/jobs
   -> 503 not configured · 401 login required (anon pool = 0) · 429 a daily cap · 400 bad photo
 
 GET  /api/uslub/media/jobs?id=<uuid>   -> { job }   poll every 3–5 s; the server calls the provider at most every 4 s
-POST /api/uslub/media/jobs/cancel {id} -> { job }
+POST /api/uslub/media/jobs/cancel {id, initData?} -> { job }   (owner-only for Telegram users' jobs)
 POST /api/uslub/media/captions { lines|cues, seconds, lang?, aspect?, format?:"json"|"vtt"|"srt"|"ass" }
   -> { cues } or a caption file (text/vtt, SRT, ASS for ffmpeg burn-in)
 ```
@@ -120,6 +120,9 @@ For a downloadable MP4 with burned-in captions, use the ASS export with `ffmpeg 
 - Keys are read only in `service.ts` from `process.env`. Provider errors pass through `redactSecrets` before being stored or shown.
 - Paid generation is capped per Telegram user, for the anonymous pool, and app-wide. Check and insert happen in one Postgres transaction behind `pg_advisory_xact_lock`, so parallel requests cannot overshoot.
 - Photo URLs must be public `https`. Private and local hosts are rejected (providers fetch them, not us). Data URLs are limited to PNG/JPEG/WebP, about 2 MB.
+- Job access:
+  - A job created by a verified Telegram user can be polled or cancelled only by that user. They are identified by `Authorization: tma <initData>`, which `src/components/studio/api.ts` already sends. Anyone else gets a 404.
+  - An anonymous job's random UUID is its capability, and it is returned only to the caller who created it.
 - We only follow provider polling URLs on the provider's own host (`queue.fal.run`, `api.higgsfield.ai`).
 - Per-IP rate limits: create 4/min, poll 120/min, captions 30/min.
 

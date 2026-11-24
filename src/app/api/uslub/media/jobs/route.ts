@@ -66,7 +66,8 @@ const poll = handle(async (req) => {
   rateLimit(req, "media_poll", 120);
   const id = new URL(req.url).searchParams.get("id")?.trim() ?? "";
   if (!id) throw new HttpError(400, "id is required");
-  const job = await mediaCall(() => media().jobs.refresh(id));
+  // Mini App callers send `Authorization: tma <initData>`; their jobs are visible only to them.
+  const job = await mediaCall(() => media().jobs.refresh(id, { telegramId: telegramUserId(req) }));
   return json({ job: publicJob(job) });
 });
 

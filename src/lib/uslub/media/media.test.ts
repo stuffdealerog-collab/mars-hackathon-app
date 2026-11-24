@@ -210,6 +210,20 @@ describe("MediaJobs lifecycle (mocked provider)", () => {
     await expect(jobs.create(input(), { telegramId: 5 })).resolves.toMatchObject({ status: "queued" });
   });
 
+  it("only the Telegram owner can poll or cancel their job; anonymous jobs use the id as capability", async () => {
+    const { provider } = mockProvider();
+    const { jobs } = setup([provider]);
+    const mine = await jobs.create(input(), { telegramId: 42 });
+    await expect(jobs.refresh(mine.id)).rejects.toMatchObject({ status: 404 }); // anonymous caller
+    await expect(jobs.refresh(mine.id, { telegramId: 7 })).rejects.toMatchObject({ status: 404 }); // another user
+    await expect(jobs.cancel(mine.id, { telegramId: 7 })).rejects.toMatchObject({ status: 404 });
+    expect((await jobs.refresh(mine.id, { telegramId: 42 })).id).toBe(mine.id);
+    expect((await jobs.cancel(mine.id, { telegramId: 42 })).status).toBe("canceled");
+
+    const anon = await jobs.create(input());
+    expect((await jobs.refresh(anon.id, { telegramId: 9 })).id).toBe(anon.id);
+  });
+
   it("parallel requests cannot overshoot a cap (check + insert is atomic)", async () => {
     const { provider, submits } = mockProvider();
     const { jobs } = setup([provider], { dailyLimit: 3, userDailyLimit: 10 });

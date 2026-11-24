@@ -92,12 +92,12 @@ export class MediaJobs {
    * @param actor verified Telegram user id, or null for an anonymous web caller.
    * Spend is capped three ways: per user, one shared anonymous pool, and the whole app.
    */
-  async create(input: MediaJobInput, actor: { telegramId: number | null } = { telegramId: null }): Promise<MediaJob> {
+  async create(input: MediaJobInput, actor: Actor = ANON): Promise<MediaJob> {
     validateImageUrl(input.imageUrl);
     const provider = this.pickProvider(input);
 
     const anonLimit = this.deps.anonDailyLimit ?? MEDIA_DEFAULTS.anonDailyLimit;
-    const ownerKey = actor.telegramId != null ? `tg:${actor.telegramId}` : "anon";
+    const ownerKey = ownerKeyOf(actor);
     if (ownerKey === "anon" && anonLimit <= 0 && provider.id !== "demo") {
       throw new MediaError(
         401,
@@ -174,15 +174,23 @@ export class MediaJobs {
     return job;
   }
 
-  async get(id: string): Promise<MediaJob> {
+  /**
+   * Loads a job the actor may see. A job created by a verified Telegram user is
+   * visible and cancellable only by that user (404 for anyone else, so ids are
+   * not confirmed). An anonymous job's random UUID is its capability: it is
+   * returned only to the caller who created it.
+   */
+  async get(id: string, actor: Actor = ANON): Promise<MediaJob> {
     const job = await this.deps.repo.get(id);
-    if (!job) throw new MediaError(404, "Topilmadi / Не найдено", "not_found");
+    if (!job || (job.ownerKey !== "anon" && job.ownerKey !== ownerKeyOf(actor))) {
+      throw new MediaError(404, "Topilmadi / Не найдено", "not_found");
+    }
     return job;
   }
 
   /** Returns the job, polling the provider first when it is due. */
-  async refresh(id: string): Promise<MediaJob> {
-    const job = await this.get(id);
+  async refresh(id: string, actor: Actor = ANON): Promise<MediaJob> {
+    const job = await this.get(id, actor);
     if (isTerminal(job.status) || !job.providerRequestId) return job;
     const now = this.now();
     const interval = this.deps.pollIntervalMs ?? MEDIA_DEFAULTS.pollIntervalMs;
@@ -240,8 +248,8 @@ export class MediaJobs {
     return this.save(job);
   }
 
-  async cancel(id: string): Promise<MediaJob> {
-    const job = await this.get(id);
+  async cancel(id: string, actor: Actor = ANON): Promise<MediaJob> {
+    const job = await this.get(id, actor);
     if (isTerminal(job.status)) return job;
     const provider = this.deps.providers.find((p) => p.id === job.provider);
     if (provider?.cancel && job.providerRequestId) await provider.cancel(refOf(job)).catch(() => undefined);
@@ -260,6 +268,11 @@ export class MediaJobs {
     return redactSecrets(msg, this.deps.secrets?.() ?? []);
   }
 }
+
+/** The caller: a verified Telegram user id, or null for an anonymous web caller. */
+export type Actor = { telegramId: number | null };
+const ANON: Actor = { telegramId: null };
+const ownerKeyOf = (a: Actor) => (a.telegramId != null ? `tg:${a.telegramId}` : "anon");
 
 function refOf(job: MediaJob): ProviderRef {
   return {
