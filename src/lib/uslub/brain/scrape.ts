@@ -12,6 +12,8 @@ export class BrainScrapeError extends Error {
     readonly code: "BAD_CHANNEL" | "NO_PUBLIC_PREVIEW" | "FETCH_FAILED",
     message: string,
     readonly status = 400,
+    /** The channel handle the error is about (no @), when known. */
+    readonly channel?: string,
   ) {
     super(message);
   }
@@ -150,7 +152,7 @@ export function parseChannelPage(
 const cache = new Map<string, { at: number; data: ChannelData }>();
 const CACHE_MS = 30 * 60_000;
 
-async function fetchPage(url: string, timeoutMs: number): Promise<string> {
+async function fetchPage(url: string, timeoutMs: number, channel?: string): Promise<string> {
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; MercatBot/1.0; +https://mercat-ai.vercel.app)", "Accept-Language": "en" },
     signal: AbortSignal.timeout(timeoutMs),
@@ -160,7 +162,7 @@ async function fetchPage(url: string, timeoutMs: number): Promise<string> {
   if (!res.ok) throw new BrainScrapeError("FETCH_FAILED", `t.me returned ${res.status}`, 502);
   // t.me/s/<handle> redirects to the t.me/<handle> contact page when there is no public preview.
   if (res.url && previewRedirected(res.url))
-    throw new BrainScrapeError("NO_PUBLIC_PREVIEW", "Kanal topilmadi yoki yopiq (ochiq ko‘rinishi yo‘q)", 404);
+    throw new BrainScrapeError("NO_PUBLIC_PREVIEW", "Kanal topilmadi yoki yopiq (ochiq ko‘rinishi yo‘q)", 404, channel);
   return res.text();
 }
 
@@ -195,11 +197,11 @@ export async function scrapeChannelData(
     const url: string = `https://t.me/s/${channel}${before ? `?before=${before}` : ""}`;
     let html: string;
     try {
-      html = await fetchPage(url, timeoutMs);
+      html = await fetchPage(url, timeoutMs, channel);
     } catch (err) {
       if (pages === 0) {
         if (err instanceof BrainScrapeError) throw err;
-        throw new BrainScrapeError("FETCH_FAILED", "Telegram javob bermadi, keyinroq urinib ko‘ring", 504);
+        throw new BrainScrapeError("FETCH_FAILED", "Telegram javob bermadi, keyinroq urinib ko‘ring", 504, channel);
       }
       break; // keep what we have
     }
@@ -229,7 +231,7 @@ export async function scrapeChannelData(
   }
 
   if (byId.size === 0 && !hasHeader) {
-    throw new BrainScrapeError("NO_PUBLIC_PREVIEW", "Kanal topilmadi yoki yopiq (ochiq ko‘rinishi yo‘q)", 404);
+    throw new BrainScrapeError("NO_PUBLIC_PREVIEW", "Kanal topilmadi yoki yopiq (ochiq ko‘rinishi yo‘q)", 404, channel);
   }
   const posts = [...byId.values()].sort((a, b) => b.id - a.id).slice(0, maxPosts);
   const data: ChannelData = { channel, title, subscribers, posts, complete, pages, serviceTexts: service };

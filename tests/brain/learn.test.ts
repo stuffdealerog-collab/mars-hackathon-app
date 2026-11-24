@@ -307,7 +307,9 @@ describe("sufficiency", () => {
     const items = sufficiency({ stats, competitors: 0, facts: { prices: 0, proof: 1 } }, "uz");
     const by = (k: string) => items.find((i) => i.key === k)!;
     expect(by("bestTime").status).toBe("prior");
-    expect(by("competitors").text).toMatch(/kerak ≥2/);
+    expect(by("competitors").text).toMatch(/kerak kamida 2/);
+    // Owner-facing panel: no developer notation.
+    for (const i of items) expect(i.text).not.toMatch(/n=|≥|×/);
     expect(by("learn").text).toMatch(/72 soat/);
     expect(by("prices").status).toBe("insufficient");
     expect(by("benchmark").status).toBe("insufficient");

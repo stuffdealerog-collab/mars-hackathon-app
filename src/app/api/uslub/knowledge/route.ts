@@ -32,7 +32,7 @@ const Body = z.object({
  */
 function assertWritable(brand: StoredBrand) {
   if (brand.source === "channel_only") {
-    throw new HttpError(409, "Bu brend faqat ochiq kanal postlaridan tuzilgan. Avval bilimlaringiz bilan o‘z brendingizni yarating (POST /api/uslub/brand).");
+    throw new HttpError(409, "Bu brend faqat ochiq kanal postlaridan tuzilgan. Avval bilimlaringiz bilan o‘z brendingizni yarating (POST /api/uslub/brand).", "own_brand_needed");
   }
 }
 
@@ -49,7 +49,7 @@ export const POST = handle(async (req) => {
   const hasInput =
     Boolean(body.urls?.length || body.products?.length || body.text?.trim()) ||
     [body.address, body.landmark, body.hours, body.phone, body.delivery].some((v) => v?.trim());
-  if (!hasInput) throw new HttpError(400, "Havola, mahsulot/narx yoki manzil yuboring");
+  if (!hasInput) throw new HttpError(400, "Havola, mahsulot/narx yoki manzil yuboring", "knowledge_needed");
   const sources = await ingestSources(body);
   const saved = await saveKnowledge(brand.id, sources);
   const kb = await loadKnowledge(brand.id);

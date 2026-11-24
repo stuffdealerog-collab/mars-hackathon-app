@@ -26,12 +26,12 @@ export const POST = handle(async (req) => {
     const userId = telegramUserId(req);
     const brand = await loadBrandFor(body.brandId, userId);
     const brandChannel = brand.channel ? normalizeChannel(brand.channel) : null;
-    if (channel && brandChannel && channel.toLowerCase() !== brandChannel.toLowerCase()) throw new HttpError(400, "channel does not match the brand's channel");
+    if (channel && brandChannel && channel.toLowerCase() !== brandChannel.toLowerCase()) throw new HttpError(400, "channel does not match the brand's channel", "channel_mismatch");
     channel ??= brandChannel;
     // Owner reports only for the verified owner of a custom brand (loadBrandFor already matched the Telegram user).
     owner = brand.source === "custom" && brand.ownerTelegramId != null && brand.ownerTelegramId === userId;
   }
-  if (!channel) throw new HttpError(400, "Provide channel or a brandId with a linked channel");
+  if (!channel) throw new HttpError(400, "Provide channel or a brandId with a linked channel", "channel_invalid");
   try {
     const data = await scrapeChannelData(channel);
     const r = await learnFor(data.channel, data.posts, Date.now(), body.lang ?? "uz", { brandId: owner ? body.brandId : undefined, ownerReports: owner });

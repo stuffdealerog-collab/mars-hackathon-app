@@ -16,17 +16,42 @@ export interface ScrapedChannel {
   title?: string;
   description?: string;
   subscribers?: string; // e.g. "12.3K subscribers"
+  /** Posts with text (photo captions included): what the brand voice is learned from. */
   posts: ScrapedPost[];
+  /**
+   * Every real message on the page, with or without text (albums, reels and photos without a caption count;
+   * service messages do not). Whether a channel is "empty" is decided on this, not on `posts`.
+   */
+  totalMessages: number;
 }
+
+export type ScrapeErrorCode = "channel_invalid" | "channel_empty" | "telegram_unavailable" | "knowledge_needed";
+
+/** Why a channel counts as empty: too few messages, no public preview, or pictures only with nothing to learn from. */
+export type ChannelEmptyReason = "few_posts" | "no_preview" | "no_text";
 
 export class ScrapeError extends Error {
   constructor(
     message: string,
     readonly status = 422,
+    readonly code: ScrapeErrorCode = status === 400 ? "channel_invalid" : "telegram_unavailable",
+    readonly details: { channel?: string; reason?: ChannelEmptyReason; postsFound?: number } = {},
   ) {
     super(message);
   }
+  get channel() {
+    return this.details.channel;
+  }
+  get reason() {
+    return this.details.reason;
+  }
+  get postsFound() {
+    return this.details.postsFound;
+  }
 }
+
+/** A channel with fewer posts than this is treated as empty (fresh mode): there is no voice to learn yet. */
+export const MIN_CHANNEL_POSTS = 5;
 
 const USERNAME_RE = /^[A-Za-z][A-Za-z0-9_]{3,31}$/;
 
@@ -82,8 +107,14 @@ export function parseChannelHtml(username: string, html: string): ScrapedChannel
   const subs = counters.find((m) => /subscriber|member|подпис/i.test(m[2]));
 
   const posts: ScrapedPost[] = [];
+  let totalMessages = 0;
   const blocks = html.split(/<div class="tgme_widget_message_wrap/).slice(1);
   for (const block of blocks) {
+    // Same rule as brain/scrape.ts: a real message has a data-post id and is not a service message.
+    const head = /<div class="(tgme_widget_message[^"]*)"[^>]*data-post="[^"]+"/.exec(block);
+    // Service messages ("Channel created", "photo updated") are neither posts nor brand voice.
+    if (head && /service_message/.test(head[1])) continue;
+    if (head) totalMessages++;
     const textHtml = block.match(/<div class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/);
     if (!textHtml) continue;
     const text = htmlToText(textHtml[1]);
@@ -104,14 +135,18 @@ export function parseChannelHtml(username: string, html: string): ScrapedChannel
     description,
     subscribers: subs ? `${subs[1].trim()} ${subs[2].trim()}` : undefined,
     posts,
+    totalMessages: Math.max(totalMessages, posts.length),
   };
 }
 
 /** Fetches the last ~20-40 posts of a public channel. Throws ScrapeError with a user-facing message. */
-export async function scrapeChannel(input: string, opts: { timeoutMs?: number; maxPosts?: number } = {}): Promise<ScrapedChannel> {
+export async function scrapeChannel(
+  input: string,
+  opts: { timeoutMs?: number; maxPosts?: number; /** fewer messages (any kind) than this → ScrapeError "channel_empty" (default 1) */ minPosts?: number } = {},
+): Promise<ScrapedChannel> {
   const username = parseChannelUsername(input);
   if (!username) {
-    throw new ScrapeError("Kanal havolasi noto‘g‘ri. Misol: @kanal_nomi yoki https://t.me/kanal_nomi", 400);
+    throw new ScrapeError("Kanal havolasi noto‘g‘ri. Misol: @kanal_nomi yoki https://t.me/kanal_nomi", 400, "channel_invalid");
   }
   let res: Response;
   try {
@@ -130,13 +165,22 @@ export async function scrapeChannel(input: string, opts: { timeoutMs?: number; m
   }
   // t.me/s/<name> redirects to t.me/<name> when there is no public preview (private, bot, user, or missing).
   if (res.status >= 300 && res.status < 400) {
-    throw new ScrapeError(`@${username} ochiq kanal emas yoki mavjud emas. Ochiq kanal havolasini yuboring.`, 404);
+    throw new ScrapeError(`@${username} ochiq kanal emas yoki mavjud emas. Ochiq kanal havolasini yuboring.`, 422, "channel_empty", {
+      channel: username,
+      reason: "no_preview",
+      postsFound: 0,
+    });
   }
   if (!res.ok) throw new ScrapeError(`Telegram ${res.status} qaytardi`, 502);
   const html = await res.text();
   const channel = parseChannelHtml(username, html);
-  if (channel.posts.length === 0) {
-    throw new ScrapeError(`@${username} kanalida ochiq postlar topilmadi.`, 404);
+  // Empty = few messages of any kind. A shop whose last posts are albums or reels without captions is not empty.
+  if (channel.totalMessages < (opts.minPosts ?? 1)) {
+    throw new ScrapeError(`@${username} kanalida ochiq postlar kam (${channel.totalMessages}).`, 422, "channel_empty", {
+      channel: username,
+      reason: channel.totalMessages === 0 && !channel.title ? "no_preview" : "few_posts",
+      postsFound: channel.totalMessages,
+    });
   }
   const max = opts.maxPosts ?? 30;
   channel.posts = channel.posts.slice(-max); // newest are at the end of the page

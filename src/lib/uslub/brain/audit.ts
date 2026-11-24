@@ -1,7 +1,10 @@
 import "server-only";
 import { z } from "zod";
+import { channelEmpty } from "@/lib/uslub/http";
+import { MIN_CHANNEL_POSTS } from "@/lib/uslub/scrape";
 import type { ChannelAudit } from "@/lib/uslub/contract";
 import { upcomingEvents } from "./calendar";
+import { evidenceText, plainOrNull, templateFinding, whyText } from "./plain";
 import { extractIds, groundedCheck } from "./lint";
 import { brainJson, GROUNDING, SONNET } from "./llm";
 import { type Benchmark, benchLedger, benchmarkFor, type ChannelSummary, type Niche, nicheOf } from "./bench";
@@ -11,7 +14,7 @@ import { keyId, postLedger, ruleLedger, runRules, statsLedger, type KbSignals } 
 import { BrainScrapeError, normalizeChannel, scrapeChannelData } from "./scrape";
 import { sufficiency } from "./sufficiency";
 import { channelValidity, noPreview, type Validity, type ValidityCode } from "./validity";
-import { computeStats, LEXICON, WEEKDAYS, whyLine } from "./stats";
+import { computeStats, LEXICON, WEEKDAYS } from "./stats";
 import { WIN, type ChannelData, type ChannelStats, type Lang, type LedgerEntry, type RuleResult } from "./types";
 
 export type Stage = { stage: string; [k: string]: unknown };
@@ -35,6 +38,8 @@ export interface Analysis {
   learn?: LearnReport;
   rules: RuleResult[];
   ledger: LedgerEntry[];
+  /** Upcoming calendar events (<=14 days) with names in uz/ru/en. */
+  calendar: { id: string; name: { uz: string; ru: string; en: string }; daysAway: number }[];
 }
 
 const fetchFailed = (handle: string): CompetitorIssue => ({
@@ -148,7 +153,8 @@ export async function analyzeDeterministic(input: {
     // Best-effort memory writes; the answer never waits on them failing.
     void Promise.allSettled([recordAnalysis(own, stats, niche, now), ...competitors.map((c) => recordAnalysis(c.data, c.stats, niche, now))]);
   }
-  return { data: own, stats, competitors, competitorIssues, validity, niche, bench, learn, rules, ledger };
+  const calendar = upcomingEvents(category, now).map((e) => ({ id: e.id, name: e.name, daysAway: e.daysAway }));
+  return { data: own, stats, competitors, competitorIssues, validity, niche, bench, learn, rules, ledger, calendar };
 }
 
 const FindingsSchema = z.object({
@@ -166,28 +172,31 @@ const D1 = `You are the Analitik of Mercat, an AI marketing department. You expl
 
 INPUT: firedRules [{id, kind, severity, trigger, effects, ids}], ledger, topPosts, benchmark.
 
-WRITE 3–7 findings:
+WRITE 3–7 findings. The owner reads them as they are, so write like a person, not a report:
 - Only from firedRules. Do not add findings for rules that did not fire. Do not change a rule's kind. If two rules share one cause (e.g. LOW_REACH + SUSPECT_BOOSTED), merge them into one finding citing both.
 - Order: problems by severity, then opportunities, then strengths. Include at least one strength if a strength rule fired, because owners need to know what to keep.
-- Each finding: at most 2 sentences. Sentence 1 = what the numbers show, with the number AND its comparison point (neighbouring posts, a competitor, or a prior threshold marked as such). Sentence 2 = what we will do this week, taken from rule.effects, stated concretely (which posts, how many, when).
+- Each finding: exactly 2 plain sentences. Sentence 1 = what the numbers show, with the number AND its comparison point (neighbouring posts, a competitor, or a prior threshold marked as such). Sentence 2 = one concrete fix for this week, taken from rule.effects (which posts, how many, when).
+- Plain words only: no variable or field names (reachRate, ctaRate, lift, CV, trigger...), no "n=", no "×" — say "40% ko'proq" / "на 40% больше" / "40% more". Percentages and counts copied from the ledger display.
+- The ids in square brackets go only at the very END of each finding, never inside a sentence.
 - For a COLD_START or insufficient-data rule, say what data is missing and how we will collect it (the experiment slot, tracked links).
-- Name posts by their P id when one illustrates the point.
+- To point at a post, quote its first few words in «» and put its P id only in the end brackets.
 - A finding that would fit any channel is wrong. Each one must be specific to this channel's numbers.
 
 Return JSON {findings:[{rule:"R.X", kind:"problem|opportunity|strength", text:"... [ids]", evidence:["S.x","P.y",...]}]}.`;
 
 export type Finding = { rule: string; kind: "problem" | "opportunity" | "strength"; text: string; evidence: string[]; template?: boolean };
 
-export async function writeFindings(a: Analysis, lang: Lang, onStage?: OnStage): Promise<Finding[]> {
+export async function writeFindings(a: Analysis, lang: Lang, onStage?: OnStage, opts: { llm?: boolean } = {}): Promise<Finding[]> {
   const fired = a.rules.filter((r) => r.status === "fired");
   const ledgerMap = new Map(a.ledger.map((e) => [e.id, e]));
   let raw: Finding[] = [];
-  if (fired.length) {
+  if (fired.length && opts.llm !== false) {
     try {
       const res = await brainJson({
         schema: FindingsSchema,
         model: SONNET,
         effort: "medium",
+        purpose: "findings",
         maxTokens: 8000,
         system: `${GROUNDING(lang, "'", LEXICON)}\n\n${D1}`,
         prompt: JSON.stringify({
@@ -205,20 +214,30 @@ export async function writeFindings(a: Analysis, lang: Lang, onStage?: OnStage):
   }
   const firedIds = new Set(fired.map((r) => r.id));
   const kept: Finding[] = [];
+  const covered = new Set<string>();
   for (const f of raw) {
     const ids = extractIds(f.text);
     const fails = groundedCheck(f.text, ledgerMap, f.evidence.filter((e) => ledgerMap.has(e)));
     const ruleOk = firedIds.has(f.rule) && f.kind === (fired.find((r) => r.id === f.rule) as RuleResult).kind;
-    if (!ids.length || fails.length || !ruleOk) {
-      onStage?.({ stage: "findings", dropped: f.rule, reasons: fails.map((x) => x.reason).slice(0, 3) });
+    // The owner sees the sentence without ids; one that still reads like a log line falls back to the template.
+    const plain = plainOrNull(f.text, lang);
+    if (!ids.length || fails.length || !ruleOk || !plain || covered.has(f.rule)) {
+      onStage?.({ stage: "findings", dropped: f.rule, reasons: [...fails.map((x) => x.reason).slice(0, 3), ...(plain ? [] : ["not plain language"])] });
       continue;
     }
-    kept.push({ ...f, evidence: [...new Set([...ids, ...f.evidence.filter((e) => ledgerMap.has(e))])] });
+    for (const r of [f.rule, ...ids.filter((i) => firedIds.has(i))]) covered.add(r);
+    kept.push({ ...f, text: plain, evidence: [...new Set([...ids, ...f.evidence.filter((e) => ledgerMap.has(e))])] });
   }
+  const value = (id: string) => {
+    const v = ledgerMap.get(id)?.value;
+    return typeof v === "number" ? v : undefined;
+  };
   for (const r of fired) {
-    if (r.id === "R.FUNNEL_LEAK") continue;
-    if (!kept.some((f) => f.rule === r.id || extractIds(f.text).includes(r.id)))
-      kept.push({ rule: r.id, kind: r.kind, text: `${r.name}: ${r.trigger} [${[...r.ids.filter((i) => ledgerMap.has(i)), r.id].join(", ")}]`, evidence: [...r.ids.filter((i) => ledgerMap.has(i)), r.id], template: true });
+    if (r.id === "R.FUNNEL_LEAK" || covered.has(r.id)) continue;
+    const text = templateFinding(r, a.stats, lang, { value, calendar: a.calendar });
+    if (!text) continue;
+    covered.add(r.id);
+    kept.push({ rule: r.id, kind: r.kind, text, evidence: [...r.ids.filter((i) => ledgerMap.has(i)), r.id], template: true });
   }
   const order = { problem: 0, opportunity: 1, strength: 2 };
   kept.sort((x, y) => order[x.kind] - order[y.kind]);
@@ -226,18 +245,7 @@ export async function writeFindings(a: Analysis, lang: Lang, onStage?: OnStage):
   return kept;
 }
 
-const evidenceLine = (ids: string[], ledger: Map<string, LedgerEntry>) =>
-  ids
-    .map((id) => {
-      const e = ledger.get(id);
-      if (!e) return id;
-      if (e.source === "rule") return id;
-      const meta = [e.n != null && e.source === "stats" ? `n=${e.n}` : "", e.window ?? ""].filter(Boolean).join(", ");
-      return `${id}=${e.display}${meta ? ` (${meta})` : ""}`;
-    })
-    .join(" · ");
-
-export function assembleAudit(a: Analysis, findings: Finding[]): ChannelAudit {
+export function assembleAudit(a: Analysis, findings: Finding[], lang: Lang = "uz"): ChannelAudit {
   const s = a.stats;
   const ledger = new Map(a.ledger.map((e) => [e.id, e]));
   const bestHours = Object.entries(s.hourLift)
@@ -258,8 +266,8 @@ export function assembleAudit(a: Analysis, findings: Finding[]): ChannelAudit {
     bestHours,
     bestWeekdays,
     formatMix: s.formatMix,
-    topPosts: top.map(({ post, lift }) => ({ url: post.url, views: post.views, why: whyLine(post, lift) })),
-    findings: findings.map((f) => ({ kind: f.kind, text: f.text, evidence: evidenceLine(f.evidence, ledger) })),
+    topPosts: top.map(({ post, lift }) => ({ url: post.url, views: post.views, why: whyText(post, lift, lang) })),
+    findings: findings.map((f) => ({ kind: f.kind, text: f.text, evidence: evidenceText(f.evidence, ledger, lang) })),
     benchmark: a.competitors.map(({ stats: c }) => ({
       channel: `@${c.channel}`,
       subscribers: c.subscribers,
@@ -273,8 +281,10 @@ export function assembleAudit(a: Analysis, findings: Finding[]): ChannelAudit {
 
 export async function runAudit(input: { channel: string; competitors?: string[]; lang?: Lang; category?: string; brandId?: string; onStage?: OnStage }) {
   const a = await analyzeDeterministic(input);
+  // An empty channel has nothing to audit: the Studio switches to fresh mode (launch plan from the owner's description).
+  if (a.data.posts.length < MIN_CHANNEL_POSTS) throw channelEmpty(a.data.channel, a.data.posts.length ? "few_posts" : "no_preview", a.data.posts.length);
   const findings = await writeFindings(a, input.lang ?? "uz", input.onStage);
-  const audit = assembleAudit(a, findings);
+  const audit = assembleAudit(a, findings, input.lang ?? "uz");
   input.onStage?.({ stage: "done" });
   return {
     audit,

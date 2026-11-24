@@ -1,4 +1,5 @@
 import "server-only";
+import { recordUsage } from "@/lib/uslub/context";
 import { getAnthropic } from "@/lib/uslub/llm";
 import { SONNET, wellFormed } from "./llm";
 import type { LedgerEntry } from "./types";
@@ -24,6 +25,7 @@ export async function webContext(
       q.competitors?.length ? ` Competitors: ${q.competitors.map((c) => `@${c.replace(/^@/, "")}`).join(", ")}.` : ""
     } Today: ${today}.`,
   );
+  const t0 = Date.now();
   try {
     const res = await getAnthropic().beta.messages.create(
       {
@@ -46,6 +48,7 @@ export async function webContext(
       },
       { timeout: timeoutMs, maxRetries: 0 },
     );
+    recordUsage(res.model ?? SONNET, res.usage, t0, "web_context");
     if (res.stop_reason === "refusal") return [];
     const seen = new Set<string>();
     const out: LedgerEntry[] = [];

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { safeLogEvent } from "@/lib/track";
 import { buildBrand } from "@/lib/uslub/brand";
 import { generatePosts } from "@/lib/uslub/copywriter";
-import { handle, HttpError, json, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
+import { errorBody, handle, HttpError, json, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import type { RadarLead } from "@/lib/uslub/contract";
 import { findLeads } from "@/lib/uslub/radar";
 import { classifySensitivity } from "@/lib/uslub/sensitivity";
@@ -38,8 +38,8 @@ function withDeadline<T>(task: Promise<T>, deadline: number): Promise<T> {
 
 const isTimeout = (r: PromiseSettledResult<unknown>) => r.status === "rejected" && r.reason instanceof DeadlineError;
 
-const errMsg = (r: PromiseSettledResult<unknown>) =>
-  r.status === "rejected" ? (r.reason instanceof Error ? r.reason.message : "failed") : undefined;
+/** Owner-safe sentence (request language) for a part that failed; never a raw SDK message. */
+const errMsg = (r: PromiseSettledResult<unknown>) => (r.status === "rejected" ? errorBody(r.reason).body.error : undefined);
 
 /**
  * "One link -> whole department": POST { channel? | knowledge?, brief? }
@@ -49,7 +49,7 @@ const errMsg = (r: PromiseSettledResult<unknown>) =>
 export const POST = handle(async (req) => {
   rateLimit(req, "department", 4);
   const body = await readJson(req, Body);
-  if (!body.channel && !body.knowledge?.trim()) throw new HttpError(400, "Send a channel or knowledge");
+  if (!body.channel && !body.knowledge?.trim()) throw new HttpError(400, "Send a channel or knowledge", "knowledge_needed");
   const include = new Set(body.include ?? ["posts", "radar", "video"]);
   const started = Date.now();
 
