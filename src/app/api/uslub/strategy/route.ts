@@ -51,6 +51,8 @@ export const POST = handle(async (req) => {
   if (body.brandId) {
     try {
       const brand = await loadBrandFor(body.brandId, userId);
+      // An owned brand's plan is private (GET below): only someone who may read its drafts may replace it.
+      if (brand.ownerTelegramId != null) await assertDraftAccess(brand, userId);
       brandId = brand.id;
       const requested = (body.channel ?? body.audit?.channel)?.replace(/^@/, "").toLowerCase();
       ownerVerified =
