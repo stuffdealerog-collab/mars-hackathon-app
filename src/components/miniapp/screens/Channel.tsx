@@ -19,7 +19,7 @@ import { haptic } from "../tg";
 
 const KIND_ORDER = { problem: 0, opportunity: 1, strength: 2 } as const;
 
-// Professional rejim depth from the Studio, loaded only when Pro is on.
+// Pro rejim depth from the Studio, loaded only when Pro is on.
 const AuditFull = dynamic(() => import("../../studio/pro/ProDetails").then((m) => m.AuditFull), { ssr: false });
 const SufficiencyPanel = dynamic(() => import("../../studio/pro/ProDetails").then((m) => m.SufficiencyPanel), { ssr: false });
 const PlanRowDetails = dynamic(() => import("../../studio/pro/ProDetails").then((m) => m.PlanRowDetails), { ssr: false });
@@ -443,7 +443,7 @@ function Plan({ onOpenPost }: { onOpenPost: (id: string) => void }) {
   );
 }
 
-/** Professional rejim only: the strategist's reasoning behind the plan. */
+/** Pro rejim only: the strategist's reasoning behind the plan. */
 function StrategyDetails() {
   const c = useCopy();
   const lang = useLang((s) => s.lang);
