@@ -550,7 +550,7 @@ function ChannelChip({ collapsed, side }: { collapsed: boolean; side: Side }) {
                 ))}
               </>
             )}
-            {channel && (
+            {channel && !sample && (
               <a
                 role="menuitem"
                 href={`https://t.me/${channel.replace(/^@/, "")}`}
