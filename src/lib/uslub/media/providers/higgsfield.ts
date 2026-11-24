@@ -11,7 +11,7 @@ import {
   type SubmitRequest,
 } from "../provider";
 import type { Aspect, MediaKind } from "../types";
-import { wellFormedDeep } from "@/lib/uslub/text";
+import { wellFormedDeep } from "../../text";
 
 /**
  * Higgsfield Cloud API (developer API, pay-as-you-go USD balance — NOT the

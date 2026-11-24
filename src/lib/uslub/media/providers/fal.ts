@@ -11,7 +11,7 @@ import {
   type SubmitRequest,
 } from "../provider";
 import type { MediaKind } from "../types";
-import { wellFormedDeep } from "@/lib/uslub/text";
+import { wellFormedDeep } from "../../text";
 
 /**
  * fal.ai queue API (plain REST, no SDK):
