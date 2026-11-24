@@ -1,8 +1,10 @@
 import type { ChannelAudit, PlanItem } from "@/lib/uslub/contract";
 import { Check, ChevronRight, Settings } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Led } from "../../lamp/Led";
+import { StyleRefs } from "../../media";
+import * as api from "../../studio/api";
 import { Strip, useLamps } from "../../studio/Department";
 import { slotKey, useStudio } from "../../studio/store";
 import type { PlanItemExtra } from "../../studio/api";
@@ -76,6 +78,7 @@ export function ChannelScreen({ onOpenPost }: { onOpenPost: (id: string) => void
 
           {mode === "channel" ? <Numbers /> : <p className="mt-6 px-1 text-[15px] leading-relaxed text-ink-2">{c.channel.freshNoStats}</p>}
           {mode === "fresh" && <Launch />}
+          <Style />
           <Voice />
           <Plan onOpenPost={onOpenPost} />
           {pro && <StrategyDetails />}
@@ -231,6 +234,61 @@ function Launch() {
       </ol>
     </section>
   );
+}
+
+/** The picture style: the channel's (and the owner's) reference photos and palette. */
+function Style() {
+  const c = useCopy();
+  const lang = useLang((s) => s.lang);
+  const brand = useStudio((s) => s.brand);
+  const pro = useStudio((s) => s.pro);
+  const sample = useStudio((s) => s.sample);
+  useBrandVisual();
+  if (!brand || sample) return null;
+  return (
+    <section aria-labelledby="ma-style">
+      <H2 id="ma-style">{c.lamps.designer.name}</H2>
+      <div className="ma-group px-4 py-3.5">
+        <StyleRefs
+          key={brand.id}
+          brandId={brand.id}
+          initial={brand.visual ?? null}
+          lang={lang}
+          pro={pro}
+          autoLearn={false}
+          initData={api.tgInitData()}
+          onChange={(visual) => {
+            const b = useStudio.getState().brand;
+            if (b?.id === brand.id) useStudio.setState({ brand: { ...b, visual } });
+          }}
+        />
+      </div>
+    </section>
+  );
+}
+
+/** The store learns the style but does not keep the answer yet: read it once so StyleRefs and the refs line have it. */
+function useBrandVisual() {
+  const id = useStudio((s) => s.brand?.id);
+  const has = useStudio((s) => !!s.brand?.visual);
+  const sample = useStudio((s) => s.sample);
+  useEffect(() => {
+    if (!id || has || sample) return;
+    let gone = false;
+    const init = api.tgInitData();
+    void fetch(`/api/uslub/visual?brandId=${encodeURIComponent(id)}&lang=${useLang.getState().lang}`, {
+      headers: init ? { authorization: `tma ${init}` } : undefined,
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { visual?: import("@/lib/uslub/contract").VisualStyle | null } | null) => {
+        const b = useStudio.getState().brand;
+        if (!gone && j?.visual && b?.id === id && !b.visual) useStudio.setState({ brand: { ...b, visual: j.visual } });
+      })
+      .catch(() => undefined);
+    return () => {
+      gone = true;
+    };
+  }, [id, has, sample]);
 }
 
 function Voice() {

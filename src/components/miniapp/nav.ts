@@ -11,7 +11,7 @@ import { create } from "zustand";
 
 /** A post is opened by id: writing or refreshing posts reorders the list, an index would go stale. */
 export type Route = { name: "fresh" } | { name: "post"; id: string };
-export type SheetName = "settings" | "edit" | "lang" | "details" | "admin" | "channel";
+export type SheetName = "settings" | "edit" | "lang" | "details" | "channel";
 export type Sheet = { name: SheetName; postId?: string };
 
 type Pushed = Route & { key: number; leaving?: boolean };

@@ -150,6 +150,17 @@ export function installTelegramMock(opts: { scheme: "light" | "dark"; platform: 
     openTelegramLink: (u) => log("openTelegramLink", u),
     openLink: (u) => log("openLink", u),
     showConfirm: (m, cb) => cb(window.confirm(m)),
+    showPopup: (params, cb) => {
+      log("showPopup", params.message, (params.buttons ?? []).map((b) => b.text ?? b.type).join(" | "));
+      const act = (params.buttons ?? []).find((b) => b.id);
+      if (act) cb?.(window.confirm(`${params.message}
+
+[OK] = ${act.text}`) ? act.id! : "");
+      else {
+        window.alert(params.message);
+        cb?.("");
+      }
+    },
     onEvent: (e: TgEvent, cb: Listener) => {
       if (!listeners.has(e)) listeners.set(e, new Set());
       listeners.get(e)!.add(cb);

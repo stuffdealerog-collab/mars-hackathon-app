@@ -5,6 +5,7 @@ import { lampVars } from "../../lamp/lamps";
 import { slotKey, useStudio } from "../../studio/store";
 import { plural, weekday } from "../../ui/format";
 import { fmt, useCopy, useLang, type Lang } from "../../ui/lang";
+import { useBlank } from "../blank";
 import { useMiniCopy } from "../copy";
 import { useNav } from "../nav";
 import { TopBar, useCompact } from "../Shell";
@@ -155,6 +156,7 @@ function PostRow({ post, script, onOpen }: { post: PostDraft; script: Script; on
   // The picture slot stays reserved while pictures are on their way, so rows never shift.
   const expected = useStudio((s) => !s.sample && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")));
   const thumb = !!post.image || expected;
+  const blank = useBlank(post);
   const text = (post.variants[script] ?? "").trim();
   const status = post.status === "published" ? "published" : post.status === "approved" ? "approved" : "draft";
   return (
@@ -170,8 +172,15 @@ function PostRow({ post, script, onOpen }: { post: PostDraft; script: Script; on
       <span className="flex min-w-0 flex-1 flex-col py-0.5">
         <span className="flex items-center justify-between gap-2">
           <span className="truncate text-[13px] text-ink-2">{when}</span>
-          {/* A status appears once the owner acted; a draft needs no label. */}
-          {status !== "draft" && <StatusDot status={status} label={m.posts[status]} />}
+          {/* A status appears once the owner acted; a draft needs no label, unless it waits for a fact. */}
+          {status !== "draft" ? (
+            <StatusDot status={status} label={m.posts[status]} />
+          ) : blank ? (
+            <span className="inline-flex shrink-0 items-center gap-1.5 text-[12.5px] font-semibold text-led">
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-led" />
+              {m.post.fill}
+            </span>
+          ) : null}
         </span>
         <span lang={script === "ru" ? "ru" : script === "en" ? "en" : "uz"} className="mt-1 line-clamp-3 text-[15px] leading-snug">
           {text}
