@@ -1,6 +1,6 @@
 import type { ChannelAudit } from "@/lib/uslub/contract";
 import { useCopy, useLang, fmt, num } from "../ui/lang";
-import { weekday } from "./PostCard";
+import { weekday } from "../ui/format";
 import { useStudio } from "./store";
 
 const KIND_ORDER = { problem: 0, opportunity: 1, strength: 2 } as const;

@@ -62,7 +62,7 @@ interface StudioState {
   tab: Tab;
   edited: Record<string, Partial<Record<Script, string>>>;
   busy: Record<string, "approve" | "publish" | undefined>;
-  postNote: Record<string, { text: string; href?: string; tone: "ok" | "bad" } | undefined>;
+  postNote: Record<string, { text: string; href?: string; link?: string; tone: "ok" | "bad" } | undefined>;
 
   configure: (o: { bot: string }) => void;
   startChannel: (channel: string) => void;
@@ -534,6 +534,11 @@ export const useStudio = create<StudioState>((set, get) => {
       const busy = (v: "publish" | undefined) => set({ busy: { ...get().busy, [id]: v } });
       const note = (v: StudioState["postNote"][string]) => set({ postNote: { ...get().postNote, [id]: v } });
       const chat = get().brand?.channel ?? (get().input.channel ? `@${get().input.channel}` : "");
+      if (!chat) {
+        // A brand from a description with no channel yet: the bot asks for the channel and publishes.
+        note({ text: copy().posts.noChannel, href: api.botPublishUrl(get().bot, id), tone: "bad", link: copy().posts.openBot });
+        return;
+      }
       busy("publish");
       note(undefined);
       const r = await api.publishPost(id, script, chat, lang());

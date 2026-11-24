@@ -2,19 +2,13 @@ import type { PostDraft, Script } from "@/lib/uslub/contract";
 import { Check, ExternalLink } from "lucide-react";
 import { useId, useState } from "react";
 import { keepNumbers, useCopy, useLang, type Lang } from "../ui/lang";
+import { weekday } from "../ui/format";
 import { botPublishUrl } from "./api";
 import { PostPicture } from "./PostPicture";
 import { useStudio } from "./store";
 
 const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
 const DEFAULT_SCRIPT: Record<Lang, Script> = { uz: "uz_latn", ru: "ru", en: "en" };
-
-/** "2026-11-30" -> weekday index without timezone drift. */
-export function weekday(iso: string): number | null {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return null;
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getDay();
-}
 
 export function PostCard({ post, inTelegram }: { post: PostDraft; inTelegram: boolean }) {
   const c = useCopy();
@@ -161,7 +155,7 @@ export function PostCard({ post, inTelegram }: { post: PostDraft; inTelegram: bo
               <>
                 {" "}
                 <a href={note.href} target="_blank" rel="noreferrer" className="link">
-                  {note.tone === "bad" ? c.posts.addAdmin : c.posts.openPost}
+                  {note.link ?? (note.tone === "bad" ? c.posts.addAdmin : c.posts.openPost)}
                 </a>
               </>
             )}

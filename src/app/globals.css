@@ -91,140 +91,143 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------------------------------------------------------------- buttons */
+/* Component classes sit in the components layer so Tailwind utilities can still adjust them. */
+@layer components {
+  /* ---------------------------------------------------------------- buttons */
 
-.btn,
-.btn-2 {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  min-height: 48px;
-  padding: 0 20px;
-  border-radius: 12px;
-  font-size: 16px;
-  line-height: 1.2;
-  font-weight: 600;
-  text-align: center;
-  transition:
-    background-color 0.15s ease,
-    box-shadow 0.15s ease,
-    color 0.15s ease;
-  -webkit-tap-highlight-color: transparent;
-  cursor: pointer;
-}
+  .btn,
+  .btn-2 {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 48px;
+    padding: 0 20px;
+    border-radius: 12px;
+    font-size: 16px;
+    line-height: 1.2;
+    font-weight: 600;
+    text-align: center;
+    transition:
+      background-color 0.15s ease,
+      box-shadow 0.15s ease,
+      color 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+  }
 
-/* The one primary action on a screen. */
-.btn {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-.btn:hover {
-  background: var(--accent-hover);
-}
+  /* The one primary action on a screen. */
+  .btn {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .btn:hover {
+    background: var(--accent-hover);
+  }
 
-.btn-2 {
-  background: var(--card);
-  color: var(--ink);
-  font-weight: 500;
-  box-shadow: inset 0 0 0 1px var(--line-2);
-}
-.btn-2:hover {
-  background: var(--tint);
-}
+  .btn-2 {
+    background: var(--card);
+    color: var(--ink);
+    font-weight: 500;
+    box-shadow: inset 0 0 0 1px var(--line-2);
+  }
+  .btn-2:hover {
+    background: var(--tint);
+  }
 
-.btn:disabled,
-.btn-2:disabled,
-.btn[aria-disabled="true"],
-.btn-2[aria-disabled="true"] {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+  .btn:disabled,
+  .btn-2:disabled,
+  .btn[aria-disabled="true"],
+  .btn-2[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
-/* Text-only action: underlined, quiet. */
-.link {
-  color: var(--ink);
-  text-decoration: underline;
-  text-decoration-color: var(--line-2);
-  text-underline-offset: 4px;
-  transition: text-decoration-color 0.15s ease;
-}
-.link:hover {
-  text-decoration-color: var(--ink-2);
-}
+  /* Text-only action: underlined, quiet. */
+  .link {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: var(--line-2);
+    text-underline-offset: 4px;
+    transition: text-decoration-color 0.15s ease;
+  }
+  .link:hover {
+    text-decoration-color: var(--ink-2);
+  }
 
-/* ------------------------------------------------------------------ fields */
+  /* ------------------------------------------------------------------ fields */
 
-.input {
-  width: 100%;
-  min-height: 52px;
-  padding: 0 16px;
-  border-radius: 12px;
-  background: var(--card);
-  color: var(--ink);
-  font-size: 16px; /* 16px keeps iOS from zooming the page on focus */
-  box-shadow: inset 0 0 0 1px var(--line-2);
-  transition: box-shadow 0.15s ease;
-}
-textarea.input {
-  padding: 14px 16px;
-  line-height: 1.5;
-  resize: vertical;
-}
-.input::placeholder {
-  color: var(--ink-3);
-}
-.input:focus {
-  outline: none;
-  box-shadow: inset 0 0 0 1.5px var(--ink);
-}
-.input[aria-invalid="true"] {
-  box-shadow: inset 0 0 0 1.5px var(--bad);
-}
+  .input {
+    width: 100%;
+    min-height: 52px;
+    padding: 0 16px;
+    border-radius: 12px;
+    background: var(--card);
+    color: var(--ink);
+    font-size: 16px; /* 16px keeps iOS from zooming the page on focus */
+    box-shadow: inset 0 0 0 1px var(--line-2);
+    transition: box-shadow 0.15s ease;
+  }
+  textarea.input {
+    padding: 14px 16px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  .input::placeholder {
+    color: var(--ink-3);
+  }
+  .input:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 1.5px var(--ink);
+  }
+  .input[aria-invalid="true"] {
+    box-shadow: inset 0 0 0 1.5px var(--bad);
+  }
 
-/* ------------------------------------------------------------------ surfaces */
+  /* ------------------------------------------------------------------ surfaces */
 
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-}
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+  }
 
-/* Segmented switch (language, post script). */
-.seg {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 10px;
-  background: var(--tint);
-}
-.seg > button,
-.seg > a {
-  min-height: 32px;
-  min-width: 40px;
-  padding: 0 10px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink-2);
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
-}
-.seg > [aria-pressed="true"],
-.seg > [aria-current="true"],
-.seg > [aria-selected="true"] {
-  background: var(--card);
-  color: var(--ink);
-  box-shadow: 0 0 0 1px var(--line);
-}
+  /* Segmented switch (language, post script). */
+  .seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--tint);
+  }
+  .seg > button,
+  .seg > a {
+    min-height: 32px;
+    min-width: 40px;
+    padding: 0 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink-2);
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+  .seg > [aria-pressed="true"],
+  .seg > [aria-current="true"],
+  .seg > [aria-selected="true"] {
+    background: var(--card);
+    color: var(--ink);
+    box-shadow: 0 0 0 1px var(--line);
+  }
 
-/* A Telegram post body: the owner's real unit of work. */
-.post-text {
-  white-space: pre-line;
-  overflow-wrap: anywhere;
-  font-size: 16px;
-  line-height: 1.5;
+  /* A Telegram post body: the owner's real unit of work. */
+  .post-text {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    font-size: 16px;
+    line-height: 1.5;
+  }
 }
 
 /* Calm "in progress" for picture slots: a slow tint, no glow. */

@@ -49,8 +49,4 @@ export function Steps({ className = "" }: { className?: string }) {
   );
 }
 
-/** Accepts t.me/x, https://t.me/x, t.me/s/x, @x or a bare username. */
-export function parseChannel(v: string): string | null {
-  const m = v.trim().match(/^(?:https?:\/\/)?(?:t(?:elegram)?\.me\/(?:s\/)?|@)?([A-Za-z][A-Za-z0-9_]{3,31})\/?$/);
-  return m ? m[1] : null;
-}
+export { parseChannel } from "./format";
