@@ -126,7 +126,7 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
         style={side === "left" ? { paddingLeft: gutter + 8 } : { paddingRight: gutter + 8 }}
       >
         {/* The channel's numbers on an LED sign that runs under the glass to the window's edge. */}
-        {phase === "ready" && !sample && <ChannelSign bleed={gutter + 8} side={side} />}
+        {phase === "ready" && <ChannelSign bleed={gutter + 8} side={side} />}
         <div className={phase === "ready" ? "mx-auto max-w-[1280px]" : "mx-auto max-w-[720px]"}>
           {sample && <SampleBanner flush />}
           {phase === "start" && <Start key={`${entry.view}:${entry.channel}`} initialView={entry.view} initialChannel={entry.channel} />}

@@ -27,7 +27,8 @@ export function Inspector({ post, script, lamps }: { post: PostDraft; script: Sc
   const item = slot ? plan?.items.find((it) => slotKey(it) === slotKey(slot)) : undefined;
   const hits = edited?.[script] ? [] : (post.neuroHits[script] ?? []);
   const img = post.image;
-  const imgWord = !img ? c.lampState.off : img.status === "ready" ? c.lampState.on : img.status === "failed" ? c.lampState.error : c.lampState.warming;
+  const sample = useStudio((s) => s.sample);
+  const imgWord = sample ? c.sample.noImage : !img ? c.lampState.off : img.status === "ready" ? c.lampState.on : img.status === "failed" ? c.lampState.error : c.lampState.warming;
 
   return (
     <aside aria-label={c.pro.label} className="@container card flex flex-col divide-y divide-line">
