@@ -171,3 +171,33 @@ CREATE TABLE IF NOT EXISTS brain_facts_cache (
   facts jsonb NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- ------------------------------------------------- Sprint 2026-11-25 additions
+-- Additive only (ADD COLUMN IF NOT EXISTS / CREATE ... IF NOT EXISTS): safe on the shared DB.
+
+-- 'channel' = learned from a channel with history; 'fresh' = empty channel, built from the
+-- owner's description of the business (see BrandMode in src/lib/uslub/contract.ts).
+ALTER TABLE brands ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'channel';
+-- VisualStyle (refs, palette, light, composition, props, mood, avoid, prompt, learnedAt).
+ALTER TABLE brands ADD COLUMN IF NOT EXISTS visual jsonb;
+
+-- PlanSlot the post was written from, its PostImage, and when the owner approved it.
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS slot jsonb;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS image jsonb;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS approved_at timestamptz;
+
+-- Media generation jobs (was created lazily by src/lib/uslub/media/pg-repo.ts; same DDL).
+CREATE TABLE IF NOT EXISTS media_jobs (
+  id uuid PRIMARY KEY,
+  brand_id text,
+  kind text NOT NULL,
+  status text NOT NULL,
+  provider text NOT NULL,
+  owner_key text NOT NULL DEFAULT 'anon',
+  data jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS media_jobs_created_idx ON media_jobs (created_at DESC);
+CREATE INDEX IF NOT EXISTS media_jobs_owner_created_idx ON media_jobs (owner_key, created_at DESC);

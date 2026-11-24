@@ -12,6 +12,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // The round "N" dev-tools button (bottom-left, `next dev` only) covers the Studio on small screens.
+  devIndicators: false,
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

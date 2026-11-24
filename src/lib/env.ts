@@ -32,7 +32,8 @@ const schemas = {
     .refine((s) => s.startsWith("https://") || s.startsWith("http://localhost"), "must be https")
     .transform((s) => s.replace(/\/+$/, "")),
   // Claude (optional)
-  ANTHROPIC_API_KEY: z.string(),
+  // A placeholder must read as "not configured", not as a key that fails every call.
+  ANTHROPIC_API_KEY: z.string().regex(/^sk-ant-[A-Za-z0-9_-]{30,}$/, "expected an sk-ant-… key from console.anthropic.com"),
   ANTHROPIC_MODEL: z.string(),
   // Set automatically by Vercel (used as a PUBLIC_URL fallback)
   VERCEL_PROJECT_PRODUCTION_URL: z.string(),

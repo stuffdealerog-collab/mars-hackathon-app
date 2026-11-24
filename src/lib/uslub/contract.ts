@@ -49,7 +49,55 @@ export interface BrandProfile {
   knowledge: string; // business info the owner pasted (products, prices, address, story)
   samplePosts: string[];
   dna: BrandDNA;
+  /**
+   * "channel" = learned from a channel with history (t.me/s posts and numbers).
+   * "fresh"   = the channel is empty or does not exist yet: the brand is built from the
+   *             owner's description of the product/service/business (no stats, no samples).
+   * Missing on brands created before 2026-11-25: treat as "channel".
+   */
+  mode?: BrandMode;
+  /** How the brand's pictures look; missing until the style is learned. */
+  visual?: VisualStyle;
   createdAt: string; // ISO
+}
+
+export type BrandMode = "channel" | "fresh";
+
+/**
+ * The brand's visual style, learned from reference images (the channel's past post photos
+ * and/or photos the owner attached). Used to make new post images in the same style.
+ */
+export interface VisualStyle {
+  /** Reference images actually used (https URLs we can hand to an image model), newest first. */
+  refs: { url: string; source: "channel" | "owner" }[];
+  palette: string[]; // dominant colours, e.g. ["#f4efe6", "#3b2a20"]
+  light: string; // e.g. "soft window daylight, warm"
+  composition: string; // e.g. "close-up product on a wooden table, top-down"
+  props: string[]; // recurring objects/backgrounds
+  mood: string;
+  avoid: string[]; // what is never in their pictures (e.g. "people's faces", "neon")
+  /** One paragraph ready to append to an image prompt. */
+  prompt: string;
+  learnedAt: string; // ISO
+}
+
+/** The plan item a post was written from (so plan and posts stay connected). */
+export interface PlanSlot {
+  day: string; // ISO date
+  time: string; // "19:00"
+  goal: Goal;
+  hook: string;
+  cta: string;
+}
+
+/** A picture for a post, made in the brand's visual style. */
+export interface PostImage {
+  status: "queued" | "running" | "ready" | "failed";
+  url?: string; // https, set when ready
+  jobId?: string; // media job id while queued/running
+  prompt?: string;
+  refsUsed: number; // how many reference images the model saw
+  error?: string; // owner-safe message when failed
 }
 
 /** A phrase that sounds machine-written ("neuro-word"). */
@@ -68,6 +116,11 @@ export interface PostDraft {
   humanScore: number; // 0-100, higher = sounds more human
   status: "draft" | "approved" | "published";
   publishedUrl?: string;
+  /** The plan item this post was written from, when it came from the weekly plan. */
+  slot?: PlanSlot;
+  /** The post's picture in the brand's style; missing = no picture requested yet. */
+  image?: PostImage;
+  approvedAt?: string; // ISO, set when the owner approves (persisted, survives reload)
   createdAt: string;
 }
 
@@ -181,17 +234,36 @@ export type NodeStatus = "idle" | "running" | "done" | "error" | "needs_approval
  * All routes: POST JSON, respond JSON, never expose secrets.
  * Errors: { error: string } with a 4xx/5xx status.
  *
- * POST /api/uslub/brand    { channel?: string; knowledge?: string; samplePosts?: string[] }
+ * POST /api/uslub/brand    { channel?: string; knowledge?: string; samplePosts?: string[];
+ *                            mode?: BrandMode }
  *                          -> { brand: BrandProfile }
+ *                          mode "fresh": knowledge (the owner's description of the business,
+ *                          at least a few sentences) is required, channel is optional (the empty
+ *                          channel to publish to later); DNA is built from the description only.
  * GET  /api/uslub/brand?id= -> { brand: BrandProfile }
  * POST /api/uslub/posts    { brandId: string; brief: string; count?: number }   (count <= 5)
  *                          -> { posts: PostDraft[] }
+ * POST /api/uslub/posts    { brandId: string; slots: (PlanSlot & { brief: string })[] }  (<= 7)
+ *                          -> { posts: PostDraft[] }   one post per plan slot, slot kept on the post
+ * GET  /api/uslub/posts?brandId= -> { posts: PostDraft[] }   newest first (drafts + approved)
+ * POST /api/uslub/posts/approve { postId: string } -> { post: PostDraft }   persists approval
+ * POST /api/uslub/visual   { brandId: string; ownerImages?: string[] }  (https or data: URLs)
+ *                          -> { visual: VisualStyle }   learns the style from channel photos
+ *                          (scraped) plus owner images; stored on the brand
+ * POST /api/uslub/media/post-image { postId: string } -> { image: PostImage }
+ *                          starts (or returns) the picture for a post in the brand's style
+ * GET  /api/uslub/media/post-image?postId= -> { image: PostImage }   poll every ~4 s
  * POST /api/uslub/neuro    { text: string; script: Script }
  *                          -> { text: string; hits: NeuroHit[]; humanScore: number }
  * POST /api/uslub/radar    { brandId: string; goal?: string } -> { leads: RadarLead[] }
  * POST /api/uslub/video    { brandId: string; brief: string } -> { plan: VideoPlan }
  * POST /api/uslub/publish  { postId: string; script: Script; chat: string }  (chat = @channel)
  *                          -> { ok: boolean; url?: string; error?: string }
+ *                          sends the post's image too when image.status === "ready"
+ *                          (sendPhoto; text over the 1024-char caption limit follows as a message)
+ * Bot deep link t.me/<bot>?start=publish_<postId>: the bot shows the post (with its image) and a
+ *                          "Kanalga joylash" button; an unowned web brand is claimed by the first
+ *                          Telegram user who is an admin of that channel with post rights.
  * POST /api/uslub/plan     { brandId: string; task: string } -> { flow: Flow }
  *                          ("delegate a task": the strategist assembles a node graph)
  * POST /api/uslub/analyze  { channel: string; competitors?: string[] } -> { audit: ChannelAudit }

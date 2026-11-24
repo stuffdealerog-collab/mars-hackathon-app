@@ -6,11 +6,12 @@ Mercat (formerly "Uslub AI"; internal paths still use `uslub`) — AI marketing 
 Next.js 16 App Router · React 19 · TypeScript · Tailwind 4 · @xyflow/react (node canvas) · motion · lucide-react · zustand · Neon Postgres (`src/lib/db.ts`, tagged-template SQL only) · grammY bot · Anthropic SDK (`src/lib/ai.ts`) · Vercel (fra1).
 
 ## File ownership (parallel agents — edit only your paths)
-- **Studio UI agent:** `src/app/page.tsx`, `src/app/concept/**`, `src/app/studio/**`, `src/app/pitch/**`, `src/components/**`, `src/app/globals.css`, `src/app/layout.tsx`, `public/**` except `public/generated/**`.
-- **Engine agent:** `src/lib/uslub/**` (except `contract.ts`), `src/app/api/uslub/**`, `src/lib/bot.ts`, `db/schema.sql`, `tests/**`, `docs/quality/**`.
-- **Assets agent:** `public/generated/**`, `docs/marketing/**`.
-- **Brain agent:** `src/lib/uslub/brain/**`, `src/app/api/uslub/analyze/**`, `src/app/api/uslub/strategy/**`, `tests/brain/**`, `docs/brain/**`.
-- **Lead (main session) only:** `package.json`, `pnpm-lock.yaml`, `src/lib/uslub/contract.ts`, `src/lib/env.ts`, `CLAUDE.md`, merges and production deploys. Ask the lead for new dependencies — do not run `pnpm add`.
+Current sprint (2026-11-25 client demo): plan, decisions and streams in `docs/sprint/2026-11-25-plan.md`.
+- **Engine session (`engine`):** `src/lib/uslub/**` except `contract.ts`, `media/**`, `visual/**`, `publish.ts`; `src/app/api/uslub/**` except `media/**`, `visual/**`; `src/lib/bot.ts`, `src/lib/i18n.ts`, `tests/**`, `docs/brain/**`, `docs/quality/**`.
+- **Images session (`images`):** `src/lib/uslub/media/**`, `src/lib/uslub/visual/**`, `src/lib/uslub/publish.ts`, `src/app/api/uslub/media/**`, `src/app/api/uslub/visual/**`, `src/components/media/**` (self-contained components the Studio imports), `docs/creative/media-pipeline.md`.
+- **Studio UX session (`studio-ux`):** `src/app/**` except `src/app/api/**`; `src/components/**` except `src/components/media/**`; `src/app/globals.css`, `public/**`, `DESIGN.md`, `PRODUCT.md`, `.impeccable/**`.
+- **Pitch film session (`pitch-film`):** `docs/video/film/**`.
+- **Lead (main session) only:** `package.json`, `pnpm-lock.yaml`, `src/lib/uslub/contract.ts`, `src/lib/env.ts`, `db/schema.sql`, `next.config.ts`, `vercel.json`, `CLAUDE.md`, `docs/sprint/**`, merges and production deploys. Ask the lead for new dependencies, contract or schema changes — do not run `pnpm add`, do not edit those files.
 
 ## Rules
 - The contract is `src/lib/uslub/contract.ts`. Code against it; do not change it.
