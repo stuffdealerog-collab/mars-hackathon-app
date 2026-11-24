@@ -105,7 +105,7 @@ const varsOf = (role: AgentRole) => {
     "--x-core": miniDim(rgb(l.core)),
     "--x-hue": miniDim(rgb(l.hue)),
     "--x-mid": miniDim(mixRgb(l.hue, l.deep, 0.45)),
-    "--x-deep": miniDim(rgb(l.deep)),
+    "--x-deep-a": miniDim(rgb(l.deep), 0.55),
     "--ember": rgba(l.hue, 0.6),
     "--ember-glow": rgba(l.hue, 0.45),
     "--room": light(l.hue, 0.5),

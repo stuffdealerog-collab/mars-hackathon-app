@@ -868,12 +868,12 @@
       radial-gradient(55% 45px at 50% 0%, var(--d-core) 0%, transparent 100%),
       radial-gradient(120% 125px at 50% -10px, var(--d-hue) 0%, var(--d-mid) 34%, var(--d-deep-a) 62%, transparent 88%);
   }
-  /* The hub's mini-lamps: glass with a falloff, hot core at the top, the hue, then the deep tone
-     to the foot (no dark bottom), a fifth dimmer than the bulb: lights, not candy. */
+  /* The hub's mini-lamps: glass with a falloff (hot core at the top, the hue, the deep tone, then
+     the glass), a fifth dimmer than the bulb: lights, not candy. No ring: see the lip below. */
   .desk:not([data-theme="light"]) .lamp--xs .lamp__glow {
     background:
-      radial-gradient(60% 34% at 50% 0%, var(--x-core) 0%, transparent 100%),
-      radial-gradient(140% 115% at 50% -12%, var(--x-hue) 0%, var(--x-mid) 42%, var(--x-deep) 88%);
+      radial-gradient(55% 28% at 50% 0%, var(--x-core) 0%, transparent 100%),
+      radial-gradient(120% 78% at 50% -6%, var(--x-hue) 0%, var(--x-mid) 34%, var(--x-deep-a) 62%, transparent 88%);
   }
   /* The LED wells (the sign, the landing's strip, the run's clock): the darkest objects, set
      into the wall with a soft inner shadow, never a flat black band. */

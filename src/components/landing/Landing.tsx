@@ -129,7 +129,13 @@ function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
       {/* Computers: the department under it is the lit sample, so the sign names the sample's
           channel (marked "namuna"); a typed channel takes its place. */}
       <div className="hidden lg:col-span-5 lg:col-start-8 lg:row-start-1 lg:mb-6 lg:block lg:self-end">
-        <LedStrip text={typed ? `@${typed}` : `namuna · ${SAMPLE_CHANNEL}`} dot={3} gap={1.5} label={typed ? `@${typed}` : `${c.sample.chip} · ${SAMPLE_CHANNEL}`} />
+        {/* The full "namuna · @namuna" fits from 1280; narrower, the channel alone. */}
+        <div className="xl:hidden">
+          <LedStrip text={typed ? `@${typed}` : SAMPLE_CHANNEL} dot={3} gap={1.5} label={typed ? `@${typed}` : `${c.sample.chip} · ${SAMPLE_CHANNEL}`} />
+        </div>
+        <div className="hidden xl:block">
+          <LedStrip text={typed ? `@${typed}` : `namuna · ${SAMPLE_CHANNEL}`} dot={3} gap={1.5} label={typed ? `@${typed}` : `${c.sample.chip} · ${SAMPLE_CHANNEL}`} />
+        </div>
       </div>
 
       <h1 className="max-w-[18ch] text-balance text-[34px] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-[56px] sm:leading-[1] lg:col-span-7 lg:row-span-2 lg:row-start-1 lg:max-w-[16ch] lg:self-end lg:text-[60px] lg:leading-[0.98] lg:tracking-[-0.038em] [@media(min-width:1024px)_and_(max-height:819px)]:text-[48px]">
