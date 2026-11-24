@@ -52,6 +52,8 @@ interface StudioState {
   phase: Phase;
   mode: Mode;
   sample: boolean;
+  /** Spektr's beams are still travelling: every light (the panel, the hub, its spots) waits. */
+  introGate: boolean;
   bot: string;
   /** How the start screen opens: from ?mode=fresh, ?channel= (sample mode) or an empty channel. */
   entry: { view: "link" | "fresh"; channel: string };
@@ -602,6 +604,7 @@ export const useStudio = create<StudioState>((set, get) => {
     phase: "start",
     mode: "channel",
     sample: false,
+    introGate: false,
     bot: "hackathonproj1_bot",
     entry: { view: "link", channel: "" },
     input: {},

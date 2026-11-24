@@ -951,4 +951,110 @@
       background: var(--glass);
     }
   }
+
+  /* ------------------------------------------------------------ panel stage */
+  /* The department as one instrument: a recessed housing, no occlusion shadow. Each lit lamp
+     throws its own light next to its tile, the top row on the wall above the housing, the
+     bottom row on the floor below; the opaque housing hides the rest. Only opacity changes. */
+  .desk .panel-stage {
+    position: relative;
+    isolation: isolate;
+  }
+  .desk .panel-housing {
+    padding: 12px;
+    border-radius: 34px;
+    background: #12110f;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.05),
+      inset 0 0 0 1px rgb(255 255 255 / 0.035);
+  }
+  .desk .room-light {
+    position: absolute;
+    z-index: -1;
+    width: 26%;
+    left: calc((var(--k) + 0.5) * 20% - 13%);
+    pointer-events: none;
+    mix-blend-mode: plus-lighter;
+    opacity: 0;
+    transition: opacity var(--t-off) var(--ease-in);
+  }
+  .desk .room-light[data-row="top"] {
+    top: -60px;
+    height: 120px;
+  }
+  .desk .room-light[data-row="bottom"] {
+    bottom: -140px;
+    height: 280px;
+  }
+  .desk .room-light[data-on]:not([data-soon]) {
+    opacity: 0.64;
+    transition: opacity var(--t-on) var(--ease-out);
+  }
+  /* At work, no result yet: half the light, standing still. */
+  .desk .room-light[data-on="warm"]:not([data-soon]) {
+    opacity: 0.4;
+  }
+  /* Start: the lamps never light there and print only a name. */
+  .desk:not([data-theme="light"]) .panel-stage[data-compact] .lamp:not(.lamp--xs) {
+    min-height: 104px;
+  }
+  .desk:not([data-theme="light"]) .panel-stage[data-compact] .lamp:not(.lamp--xs) .lamp__body {
+    padding-top: 24px;
+  }
+
+  /* An off lamp is hardware, not a hole; its filament holds an ember of the lamp's colour: the
+     employee is ready. Its light stays at the slot. "Tez orada" roles have a cold slit. */
+  .desk .lamp[data-state="off"] {
+    background: linear-gradient(180deg, #25221e, #1c1a17 70%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.06),
+      inset 0 0 0 1px rgb(255 255 255 / 0.04);
+  }
+  .desk .lamp[data-state="off"]:not(.lamp--soon) .lamp__filament {
+    background: var(--ember);
+    box-shadow: 0 0 6px var(--ember-glow);
+  }
+  .desk .lamp--soon .lamp__filament {
+    background: #0f0e0c;
+    box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.6);
+  }
+  /* Armed: a valid link is typed; the embers heat one after another, still no light in the room. */
+  .desk .panel-stage[data-armed] .lamp[data-state="off"]:not(.lamp--soon) .lamp__filament {
+    background: var(--core);
+    box-shadow: 0 0 8px var(--hue-b);
+    transition:
+      background 200ms var(--ease-out) calc(var(--i, 0) * 70ms),
+      box-shadow 200ms var(--ease-out) calc(var(--i, 0) * 70ms);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .desk .room-light,
+    .desk .stage-spot,
+    .desk .panel-housing .lamp__filament {
+      animation: none !important;
+      transition-duration: 150ms !important;
+      transition-delay: 0ms !important;
+    }
+  }
+  @media (prefers-contrast: more) {
+    .desk .room-light {
+      display: none;
+    }
+  }
+  @media (forced-colors: active) {
+    .desk .room-light {
+      display: none;
+    }
+    .desk .lamp:is([data-state="on"], [data-state="you"], [data-state="warming"]) .lamp__filament {
+      forced-color-adjust: none;
+      background: Highlight;
+    }
+    .desk .lamp[data-state="off"] .lamp__filament {
+      forced-color-adjust: none;
+      background: GrayText;
+    }
+    .desk .lamp--xs {
+      border: 1px solid CanvasText;
+    }
+  }
 } /* end .desk */

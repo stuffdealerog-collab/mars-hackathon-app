@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { forwardRef, useMemo, useState } from "react";
 import { Led } from "../lamp/Led";
 import { LampTile } from "../lamp/LampTile";
-import { LAMP_ORDER, type LampState } from "../lamp/lamps";
+import { LAMP_ORDER, lampVars, type LampState } from "../lamp/lamps";
 import { plural } from "../ui/format";
 import { fmt, useCopy, useLang } from "../ui/lang";
 import { useStudio, type StepKey } from "./store";
@@ -136,24 +136,36 @@ export function useLamps(gate = false): Lamps {
   }, [gate, steps, mode, brand, audit, postsRead, plan, progress, posts, c, lang]);
 }
 
+type PanelProps = {
+  lamps: Lamps;
+  size?: "sm" | "md";
+  showJob?: boolean;
+  className?: string;
+  /** Computer screens: the ten lamps in one housing, each lit lamp's light on the room around it. */
+  housing?: boolean;
+  /** A valid link is typed: the embers heat to hot filaments (nobody works yet). */
+  armed?: boolean;
+  /** Start: lamps that never light there and print only a name stand shorter. */
+  compact?: boolean;
+  /** Drawn inside the stage, over the lamps (Spektr). */
+  children?: React.ReactNode;
+};
+
 /** The full panel: ten lamps in pipeline order. */
-export const Panel = forwardRef<HTMLUListElement, { lamps: Lamps; size?: "sm" | "md"; showJob?: boolean; className?: string }>(function Panel(
-  { lamps, size = "sm", showJob = false, className = "" },
-  ref,
-) {
+export const Panel = forwardRef<HTMLUListElement, PanelProps>(function Panel({ lamps, size = "sm", showJob = false, className = "", housing = false, armed = false, compact = false, children }, ref) {
   const c = useCopy();
   const pro = useStudio((s) => s.pro);
   const [open, setOpen] = useState<AgentRole | null>(null);
-  return (
-    <>
+  const list = (
       <ul ref={ref} aria-label={c.dept.label} className={`grid grid-cols-2 gap-2.5 sm:grid-cols-5 ${className}`}>
-        {LAMP_ORDER.map((r) => {
+        {LAMP_ORDER.map((r, i) => {
           const soon = lamps.soon.has(r) && lamps.state[r] === "off";
           const st = lamps.state[r];
           // In Professional rejim a lit lamp opens what that employee did.
           const tappable = pro && st !== "off";
           return (
-            <li key={r} className="flex">
+            // --i staggers the embers when they arm (set here: LampTile's style holds its colours).
+            <li key={r} className="flex" style={{ ["--i" as string]: i }}>
               <LampTile
                 as={tappable ? "button" : "div"}
                 role={r}
@@ -172,6 +184,36 @@ export const Panel = forwardRef<HTMLUListElement, { lamps: Lamps; size?: "sm" | 
           );
         })}
       </ul>
+  );
+  return (
+    <>
+      {housing ? (
+        <div className="panel-stage" data-armed={armed || undefined} data-compact={compact || undefined}>
+          {/* Each lit lamp's own light on the room, next to its tile: the top row on the wall above
+              the housing, the bottom row on the floor below. Never averaged, never a rainbow. */}
+          {LAMP_ORDER.map((r, i) => {
+            const st = lamps.state[r];
+            return (
+              <span
+                key={r}
+                aria-hidden
+                className="room-light"
+                data-row={i < 5 ? "top" : "bottom"}
+                data-on={st === "warming" ? "warm" : st === "on" || st === "you" ? "on" : undefined}
+                data-soon={lamps.soon.has(r) || undefined}
+                style={{ ...lampVars(r), ["--k" as string]: i % 5, background: "var(--room)" }}
+              />
+            );
+          })}
+          <div className="panel-housing">{list}</div>
+          {children}
+        </div>
+      ) : (
+        <>
+          {list}
+          {children}
+        </>
+      )}
       {open && <LampDrawer role={open} onClose={() => setOpen(null)} fallback={lamps.words[open] ?? c.lampState[lamps.state[open]]} />}
     </>
   );

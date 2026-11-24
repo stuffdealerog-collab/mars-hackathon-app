@@ -26,6 +26,27 @@ export function LangSwitch() {
 
 const STEP_ICONS = [Link2, Lightbulb, Send];
 
+/**
+ * The owner's path on one quiet line (computer screens): the department under it carries the
+ * screen, so the steps are words, not three more boxes on the dark.
+ */
+export function StepsLine({ className = "" }: { className?: string }) {
+  const c = useCopy();
+  return (
+    <ol className={`flex flex-wrap items-center gap-x-6 gap-y-2 text-[15px] text-ink-2 ${className}`}>
+      {c.steps.map((s, i) => {
+        const Icon = STEP_ICONS[i];
+        return (
+          <li key={s} className="flex items-center gap-2.5">
+            <Icon className="h-[18px] w-[18px] text-ink-3" strokeWidth={1.75} aria-hidden />
+            <span>{s}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 /** The three steps of the owner's path: three words and one drawn icon each, nothing more. */
 export function Steps({ className = "" }: { className?: string }) {
   const c = useCopy();
