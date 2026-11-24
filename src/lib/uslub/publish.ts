@@ -1,9 +1,11 @@
 import "server-only";
-import { GrammyError } from "grammy";
+import { GrammyError, InputFile } from "grammy";
 import { getBot } from "@/lib/bot";
 import { getEnv } from "@/lib/env";
 import { checkChatRights, checkPublishAccess, type MemberInfo } from "./access";
 import type { Script } from "./contract";
+import { getPostForImage } from "./media/post-repo";
+import { planPostMessages, publishableImageUrl, type PlannedMessage } from "./media/telegram-post";
 import { getBrand, getPost, linkBrandChannel, markPublished } from "./store";
 
 const BOT_USERNAME_FALLBACK = "hackathonproj1_bot";
@@ -31,8 +33,42 @@ async function memberInfo(chat: string, userId: number): Promise<MemberInfo> {
   }
 }
 
+/** sendPhoto by URL; if Telegram cannot fetch the URL itself, we download and upload the file. */
+async function sendPhoto(chat: string, photo: string, caption?: string) {
+  const opts = caption ? { caption } : {};
+  try {
+    return await getBot().api.sendPhoto(chat, photo, opts);
+  } catch (err) {
+    if (!(err instanceof GrammyError) || err.error_code !== 400 || !/url|file|image|photo|webpage/i.test(err.description)) throw err;
+    console.warn("[uslub/publish] photo by URL refused, uploading it:", err.description);
+    return getBot().api.sendPhoto(chat, new InputFile(new URL(photo)), opts);
+  }
+}
+
 /**
- * Publishes a post to the brand's channel. `userId` must come from a trusted
+ * Sends the planned messages in order and returns the first one's id (the post link).
+ * If a later message fails, the earlier ones are deleted so the channel never shows half a post.
+ */
+async function sendPlanned(chat: string, plan: PlannedMessage[]): Promise<number> {
+  const sent: number[] = [];
+  try {
+    for (const m of plan) {
+      const msg =
+        m.kind === "photo"
+          ? await sendPhoto(chat, m.photo, m.caption)
+          : await getBot().api.sendMessage(chat, m.text, { link_preview_options: { is_disabled: true } });
+      sent.push(msg.message_id);
+    }
+  } catch (err) {
+    for (const id of sent) await getBot().api.deleteMessage(chat, id).catch(() => undefined);
+    throw err;
+  }
+  return sent[0];
+}
+
+/**
+ * Publishes a post to the brand's channel, with its picture when the picture is ready
+ * (see media/telegram-post.ts for how text and picture are combined). `userId` must come from a trusted
  * source only: the bot's ctx.from or validated Mini App initData.
  * Checks: caller owns the brand, chat is the brand's channel, caller administers
  * the channel, and the bot can post there.
@@ -63,9 +99,10 @@ export async function publishPost(args: {
     if (!rights.ok) {
       return { ok: false, status: rights.status, error: rights.error, ...(botMember ? {} : { addAdminUrl }) };
     }
-    const msg = await getBot().api.sendMessage(target, text.slice(0, 4096), { link_preview_options: { is_disabled: true } });
+    const stored = await getPostForImage(post!.id).catch(() => null);
+    const messageId = await sendPlanned(target, planPostMessages(text, publishableImageUrl(stored?.image)));
     if (access.linkChannel) await linkBrandChannel(brand!.id, target);
-    const url = `https://t.me/${target.slice(1)}/${msg.message_id}`;
+    const url = `https://t.me/${target.slice(1)}/${messageId}`;
     await markPublished(post!.id, url, target, userId);
     return { ok: true, status: 200, url };
   } catch (err) {

@@ -1,4 +1,5 @@
 import {
+  inputImages,
   isObj,
   ProviderError,
   readBody,
@@ -24,8 +25,36 @@ import type { MediaKind } from "../types";
 
 export const FAL_DEFAULT_MODELS: Record<MediaKind, string> = {
   video: "fal-ai/kling-video/v2.6/pro/image-to-video",
-  image: "fal-ai/nano-banana-pro/edit",
+  // Picked 2026-11-24 on real channels (docs/creative/media-pipeline.md, "Post pictures"):
+  // keeps the channel's look from up to 14 references, $0.08 per 1K image.
+  image: "fal-ai/nano-banana-2/edit",
 };
+
+/** Most references each image model reads (extra ones are dropped from the end). */
+const MAX_REFS = (model: string) => (model.includes("seedream") ? 10 : 14);
+
+/**
+ * The text-to-image twin of an edit model, for pictures with no input image at all
+ * (an empty channel and no owner photo): "fal-ai/nano-banana-2/edit" -> "fal-ai/nano-banana-2".
+ */
+export function falTextModel(editModel: string): string {
+  if (editModel.includes("seedream")) return editModel.replace(/\/edit$/, "/text-to-image");
+  return editModel.replace(/\/edit$/, "");
+}
+
+/** Model for this request: an image request without any input image goes to the text-to-image twin. */
+export function falModelFor(models: Record<MediaKind, string>, req: Pick<SubmitRequest, "kind" | "imageUrl" | "referenceUrls">): string {
+  if (req.kind === "image" && inputImages(req).length === 0) return falTextModel(models.image);
+  return models[req.kind];
+}
+
+/** Seedream takes explicit pixels; 0.92-4.6 MP is allowed. */
+const SEEDREAM_SIZE = {
+  "9:16": { width: 900, height: 1600 },
+  "16:9": { width: 1600, height: 900 },
+  "1:1": { width: 1024, height: 1024 },
+  "4:5": { width: 1024, height: 1280 },
+} as const;
 
 const QUEUE = "https://queue.fal.run";
 
@@ -41,26 +70,34 @@ const QUEUE = "https://queue.fal.run";
 export function falInput(model: string, req: SubmitRequest): Record<string, unknown> {
   const secs = Math.round(req.seconds);
   if (req.kind === "image") {
+    const images = inputImages(req).slice(0, MAX_REFS(model));
     if (model.includes("seedream")) {
-      const size = { "9:16": "portrait_16_9", "16:9": "landscape_16_9", "1:1": "square_hd", "4:5": "portrait_4_3" }[req.aspect];
-      return { prompt: req.prompt, image_urls: [req.imageUrl], image_size: size, num_images: 1 };
+      return {
+        prompt: req.prompt,
+        ...(images.length ? { image_urls: images } : {}),
+        image_size: SEEDREAM_SIZE[req.aspect],
+        num_images: 1,
+        output_format: "jpeg",
+      };
     }
+    // Nano Banana (2 / Pro), edit or text-to-image: 1K is plenty for Telegram (it shows photos at <= 1280 px).
     return {
       prompt: req.prompt,
-      image_urls: [req.imageUrl],
+      ...(images.length ? { image_urls: images } : {}),
       num_images: 1,
       aspect_ratio: req.aspect,
-      resolution: "2K",
-      output_format: "png",
+      resolution: "1K",
+      output_format: "jpeg",
     };
   }
+  const imageUrl = req.imageUrl ?? "";
   if (model.startsWith("kling/v4")) {
-    return { prompt: req.prompt, start_image_url: req.imageUrl, duration: clamp(secs, 3, 30), resolution: "1080p" };
+    return { prompt: req.prompt, start_image_url: imageUrl, duration: clamp(secs, 3, 30), resolution: "1080p" };
   }
   if (model.includes("kling-video/v2")) {
     return {
       prompt: req.prompt,
-      start_image_url: req.imageUrl,
+      start_image_url: imageUrl,
       duration: secs > 7 ? "10" : "5",
       negative_prompt: req.negativePrompt,
       generate_audio: false,
@@ -69,7 +106,7 @@ export function falInput(model: string, req: SubmitRequest): Record<string, unkn
   if (model.includes("kling")) {
     return {
       prompt: req.prompt,
-      start_image_url: req.imageUrl,
+      start_image_url: imageUrl,
       duration: String(clamp(secs, 3, 15)),
       negative_prompt: req.negativePrompt,
       generate_audio: false,
@@ -78,14 +115,14 @@ export function falInput(model: string, req: SubmitRequest): Record<string, unkn
   if (model.includes("seedance")) {
     return {
       prompt: req.prompt,
-      image_url: req.imageUrl,
+      image_url: imageUrl,
       duration: String(clamp(secs, 4, model.includes("2.0") ? 15 : 30)),
       resolution: "720p",
       generate_audio: false,
     };
   }
   // Unknown model (set via FAL_VIDEO_MODEL): the most common field names.
-  return { prompt: req.prompt, image_url: req.imageUrl, duration: String(secs) };
+  return { prompt: req.prompt, image_url: imageUrl, duration: String(secs) };
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
@@ -159,7 +196,7 @@ export function falProvider(opts: {
     model: (kind) => models[kind],
 
     async submit(req: SubmitRequest): Promise<ProviderRef> {
-      const model = models[req.kind];
+      const model = falModelFor(models, req);
       const data = await call(`${QUEUE}/${model}`, { method: "POST", body: JSON.stringify(falInput(model, req)) });
       if (!isObj(data) || !str(data.request_id)) throw new ProviderError("fal.ai: no request_id in the submit response");
       return {

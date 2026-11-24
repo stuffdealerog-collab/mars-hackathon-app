@@ -1,6 +1,6 @@
 import { normalizeCues } from "./captions";
-import { buildPrompt } from "./presets";
-import { ProviderError, redactSecrets, type MediaProvider, type ProviderRef } from "./provider";
+import { buildPrompt, NEGATIVE_PROMPT } from "./presets";
+import { inputImages, ProviderError, redactSecrets, type MediaProvider, type ProviderRef } from "./provider";
 import type { MediaJobRepo } from "./repo";
 import { isTerminal, type MediaJob, type MediaJobInput, type MediaKind, type MediaResult } from "./types";
 
@@ -73,7 +73,7 @@ export class MediaJobs {
   }
 
   private pickProvider(input: MediaJobInput): MediaProvider {
-    const isData = input.imageUrl.startsWith("data:");
+    const isData = inputImages(input).some((u) => u.startsWith("data:"));
     let candidates = this.available(input.kind);
     if (input.provider) candidates = candidates.filter((p) => p.id === input.provider);
     if (!candidates.length) throw new MediaError(503, NOT_CONFIGURED, "not_configured");
@@ -93,7 +93,17 @@ export class MediaJobs {
    * Spend is capped three ways: per user, one shared anonymous pool, and the whole app.
    */
   async create(input: MediaJobInput, actor: Actor = ANON): Promise<MediaJob> {
-    validateImageUrl(input.imageUrl);
+    if (input.kind === "video" && !input.imageUrl) {
+      throw new MediaError(400, "Video uchun mahsulot rasmini yuboring. / Для видео нужно фото товара.", "bad_input");
+    }
+    if (input.kind === "video" && input.referenceUrls?.length) {
+      throw new MediaError(400, "Video uchun faqat bitta rasm. / Для видео — только одно фото.", "bad_input");
+    }
+    if ((input.referenceUrls?.length ?? 0) > MAX_REFERENCES) {
+      throw new MediaError(400, `Ko‘pi bilan ${MAX_REFERENCES} ta namuna rasm. / Не больше ${MAX_REFERENCES} фото-образцов.`, "bad_input");
+    }
+    const images = inputImages(input);
+    for (const url of images) validateImageUrl(url);
     const provider = this.pickProvider(input);
 
     const anonLimit = this.deps.anonDailyLimit ?? MEDIA_DEFAULTS.anonDailyLimit;
@@ -107,13 +117,15 @@ export class MediaJobs {
     }
 
     const seconds = input.kind === "video" ? clamp(Math.round(input.seconds), MEDIA_DEFAULTS.minSeconds, MEDIA_DEFAULTS.maxSeconds) : 0;
-    const { prompt, negativePrompt } = buildPrompt({
-      kind: input.kind,
-      presetId: input.presetId,
-      aspect: input.aspect,
-      productName: input.productName,
-      brief: input.brief,
-    });
+    const { prompt, negativePrompt } = input.customPrompt
+      ? { prompt: input.customPrompt.prompt, negativePrompt: input.customPrompt.negativePrompt ?? NEGATIVE_PROMPT }
+      : buildPrompt({
+          kind: input.kind,
+          presetId: input.presetId,
+          aspect: input.aspect,
+          productName: input.productName,
+          brief: input.brief,
+        });
     const at = new Date(this.now()).toISOString();
     const job: MediaJob = {
       id: this.newId(),
@@ -126,7 +138,8 @@ export class MediaJobs {
       seconds,
       prompt,
       negativePrompt,
-      imageRef: input.imageUrl.startsWith("data:") ? "inline-upload" : input.imageUrl,
+      imageRef: !images.length ? "none" : images[0].startsWith("data:") ? "inline-upload" : images[0],
+      refCount: images.length,
       captions: normalizeCues(input.captions ?? [], seconds || 10),
       brandId: input.brandId,
       ownerKey,
@@ -156,6 +169,7 @@ export class MediaJobs {
         prompt,
         negativePrompt,
         imageUrl: input.imageUrl,
+        referenceUrls: input.referenceUrls,
         aspect: job.aspect,
         seconds: job.seconds,
         idempotencyKey: job.id,
@@ -288,6 +302,8 @@ const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, N
 
 const DATA_URL_RE = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
 export const MAX_DATA_URL_BYTES = 3_000_000; // Vercel request bodies stop at 4.5 MB
+/** Style references per image job (the product photo is extra). */
+export const MAX_REFERENCES = 8;
 
 /** https only (providers fetch it from their side), or a small base64 PNG/JPEG/WebP data URL. */
 export function validateImageUrl(url: string): void {

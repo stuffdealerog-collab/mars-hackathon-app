@@ -13,10 +13,11 @@ const Cue = z.object({ start: z.number().min(0).max(60), end: z.number().min(0).
 
 const Body = z.object({
   kind: z.enum(["video", "image"]).default("video"),
-  imageUrl: z.string().trim().min(10).max(3_000_000),
+  imageUrl: z.string().trim().min(10).max(3_000_000).optional(),
+  referenceUrls: z.array(z.string().trim().min(10).max(2048)).max(8).optional(), // https style references (images only)
   productName: z.string().trim().max(120).optional(),
   brief: z.string().trim().max(500).optional(),
-  presetId: z.enum(PRESET_IDS as [StylePresetId, ...StylePresetId[]]).default("ai-os-dark"),
+  presetId: z.enum(PRESET_IDS as [StylePresetId, ...StylePresetId[]]).default("paper-studio"), // neutral; never Mercat's own neon look on a client's ad
   aspect: z.enum(["9:16", "16:9", "1:1", "4:5"]).default("9:16"),
   seconds: z.number().min(3).max(12).default(5),
   captions: z.array(Cue).max(12).optional(),
@@ -26,7 +27,7 @@ const Body = z.object({
 });
 
 /**
- * POST { kind, imageUrl, productName?, brief?, presetId, aspect, seconds, captions?, brandId? }
+ * POST { kind, imageUrl?, referenceUrls?, productName?, brief?, presetId, aspect, seconds, captions?, brandId? }
  *   -> { job }   (status "queued", or "failed" with `error` if the provider refused it)
  * 503 when no provider key is configured; 401 when anonymous use is off; 429 when a daily cap is reached.
  */
@@ -41,6 +42,7 @@ export const POST = handle(async (req) => {
     media().jobs.create({
       kind: body.kind,
       imageUrl: body.imageUrl,
+      referenceUrls: body.referenceUrls,
       productName: body.productName,
       brief: body.brief,
       presetId: body.presetId,

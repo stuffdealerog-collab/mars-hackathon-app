@@ -1,4 +1,5 @@
 import {
+  inputImages,
   isObj,
   ProviderError,
   readBody,
@@ -182,7 +183,10 @@ export function higgsfieldProvider(opts: {
 
     async submit(req: SubmitRequest): Promise<ProviderRef> {
       const model = models[req.kind];
-      const imageUrl = await toPublicUrl(req.imageUrl);
+      // Higgsfield models take one input image: the product photo, else the first reference.
+      const first = inputImages(req)[0];
+      if (!first) throw new ProviderError("Higgsfield needs an input image", 400);
+      const imageUrl = await toPublicUrl(first);
       const data = await call(`${API}/${model}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": req.idempotencyKey },
