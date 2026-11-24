@@ -116,11 +116,10 @@ interface StudioState {
   editPost: (id: string, script: Script, text: string) => void;
   /** `delayMs` defaults to `approveDelayMs`; the post shows approved at once and can be undone meanwhile. */
   approve: (id: string, delayMs?: number) => Promise<ApproveResult>;
-  publish: (id: string, script: Script) => Promise<PublishResult>;
+  /** `chat`: the @channel the owner typed for a brand that has none yet (linked on this first publish). */
+  publish: (id: string, script: Script, chat?: string) => Promise<PublishResult>;
   /** A picture card reports its post's picture (it starts, polls and regenerates on its own). */
   setImage: (id: string, image: PostImage) => void;
-  /** @deprecated The Mini App's PostPicture retry; PostImage retries by itself. Kept until it moves. */
-  retryImage: (id: string) => Promise<void>;
   /** The run is learning the picture style from the channel's (or the owner's) photos. */
   styleLearning: boolean;
   /** The style card reports a re-learned style (the owner added or removed photos). */
@@ -207,14 +206,22 @@ function rememberRecent(b: BrandProfile) {
   }
 }
 
-/** Reads ?ui= and ?k= once, saves them, and takes ?k= out of the address bar. */
+/**
+ * Reads ?ui= and the bot's link key once. The key comes in the fragment (`#k=`, which never
+ * reaches a server log; `?k=` is accepted too), is saved on this device and taken out of the
+ * address bar at once; ?brand= stays.
+ */
 function readPageParams(): { pro: boolean | null } {
   const u = new URL(window.location.href);
   const ui = u.searchParams.get("ui");
-  const k = u.searchParams.get("k");
+  const hash = new URLSearchParams(u.hash.replace(/^#/, ""));
+  const k = hash.get("k") ?? u.searchParams.get("k");
   if (k) {
     api.saveHandoff(k);
     u.searchParams.delete("k");
+    hash.delete("k");
+    const rest = hash.toString();
+    u.hash = rest ? `#${rest}` : "";
     window.history.replaceState(null, "", u.toString());
   }
   return { pro: ui === "pro" ? true : ui === "simple" ? false : null };
@@ -883,7 +890,7 @@ export const useStudio = create<StudioState>((set, get) => {
       return { ok: true };
     },
 
-    publish: async (id, script) => {
+    publish: async (id, script, typed) => {
       const busy = (v: "publish" | undefined) => set({ busy: { ...get().busy, [id]: v } });
       const note = (v: StudioState["postNote"][string]) => set({ postNote: { ...get().postNote, [id]: v } });
       const botUrl = api.botPublishUrl(get().bot, id, script);
@@ -896,7 +903,7 @@ export const useStudio = create<StudioState>((set, get) => {
         while (get().busy[id] === "approve") await sleep(120);
         if (get().posts.find((p) => p.id === id)?.status === "draft") return { ok: false, message: get().postNote[id]?.text ?? copy().posts.approveError };
       }
-      const chat = get().brand?.channel ?? (get().input.channel ? `@${get().input.channel}` : "");
+      const chat = typed || get().brand?.channel || (get().input.channel ? `@${get().input.channel}` : "");
       if (!chat) {
         // A brand from a description with no channel yet: the bot asks for the channel and publishes.
         note({ text: copy().posts.noChannel, href: botUrl, tone: "bad", link: copy().posts.openBot });
@@ -908,8 +915,15 @@ export const useStudio = create<StudioState>((set, get) => {
       busy(undefined);
       if (r.ok && r.data.ok) {
         set({ posts: get().posts.map((p) => (p.id === id ? { ...p, status: "published", publishedUrl: r.data.url } : p)), handTick: get().handTick + 1 });
+        // The channel the owner typed is this brand's now (the engine linked it on this publish).
+        if (typed && !get().input.channel) set({ input: { ...get().input, channel: typed.replace(/^@/, "") } });
         note({ text: copy().posts.published, href: r.data.url, tone: "ok" });
         return { ok: true, url: r.data.url };
+      }
+      // 401 with a link key on this device: the key is old. Said calmly, with the bot to open again.
+      if (!r.ok && r.status === 401 && api.handoffState() !== "none") {
+        note({ text: copy().access.expired, href: botUrl, link: copy().posts.openBot, tone: "bad" });
+        return { ok: false, message: copy().access.expired, botUrl };
       }
       const msg = r.ok ? r.data.error ?? copy().error.generic : problemOf(r).message;
       const admin = r.ok ? r.data.addAdminUrl : r.addAdminUrl;
@@ -925,19 +939,6 @@ export const useStudio = create<StudioState>((set, get) => {
       countImages();
       // A new version started from the card keeps the lamp honest even if the owner leaves the tab.
       if (isOpen(image) && !polling) void poll(runId);
-    },
-
-    retryImage: async (id) => {
-      const my = runId;
-      setPostImage(id, { status: "queued", refsUsed: 0 });
-      const r = await api.startPostImage(id, lang());
-      if (my !== runId) return;
-      if (!r.ok) {
-        setPostImage(id, { status: "failed", refsUsed: 0, error: problemOf(r).message });
-        return;
-      }
-      setPostImage(id, r.data.image);
-      void poll(my);
     },
 
     styleLearning: false,

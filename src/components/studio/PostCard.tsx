@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useId, useState } from "react";
 import { fmt, keepNumbers, useCopy, useLang } from "../ui/lang";
 import { weekday } from "../ui/format";
+import { parseChannel } from "../ui/parts";
 import { PostImage } from "@/components/media";
 import { authHeader, botPublishUrl, handoffKey } from "./api";
 import { approveWithUndo, useDesk, type ImageHandle } from "./desk";
@@ -51,6 +52,8 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
   const setEditing = (on: boolean) => useDesk.getState().setEditing(on ? post.id : null);
   const confirming = useDesk((s) => s.confirmId === post.id);
   const [draft, setDraft] = useState("");
+  const [typed, setTyped] = useState("");
+  const typedName = parseChannel(typed);
   const [draftFor, setDraftFor] = useState<string | null>(null);
   const [pulse, setPulse] = useState(false);
   const [wasApproved, setWasApproved] = useState(post.status !== "draft");
@@ -220,7 +223,35 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
             <p className="text-[14px] leading-relaxed text-ink-2">{c.posts.samplePublish}</p>
           ) : (
             <>
-              {direct ? (
+              {direct && !inTelegram && !channel ? (
+                // A brand from a description has no channel yet: ask for it here; the first publish
+                // links it (both the owner and the bot must be admins there).
+                <form
+                  className="flex flex-col gap-2.5"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (typedName) void publish(post.id, script, `@${typedName}`);
+                  }}
+                >
+                  <label htmlFor={`${id}-ch`} className="text-[14px] text-ink-2">
+                    {c.posts.channelAsk}
+                  </label>
+                  <div className="flex flex-wrap gap-2.5">
+                    <input
+                      id={`${id}-ch`}
+                      className="input min-w-[12rem] flex-1 !min-h-11"
+                      placeholder="@kanal"
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={typed}
+                      onChange={(e) => setTyped(e.target.value)}
+                    />
+                    <button type="submit" className="btn" disabled={!typedName || busy === "publish"}>
+                      {busy === "publish" ? c.posts.publishing : fmt(c.publish.confirm, { channel: typedName ? `@${typedName}` : "…" })}
+                    </button>
+                  </div>
+                </form>
+              ) : direct ? (
                 <div className="flex flex-wrap gap-2.5">
                   <button type="button" className="btn flex-1 @md:flex-none" disabled={busy === "publish"} aria-keyshortcuts="Enter" onClick={onPublish}>
                     {busy === "publish" ? c.posts.publishing : confirming ? fmt(c.publish.confirm, { channel }) : inTelegram ? c.posts.publish : c.publish.toTelegram}

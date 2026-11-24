@@ -133,6 +133,7 @@ const uz = {
     addAdmin: "Botni kanalga admin qilish",
     noChannel: "Kanal havolasi ko‘rsatilmagan. Botni oching va kanalingizni yuboring, post o‘sha yerdan joylanadi.",
     openBot: "Botni ochish",
+    channelAsk: "Qaysi kanalga joylaymiz?",
     missed: ["post yozilmadi", "post yozilmadi", "post yozilmadi"],
     rewrite: "Qayta yozish",
     blank: "Bo‘sh joy qoldi: {facts}. «Tahrirlash»da yozing yoki shu gapni o‘chiring.",
@@ -312,7 +313,10 @@ const uz = {
   },
   first: { title: "Kanalingizni o‘qidik", cta: "Postlarni ko‘rish · {n}" },
   sign: { notMeasured: "Kanal hali o‘lchanmagan", measuring: "o‘lchanmoqda…" },
-  access: { forbidden: "Bu kanal Telegramdagi hisobingizga tegishli. Uni bot orqali oching." },
+  access: {
+    forbidden: "Bu kanal Telegramdagi hisobingizga tegishli. Uni bot orqali oching.",
+    expired: "Havola muddati tugagan. Studiyani botdan qayta oching.",
+  },
   keys: { hint: "Enter tasdiqlash · E tahrir · J/K postlar · 1–4 til" },
   problem: { dismiss: "Yopish" },
 
@@ -448,6 +452,7 @@ const ru: Copy = {
     addAdmin: "Сделать бота админом канала",
     noChannel: "Канал не указан. Откройте бота и отправьте ему ссылку на канал, пост опубликуется оттуда.",
     openBot: "Открыть бота",
+    channelAsk: "В какой канал опубликовать?",
     missed: ["пост не получился", "поста не получились", "постов не получились"],
     rewrite: "Написать заново",
     blank: "Остался пропуск: {facts}. Впишите его через «Изменить» или уберите эту фразу.",
@@ -626,7 +631,10 @@ const ru: Copy = {
   },
   first: { title: "Мы прочитали ваш канал", cta: "Посмотреть посты · {n}" },
   sign: { notMeasured: "Канал ещё не измерен", measuring: "измеряем…" },
-  access: { forbidden: "Этот канал привязан к вашему аккаунту Telegram. Откройте его через бота." },
+  access: {
+    forbidden: "Этот канал привязан к вашему аккаунту Telegram. Откройте его через бота.",
+    expired: "Ссылка устарела. Откройте Студию из бота ещё раз.",
+  },
   keys: { hint: "Enter одобрить · E править · J/K посты · 1–4 язык" },
   problem: { dismiss: "Закрыть" },
 
@@ -760,6 +768,7 @@ const en: Copy = {
     addAdmin: "Make the bot a channel admin",
     noChannel: "No channel is set. Open the bot and send it your channel link, and it publishes the post from there.",
     openBot: "Open the bot",
+    channelAsk: "Which channel should it go to?",
     missed: ["post did not come out", "posts did not come out", "posts did not come out"],
     rewrite: "Write again",
     blank: "A blank is left: {facts}. Fill it in with Edit, or delete that line.",
@@ -938,7 +947,10 @@ const en: Copy = {
   },
   first: { title: "We read your channel", cta: "See the posts · {n}" },
   sign: { notMeasured: "Nothing measured yet", measuring: "measuring…" },
-  access: { forbidden: "This channel belongs to your Telegram account. Open it from the bot." },
+  access: {
+    forbidden: "This channel belongs to your Telegram account. Open it from the bot.",
+    expired: "This link has expired. Open the Studio from the bot again.",
+  },
   keys: { hint: "Enter approve · E edit · J/K posts · 1–4 language" },
   problem: { dismiss: "Dismiss" },
 

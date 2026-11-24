@@ -7,6 +7,7 @@ import { LAMP_ORDER } from "../lamp/lamps";
 import { ChannelField } from "../ui/ChannelField";
 import { keepNumbers, useCopy } from "../ui/lang";
 import { parseChannel, Steps } from "../ui/parts";
+import { handoffState } from "./api";
 import { useStudio } from "./store";
 
 const MAX_PHOTOS = 5;
@@ -68,7 +69,8 @@ function Forbidden() {
   const brand = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("brand") : null;
   return (
     <div className="max-w-[560px] pt-6 sm:pt-12">
-      <p className="text-[20px] font-medium leading-snug">{c.access.forbidden}</p>
+      {/* A link key on this device that did not work is an old link, not a stranger's channel. */}
+      <p className="text-[20px] font-medium leading-snug">{handoffState() === "none" ? c.access.forbidden : c.access.expired}</p>
       <div className="mt-6 flex flex-wrap gap-3">
         <a className="btn" href={`https://t.me/${bot}${brand ? `?startapp=brand_${encodeURIComponent(brand)}` : ""}`} target="_blank" rel="noreferrer">
           {c.hub.openTg}

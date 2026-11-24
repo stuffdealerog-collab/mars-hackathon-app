@@ -48,14 +48,31 @@ export const botPublishUrl = (bot: string, postId: string, script: Script = "uz_
 
 const HANDOFF = "mercat.k";
 
-/** The bot's signed link key (`?k=`): lets a desktop browser act for the owner's Telegram account. */
-export function handoffKey(): string | undefined {
+function storedHandoff(): string | undefined {
   if (typeof window === "undefined") return undefined;
   try {
     return localStorage.getItem(HANDOFF) ?? undefined;
   } catch {
     return undefined;
   }
+}
+
+/** "<userId>.<exp>.<sig>", exp in unix seconds: readable without the secret, so expiry is known here. */
+const expiresAt = (k: string) => Number(k.split(".")[1]) * 1000;
+
+/**
+ * The bot's signed link key (`#k=` in the Studio link): lets a desktop browser act for the owner's
+ * Telegram account. Only a key that has not expired; a bearer secret, so never logged or shown.
+ */
+export function handoffKey(): string | undefined {
+  const k = storedHandoff();
+  return k && expiresAt(k) > Date.now() ? k : undefined;
+}
+
+/** none: no key on this device; valid; expired: the owner should open the Studio from the bot again. */
+export function handoffState(): "none" | "valid" | "expired" {
+  const k = storedHandoff();
+  return !k ? "none" : expiresAt(k) > Date.now() ? "valid" : "expired";
 }
 
 export function saveHandoff(k: string | null) {
