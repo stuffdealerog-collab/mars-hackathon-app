@@ -63,14 +63,28 @@ export function isPublicHttps(url: string): boolean {
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 /**
- * Downloads an image with a size cap. Redirects are refused for links an owner typed
- * (they could point inside our network); Telegram's CDN may redirect between its own hosts.
+ * The only hosts the server ever downloads an image from: Telegram's CDN (channel photos) and fal's
+ * CDN (references we re-hosted earlier). Owners upload their own photos as data: URLs, so arbitrary
+ * links are never fetched: no SSRF and no DNS-rebinding window to defend.
+ */
+export function isTrustedImageHost(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && /(^|\.)(telesco\.pe|fal\.media)$/i.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Downloads an image with a size cap, from a trusted host only. Redirects are refused unless the
+ * caller allows them (Telegram's CDN may redirect between its own hosts).
  */
 export async function downloadImage(
   url: string,
   opts: { fetch?: FetchLike; timeoutMs?: number; followRedirects?: boolean; maxBytes?: number } = {},
 ): Promise<ImageBytes> {
-  if (!isPublicHttps(url)) throw new ImageInputError("image link must be public https");
+  if (!isPublicHttps(url) || !isTrustedImageHost(url)) throw new ImageInputError("image links are accepted from Telegram or Mercat only");
   const doFetch: FetchLike = opts.fetch ?? ((u, i) => fetch(u, i));
   const max = opts.maxBytes ?? MAX_IMAGE_BYTES;
   const res = await doFetch(url, {

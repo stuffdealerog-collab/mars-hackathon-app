@@ -17,6 +17,7 @@ export type StoredPostImage = PostImage & {
   attempts?: number; // jobs started for this post (regenerations are capped)
   productUrl?: string; // the owner's product photo for this post, re-hosted
   scene?: string; // what the picture shows, reused by "another variant"
+  lastReadyUrl?: string; // the previous finished picture, published if a new version is not ready
   model?: string;
   updatedAt?: string;
 };
@@ -48,7 +49,7 @@ export interface SceneInput {
 }
 
 export interface PostImageDeps {
-  jobs: Pick<MediaJobs, "create" | "refresh">;
+  jobs: Pick<MediaJobs, "create" | "refresh" | "assertRoom">;
   save(postId: string, image: StoredPostImage): Promise<void>;
   /** English description of what the picture should show; undefined = fall back to the brief. */
   describeScene?(input: SceneInput): Promise<string | undefined>;
@@ -147,14 +148,32 @@ export function buildPostImagePrompt(a: {
   return lines.join("\n").slice(0, 3500);
 }
 
-/** The browser's view: the contract's PostImage only. */
-export function publicPostImage(s: StoredPostImage): PostImage {
-  const out: PostImage = { status: s.status, refsUsed: s.refsUsed };
+/** What the browser gets: the contract's PostImage plus the model (shown in the Studio's pro mode). */
+export type PublicPostImage = PostImage & { model?: string };
+
+export function publicPostImage(s: StoredPostImage): PublicPostImage {
+  const out: PublicPostImage = { status: s.status, refsUsed: s.refsUsed };
   if (s.url) out.url = s.url;
   if (s.jobId && (s.status === "queued" || s.status === "running")) out.jobId = s.jobId;
   if (s.prompt) out.prompt = s.prompt;
   if (s.error) out.error = s.error;
+  if (s.model) out.model = s.model;
   return out;
+}
+
+const isPending = (s: StoredPostImage | undefined) => s?.status === "queued" || s?.status === "running";
+
+/**
+ * What a POST would do, decided BEFORE any paid preparation (style analysis, AI subject line,
+ * photo upload): "existing" = return the picture already made or in progress; "limit" = the
+ * per-post cap is used up; "start" = a new job will be created.
+ * A picture still rendering is never replaced: "another variant" waits until it is done.
+ */
+export function planPostImageStart(prev: StoredPostImage | undefined, wantNew: boolean): "existing" | "limit" | "start" {
+  if (isPending(prev)) return "existing";
+  if (prev?.status === "ready" && !wantNew) return "existing";
+  if ((prev?.attempts ?? 0) >= MAX_ATTEMPTS_PER_POST) return "limit";
+  return "start";
 }
 
 /** Media job -> post image. Provider details never reach the owner; they stay in media_jobs. */
@@ -179,10 +198,10 @@ export async function startPostImage(
   const { post, brand } = args;
   const prev = post.image;
   const productUrl = args.productUrl ?? prev?.productUrl;
-  const wantNew = args.regenerate || Boolean(args.productUrl);
-  if (prev && !wantNew && (prev.status === "queued" || prev.status === "running" || prev.status === "ready")) return prev;
+  const plan = planPostImageStart(prev, Boolean(args.regenerate || args.productUrl));
+  if (plan === "existing") return prev!;
+  if (plan === "limit") throw new PostImageLimitError();
   const attempts = prev?.attempts ?? 0;
-  if (attempts >= MAX_ATTEMPTS_PER_POST) throw new PostImageLimitError();
 
   let scene = !args.productUrl && prev?.scene ? prev.scene : undefined;
   if (!scene && deps.describeScene) {
@@ -234,19 +253,37 @@ export async function startPostImage(
     scene,
     productUrl,
     attempts: attempts + 1,
+    // The last finished picture stays publishable while another version renders or if it fails.
+    lastReadyUrl: prev?.status === "ready" ? prev.url : prev?.lastReadyUrl,
   });
   await deps.save(post.id, image);
   return image;
 }
 
-/** Refreshes a picture in progress (the job layer throttles provider polls). */
+/**
+ * Refreshes a picture in progress (the job layer throttles provider polls). The caller has
+ * already authorised access to the post, so a job started from another device (Mini App vs web)
+ * is refreshed too.
+ */
 export async function pollPostImage(args: { post: PostForImage; actor: Actor }, deps: PostImageDeps): Promise<StoredPostImage | undefined> {
   const prev = args.post.image;
   if (!prev || !prev.jobId || (prev.status !== "queued" && prev.status !== "running")) return prev;
-  const job = await deps.jobs.refresh(prev.jobId, args.actor);
+  const job = await deps.jobs.refresh(prev.jobId, args.actor, { authorized: true });
   if (!isTerminal(job.status) && job.status === (prev.status === "running" ? "running" : "queued")) return prev;
   if (job.status === "failed" && job.error) console.warn(`[media/post-image] job ${job.id} failed: ${job.error}`);
   const next = imageFromJob(job, prev);
   await deps.save(args.post.id, next);
   return next;
+}
+
+/**
+ * The picture to send when the post is published: the ready one; else, if one is still rendering,
+ * refresh it first (the Studio may have stopped polling, e.g. the phone went to the bot); else the
+ * last finished version. Undefined = publish text only.
+ */
+export async function imageUrlForPublish(post: PostForImage, deps: PostImageDeps): Promise<string | undefined> {
+  let image = post.image;
+  if (isPending(image)) image = (await pollPostImage({ post, actor: { telegramId: null } }, deps).catch(() => image)) ?? image;
+  if (image?.status === "ready" && image.url) return image.url;
+  return image?.lastReadyUrl;
 }

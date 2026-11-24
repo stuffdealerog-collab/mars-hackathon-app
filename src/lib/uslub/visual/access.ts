@@ -7,5 +7,3 @@
 export function canChangeBrandPictures(brand: { ownerTelegramId: number | null }, userId: number | null): boolean {
   return brand.ownerTelegramId == null || (userId != null && userId === brand.ownerTelegramId);
 }
-
-export const NOT_YOUR_BRAND = "Bu brend boshqa Telegram foydalanuvchisiga tegishli. / Этот бренд принадлежит другому пользователю Telegram.";

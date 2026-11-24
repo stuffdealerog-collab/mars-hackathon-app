@@ -19,6 +19,7 @@ import type { MediaProviderId } from "./types";
  *   MEDIA_DEMO              "1" = offline demo provider (pre-rendered, labelled "namuna")
  *   MEDIA_VISUAL_DAILY_LIMIT        style analyses (Claude vision) per rolling 24 h, whole app, default 60
  *   MEDIA_VISUAL_BRAND_DAILY_LIMIT  style analyses per brand per rolling 24 h, default 8
+ *   MEDIA_VISUAL_ACTOR_DAILY_LIMIT  style analyses per caller (Telegram user, or hashed IP) per 24 h, default 12
  */
 export interface MediaConfig {
   higgsfield?: { keyId: string; keySecret: string; videoModel?: string; imageModel?: string };
@@ -29,6 +30,7 @@ export interface MediaConfig {
   anonDailyLimit: number;
   visualDailyLimit: number;
   visualBrandDailyLimit: number;
+  visualActorDailyLimit: number;
   demo: boolean;
   /** Names of env vars that were present but malformed (never their values). */
   warnings: string[];
@@ -104,6 +106,7 @@ export function readMediaConfig(env: Env): MediaConfig {
     anonDailyLimit: limit("MEDIA_ANON_DAILY_LIMIT", 5),
     visualDailyLimit: limit("MEDIA_VISUAL_DAILY_LIMIT", 60),
     visualBrandDailyLimit: limit("MEDIA_VISUAL_BRAND_DAILY_LIMIT", 8),
+    visualActorDailyLimit: limit("MEDIA_VISUAL_ACTOR_DAILY_LIMIT", 12),
     demo,
     warnings,
   };

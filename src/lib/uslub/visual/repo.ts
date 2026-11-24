@@ -16,27 +16,64 @@ export async function getBrandVisualInfo(brandId: string): Promise<{ mode: Brand
   return { mode: r?.mode === "fresh" ? "fresh" : "channel", visual: r?.visual ?? undefined };
 }
 
-const memAnalyses: { brandId: string; at: number }[] = [];
-
 /**
- * Style analyses (paid Claude vision calls) in the last 24 h: app-wide and for this brand.
- * Counted from `events` rows of type "visual_analysis", written before each call.
+ * A reserved slot for one style analysis (a paid Claude vision call). The row is written FIRST,
+ * then our position among the last 24 h of rows is read: the first N rows win, so parallel
+ * requests cannot all pass a count check, and a failed write fails closed (no analysis).
  */
-export async function countVisualAnalyses(brandId: string): Promise<{ total: number; brand: number }> {
-  if (!isDbConfigured()) {
-    const since = Date.now() - 24 * 3600_000;
-    const recent = memAnalyses.filter((a) => a.at >= since);
-    return { total: recent.length, brand: recent.filter((a) => a.brandId === brandId).length };
-  }
-  const rows = (await getSql()`
-    SELECT count(*)::int AS total, count(*) FILTER (WHERE props->>'brand_id' = ${brandId})::int AS brand
-    FROM events WHERE type = 'visual_analysis' AND created_at >= now() - interval '24 hours'
-  `) as { total: number; brand: number }[];
-  return rows[0] ?? { total: 0, brand: 0 };
+export interface AnalysisSlot {
+  id: string;
+  totalPos: number; // our row's position app-wide in the last 24 h
+  brandPos: number; // ... for this brand
+  actorPos: number; // ... for this caller
+  earlierInFlight: boolean; // another analysis of this brand started in the last 90 s
 }
 
-export function rememberVisualAnalysis(brandId: string): void {
-  if (!isDbConfigured()) memAnalyses.push({ brandId, at: Date.now() });
+const memAnalyses: { id: number; brandId: string; actor: string; at: number }[] = [];
+let memSeq = 0;
+
+export async function reserveVisualAnalysis(brandId: string, actor: string, ownerImages: number): Promise<AnalysisSlot> {
+  if (!isDbConfigured()) {
+    const id = ++memSeq;
+    const now = Date.now();
+    memAnalyses.push({ id, brandId, actor, at: now });
+    const day = memAnalyses.filter((a) => a.at >= now - 24 * 3600_000 && a.id <= id);
+    return {
+      id: String(id),
+      totalPos: day.length,
+      brandPos: day.filter((a) => a.brandId === brandId).length,
+      actorPos: day.filter((a) => a.actor === actor).length,
+      earlierInFlight: day.some((a) => a.id < id && a.brandId === brandId && a.at >= now - 90_000),
+    };
+  }
+  const sql = getSql();
+  const ins = (await sql`
+    INSERT INTO events (telegram_id, type, props)
+    VALUES (NULL, 'visual_analysis', ${JSON.stringify({ brand_id: brandId, actor, owner_images: ownerImages })}::jsonb)
+    RETURNING id
+  `) as { id: string | number }[];
+  const id = String(ins[0].id);
+  const rows = (await sql`
+    SELECT count(*)::int AS total_pos,
+           count(*) FILTER (WHERE props->>'brand_id' = ${brandId})::int AS brand_pos,
+           count(*) FILTER (WHERE props->>'actor' = ${actor})::int AS actor_pos,
+           count(*) FILTER (WHERE props->>'brand_id' = ${brandId} AND id < ${id}::bigint
+                              AND created_at >= now() - interval '90 seconds')::int AS earlier_recent
+    FROM events
+    WHERE type = 'visual_analysis' AND created_at >= now() - interval '24 hours' AND id <= ${id}::bigint
+  `) as { total_pos: number; brand_pos: number; actor_pos: number; earlier_recent: number }[];
+  const r = rows[0];
+  return { id, totalPos: r.total_pos, brandPos: r.brand_pos, actorPos: r.actor_pos, earlierInFlight: r.earlier_recent > 0 };
+}
+
+/** Gives a slot back when no analysis ran (over a cap, or another one is already running). Only our own row. */
+export async function releaseVisualAnalysis(slot: AnalysisSlot): Promise<void> {
+  if (!isDbConfigured()) {
+    const i = memAnalyses.findIndex((a) => String(a.id) === slot.id);
+    if (i >= 0) memAnalyses.splice(i, 1);
+    return;
+  }
+  await getSql()`DELETE FROM events WHERE id = ${slot.id}::bigint AND type = 'visual_analysis'`;
 }
 
 /**

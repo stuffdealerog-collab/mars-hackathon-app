@@ -75,6 +75,14 @@ export class PgMediaJobRepo implements MediaJobRepo {
     return counts && counts.total >= q.global ? "global" : "owner";
   }
 
+  async countSince(sinceIso: string, ownerKey: string): Promise<{ total: number; owner: number }> {
+    const rows = (await withTable(
+      () => getSql()`SELECT count(*)::int AS total, count(*) FILTER (WHERE owner_key = ${ownerKey})::int AS owner
+                     FROM media_jobs WHERE created_at >= ${sinceIso}`,
+    )) as { total: number; owner: number }[];
+    return rows[0] ?? { total: 0, owner: 0 };
+  }
+
   async update(job: MediaJob): Promise<void> {
     await withTable(
       () => getSql()`UPDATE media_jobs

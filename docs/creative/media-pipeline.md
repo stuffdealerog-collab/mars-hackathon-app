@@ -21,6 +21,19 @@ Every post gets a picture that looks like it came from the business's own channe
    With no image at all the text-to-image twin of the model runs. Saved in `posts.image`; "another variant" reuses the subject line; max 6 pictures per post.
    If the brand has no style yet, the route learns it first (one analysis per brand at a time per instance).
 3. **Publish** — `publish.ts`: a ready picture goes out as ONE photo message with the text as caption when the text is ≤ 1024 characters; longer text goes as the photo, then the full text right under it (never cut). If Telegram cannot fetch the image by URL we upload the file; if the second message fails the first is deleted.
+   A picture still rendering is refreshed first; if a new version is not ready (or failed), the last finished version is sent.
+
+**Guards (cheap checks before anything paid):**
+- **Writes:** need the brand owner's Telegram identity once a brand has an owner. Adding owner photos turns a shared `channel_only` brand `custom`.
+- **POST `/post-image` order:** access → fal configured (else 503) → existing/rendering picture returned as is → per-post cap (6) → daily media quota pre-check → only then the photo upload, the style analysis and the AI subject line.
+- **Style analyses:** a DB slot (`events` type `visual_analysis`) is written before each Claude call; the first N rows win.
+  - Caps: `MEDIA_VISUAL_DAILY_LIMIT` 60 app-wide, `MEDIA_VISUAL_BRAND_DAILY_LIMIT` 8 per brand, `MEDIA_VISUAL_ACTOR_DAILY_LIMIT` 12 per Telegram user or hashed IP.
+  - Parallel first loads run ONE analysis; the others give their slot back and wait for it.
+- **Owner links:** downloaded only from Telegram's and fal's CDNs (uploads come as data: URLs), so there is no SSRF surface.
+- **Errors:** `{ error, code }` in `lang` (uz | ru | en; body or `?lang=`, default uz). Codes:
+  - input and access: `bad_input`, `bad_image`, `too_large`, `not_found`, `forbidden`, `login_required`;
+  - limits: `rate_limited`, `daily_limit`, `post_limit`, `style_limit`;
+  - failures: `not_configured`, `storage_failed`, `ai_failed`, `generation_failed`, `internal`.
 
 **Model choice (tested 24 Nov on @Safiabakery and @lifesmileuz, same prompt and refs):** `fal-ai/nano-banana-2/edit` ($0.08 per 1K image, up to 14 refs, ~10–15 s) over `bytedance/seedream/v5.5/edit` ($0.03 + $0.012 per ref = $0.066–0.10 with 3–6 refs, ~30–35 s).
 Both look photographic. Nano Banana 2 gave more natural phone-photo texture and, once the subject line stopped describing the setting, picked up the channel's own table setups and props; it kept an owner's product (a patterned platter) exactly. It is also 2–3x faster, which matters while the owner watches. Seedream stays available through `FAL_IMAGE_MODEL`.

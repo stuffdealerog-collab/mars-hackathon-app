@@ -4,8 +4,8 @@ import { getBot } from "@/lib/bot";
 import { getEnv } from "@/lib/env";
 import { checkChatRights, checkPublishAccess, type MemberInfo } from "./access";
 import type { Script } from "./contract";
-import { getPostForImage } from "./media/post-repo";
-import { planPostMessages, publishableImageUrl, type PlannedMessage } from "./media/telegram-post";
+import { publishImageUrl } from "./media/post-image-service";
+import { planPostMessages, type PlannedMessage } from "./media/telegram-post";
 import { getBrand, getPost, linkBrandChannel, markPublished } from "./store";
 
 const BOT_USERNAME_FALLBACK = "hackathonproj1_bot";
@@ -99,8 +99,7 @@ export async function publishPost(args: {
     if (!rights.ok) {
       return { ok: false, status: rights.status, error: rights.error, ...(botMember ? {} : { addAdminUrl }) };
     }
-    const stored = await getPostForImage(post!.id).catch(() => null);
-    const messageId = await sendPlanned(target, planPostMessages(text, publishableImageUrl(stored?.image)));
+    const messageId = await sendPlanned(target, planPostMessages(text, await publishImageUrl(post!.id)));
     if (access.linkChannel) await linkBrandChannel(brand!.id, target);
     const url = `https://t.me/${target.slice(1)}/${messageId}`;
     await markPublished(post!.id, url, target, userId);

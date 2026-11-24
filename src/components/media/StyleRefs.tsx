@@ -1,26 +1,31 @@
 "use client";
 
 import { ImagePlus, X } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VisualStyle } from "@/lib/uslub/contract";
 import { copyFor, type Lang } from "./copy";
 import { resizeImageFile } from "./resize";
+import { cx, EASE_OUT, MEDIA_VARS, QUIET_PILL } from "./theme";
 
 /**
  * The photos new post pictures are modelled on: the channel's own (learned automatically) and the
- * owner's (added here, 3-5 is plenty). Self-contained: it learns the style on mount when the brand
- * has none, and re-learns when the owner adds or removes a photo.
+ * owner's (added here, 3-5 is plenty). Self-contained: learns the style on mount when the brand has
+ * none, re-learns when the owner adds or removes a photo. Colours come from the parent.
  *
- *   <StyleRefs brandId={brand.id} initial={brand.visual} lang="uz" onChange={(v) => …} />
+ *   <StyleRefs brandId={brand.id} initial={brand.visual} lang="uz" />        simple
+ *   <StyleRefs brandId={brand.id} initial={brand.visual} lang="en" pro />    pro: + the learned style in words
  *
- * API: GET  /api/uslub/visual?brandId= -> { visual | null }
- *      POST /api/uslub/visual { brandId, ownerImages? } -> { visual }   (~15-30 s with AI)
+ * API: GET  /api/uslub/visual?brandId=&lang= -> { visual | null }
+ *      POST /api/uslub/visual { brandId, ownerImages?, refresh?, lang } -> { visual } | { error, code }   (~15-30 s)
  */
 export interface StyleRefsProps {
   brandId: string;
   /** The brand's style if already known (BrandProfile.visual). */
   initial?: VisualStyle | null;
   lang?: Lang;
+  /** Pro mode: the learned light, framing, mood, what never appears, and the style paragraph. */
+  pro?: boolean;
   /** Learn the style on mount when the brand has none. Default true. */
   autoLearn?: boolean;
   initData?: string;
@@ -30,8 +35,9 @@ export interface StyleRefsProps {
 
 const MAX_OWNER = 5;
 
-export function StyleRefs({ brandId, initial, lang, autoLearn = true, initData, onChange, className }: StyleRefsProps) {
+export function StyleRefs({ brandId, initial, lang = "uz", pro = false, autoLearn = true, initData, onChange, className }: StyleRefsProps) {
   const t = copyFor(lang);
+  const reduce = useReducedMotion() ?? false;
   const [visual, setVisual] = useState<VisualStyle | null>(initial ?? null);
   const [learning, setLearning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,22 +62,22 @@ export function StyleRefs({ brandId, initial, lang, autoLearn = true, initData, 
         const res = await fetch("/api/uslub/visual", {
           method: "POST",
           headers: headers(),
-          body: JSON.stringify({ brandId, ...(ownerImages ? { ownerImages, refresh: true } : {}) }),
+          body: JSON.stringify({ brandId, lang, ...(ownerImages ? { ownerImages, refresh: true } : {}) }),
         });
         const data = (await res.json().catch(() => ({}))) as { visual?: VisualStyle; error?: string };
         if (res.ok && data.visual) {
           setVisual(data.visual);
           onChangeRef.current?.(data.visual);
         } else {
-          setError(res.status === 400 ? t.badFile : t.styleFailed);
+          setError(data.error ?? t.styleFailed);
         }
       } catch {
-        setError(t.styleFailed);
+        setError(t.network);
       } finally {
         setLearning(false);
       }
     },
-    [brandId, headers, t],
+    [brandId, headers, lang, t],
   );
 
   // A brand without a style: read it (another tab may have learned it), else learn it.
@@ -81,7 +87,7 @@ export function StyleRefs({ brandId, initial, lang, autoLearn = true, initData, 
     started.current = true;
     void (async () => {
       try {
-        const res = await fetch(`/api/uslub/visual?brandId=${encodeURIComponent(brandId)}`, { headers: headers(), cache: "no-store" });
+        const res = await fetch(`/api/uslub/visual?brandId=${encodeURIComponent(brandId)}&lang=${lang}`, { headers: headers(), cache: "no-store" });
         const data = res.ok ? ((await res.json()) as { visual: VisualStyle | null }) : { visual: null };
         if (data.visual) {
           setVisual(data.visual);
@@ -91,7 +97,7 @@ export function StyleRefs({ brandId, initial, lang, autoLearn = true, initData, 
         await learn();
       }
     })();
-  }, [autoLearn, brandId, headers, initial, learn]);
+  }, [autoLearn, brandId, headers, initial, lang, learn]);
 
   const ownerRefs = (visual?.refs ?? []).filter((r) => r.source === "owner").map((r) => r.url);
 
@@ -104,7 +110,8 @@ export function StyleRefs({ brandId, initial, lang, autoLearn = true, initData, 
       return;
     }
     try {
-      const added = await Promise.all(files.map((f) => resizeImageFile(f, { maxSide: 1280, maxBytes: 600_000 })));
+      // 5 x 450 KB is ~3.1 MB of base64: safely under Vercel's 4.5 MB request limit.
+      const added = await Promise.all(files.map((f) => resizeImageFile(f, { maxSide: 1280, maxBytes: 450_000 })));
       await learn([...ownerRefs, ...added]);
     } catch {
       setError(t.badFile);
@@ -114,55 +121,77 @@ export function StyleRefs({ brandId, initial, lang, autoLearn = true, initData, 
   const remove = (url: string) => void learn(ownerRefs.filter((u) => u !== url));
 
   const refs = visual?.refs ?? [];
+  const tile = { duration: reduce ? 0.15 : 0.32, ease: EASE_OUT };
   return (
-    <section className={["w-full", className].filter(Boolean).join(" ")} aria-busy={learning}>
+    <section style={MEDIA_VARS} className={cx("w-full text-[var(--mi-ink)]", className)} aria-busy={learning}>
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-sm font-medium text-foreground">{t.styleTitle}</h3>
-        <span role="status" aria-live="polite" className="text-xs text-muted">
-          {learning ? t.styleLearning : error ?? ""}
+        <h3 className="text-[15px] font-semibold tracking-[-0.01em]">{t.styleTitle}</h3>
+        <span role="status" aria-live="polite" className={cx("text-[12.5px]", error && !learning ? "text-[var(--mi-bad)]" : "text-[var(--mi-ink-2)]")}>
+          {learning ? t.styleLearning : (error ?? "")}
         </span>
       </div>
-      <p className="mt-1 text-sm text-muted">{refs.length ? t.styleHint : visual ? t.styleEmpty : ""}</p>
+      <p className="mt-1 min-h-5 text-[13.5px] text-[var(--mi-ink-2)]">{refs.length ? t.styleHint : visual ? t.styleEmpty : ""}</p>
 
-      <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
-        {refs.map((r) => (
-          <li key={r.url} className="relative aspect-square overflow-hidden rounded-md border border-line bg-card">
-            {/* eslint-disable-next-line @next/next/no-img-element -- fal CDN refs; next/image would need remotePatterns */}
-            <img src={r.url} alt={t.refAlt} className="h-full w-full object-cover" loading="lazy" />
-            <span className="absolute bottom-1 left-1 rounded bg-background/90 px-1.5 py-0.5 text-[11px] text-muted">
-              {r.source === "owner" ? t.styleFromOwner : t.styleFromChannel}
-            </span>
-            {r.source === "owner" && !learning ? (
-              <button
-                type="button"
-                onClick={() => remove(r.url)}
-                aria-label={t.remove}
-                className="absolute right-1 top-1 rounded bg-background/90 p-1 text-foreground hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-foreground"
-              >
-                <X className="h-3.5 w-3.5" aria-hidden />
-              </button>
-            ) : null}
-          </li>
-        ))}
-        {learning && !refs.length
-          ? [0, 1, 2].map((i) => <li key={i} className="aspect-square animate-pulse rounded-md border border-line bg-card motion-reduce:animate-none" aria-hidden />)
-          : null}
-      </ul>
+      <motion.ul layout={!reduce} className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+        <AnimatePresence initial={false} mode="popLayout">
+          {refs.map((r) => (
+            <motion.li
+              key={r.url}
+              layout={!reduce}
+              initial={{ opacity: 0, scale: reduce ? 1 : 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: reduce ? 1 : 0.94 }}
+              transition={tile}
+              className="relative aspect-square overflow-hidden rounded-[14px] bg-[var(--mi-glass)] shadow-[inset_0_0_0_1px_var(--mi-hair)]"
+            >
+              <RefThumb src={r.url} alt={t.refAlt} reduce={reduce} />
+              <span className="absolute bottom-1.5 left-1.5 rounded-full bg-[color-mix(in_srgb,var(--mi-stage)_72%,transparent)] px-2 py-0.5 text-[11px] text-[var(--mi-ink-2)]">
+                {r.source === "owner" ? t.styleFromOwner : t.styleFromChannel}
+              </span>
+              {r.source === "owner" && !learning ? (
+                <button
+                  type="button"
+                  onClick={() => remove(r.url)}
+                  aria-label={t.remove}
+                  className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-[color-mix(in_srgb,var(--mi-stage)_72%,transparent)] text-[var(--mi-ink)] transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mi-lime)]"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              ) : null}
+            </motion.li>
+          ))}
+          {learning && !refs.length
+            ? [0, 1, 2].map((i) => (
+                <motion.li
+                  key={`skeleton-${i}`}
+                  aria-hidden
+                  className="aspect-square rounded-[14px] bg-[var(--mi-glass-2)]"
+                  initial={{ opacity: 0.35 }}
+                  animate={reduce ? { opacity: 0.6 } : { opacity: [0.35, 0.75, 0.35] }}
+                  exit={{ opacity: 0 }}
+                  transition={reduce ? { duration: 0.2 } : { duration: 2.4, ease: "easeInOut", repeat: Infinity, delay: i * 0.2 }}
+                />
+              ))
+            : null}
+        </AnimatePresence>
+      </motion.ul>
 
-      <div className="mt-3 flex items-center gap-3">
-        <button
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <motion.button
           type="button"
           disabled={learning || ownerRefs.length >= MAX_OWNER}
           onClick={() => fileInput.current?.click()}
-          className="inline-flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1.5 text-sm text-foreground hover:bg-card disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+          whileTap={reduce ? undefined : { scale: 0.96 }}
+          transition={{ duration: 0.12, ease: EASE_OUT }}
+          className={QUIET_PILL}
         >
           <ImagePlus className="h-3.5 w-3.5" aria-hidden />
           {t.addPhotos}
-        </button>
+        </motion.button>
         {visual?.palette.length ? (
           <span className="flex gap-1" aria-hidden>
             {visual.palette.map((c) => (
-              <span key={c} className="h-3.5 w-3.5 rounded-full border border-line" style={{ backgroundColor: c }} />
+              <span key={c} className="h-3.5 w-3.5 rounded-full shadow-[inset_0_0_0_1px_var(--mi-hair-2)]" style={{ backgroundColor: c }} />
             ))}
           </span>
         ) : null}
@@ -177,6 +206,42 @@ export function StyleRefs({ brandId, initial, lang, autoLearn = true, initData, 
           onChange={onFiles}
         />
       </div>
+
+      {pro && visual ? (
+        <dl className="mt-3 grid grid-cols-[minmax(0,7.5rem)_1fr] gap-x-3 gap-y-1.5 text-[12.5px]">
+          {[
+            [t.styleLight, visual.light],
+            [t.styleFraming, visual.composition],
+            [t.styleMood, visual.mood],
+            [t.styleAvoid, visual.avoid.join("; ")],
+            [t.styleText, visual.prompt],
+          ]
+            .filter(([, v]) => v)
+            .map(([k, v]) => (
+              <div key={k} className="contents">
+                <dt className="text-[var(--mi-ink-3)]">{k}</dt>
+                <dd className="text-[var(--mi-ink-2)]">{v}</dd>
+              </div>
+            ))}
+        </dl>
+      ) : null}
     </section>
+  );
+}
+
+/** A reference thumbnail that fades in once its bytes have loaded (opacity only). */
+function RefThumb({ src, alt, reduce }: { src: string; alt: string; reduce: boolean }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <motion.img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      onLoad={() => setLoaded(true)}
+      className="h-full w-full object-cover"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: loaded ? 1 : 0 }}
+      transition={{ duration: reduce ? 0.15 : 0.6, ease: EASE_OUT }}
+    />
   );
 }

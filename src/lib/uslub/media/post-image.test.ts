@@ -197,7 +197,13 @@ describe("pollPostImage", () => {
     advance(5_000);
     const done = await pollPostImage({ post: post({ image: started }), actor: anon }, deps);
     expect(done).toMatchObject({ status: "ready", url: "https://v3b.fal.media/files/out.jpg" });
-    expect(publicPostImage(done!)).toEqual({ status: "ready", url: "https://v3b.fal.media/files/out.jpg", refsUsed: 3, prompt: started.prompt });
+    expect(publicPostImage(done!)).toEqual({
+      status: "ready",
+      url: "https://v3b.fal.media/files/out.jpg",
+      refsUsed: 3,
+      prompt: started.prompt,
+      model: "mock-image",
+    });
 
     const bad = setup([{ status: "failed", error: "fal.ai: User is locked. Reason: Exhausted balance" }]);
     const s2 = await startPostImage({ post: post(), brand: brand(visual()), actor: anon }, bad.deps);
@@ -307,5 +313,56 @@ describe("planPostMessages", () => {
     expect(publishableImageUrl({ status: "running", url })).toBeUndefined();
     expect(publishableImageUrl({ status: "ready", url: "https://evil.example/x.jpg" })).toBeUndefined();
     expect(publishableImageUrl(undefined)).toBeUndefined();
+  });
+});
+
+/* ------------------------------------------------------ review follow-ups */
+
+describe("deciding before paying, and publishing the right picture", () => {
+  it("planPostImageStart: a rendering picture is never replaced; the cap is checked before any work", async () => {
+    const { planPostImageStart } = await import("./post-image");
+    expect(planPostImageStart(undefined, false)).toBe("start");
+    expect(planPostImageStart({ status: "running", refsUsed: 1, jobId: "j" }, true)).toBe("existing");
+    expect(planPostImageStart({ status: "ready", url: "https://v3b.fal.media/a.jpg", refsUsed: 1 }, false)).toBe("existing");
+    expect(planPostImageStart({ status: "ready", url: "https://v3b.fal.media/a.jpg", refsUsed: 1, attempts: 2 }, true)).toBe("start");
+    expect(planPostImageStart({ status: "failed", refsUsed: 1, attempts: MAX_ATTEMPTS_PER_POST }, true)).toBe("limit");
+  });
+
+  it("another variant keeps the last finished picture publishable while it renders or if it fails", async () => {
+    const { imageUrlForPublish } = await import("./post-image");
+    const { deps, advance } = setup([{ status: "failed", error: "boom" }]);
+    const prev: StoredPostImage = { status: "ready", url: "https://v3b.fal.media/files/first.jpg", refsUsed: 3, attempts: 1 };
+    const next = await startPostImage({ post: post({ image: prev }), brand: brand(visual()), actor: anon, regenerate: true }, deps);
+    expect(next).toMatchObject({ status: "queued", lastReadyUrl: "https://v3b.fal.media/files/first.jpg" });
+    advance(5_000);
+    // publishing now refreshes the job (it failed) and falls back to the first picture
+    expect(await imageUrlForPublish(post({ image: next }), deps)).toBe("https://v3b.fal.media/files/first.jpg");
+  });
+
+  it("publishing refreshes a picture the Studio stopped polling", async () => {
+    const { imageUrlForPublish } = await import("./post-image");
+    const { deps, advance } = setup([{ status: "succeeded", outputUrl: "https://v3b.fal.media/files/done.jpg" }]);
+    const started = await startPostImage({ post: post(), brand: brand(visual()), actor: anon }, deps);
+    advance(5_000);
+    expect(await imageUrlForPublish(post({ image: started }), deps)).toBe("https://v3b.fal.media/files/done.jpg");
+  });
+
+  it("a picture started by a Telegram user is still polled from the web once the post is authorised", async () => {
+    const { deps, advance } = setup([{ status: "succeeded", outputUrl: "https://v3b.fal.media/files/tg.jpg" }]);
+    const started = await startPostImage({ post: post(), brand: brand(visual()), actor: { telegramId: 77 } }, deps);
+    advance(5_000);
+    const done = await pollPostImage({ post: post({ image: started }), actor: anon }, deps);
+    expect(done).toMatchObject({ status: "ready", url: "https://v3b.fal.media/files/tg.jpg" });
+    // without authorisation the job itself stays private
+    await expect((deps.jobs as MediaJobs).get(started.jobId!, anon)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("assertRoom refuses before any preparation when the daily cap is used up", async () => {
+    const { provider } = scriptedProvider();
+    const jobs = new MediaJobs({ repo: new MemoryMediaJobRepo(), providers: [provider], anonDailyLimit: 1, dailyLimit: 10 });
+    await jobs.assertRoom(anon);
+    await jobs.create({ kind: "image", presetId: "paper-studio", aspect: "4:5", seconds: 0, customPrompt: { prompt: "x" } });
+    await expect(jobs.assertRoom(anon)).rejects.toMatchObject({ status: 429, code: "limit" });
+    await expect(jobs.assertRoom({ telegramId: 5 })).resolves.toBeUndefined();
   });
 });

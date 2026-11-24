@@ -194,17 +194,35 @@ export class MediaJobs {
    * not confirmed). An anonymous job's random UUID is its capability: it is
    * returned only to the caller who created it.
    */
-  async get(id: string, actor: Actor = ANON): Promise<MediaJob> {
+  async get(id: string, actor: Actor = ANON, opts: AccessOpts = {}): Promise<MediaJob> {
     const job = await this.deps.repo.get(id);
-    if (!job || (job.ownerKey !== "anon" && job.ownerKey !== ownerKeyOf(actor))) {
+    if (!job || (!opts.authorized && job.ownerKey !== "anon" && job.ownerKey !== ownerKeyOf(actor))) {
       throw new MediaError(404, "Topilmadi / Не найдено", "not_found");
     }
     return job;
   }
 
-  /** Returns the job, polling the provider first when it is due. */
-  async refresh(id: string, actor: Actor = ANON): Promise<MediaJob> {
-    const job = await this.get(id, actor);
+  /**
+   * Cheap pre-check of the daily caps before a caller spends money preparing a job (AI calls,
+   * uploads). Not a reservation: create() still checks atomically with the insert.
+   */
+  async assertRoom(actor: Actor = ANON): Promise<void> {
+    if (!this.deps.repo.countSince) return;
+    const ownerKey = ownerKeyOf(actor);
+    const anonLimit = this.deps.anonDailyLimit ?? MEDIA_DEFAULTS.anonDailyLimit;
+    const used = await this.deps.repo.countSince(new Date(this.now() - 24 * 3600_000).toISOString(), ownerKey);
+    const ownerCap = ownerKey === "anon" ? anonLimit : (this.deps.userDailyLimit ?? MEDIA_DEFAULTS.userDailyLimit);
+    if (used.total >= (this.deps.dailyLimit ?? MEDIA_DEFAULTS.dailyLimit) || used.owner >= ownerCap) {
+      throw new MediaError(429, "Bugungi limit tugadi. / Дневной лимит исчерпан.", "limit");
+    }
+  }
+
+  /**
+   * Returns the job, polling the provider first when it is due. `authorized`: the caller has
+   * already checked access to what the job belongs to (e.g. the post), so the owner check is skipped.
+   */
+  async refresh(id: string, actor: Actor = ANON, opts: AccessOpts = {}): Promise<MediaJob> {
+    const job = await this.get(id, actor, opts);
     if (isTerminal(job.status) || !job.providerRequestId) return job;
     const now = this.now();
     const interval = this.deps.pollIntervalMs ?? MEDIA_DEFAULTS.pollIntervalMs;
@@ -285,6 +303,7 @@ export class MediaJobs {
 
 /** The caller: a verified Telegram user id, or null for an anonymous web caller. */
 export type Actor = { telegramId: number | null };
+export type AccessOpts = { authorized?: boolean };
 const ANON: Actor = { telegramId: null };
 const ownerKeyOf = (a: Actor) => (a.telegramId != null ? `tg:${a.telegramId}` : "anon");
 

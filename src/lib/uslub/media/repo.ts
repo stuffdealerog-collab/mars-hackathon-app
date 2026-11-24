@@ -18,6 +18,8 @@ export interface MediaJobRepo {
    */
   insertWithinQuota(job: MediaJob, quota: Quota): Promise<QuotaResult>;
   update(job: MediaJob): Promise<void>;
+  /** Jobs since `sinceIso`: app-wide and for one owner (a cheap pre-check before paid prep work). */
+  countSince?(sinceIso: string, ownerKey: string): Promise<{ total: number; owner: number }>;
 }
 
 export class MemoryMediaJobRepo implements MediaJobRepo {
@@ -47,5 +49,17 @@ export class MemoryMediaJobRepo implements MediaJobRepo {
 
   async update(job: MediaJob) {
     this.jobs.set(job.id, structuredClone(job));
+  }
+
+  async countSince(sinceIso: string, ownerKey: string) {
+    const since = Date.parse(sinceIso);
+    let total = 0;
+    let owner = 0;
+    for (const j of this.jobs.values()) {
+      if (Date.parse(j.createdAt) < since) continue;
+      total++;
+      if (j.ownerKey === ownerKey) owner++;
+    }
+    return { total, owner };
   }
 }

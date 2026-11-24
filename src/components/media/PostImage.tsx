@@ -1,34 +1,41 @@
 "use client";
 
 import { ImagePlus, RefreshCw } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PostImage as PostImageData } from "@/lib/uslub/contract";
-import { copyFor, type Lang } from "./copy";
+import { copyFor, fill, type Lang } from "./copy";
 import { resizeImageFile } from "./resize";
+import { cx, EASE_OUT, MEDIA_VARS, QUIET_PILL } from "./theme";
 
 /**
  * The picture of one post, in the brand's style. Self-contained: it starts the picture when the
- * post has none, polls until it is ready, and offers "another version", "retry" and the owner's
- * own product photo. Neutral styling on the app's theme tokens; the Studio may restyle via className.
+ * post has none, polls until it is ready, and "develops" it out of the skeleton. Colours come from
+ * the parent (lamp-world tokens inside `.lw`, else the parent's text colour); restyle via className.
  *
- *   <PostImage postId={post.id} initial={post.image} lang="uz" onChange={(img) => …} />
+ *   <PostImage postId={post.id} initial={post.image} lang="uz" />            simple: picture + "Boshqa variant"
+ *   <PostImage postId={post.id} initial={post.image} lang="ru" pro />        pro: + product photo, refs, model, prompt
  *
- * API: POST /api/uslub/media/post-image { postId, regenerate?, photo? } -> { image }
- *      GET  /api/uslub/media/post-image?postId= -> { image }   (every 4 s while queued/running)
+ * API: POST /api/uslub/media/post-image { postId, regenerate?, photo?, lang } -> { image } | { error, code }
+ *      GET  /api/uslub/media/post-image?postId=&lang= -> { image }   (every 4 s while queued/running)
  */
+export type PostImageValue = PostImageData & { model?: string };
+
 export interface PostImageProps {
   postId: string;
   /** The post's image as the posts API returned it (undefined/null = none yet). */
-  initial?: PostImageData | null;
+  initial?: PostImageValue | null;
   lang?: Lang;
+  /** Pro mode: the owner's product photo button, the prompt used, how many refs, the model. */
+  pro?: boolean;
   /** Start making the picture on mount when the post has none. Default true. */
   autoStart?: boolean;
-  /** Show the "Product photo" button (owner uploads a photo; the product is kept as is). Default true. */
+  /** Show the "Product photo" button. Default: on in pro mode, off in simple mode. */
   allowProductPhoto?: boolean;
   /** Telegram Mini App initData, sent as `Authorization: tma …` (web Studio: leave empty). */
   initData?: string;
-  /** Called with every new state (e.g. to keep the post list in sync, or to enable "publish" when ready). */
-  onChange?: (image: PostImageData) => void;
+  /** Every new state (e.g. enable "Tasdiqlash" when `status === "ready"`). */
+  onChange?: (image: PostImageValue) => void;
   className?: string;
 }
 
@@ -36,20 +43,22 @@ const POLL_MS = 4_000;
 const SLOW_MS = 120_000;
 const GIVE_UP_MS = 8 * 60_000;
 
-const isPending = (img: PostImageData | null) => img?.status === "queued" || img?.status === "running";
+const isPending = (img: PostImageValue | null) => img?.status === "queued" || img?.status === "running";
 
 export function PostImage({
   postId,
   initial,
-  lang,
+  lang = "uz",
+  pro = false,
   autoStart = true,
-  allowProductPhoto = true,
+  allowProductPhoto,
   initData,
   onChange,
   className,
 }: PostImageProps) {
   const t = copyFor(lang);
-  const [image, setImage] = useState<PostImageData | null>(initial ?? null);
+  const reduce = useReducedMotion() ?? false;
+  const [image, setImage] = useState<PostImageValue | null>(initial ?? null);
   // The last ready picture stays on screen (dimmed) while another version renders.
   const [shown, setShown] = useState<string | undefined>(initial?.status === "ready" ? initial.url : undefined);
   const [busy, setBusy] = useState(false);
@@ -62,13 +71,14 @@ export function PostImage({
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+  const productButton = allowProductPhoto ?? pro;
 
   const headers = useCallback(
     (): HeadersInit => ({ "Content-Type": "application/json", ...(initData ? { Authorization: `tma ${initData}` } : {}) }),
     [initData],
   );
 
-  const apply = useCallback((next: PostImageData) => {
+  const apply = useCallback((next: PostImageValue) => {
     setImage(next);
     if (next.status === "ready" && next.url) setShown(next.url);
     onChangeRef.current?.(next);
@@ -84,19 +94,18 @@ export function PostImage({
         const res = await fetch("/api/uslub/media/post-image", {
           method: "POST",
           headers: headers(),
-          body: JSON.stringify({ postId, ...opts }),
+          body: JSON.stringify({ postId, lang, ...opts }),
         });
-        const data = (await res.json().catch(() => ({}))) as { image?: PostImageData; error?: string };
+        const data = (await res.json().catch(() => ({}))) as { image?: PostImageValue; error?: string };
         if (data.image) apply(data.image);
-        if (res.status === 429) setError(t.limit);
-        else if (!res.ok && !data.image) setError(t.failed);
+        if (!res.ok && data.image?.status !== "failed") setError(data.error ?? (res.status === 429 ? t.limit : t.failed));
       } catch {
-        setError(t.failed);
+        setError(t.network);
       } finally {
         setBusy(false);
       }
     },
-    [apply, headers, postId, t],
+    [apply, headers, lang, postId, t],
   );
 
   // First picture for a post that has none. Once per mount, never cancelled: StrictMode re-runs
@@ -122,12 +131,15 @@ export function PostImage({
         return;
       }
       try {
-        const res = await fetch(`/api/uslub/media/post-image?postId=${encodeURIComponent(postId)}`, { headers: headers(), cache: "no-store" });
+        const res = await fetch(`/api/uslub/media/post-image?postId=${encodeURIComponent(postId)}&lang=${lang}`, {
+          headers: headers(),
+          cache: "no-store",
+        });
         if (!res.ok || stopped) return;
-        const data = (await res.json()) as { image: PostImageData | null };
+        const data = (await res.json()) as { image: PostImageValue | null };
         if (data.image && !stopped) apply(data.image);
       } catch {
-        // network blip: try again on the next tick
+        // network blip: the next tick tries again
       }
     };
     const id = setInterval(() => void tick(), POLL_MS);
@@ -135,7 +147,7 @@ export function PostImage({
       stopped = true;
       clearInterval(id);
     };
-  }, [pending, postId, headers, apply]);
+  }, [pending, postId, lang, headers, apply]);
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -153,74 +165,164 @@ export function PostImage({
   const failed = !working && image?.status === "failed";
   const ready = !working && image?.status === "ready";
   const idle = !working && !image;
+  const status = working ? (slow ? t.slow : t.making) : (error ?? (failed ? t.failed : ""));
 
   return (
-    <figure className={["w-full", className].filter(Boolean).join(" ")}>
-      <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg border border-line bg-card" aria-busy={working}>
-        {shown ? (
-          // eslint-disable-next-line @next/next/no-img-element -- fal CDN pictures; next/image would need remotePatterns
-          <img
-            src={shown}
-            alt={t.alt}
-            className={`h-full w-full object-cover transition-opacity ${working ? "opacity-50" : "opacity-100"}`}
-          />
-        ) : null}
-        {working && !shown ? <div className="absolute inset-0 animate-pulse bg-line/60 motion-reduce:animate-none" aria-hidden /> : null}
+    <figure style={MEDIA_VARS} className={cx("w-full text-[var(--mi-ink)]", className)}>
+      <div
+        className="relative aspect-[4/5] w-full overflow-hidden rounded-[20px] bg-[var(--mi-glass)] shadow-[inset_0_0_0_1px_var(--mi-hair)]"
+        aria-busy={working}
+      >
+        {/* Skeleton: a calm glass breathing slowly; never a bright shimmer. */}
+        <AnimatePresence>
+          {working && !shown ? (
+            <motion.div
+              key="skeleton"
+              aria-hidden
+              className="absolute inset-0 bg-[var(--mi-glass-2)]"
+              initial={{ opacity: 0 }}
+              animate={reduce ? { opacity: 0.6 } : { opacity: [0.35, 0.75, 0.35] }}
+              exit={{ opacity: 0, transition: { duration: 0.9, ease: EASE_OUT } }}
+              transition={reduce ? { duration: 0.2 } : { duration: 2.4, ease: "easeInOut", repeat: Infinity }}
+            />
+          ) : null}
+        </AnimatePresence>
+
+        <AnimatePresence initial={false}>
+          {shown ? <DevelopingImage key={shown} src={shown} alt={t.alt} reduce={reduce} /> : null}
+        </AnimatePresence>
+
+        {/* Another version is rendering: the old picture rests under a dark veil. */}
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[var(--mi-stage)]"
+          initial={false}
+          animate={{ opacity: working && shown ? 0.5 : 0 }}
+          transition={{ duration: working ? 0.3 : 0.8, ease: EASE_OUT }}
+        />
+
         {failed && !shown ? (
-          <div className="flex h-full items-center justify-center p-6 text-center text-sm text-muted">{t.failed}</div>
+          <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-[14px] text-[var(--mi-ink-2)]">{t.failed}</div>
         ) : null}
         {idle && !shown ? (
-          <div className="flex h-full items-center justify-center p-6">
-            <button
-              type="button"
-              onClick={() => void start()}
-              className="rounded-md border border-line bg-background px-3 py-2 text-sm text-foreground hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-            >
+          <div className="absolute inset-0 flex items-center justify-center p-6">
+            <Pill reduce={reduce} onClick={() => void start()}>
               {t.create}
-            </button>
+            </Pill>
           </div>
         ) : null}
       </div>
 
-      <figcaption className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-        <span role="status" aria-live="polite" className="mr-auto text-muted">
-          {working ? (slow ? t.slow : t.making) : error ? error : failed ? t.failed : ""}
+      <figcaption className="mt-2.5 flex min-h-9 flex-wrap items-center gap-2">
+        <span role="status" aria-live="polite" className={cx("mr-auto text-[12.5px]", error ? "text-[var(--mi-bad)]" : "text-[var(--mi-ink-2)]")}>
+          {status}
         </span>
         {ready ? (
-          <button
-            type="button"
-            onClick={() => void start({ regenerate: true })}
-            className="inline-flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1.5 text-foreground hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-          >
+          <Pill reduce={reduce} onClick={() => void start({ regenerate: true })}>
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
             {t.another}
-          </button>
+          </Pill>
         ) : null}
         {failed ? (
-          <button
-            type="button"
-            onClick={() => void start({ regenerate: true })}
-            className="inline-flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1.5 text-foreground hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-          >
+          <Pill reduce={reduce} onClick={() => void start({ regenerate: true })}>
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
             {t.retry}
-          </button>
+          </Pill>
         ) : null}
-        {allowProductPhoto && !working ? (
+        {productButton && !working ? (
           <>
-            <button
-              type="button"
-              onClick={() => fileInput.current?.click()}
-              title={t.ownPhotoHint}
-              className="inline-flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1.5 text-foreground hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-            >
+            <Pill reduce={reduce} onClick={() => fileInput.current?.click()} title={t.ownPhotoHint}>
               <ImagePlus className="h-3.5 w-3.5" aria-hidden />
               {t.ownPhoto}
-            </button>
+            </Pill>
             <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" tabIndex={-1} aria-hidden onChange={onFile} />
           </>
         ) : null}
       </figcaption>
+
+      {pro && image ? <ProDetails image={image} t={t} /> : null}
     </figure>
+  );
+}
+
+/**
+ * The reveal: the picture "develops" out of the skeleton. A blurred copy glows up first, then the
+ * sharp picture fades in over it while settling from a 3.5% zoom. Opacity and transform only (the
+ * blur is a static filter on its own layer); starts when the bytes have loaded, never half-drawn.
+ */
+function DevelopingImage({ src, alt, reduce }: { src: string; alt: string; reduce: boolean }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <motion.div className="absolute inset-0" exit={{ opacity: 0, transition: { duration: 0.7, ease: EASE_OUT } }}>
+      {!reduce ? (
+        <motion.img
+          src={src}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl saturate-[1.15]"
+          initial={{ opacity: 0 }}
+          animate={loaded ? { opacity: [0, 0.9, 0] } : { opacity: 0 }}
+          transition={{ duration: 1.6, times: [0, 0.3, 1], ease: "easeOut" }}
+        />
+      ) : null}
+      <motion.img
+        src={src}
+        alt={alt}
+        onLoad={() => setLoaded(true)}
+        className="absolute inset-0 h-full w-full object-cover"
+        initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 1.035 }}
+        animate={loaded ? { opacity: 1, scale: 1 } : undefined}
+        transition={reduce ? { duration: 0.2 } : { duration: 1.15, delay: 0.25, ease: EASE_OUT }}
+      />
+    </motion.div>
+  );
+}
+
+function Pill({
+  children,
+  onClick,
+  title,
+  reduce,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  title?: string;
+  reduce: boolean;
+}) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      title={title}
+      whileTap={reduce ? undefined : { scale: 0.96 }}
+      transition={{ duration: 0.12, ease: EASE_OUT }}
+      className={QUIET_PILL}
+    >
+      {children}
+    </motion.button>
+  );
+}
+
+function ProDetails({ image, t }: { image: PostImageValue; t: ReturnType<typeof copyFor> }) {
+  return (
+    <div className="mt-2 space-y-1.5 text-[12.5px] text-[var(--mi-ink-2)]">
+      <p className="tabular-nums">
+        {image.refsUsed ? fill(t.refsUsed, image.refsUsed) : t.refsNone}
+        {image.model ? (
+          <>
+            <span aria-hidden> · </span>
+            {t.model}: <span className="text-[var(--mi-ink)]">{image.model}</span>
+          </>
+        ) : null}
+      </p>
+      {image.prompt ? (
+        <details className="group rounded-[14px] bg-[var(--mi-glass)] shadow-[inset_0_0_0_1px_var(--mi-hair)]">
+          <summary className="cursor-pointer select-none list-none rounded-[14px] px-3 py-2 text-[var(--mi-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--mi-lime)]">
+            {t.prompt}
+          </summary>
+          <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words px-3 pb-3 font-[inherit] text-[12.5px] leading-relaxed">{image.prompt}</pre>
+        </details>
+      ) : null}
+    </div>
   );
 }

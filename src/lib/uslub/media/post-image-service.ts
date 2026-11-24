@@ -5,9 +5,11 @@ import type { VisualStyle } from "../contract";
 import type { StoredBrand } from "../store";
 import { getBrandVisualInfo } from "../visual/repo";
 import { learnAndSaveVisual } from "../visual/service";
-import type { PostImageDeps, SceneInput } from "./post-image";
-import { savePostImage } from "./post-repo";
+import { imageUrlForPublish, type PostImageDeps, type SceneInput } from "./post-image";
+import { getPostForImage, savePostImage } from "./post-repo";
+import { PictureError } from "./route-errors";
 import { media } from "./service";
+import { publishableImageUrl } from "./telegram-post";
 
 const Scene = z.object({
   scene: z.string().describe("The subject of the photo in English, 8-30 words: which product, dish or moment, and what is happening to it"),
@@ -41,32 +43,58 @@ export async function describeScene(input: SceneInput): Promise<string | undefin
   return r.scene.trim() || undefined;
 }
 
+/**
+ * Post pictures need fal: it is the provider that reads several references (the prompt numbers
+ * them). Without FAL_KEY the route answers 503 before any quota slot or AI call is used.
+ */
 export function postImageDeps(): PostImageDeps {
   const { jobs, providers } = media();
   const fal = providers.find((p) => p.id === "fal" && p.isConfigured());
-  return { jobs, save: savePostImage, describeScene, provider: fal ? "fal" : undefined };
+  if (!fal) throw new PictureError(503, "not_configured");
+  return { jobs, save: savePostImage, describeScene, provider: "fal" };
 }
 
-/** One style analysis per brand at a time on this instance (seven posts ask at once). */
+/** One style analysis per brand at a time on this instance; across instances the DB slot dedupes. */
 const learning = new Map<string, Promise<VisualStyle | undefined>>();
+/** A failed analysis is not retried by every picture request for a while (it costs money each time). */
+const failedAt = new Map<string, number>();
+const RETRY_AFTER_FAILURE_MS = 5 * 60_000;
 
 /**
- * The brand's style; learned on the fly the first time a post needs a picture. A failed
+ * The brand's style; learned on the fly the first time a post needs a picture. A failed or capped
  * analysis is not fatal: the picture is then made from the business description alone.
  */
-export async function ensureVisual(brand: StoredBrand): Promise<VisualStyle | undefined> {
+export async function ensureVisual(brand: StoredBrand, actor: string): Promise<VisualStyle | undefined> {
   const { visual } = await getBrandVisualInfo(brand.id);
   if (visual) return visual;
+  if (Date.now() - (failedAt.get(brand.id) ?? 0) < RETRY_AFTER_FAILURE_MS) return undefined;
   let p = learning.get(brand.id);
   if (!p) {
-    p = learnAndSaveVisual(brand)
+    p = learnAndSaveVisual(brand, { actor })
       .then((r) => r.visual)
       .catch((err) => {
-        console.warn("[media/post-image] style analysis failed:", err instanceof Error ? err.message : err);
+        failedAt.set(brand.id, Date.now());
+        console.warn("[media/post-image] style analysis skipped:", err instanceof Error ? err.message : err);
         return undefined;
       })
       .finally(() => learning.delete(brand.id));
     learning.set(brand.id, p);
   }
   return p;
+}
+
+/**
+ * The picture publishPost sends: ready, refreshed if still rendering, else the last finished one.
+ * Only our own CDN's pictures are ever sent. Never throws: a picture problem must not block a post.
+ */
+export async function publishImageUrl(postId: string): Promise<string | undefined> {
+  try {
+    const post = await getPostForImage(postId);
+    if (!post?.image) return undefined;
+    const url = await imageUrlForPublish(post, postImageDeps());
+    return publishableImageUrl({ status: "ready", url });
+  } catch (err) {
+    console.warn("[media/post-image] no picture for publish:", err instanceof Error ? err.message : err);
+    return undefined;
+  }
 }
