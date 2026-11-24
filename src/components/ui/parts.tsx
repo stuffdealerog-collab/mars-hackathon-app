@@ -1,6 +1,7 @@
 "use client";
 
 import { Lightbulb, Link2, Send } from "lucide-react";
+import { useEffect } from "react";
 import { Mark } from "../lamp/Mark";
 import { LANGS, useCopy, useLang } from "./lang";
 
@@ -66,3 +67,15 @@ export function Steps({ className = "" }: { className?: string }) {
 }
 
 export { parseChannel } from "./format";
+
+/**
+ * The stage variant to show the owner (computer screens): ?stage=dark is the brief's fallback for
+ * a laptop where the warm graphite reads grey (#121110 instead of #171513). Set on <html> after
+ * mount, so the prerendered page never disagrees with the browser.
+ */
+export function useStageVariant() {
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get("stage");
+    if (v === "dark") document.documentElement.dataset.stage = "dark";
+  }, []);
+}

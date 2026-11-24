@@ -903,6 +903,14 @@
   html:has(.desk:not([data-theme="light"])) {
     background: #171513;
   }
+  /* ?stage=dark: the fallback if the graphite reads grey on a real laptop. */
+  html[data-stage="dark"] .desk:not([data-theme="light"]) {
+    --stage: #121110;
+    --glass: #1b1916;
+  }
+  html[data-stage="dark"]:has(.desk:not([data-theme="light"])) {
+    background: #121110;
+  }
   /* The hub's glass is lighter than the room: a material, not a hole. */
   .desk .hub {
     background:

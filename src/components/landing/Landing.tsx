@@ -11,7 +11,7 @@ import { lampsFrom, Panel, sampleSnapshot, type Lamps } from "../studio/Departme
 import { sampleBrand } from "../studio/sample";
 import { ChannelField } from "../ui/ChannelField";
 import { keepNumbers, useCopy, useInitLang, useLang } from "../ui/lang";
-import { LangSwitch, Logo, parseChannel, Steps } from "../ui/parts";
+import { LangSwitch, Logo, parseChannel, Steps, useStageVariant } from "../ui/parts";
 
 /** Roles that do nothing for the owner yet stay dark with "tez orada" (see Studio/Department). */
 const SOON = new Set<AgentRole>(["video", "radar"]);
@@ -22,6 +22,7 @@ export function Landing({ bot }: { bot: string }) {
   const c = useCopy();
   const botUrl = `https://t.me/${bot}`;
   const [armed, setArmed] = useState(false);
+  useStageVariant();
   return (
     <div className="desk flex min-h-dvh flex-col overflow-x-clip bg-stage text-ink">
       <header className="mx-auto flex w-full max-w-[1180px] items-center justify-between gap-3 px-4 pt-3 sm:px-8 sm:pt-5">

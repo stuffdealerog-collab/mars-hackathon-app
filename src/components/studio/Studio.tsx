@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Led } from "../lamp/Led";
 import { fmt, useCopy, useInitLang } from "../ui/lang";
-import { LangSwitch, Logo, parseChannel } from "../ui/parts";
+import { LangSwitch, Logo, parseChannel, useStageVariant } from "../ui/parts";
 import { ChannelSign } from "./ChannelSign";
 import { CommandPalette } from "./CommandPalette";
 import { ChannelTab } from "./ChannelTab";
@@ -132,6 +132,7 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
   const entry = useStudio((s) => s.entry);
   const introGate = useStudio((s) => s.introGate);
   const lamps = useLamps(introGate);
+  useStageVariant();
   const { side, collapsed } = useHub();
   const gutter = (collapsed ? RAIL_W : HUB_W) + 36;
   return (
