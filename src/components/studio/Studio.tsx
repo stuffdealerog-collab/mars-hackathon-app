@@ -3,8 +3,10 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Led } from "../lamp/Led";
-import { fmt, useCopy, useInitLang } from "../ui/lang";
-import { LangSwitch, Logo, parseChannel } from "../ui/parts";
+import { WORK_LIGHT } from "../lamp/lamps";
+import { decideIntro, forcedByUrl, localIntro, Onboarding } from "@/components/onboarding";
+import { fmt, useCopy, useInitLang, useLang } from "../ui/lang";
+import { LangSwitch, Logo, parseChannel, useStageVariant } from "../ui/parts";
 import { ChannelSign } from "./ChannelSign";
 import { CommandPalette } from "./CommandPalette";
 import { ChannelTab } from "./ChannelTab";
@@ -14,7 +16,7 @@ import { PostsSplit, PostsTab } from "./Posts";
 import { SpectrumIntro } from "./SpectrumIntro";
 import { Start } from "./Start";
 import { Toasts } from "./Toasts";
-import { POSTS_PER_RUN, useStudio, type Step, type Tab } from "./store";
+import { POSTS_PER_RUN, recentBrands, useStudio, type Step, type Tab } from "./store";
 
 type Theme = "light" | "dark";
 
@@ -130,11 +132,24 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
   const phase = useStudio((s) => s.phase);
   const sample = useStudio((s) => s.sample);
   const entry = useStudio((s) => s.entry);
-  const lamps = useLamps();
-  const { side, collapsed } = useHub();
+  const introGate = useStudio((s) => s.introGate);
+  const lamps = useLamps(introGate);
+  useStageVariant();
+  const side = useHub((s) => s.side);
+  const collapsed = useHub((s) => s.collapsed);
+  const intro = useHub((s) => s.intro);
+  const lang = useLang((s) => s.lang);
+  // The first-run intro: once for a newcomer; never for an owner with saved channels; not over a
+  // link that already says what to do (?brand=, ?channel=); always with ?intro=1. Remembered here.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const d = decideIntro({ seen: localIntro.seen(), returning: recentBrands().length > 0, withIntent: !!(p.get("brand") || p.get("channel")), force: forcedByUrl(window.location.search) });
+    if (d.mark) localIntro.mark();
+    if (d.show) useHub.setState({ intro: true });
+  }, []);
   const gutter = (collapsed ? RAIL_W : HUB_W) + 36;
   return (
-    <div data-theme={theme} className="relative min-h-dvh bg-stage text-ink">
+    <div data-theme={theme} className="desk relative min-h-dvh bg-stage text-ink">
       <StageLight lamps={lamps} />
       <Hub lamps={lamps} />
       {/* The canvas takes the width beside the hub: a pro tool, not a phone column. Reading
@@ -145,7 +160,9 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
       >
         {/* The channel's numbers on an LED sign that runs under the glass to the window's edge. */}
         {phase === "ready" && <ChannelSign bleed={gutter + 8} side={side} />}
-        <div className={phase === "ready" ? "mx-auto max-w-[1280px]" : "mx-auto max-w-[720px]"}>
+        <div className={phase === "ready" ? "mx-auto max-w-[1280px]" : "relative mx-auto max-w-[880px]"}>
+          {/* The one work light over the headline and the department (start, the run). */}
+          {phase !== "ready" && <div aria-hidden className="work-light" style={{ background: WORK_LIGHT }} />}
           {sample && <SampleBanner flush />}
           {phase === "start" && <Start key={`${entry.view}:${entry.channel}`} initialView={entry.view} initialChannel={entry.channel} />}
           {phase === "working" && <Working />}
@@ -155,6 +172,17 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
       </main>
       <Toasts inset={side === "left" ? gutter : -gutter} />
       <CommandPalette />
+      <Onboarding
+        open={intro}
+        lang={lang}
+        variant="desktop"
+        onClose={(how) => {
+          localIntro.mark();
+          useHub.setState({ intro: false });
+          // "Boshlash" at the end of the intro puts the owner in the link field.
+          if (how === "done") document.querySelector<HTMLInputElement>("main input")?.focus();
+        }}
+      />
     </div>
   );
 }
@@ -253,7 +281,16 @@ function Working() {
     spektrPlayed = true;
     return { gate: true };
   });
-  const onBloom = useCallback(() => setIntro((i) => (i ? { gate: false } : i)), []);
+  const onBloom = useCallback(() => {
+    setIntro((i) => (i ? { gate: false } : i));
+    // The bloom: every available lamp's light on the room flares to its peak for 0.9 s in the
+    // lamps' real colours, then settles to the working ones. Opacity only, from and back to the
+    // value CSS gives it, so nothing jumps.
+    panelRef.current
+      ?.closest(".panel-stage")
+      ?.querySelectorAll<HTMLElement>(".room-light:not([data-soon])")
+      .forEach((el) => el.animate([{ opacity: 1, offset: 0.3 }, { opacity: 1, offset: 0.55 }], { duration: 900, easing: "ease-out" }));
+  }, []);
   const onDone = useCallback(() => setIntro(null), []);
   // Safety net: if the intro cannot animate (hidden tab, no rAF), never keep the lamps dark.
   useEffect(() => {
@@ -262,6 +299,12 @@ function Working() {
     return () => clearTimeout(id);
   }, [intro?.gate]);
   const lamps = useLamps(!!intro?.gate);
+  // The hub and its spots wait for the beams too (DesktopStudio reads the gate from the store).
+  useEffect(() => {
+    useStudio.setState({ introGate: !!intro?.gate });
+  }, [intro?.gate]);
+  useEffect(() => () => useStudio.setState({ introGate: false }), []);
+  const desktop = useDesktop();
 
   useEffect(() => {
     head.current?.focus({ preventScroll: true });
@@ -282,26 +325,31 @@ function Working() {
         <span ref={ledRef} className="inline-flex min-h-10 min-w-0 items-center truncate rounded-full bg-glass-2 px-4 text-[15px] font-medium shadow-[inset_0_0_0_1px_var(--hair-2)]">
           {source}
         </span>
-        <span className="shrink-0 rounded-[12px] bg-stage px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
+        <span className="led-well shrink-0 rounded-[12px] bg-[var(--led-well,var(--stage))] px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
           <ElapsedLed />
         </span>
       </div>
 
-      <h1 ref={head} tabIndex={-1} className="mt-6 text-[28px] font-semibold leading-tight tracking-[-0.03em] outline-none sm:text-[34px]">
+      <h1
+        ref={head}
+        tabIndex={-1}
+        className="mt-6 text-[28px] font-semibold leading-tight tracking-[-0.03em] outline-none sm:text-[34px] lg:mt-8 lg:text-[44px] lg:leading-[1.05] lg:tracking-[-0.035em] [@media(min-width:64rem)_and_(max-height:819px)]:text-[34px]"
+      >
         {problem ? c.error.title : c.dept.working}
       </h1>
-      <p className="mt-1.5 min-h-6 text-[16px] text-ink-2" aria-live="polite">
+      <p className="mt-1.5 min-h-6 text-[16px] text-ink-2 lg:mt-2.5 lg:text-[17px]" aria-live="polite">
         {nowLabel}
         {!problem && <span className="text-ink-3"> · {c.work.note}</span>}
       </p>
 
-      <div className="relative mt-5">
-        <Panel ref={panelRef} lamps={lamps} />
+      {/* Computer screens: 48 px of air above the housing (its top row lights the wall there). */}
+      <div className="relative mt-5 lg:mt-12">
+        <Panel ref={panelRef} lamps={lamps} housing={!!desktop} />
         {intro && <SpectrumIntro fieldRef={ledRef} panelRef={panelRef} onBloom={onBloom} onDone={onDone} dark={SOON_ROLES} />}
       </div>
 
       {problem && (
-        <div role="alert" className="mt-8 rounded-2xl border border-line bg-card p-4 sm:p-5">
+        <div role="alert" className="relative mt-8 rounded-2xl border border-line bg-card p-4 sm:p-5 lg:mt-[140px]">
           <p className="text-[16px] leading-relaxed">{problem.message}</p>
           <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
             {fixLink ? (
@@ -469,9 +517,9 @@ function DeptTab() {
   const rows = steps.map((s) => ({ s, label: stepLabel(s, mode, c) })).filter((r) => r.label);
   return (
     <div className="flex flex-col gap-10">
-      <Panel lamps={lamps} size="md" showJob />
+      <Panel lamps={lamps} size="md" showJob housing />
       {rows.length > 0 && (
-        <section aria-labelledby="log-h">
+        <section aria-labelledby="log-h" className="relative">
           <h2 id="log-h" className="mb-4 text-[20px] font-semibold tracking-[-0.01em]">
             {c.dept.log}
           </h2>

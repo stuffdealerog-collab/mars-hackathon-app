@@ -187,7 +187,7 @@ const uz = {
     radar: { name: "Mijozlar radari", job: "Mijozlaringiz qayerda" },
     publisher: { name: "SMM-menejer", job: "Kanalga joylaydi" },
   },
-  lampState: { off: "kutmoqda", warming: "ishlayapti", on: "tayyor", you: "sizni kutmoqda", error: "xato", soon: "tez orada" },
+  lampState: { off: "kutmoqda", warming: "ishlayapti", on: "tayyor", you: "sizni kutmoqda", error: "xato", soon: "tez orada", noPicturesSample: "namunada rasmsiz" },
   /** Counted captions: [one, few, many]. Uzbek and English need fewer forms, Russian needs all three. */
   lampResult: {
     postsRead: ["post o‘qildi", "post o‘qildi", "post o‘qildi"],
@@ -512,7 +512,7 @@ const ru: Copy = {
     radar: { name: "Радар клиентов", job: "Где ваши клиенты" },
     publisher: { name: "SMM-менеджер", job: "Публикует в канал" },
   },
-  lampState: { off: "ждёт", warming: "работает", on: "готово", you: "ждёт вас", error: "ошибка", soon: "скоро" },
+  lampState: { off: "ждёт", warming: "работает", on: "готово", you: "ждёт вас", error: "ошибка", soon: "скоро", noPicturesSample: "в образце без картинок" },
   lampResult: {
     postsRead: ["пост прочитан", "поста прочитано", "постов прочитано"],
     described: "описание прочитано",
@@ -834,7 +834,7 @@ const en: Copy = {
     radar: { name: "Customer radar", job: "Where your customers are" },
     publisher: { name: "SMM manager", job: "Publishes to your channel" },
   },
-  lampState: { off: "waiting", warming: "working", on: "done", you: "waiting for you", error: "error", soon: "soon" },
+  lampState: { off: "waiting", warming: "working", on: "done", you: "waiting for you", error: "error", soon: "soon", noPicturesSample: "no pictures in the sample" },
   lampResult: {
     postsRead: ["post read", "posts read", "posts read"],
     described: "description read",

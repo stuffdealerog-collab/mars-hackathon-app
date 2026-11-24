@@ -1,7 +1,8 @@
 import type { PostDraft, Script } from "@/lib/uslub/contract";
+import { LampTile } from "../lamp/LampTile";
 import { fmt, useCopy } from "../ui/lang";
 import { useDesk, whenOf } from "./desk";
-import { useStudio } from "./store";
+import { pictureBusy, useStudio } from "./store";
 
 type Group = { key: "draft" | "approved" | "published"; title: string; posts: PostDraft[] };
 
@@ -65,6 +66,7 @@ function Row({ post, script, active, onPick }: { post: PostDraft; script: Script
   const first = text.split("\n").find((l) => l.trim())?.trim() ?? "";
   const when = whenOf(post.slot);
   const url = post.image?.url;
+  const sample = useStudio((s) => s.sample);
   return (
     <div
       id={`q-${post.id}`}
@@ -79,19 +81,22 @@ function Row({ post, script, active, onPick }: { post: PostDraft; script: Script
           onPick();
         }
       }}
-      className={`flex h-14 cursor-pointer items-center gap-3 rounded-[14px] px-2 outline-none transition-colors duration-150 focus-visible:shadow-[0_0_0_2px_var(--focus)] ${
+      className={`flex h-16 cursor-pointer items-center gap-3 rounded-[16px] px-1.5 outline-none transition-colors duration-150 focus-visible:shadow-[0_0_0_2px_var(--focus)] ${
         active ? "bg-glass-3" : "hover:bg-glass-2"
       }`}
     >
-      <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-[10px] bg-glass-2 shadow-[inset_0_0_0_1px_var(--hair)]">
-        {url && (
-          // eslint-disable-next-line @next/next/no-img-element
+      {url ? (
+        <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[12px] bg-glass-2 shadow-[inset_0_0_0_1px_var(--hair)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-        )}
-      </span>
+        </span>
+      ) : sample ? null : (
+        // No picture yet: the Dizayner's small lamp, warming while it draws, its ember otherwise.
+        <LampTile role="designer" size="xs" state={pictureBusy(post.id, post.image) ? "warming" : "off"} className="h-14 w-14 shrink-0 !rounded-[12px]" aria-hidden />
+      )}
       <span className="min-w-0 flex-1">
         <span className={`block truncate text-[14px] leading-tight ${active ? "text-ink" : "text-ink-2"}`}>{first}</span>
-        {when && <span className="tnum mt-0.5 block truncate text-[12px] text-ink-3">{fmt(c.queue.suggest, { when })}</span>}
+        {when && <span className={`tnum mt-0.5 block truncate text-[12px] ${active ? "text-ink-2" : "text-ink-3"}`}>{fmt(c.queue.suggest, { when })}</span>}
       </span>
       {post.status === "draft" && <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-lime shadow-[0_0_8px_var(--lime)]" />}
     </div>

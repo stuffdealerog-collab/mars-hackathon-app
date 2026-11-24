@@ -7,8 +7,10 @@ import { fmt, keepNumbers, useCopy, useLang } from "../ui/lang";
 import { weekday } from "../ui/format";
 import { parseChannel } from "../ui/parts";
 import { PostImage } from "@/components/media";
+import { lampVars } from "../lamp/lamps";
 import { authHeader, botPublishUrl, handoffKey } from "./api";
 import { approveWithUndo, refsWording, useDesk, type ImageHandle } from "./desk";
+import { useDesktop } from "./Hub";
 import { useStudio } from "./store";
 
 // Professional rejim only, loaded on demand.
@@ -31,6 +33,7 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
   const channel = useStudio((s) => s.brand?.channel ?? (s.input.channel ? `@${s.input.channel}` : ""));
   const setImage = useStudio((s) => s.setImage);
   const sample = useStudio((s) => s.sample);
+  const desktop = useDesktop();
   const pro = useStudio((s) => s.pro);
   const channelName = useStudio((s) => s.brand?.dna.name || s.brand?.channel || (s.input.channel ? `@${s.input.channel}` : ""));
   // The run starts every picture itself (so they come even while the owner reads Kanal); until
@@ -148,7 +151,14 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
             />
           )}
         </AnimatePresence>
-        {sample ? (
+        {sample && desktop ? (
+          // Computers: the sample's picture slot is a short strip of the Dizayner's lamp, its
+          // ember lit and a little of its light, with why there is no picture.
+          <div className="sample-strip" style={lampVars("designer")}>
+            <span aria-hidden className="sample-strip__filament" />
+            <p className="text-[13px] text-ink-2">{c.sample.noImage}</p>
+          </div>
+        ) : sample ? (
           // The sample draws no pictures; the Dizayner's slot says so instead of pretending.
           // One quiet line instead of an empty 4:5 frame (which reads as broken): the Dizayner's
           // filament, dark, and why there is no picture.
@@ -159,6 +169,7 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
         ) : (
           // Develops the picture, "Boshqa variant", and in Pro the product photo, refs and prompt.
           // The run starts every picture itself; this card follows it and polls while it renders.
+          <FailedStrip on={!!desktop && post.image?.status === "failed"}>
           <PostImage
             key={post.id}
             ref={focused ? registerImage : undefined}
@@ -173,8 +184,11 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
             authorization={authHeader()}
             refs={refs}
             onChange={(img) => setImage(post.id, img)}
-            className="p-1.5 [&>div:first-child]:rounded-[17px] [&>figcaption]:mt-1.5 [&>figcaption]:px-2.5 [&>figcaption~div]:px-2.5 [&>figcaption~div]:pb-1"
+            className={`p-1.5 [&>div:first-child]:rounded-[17px] [&>figcaption]:mt-1.5 [&>figcaption]:px-2.5 [&>figcaption~div]:px-2.5 [&>figcaption~div]:pb-1 ${
+              desktop && post.image?.status === "failed" ? "[&>div:first-child]:!aspect-[3/1] [&>div:first-child]:!bg-transparent" : ""
+            }`}
           />
+          </FailedStrip>
         )}
         <div className="px-4 pb-2.5 pt-3">
           <div className="mb-2 flex items-center gap-2.5">
@@ -344,5 +358,20 @@ function markBlanks(text: string, blanks: string[]): React.ReactNode {
     ) : (
       part
     ),
+  );
+}
+
+/**
+ * Computer screens: a picture that did not come out is a short strip of the Dizayner's lamp in
+ * its error state (16% light, red filament) with the slot's own "Rasm chiqmadi" and "Boshqa
+ * variant", not a black 4:5 frame; the post's text becomes the main thing. "Boshqa variant"
+ * brings the full slot back. The picture component itself is untouched.
+ */
+function FailedStrip({ on, children }: { on: boolean; children: React.ReactNode }) {
+  if (!on) return <>{children}</>;
+  return (
+    <div className="picture-lamp" style={lampVars("designer")}>
+      {children}
+    </div>
   );
 }

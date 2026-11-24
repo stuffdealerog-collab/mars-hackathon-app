@@ -1,13 +1,15 @@
 "use client";
 
 import { ArrowLeft, ImagePlus, Sprout, X } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { LampTile } from "../lamp/LampTile";
 import { LAMP_ORDER } from "../lamp/lamps";
 import { ChannelField } from "../ui/ChannelField";
 import { keepNumbers, useCopy, fmt } from "../ui/lang";
-import { parseChannel, Steps } from "../ui/parts";
+import { parseChannel, Steps, StepsLine } from "../ui/parts";
 import { handoffState } from "./api";
+import { Panel, useLamps } from "./Department";
+import { useDesktop } from "./Hub";
 import { useStudio } from "./store";
 
 const MAX_PHOTOS = 5;
@@ -40,13 +42,14 @@ export function Start({ initialView = "link", initialChannel = "" }: { initialVi
   const emptyChannel = useStudio((s) => s.emptyChannel);
   const problem = useStudio((s) => s.problem);
   const [view, setView] = useState<"link" | "fresh">(emptyChannel ? "fresh" : initialView);
+  const [armed, setArmed] = useState(false);
   const c = useCopy();
   const reopenId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("brand") : null;
   if (problem?.code === "brand_forbidden") return <Forbidden />;
   return (
-    <div className="pt-6 sm:pt-12">
+    <div className="pt-6 sm:pt-12 lg:pt-8 [@media(min-width:64rem)_and_(max-height:819px)]:pt-2">
       {view === "link" ? (
-        <LinkForm initialChannel={initialChannel} onEmpty={() => setView("fresh")} />
+        <LinkForm initialChannel={initialChannel} onEmpty={() => setView("fresh")} onTyped={setArmed} />
       ) : (
         <FreshForm onBack={() => setView("link")} />
       )}
@@ -63,6 +66,8 @@ export function Start({ initialView = "link", initialChannel = "" }: { initialVi
       )}
       {/* Once the owner chose the description path, the overview is behind them. */}
       {view === "link" && <HowItWorks />}
+      {/* Computer screens: the department waits under the field in its housing, embers lit. */}
+      {view === "link" && <Standby armed={armed} />}
     </div>
   );
 }
@@ -105,13 +110,34 @@ function Forbidden() {
 function HowItWorks() {
   const c = useCopy();
   return (
-    <section aria-label={c.start.stepsTitle} className="mt-12 max-w-[560px]">
-      <Steps />
+    <section aria-label={c.start.stepsTitle}>
+      {/* Phones: three cards. Computers: one quiet line; the department under it carries the screen. */}
+      <div className="mt-12 max-w-[560px] lg:hidden">
+        <Steps />
+      </div>
+      {/* Short windows drop this line: the housing must fit the first screen (1366×660). */}
+      <StepsLine className="mt-8 hidden lg:flex [@media(min-width:64rem)_and_(max-height:819px)]:hidden" />
     </section>
   );
 }
 
-function LinkForm({ initialChannel, onEmpty }: { initialChannel: string; onEmpty: () => void }) {
+/**
+ * Computer screens: the department before any work, ten lamps in their housing, each ready
+ * role's ember in its filament. A valid link arms them: hot filaments, still no light. Nothing
+ * moves while the owner reads. The tiles are short here: they never light on this screen.
+ */
+function Standby({ armed }: { armed: boolean }) {
+  const lamps = useLamps();
+  // Mounted on computers only: phones never see it (Start renders after the width is known).
+  if (!useDesktop()) return null;
+  return (
+    <div className="mt-12 hidden lg:block [@media(min-width:64rem)_and_(max-height:819px)]:mt-8">
+      <Panel lamps={lamps} housing compact armed={armed} />
+    </div>
+  );
+}
+
+function LinkForm({ initialChannel, onEmpty, onTyped }: { initialChannel: string; onEmpty: () => void; onTyped: (armed: boolean) => void }) {
   const c = useCopy();
   const id = useId();
   const startChannel = useStudio((s) => s.startChannel);
@@ -129,19 +155,23 @@ function LinkForm({ initialChannel, onEmpty }: { initialChannel: string; onEmpty
   };
 
   const typed = parseChannel(value);
+  useEffect(() => onTyped(!!typed), [typed, onTyped]);
 
   return (
     <>
-      {/* The department, still dark: ten lights that come on once there is a channel to read. */}
-      <ul aria-hidden className="mb-7 grid max-w-[460px] grid-cols-10 gap-1.5">
+      {/* Phones: the department, still dark: ten lights that come on once there is a channel to
+          read. On a computer the housing under the field takes this role. */}
+      <ul aria-hidden className="mb-7 grid max-w-[460px] grid-cols-10 gap-1.5 lg:hidden">
         {LAMP_ORDER.map((r) => (
           <LampTile key={r} as="li" role={r} size="xs" state={typed ? "warming" : "off"} />
         ))}
       </ul>
-      <h1 className="max-w-[18ch] text-balance text-[32px] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-[48px]">{c.start.title}</h1>
-      <p className="mt-3 max-w-[46ch] text-[16px] leading-relaxed text-ink-2">{c.start.sub}</p>
+      <h1 className="max-w-[18ch] text-balance text-[32px] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-[48px] lg:max-w-[16ch] lg:text-[56px] lg:leading-[1] [@media(min-width:64rem)_and_(max-height:819px)]:text-[44px]">
+        {c.start.title}
+      </h1>
+      <p className="mt-3 max-w-[46ch] text-[16px] leading-relaxed text-ink-2 lg:mt-4 lg:text-[17px]">{c.start.sub}</p>
 
-      <form onSubmit={submit} noValidate className="mt-7 max-w-[560px]">
+      <form onSubmit={submit} noValidate className="mt-7 max-w-[560px] lg:max-w-[640px]">
         <ChannelField
           id={id}
           value={value}

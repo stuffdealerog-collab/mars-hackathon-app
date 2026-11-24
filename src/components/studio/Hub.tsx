@@ -6,17 +6,18 @@
  * Phones never render this: they keep the one-column Studio and the Mini App.
  */
 import type { AgentRole } from "@/lib/uslub/contract";
-import { BarChart3, Check, ChevronRight, ChevronsLeft, ChevronsRight, Clapperboard, ExternalLink, GripVertical, LogOut, Newspaper, PanelLeft, PanelRight, Plus } from "lucide-react";
+import { INTRO_COPY } from "@/components/onboarding";
+import { BarChart3, Check, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, Clapperboard, ExternalLink, GripVertical, LogOut, Newspaper, PanelLeft, PanelRight, Plus } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { create } from "zustand";
 import { LampTile } from "../lamp/LampTile";
-import { LAMP_ORDER, LAMPS } from "../lamp/lamps";
+import { LAMP_ORDER, LAMPS, light } from "../lamp/lamps";
 import { fmt, LANGS, useCopy, useLang } from "../ui/lang";
 import { LangSwitch, Logo } from "../ui/parts";
-import type { Lamps } from "./Department";
+import { offWord, type Lamps } from "./Department";
 import { recentBrands, useStudio, type RecentBrand, type Tab } from "./store";
 import { Tools } from "./Tools";
 
@@ -38,6 +39,8 @@ export const useHub = create<{
   setCollapsed: (c: boolean) => void;
   spots: Partial<Record<AgentRole, Spot>>;
   checking: boolean;
+  /** The first-run intro is open (DesktopStudio shows it; the hub reopens it). */
+  intro: boolean;
   blink: boolean;
 }>((set, get) => {
   const save = () => {
@@ -60,6 +63,7 @@ export const useHub = create<{
     },
     spots: {},
     checking: false,
+    intro: false,
     blink: false,
   };
 });
@@ -75,7 +79,8 @@ export function useHubRestore() {
   }, []);
 }
 
-const wide = () => window.matchMedia("(min-width: 1024px)");
+// 64rem: Tailwind's lg and the .desk guard in globals.css use the same unit.
+const wide = () => window.matchMedia("(min-width: 64rem)");
 /**
  * True on screens wide enough for the hub (Tailwind's lg); null before the browser has said
  * (server render and the first client frame), when the Studio draws its CSS-only skeleton.
@@ -119,7 +124,11 @@ const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 export function Hub({ lamps }: { lamps: Lamps }) {
   const c = useCopy();
   const reduce = useReducedMotion() ?? false;
-  const { side, collapsed, setSide, setCollapsed } = useHub();
+  // Selectors, not the whole store: spots change on every measure and would re-render the hub.
+  const side = useHub((s) => s.side);
+  const collapsed = useHub((s) => s.collapsed);
+  const setSide = useHub((s) => s.setSide);
+  const setCollapsed = useHub((s) => s.setCollapsed);
   const phase = useStudio((s) => s.phase);
   const tab = useStudio((s) => s.tab);
   const setTab = useStudio((s) => s.setTab);
@@ -143,33 +152,52 @@ export function Hub({ lamps }: { lamps: Lamps }) {
   const [drawer, setDrawer] = useState<AgentRole | null>(null);
   const [dragTo, setDragTo] = useState<Side | null>(null);
   const [tip, setTip] = useState<{ role: AgentRole; x: number; y: number } | null>(null);
+  // The footer gets its own glass only when the hub scrolls under it; otherwise it is clear.
+  const [scrolls, setScrolls] = useState(false);
   const tipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { checking, blink } = useHub();
+  const checking = useHub((s) => s.checking);
+  const blink = useHub((s) => s.blink);
 
-  // Where every mini-lamp is, so the stage can light exactly behind it.
+  // Where every mini-lamp is, so the stage can light exactly behind it. At most once a frame,
+  // and the store changes only when a lamp actually moved.
+  const raf = useRef(0);
   const measure = useCallback(() => {
+    raf.current = 0;
     const ul = grid.current;
     if (!ul) return;
     const spots: Partial<Record<AgentRole, Spot>> = {};
     ul.querySelectorAll<HTMLElement>("[data-role]").forEach((el) => {
       const r = el.getBoundingClientRect();
-      spots[el.dataset.role as AgentRole] = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      spots[el.dataset.role as AgentRole] = { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
     });
-    useHub.setState({ spots });
+    const prev = useHub.getState().spots;
+    const moved = LAMP_ORDER.some((r) => prev[r]?.x !== spots[r]?.x || prev[r]?.y !== spots[r]?.y);
+    if (moved) useHub.setState({ spots });
+    const el = aside.current;
+    if (el) setScrolls(el.scrollHeight > el.clientHeight + 1);
   }, []);
   useEffect(() => {
+    const soon = () => {
+      if (!raf.current) raf.current = requestAnimationFrame(measure);
+    };
     measure();
-    const ro = new ResizeObserver(measure);
+    const ro = new ResizeObserver(soon);
     if (grid.current) ro.observe(grid.current);
-    window.addEventListener("resize", measure);
+    window.addEventListener("resize", soon);
     const el = aside.current;
-    el?.addEventListener("transitionend", measure);
-    el?.addEventListener("scroll", measure, { passive: true });
+    // Only the hub's own width animation moves the lamps; its children's transitions do not.
+    const onEnd = (e: TransitionEvent) => {
+      if (e.target === el) soon();
+    };
+    el?.addEventListener("transitionend", onEnd);
+    el?.addEventListener("scroll", soon, { passive: true });
     return () => {
+      cancelAnimationFrame(raf.current);
+      raf.current = 0;
       ro.disconnect();
-      window.removeEventListener("resize", measure);
-      el?.removeEventListener("transitionend", measure);
-      el?.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", soon);
+      el?.removeEventListener("transitionend", onEnd);
+      el?.removeEventListener("scroll", soon);
     };
   }, [measure, side, collapsed]);
 
@@ -184,7 +212,11 @@ export function Hub({ lamps }: { lamps: Lamps }) {
     }
     useHub.setState({ checking: true });
     const t = setTimeout(() => useHub.setState({ checking: false }), 1300);
-    return () => clearTimeout(t);
+    // A cancelled check must not stay on: the spots would hold the flash's last frame (dark).
+    return () => {
+      clearTimeout(t);
+      useHub.setState({ checking: false });
+    };
   }, [reduce]);
 
   // The owner's hand: every approve and publish makes the SMM-menejer blink twice.
@@ -291,9 +323,11 @@ export function Hub({ lamps }: { lamps: Lamps }) {
                 {/* The only lime in the hub, and it is not a button: posts are waiting for the owner. */}
                 {waiting && (
                   <span
+                    // A new count of waiting posts breathes again (a few times, then still).
+                    key={drafts}
                     aria-label={c.lampState.you}
                     role="img"
-                    className={`h-1.5 w-1.5 rounded-full bg-lime shadow-[0_0_8px_var(--lime)] ${collapsed ? "absolute right-2 top-2" : ""}`}
+                    className={`hub-wait h-1.5 w-1.5 rounded-full bg-lime ${collapsed ? "absolute right-2 top-2" : ""}`}
                   />
                 )}
               </button>
@@ -312,16 +346,16 @@ export function Hub({ lamps }: { lamps: Lamps }) {
                 className="hub-nav mb-1.5 !min-h-9 w-full !px-1.5 !text-[13px]"
               >
                 <span className="flex-1 text-left">{working ? `${c.dept.title} · ${fmt(c.dept.staff, { n: working })}` : c.dept.title}</span>
-                <ChevronRight className="h-4 w-4 text-ink-3" strokeWidth={1.75} aria-hidden />
+                <ChevronRight className="h-4 w-4 text-ink-2" strokeWidth={1.75} aria-hidden />
               </button>
             ) : (
-              <p className="mb-2 px-1.5 text-[13px] text-ink-3">{working ? `${c.dept.title} · ${fmt(c.dept.staff, { n: working })}` : c.dept.title}</p>
+              <p className="mb-2 px-1.5 text-[13px] text-ink-2">{working ? `${c.dept.title} · ${fmt(c.dept.staff, { n: working })}` : c.dept.title}</p>
             ))}
           <ul ref={grid} className={`grid gap-1.5 ${collapsed ? "grid-cols-2" : "grid-cols-5"}`}>
             {LAMP_ORDER.map((r, i) => {
               const st = lamps.state[r];
               const radar = r === "radar";
-              const label = `${c.lamps[r].name}: ${lamps.soon.has(r) && st === "off" ? c.lampState.soon : c.lampState[st]}`;
+              const label = `${c.lamps[r].name}: ${lamps.soon.has(r) && st === "off" ? offWord(lamps, r, c.lampState.soon) : c.lampState[st]}`;
               return (
                 <li key={r} className="relative">
                   <LampTile
@@ -333,7 +367,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
                     aria-label={label}
                     aria-disabled={radar || undefined}
                     aria-haspopup={pro && st !== "off" ? "dialog" : undefined}
-                    className={`w-full ${collapsed ? "!min-h-7" : "!min-h-10"} transition-transform duration-150 active:scale-[0.96]`}
+                    className={`w-full ${collapsed ? "!min-h-7" : "!min-h-10"} ${lamps.soon.has(r) && st === "off" ? "lamp--soon" : ""} transition-transform duration-150 active:scale-[0.96]`}
                     {...{ type: "button" }}
                     onClick={() => !radar && onLamp(r)}
                     onMouseEnter={(e) => showTip(r, e.currentTarget, false)}
@@ -352,7 +386,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
         <Tools collapsed={collapsed} />
 
         {/* Pinned to the bottom of the glass: density and language. Never lime. */}
-        <div className="sticky bottom-0 mt-auto flex flex-col gap-2.5 bg-[linear-gradient(to_top,rgb(16_16_20/.9)_60%,transparent)] px-3 pb-3 pt-5">
+        <div className={`sticky bottom-0 mt-auto flex flex-col gap-2.5 px-3 pb-3 pt-5 ${scrolls ? "bg-[rgb(30_28_25/.92)]" : ""}`}>
           {collapsed ? (
             <>
               <button
@@ -364,6 +398,9 @@ export function Hub({ lamps }: { lamps: Lamps }) {
                 onClick={() => setPro(!pro)}
               >
                 {pro ? c.mode.pro : c.mode.simpleShort}
+              </button>
+              <button type="button" className="hub-icon mx-auto" aria-label={INTRO_COPY[lang].again} title={INTRO_COPY[lang].again} onClick={() => useHub.setState({ intro: true })}>
+                <CircleHelp className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
               </button>
               {deviceKey && (
                 <button type="button" className="hub-icon mx-auto" aria-label={c.hub.signOut} title={`${fmt(c.hub.keyOwner, { id: deviceKey })} · ${c.hub.signOut}`} onClick={signOutDevice}>
@@ -382,6 +419,10 @@ export function Hub({ lamps }: { lamps: Lamps }) {
             </>
           ) : (
             <>
+            <button type="button" className="hub-nav !min-h-9 !gap-2.5 !px-1.5 !text-[13.5px]" onClick={() => useHub.setState({ intro: true })}>
+              <CircleHelp className="h-[17px] w-[17px] shrink-0" strokeWidth={1.75} aria-hidden />
+              {INTRO_COPY[lang].again}
+            </button>
             {deviceKey && (
               <div className="flex items-center justify-between gap-2 px-1 text-[12.5px]">
                 <span className="truncate text-ink-3">{fmt(c.hub.keyOwner, { id: deviceKey })}</span>
@@ -420,7 +461,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
             <span className="font-semibold">{c.lamps[tip.role].name}</span>
             <span className="text-ink-2">
               {" "}
-              · {lamps.soon.has(tip.role) && lamps.state[tip.role] === "off" ? c.lampState.soon : c.lampState[lamps.state[tip.role]]}
+              · {lamps.soon.has(tip.role) && lamps.state[tip.role] === "off" ? offWord(lamps, tip.role, c.lampState.soon) : c.lampState[lamps.state[tip.role]]}
               {lamps.words[tip.role] ? ` · ${lamps.words[tip.role]}` : ""}
             </span>
           </div>,
@@ -588,40 +629,40 @@ function ChannelChip({ collapsed, side }: { collapsed: boolean; side: Side }) {
 }
 
 /**
- * The stage behind the glass. Each working lamp lights a spot exactly behind its mini-lamp
- * (warming ones breathe), and the lit ones wash the stage along the hub. No lamp lit, no light:
- * the glass stays dark and only its edge and sheen carry the material.
+ * The light behind the glass: a spot of each working lamp's colour exactly behind its mini-lamp,
+ * added like light (plus-lighter). The spots stand still: anything moving under the glass would
+ * make the backdrop blur recompute every frame for the whole run. Only the mini-lamp itself, above
+ * the glass, breathes while it works. No lamp lit, no light.
  */
 export function StageLight({ lamps }: { lamps: Lamps }) {
-  const side = useHub((s) => s.side);
   const spots = useHub((s) => s.spots);
+  const side = useHub((s) => s.side);
+  const collapsed = useHub((s) => s.collapsed);
+  // The light stays under the glass: nothing of it reaches the page beside the hub.
+  const w = collapsed ? RAIL_W : HUB_W;
+  const clip = side === "left" ? `inset(12px calc(100% - ${12 + w}px) 12px 12px round 24px)` : `inset(12px 12px 12px calc(100% - ${12 + w}px) round 24px)`;
   const checking = useHub((s) => s.checking);
   const blink = useHub((s) => s.blink);
-  const lit = (r: AgentRole) => lamps.state[r] === "on" || lamps.state[r] === "you" || lamps.state[r] === "warming";
-  const washed = LAMP_ORDER.filter((r) => lamps.state[r] === "on" || lamps.state[r] === "you").slice(0, 4);
-  const x = side === "left" ? 9 : 91;
-  const wash = washed.map((r, i) => `radial-gradient(30% 26% at ${x}% ${12 + i * 21}%, ${LAMPS[r].hue}59 0%, transparent 72%)`).join(", ");
+  const level = (r: AgentRole) => (lamps.state[r] === "warming" ? 0.7 : lamps.state[r] === "on" || lamps.state[r] === "you" ? 1 : 0);
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
-      <div className="absolute inset-0 transition-[background] duration-700" style={{ background: wash || "none" }} />
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 isolate transition-[clip-path] duration-300 ease-out" style={{ clipPath: clip }}>
       {LAMP_ORDER.map((r, i) => {
         const at = spots[r];
         if (!at) return null;
-        const on = lit(r);
+        const o = level(r);
         const run = checking ? "check" : blink && r === "publisher" ? "blink" : undefined;
         return (
           <span
             key={r}
             className="stage-spot"
-            data-warm={!run && lamps.state[r] === "warming" ? "" : undefined}
             data-run={run}
             style={{
               left: at.x,
               top: at.y,
               ["--i" as string]: i,
-              background: `radial-gradient(closest-side, ${LAMPS[r].hue}66, transparent)`,
-              opacity: on ? 1 : 0,
-              transition: on ? "opacity 720ms var(--ease-out)" : "opacity 1000ms var(--ease-in)",
+              background: light(LAMPS[r].hue, 0.45),
+              opacity: o,
+              transition: o ? "opacity 720ms var(--ease-out)" : "opacity 1000ms var(--ease-in)",
             }}
           />
         );

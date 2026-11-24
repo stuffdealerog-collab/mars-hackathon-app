@@ -1,6 +1,7 @@
 "use client";
 
 import { Lightbulb, Link2, Send } from "lucide-react";
+import { useEffect } from "react";
 import { Mark } from "../lamp/Mark";
 import { LANGS, useCopy, useLang } from "./lang";
 
@@ -26,6 +27,27 @@ export function LangSwitch() {
 
 const STEP_ICONS = [Link2, Lightbulb, Send];
 
+/**
+ * The owner's path on one quiet line (computer screens): the department under it carries the
+ * screen, so the steps are words, not three more boxes on the dark.
+ */
+export function StepsLine({ className = "" }: { className?: string }) {
+  const c = useCopy();
+  return (
+    <ol className={`flex flex-wrap items-center gap-x-6 gap-y-2 text-[15px] text-ink-2 ${className}`}>
+      {c.steps.map((s, i) => {
+        const Icon = STEP_ICONS[i];
+        return (
+          <li key={s} className="flex items-center gap-2.5">
+            <Icon className="h-[18px] w-[18px] text-ink-3" strokeWidth={1.75} aria-hidden />
+            <span>{s}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 /** The three steps of the owner's path: three words and one drawn icon each, nothing more. */
 export function Steps({ className = "" }: { className?: string }) {
   const c = useCopy();
@@ -45,3 +67,15 @@ export function Steps({ className = "" }: { className?: string }) {
 }
 
 export { parseChannel } from "./format";
+
+/**
+ * The stage variant to show the owner (computer screens): ?stage=dark is the brief's fallback for
+ * a laptop where the warm graphite reads grey (#121110 instead of #171513). Set on <html> after
+ * mount, so the prerendered page never disagrees with the browser.
+ */
+export function useStageVariant() {
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get("stage");
+    if (v === "dark") document.documentElement.dataset.stage = "dark";
+  }, []);
+}
