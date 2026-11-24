@@ -1,0 +1,221 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
+import { NICHE_LABEL, summarize } from "../../../src/lib/uslub/brain/bench";
+import { computeStats } from "../../../src/lib/uslub/brain/stats";
+import { kbFromPosts, loadFixtures, type Fixture } from "./fixtures";
+
+/**
+ * LLM eval (BRAIN_EVAL=1). For each golden channel: run the full strategy pipeline on the frozen
+ * channel (KB = its own public posts, no web, no DB), collect deterministic metrics, and have an
+ * independent judge (claude-opus-5-5, not the generator's model) score every plan item on a
+ * 5-criterion 1–3 rubric with the criterion order permuted per item (position-bias control).
+ * Writes docs/brain/eval-results/<date>-<promptVersion>.json, the founder's label sheet
+ * docs/brain/eval-labels.csv, and gates regressions against docs/brain/eval-baseline.json.
+ */
+if (existsSync(".env.local")) process.loadEnvFile(".env.local");
+
+export const CRITERIA = ["SPECIFIC", "GROUNDED", "NATURAL", "ACTIONABLE", "GOAL_FIT"] as const;
+export type Criterion = (typeof CRITERIA)[number];
+
+const RUBRIC: Record<Criterion, string> = {
+  SPECIFIC: "1 = the hook could fit any business (no number, product, place or real question); 2 = one specific but weakly used; 3 = a concrete specific from the facts that matters for the slot goal.",
+  GROUNDED: "1 = states a fact, number, offer, deadline or promise that is NOT in the facts; 2 = vague implication not quite supported; 3 = every claim is supported by the facts (or no claims).",
+  NATURAL: "1 = sounds machine-made or translated (calques, clichés, wrong apostrophes, mixed scripts, stiff phrasing); 2 = understandable with awkward bits; 3 = reads like the owner wrote it in natural Uzbek.",
+  ACTIONABLE: "1 = the owner cannot tell what to post/shoot, or the CTA is missing/double; 2 = doable but vague; 3 = clear brief the owner can shoot with a phone this week and exactly one clear CTA.",
+  GOAL_FIT: "1 = hook and CTA do not serve the slot goal (reach = shareable/saveable, trust = proof/familiarity, sale = clear offer with price); 2 = partly; 3 = fully.",
+};
+
+const JudgeSchema = z.object({
+  items: z.array(
+    z.object({
+      slot: z.number(),
+      scores: z.object({ SPECIFIC: z.number(), GROUNDED: z.number(), NATURAL: z.number(), ACTIONABLE: z.number(), GOAL_FIT: z.number() }),
+      machine_made: z.boolean(),
+      worst: z.string(),
+    }),
+  ),
+});
+
+/** Deterministic permutation (mulberry32) so a re-run judges with the same orders. */
+function permute<T>(xs: readonly T[], seed: number): T[] {
+  let a = seed >>> 0;
+  const rnd = () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const out = [...xs];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+type PlanItemOut = { slot: number; goal: string; format: string; hookType?: string; hook: string; cta: string; brief: string; critic: string; fails?: { check: string }[]; forecast?: { display: string } };
+
+async function judge(fx: Fixture, facts: { id: string; quote: string }[], items: PlanItemOut[]) {
+  const { getAnthropic } = await import("../../../src/lib/uslub/llm");
+  const anchors = fx.data.posts.filter((p) => p.text.length > 80).slice(0, 3).map((p) => p.text.slice(0, 400));
+  const blocks = items.map((it, i) => {
+    const order = permute(CRITERIA, fx.handle.length * 97 + it.slot * 13 + i);
+    return `ITEM slot=${it.slot} goal=${it.goal} format=${it.format}\nhook: ${it.hook || "(empty)"}\ncta: ${it.cta}\nbrief: ${it.brief.split("\n— Dalil")[0]}\nScore in this order: ${order.join(", ")}`;
+  });
+  const res = await getAnthropic().beta.messages.parse(
+    {
+      model: "claude-opus-5-5",
+      max_tokens: 8000,
+      output_config: { effort: "medium", format: betaZodOutputFormat(JudgeSchema) },
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      system:
+        "You are a strict senior marketer in Tashkent who reads Uzbek natively. You grade a weekly Telegram plan written by an AI for a small business. " +
+        "Judge only against the business FACTS given (they are the business's own public posts) and the rubric. Be harsh: a 3 means you would publish it as is.\n" +
+        `RUBRIC (1–3):\n${CRITERIA.map((c) => `${c}: ${RUBRIC[c]}`).join("\n")}\n` +
+        "machine_made = true if a native reader would suspect an AI wrote the hook or CTA. worst = the single worst phrase quoted, or empty.",
+      messages: [
+        {
+          role: "user",
+          content: `BUSINESS: ${fx.data.title ?? fx.handle} (${NICHE_LABEL[fx.niche].en})\nFACTS:\n${facts.map((f) => `${f.id}: ${f.quote}`).join("\n").slice(0, 6000)}\n\nOWNER'S OWN POSTS (voice reference):\n${anchors.join("\n---\n")}\n\n${blocks.join("\n\n")}`,
+        },
+      ],
+    },
+    { timeout: 120_000 },
+  );
+  if (res.stop_reason !== "end_turn" || !res.parsed_output) throw new Error(`judge stop_reason=${res.stop_reason}`);
+  return res.parsed_output.items;
+}
+
+function pickChannels(all: Fixture[]): Fixture[] {
+  const want = process.env.EVAL_CHANNELS?.split(",").map((s) => s.trim().toLowerCase());
+  if (want?.length) return all.filter((f) => want.includes(f.handle.toLowerCase()));
+  const seen = new Set<string>();
+  const out: Fixture[] = [];
+  for (const f of all) {
+    if (seen.has(f.niche) || f.data.posts.length < 10) continue;
+    seen.add(f.niche);
+    out.push(f);
+  }
+  return out.slice(0, Number(process.env.EVAL_N ?? 8));
+}
+
+describe.skipIf(!process.env.BRAIN_EVAL)("Brain LLM eval", () => {
+  it("runs plans on golden channels and judges them", async () => {
+    const { buildStrategy, PROMPT_VERSION } = await import("../../../src/lib/uslub/brain/strategy");
+    const { analyzeNeuro } = await import("../../../src/lib/uslub/neuro");
+    const all = loadFixtures();
+    const chosen = pickChannels(all);
+    expect(chosen.length).toBeGreaterThan(0);
+    const summaries = all.map((f) => summarize(computeStats(f.data, Date.parse(f.capturedAt)), f.niche, f.capturedAt));
+
+    const results: Record<string, unknown>[] = [];
+    const queue = [...chosen];
+    const worker = async () => {
+      for (let fx = queue.shift(); fx; fx = queue.shift()) {
+        const t = Date.now();
+        try {
+          const r = await buildStrategy({
+            knowledge: kbFromPosts(fx.data),
+            category: NICHE_LABEL[fx.niche].en,
+            brandName: fx.data.title,
+            lang: "uz",
+            now: Date.parse(fx.capturedAt),
+            preloaded: { own: fx.data, summaries },
+            web: false,
+            save: false,
+          });
+          const items = r.plan.items as unknown as PlanItemOut[];
+          const judged = await judge(fx, r.facts, items).catch((err: unknown) => {
+            console.warn(`judge failed for ${fx.handle}`, err instanceof Error ? err.message : err);
+            return [];
+          });
+          const metrics = items.map((it) => {
+            const neuro = analyzeNeuro(`${it.hook}\n${it.cta}`, "uz_latn");
+            return {
+              slot: it.slot,
+              critic: it.critic,
+              hardFails: (it.fails ?? []).filter((f) => ["GROUNDED", "PRICE", "URGENCY"].includes(f.check)).length,
+              emptyHook: !it.hook,
+              hookLen: it.hook.length,
+              neuroHits: neuro.hits.length,
+              humanScore: neuro.humanScore,
+            };
+          });
+          results.push({
+            handle: fx.handle,
+            niche: fx.niche,
+            elapsedMs: Date.now() - t,
+            pipelineMs: r.elapsedMs,
+            facts: r.facts.length,
+            firedRules: r.firedRules.map((x) => x.id),
+            ownerQuestions: r.ownerQuestions.length,
+            positioningHasFact: /\bF\d+\b/.test(r.strategy.positioning),
+            strategyOk: Boolean(r.strategy.positioning),
+            rationale: r.plan.rationale.split("\n").filter(Boolean).length,
+            items: items.map((it) => ({ ...it, judge: judged.find((j) => j.slot === it.slot) })),
+            metrics,
+          });
+          console.log(`✓ ${fx.handle} ${Math.round((Date.now() - t) / 1000)}s, ${items.length} items, judged ${judged.length}`);
+        } catch (err) {
+          results.push({ handle: fx.handle, niche: fx.niche, error: err instanceof Error ? err.message : String(err) });
+          console.warn(`✗ ${fx.handle}`, err instanceof Error ? err.message : err);
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Number(process.env.EVAL_CONCURRENCY ?? 2) }, worker));
+
+    // aggregate
+    type R = { items: (PlanItemOut & { judge?: z.infer<typeof JudgeSchema>["items"][number] })[]; metrics: { hardFails: number; emptyHook: boolean; neuroHits: number; humanScore: number; critic: string }[]; pipelineMs: number };
+    const ok = results.filter((r) => !r.error) as unknown as R[];
+    const judgedItems = ok.flatMap((r) => r.items.filter((i) => i.judge));
+    const mean = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : null);
+    const allMetrics = ok.flatMap((r) => r.metrics);
+    const summary = {
+      promptVersion: PROMPT_VERSION,
+      runAt: new Date().toISOString(),
+      channels: results.map((r) => r.handle),
+      errors: results.filter((r) => r.error).map((r) => `${r.handle}: ${r.error}`),
+      items: allMetrics.length,
+      judged: judgedItems.length,
+      judge: Object.fromEntries(CRITERIA.map((c) => [c, mean(judgedItems.map((i) => i.judge!.scores[c]))])),
+      anyOne: judgedItems.length ? Math.round((judgedItems.filter((i) => CRITERIA.some((c) => i.judge!.scores[c] <= 1)).length / judgedItems.length) * 100) / 100 : null,
+      machineMade: judgedItems.length ? Math.round((judgedItems.filter((i) => i.judge!.machine_made).length / judgedItems.length) * 100) / 100 : null,
+      residualHardFails: allMetrics.reduce((a, m) => a + m.hardFails, 0),
+      emptyHooks: allMetrics.filter((m) => m.emptyHook).length,
+      neuroHits: allMetrics.reduce((a, m) => a + m.neuroHits, 0),
+      meanHumanScore: mean(allMetrics.map((m) => m.humanScore)),
+      critic: Object.fromEntries(["passed", "fixed", "owner_input", "timeout"].map((s) => [s, allMetrics.filter((m) => m.critic === s).length])),
+      pipelineSeconds: { median: mean([...ok.map((r) => r.pipelineMs)].sort((a, b) => a - b).slice(Math.floor((ok.length - 1) / 2), Math.floor(ok.length / 2) + 1).map((x) => x / 1000)), max: ok.length ? Math.max(...ok.map((r) => r.pipelineMs)) / 1000 : null },
+    };
+
+    const dir = new URL("../../../docs/brain/eval-results/", import.meta.url);
+    mkdirSync(dir, { recursive: true });
+    const stamp = `${summary.runAt.slice(0, 16).replace(/[:T]/g, "")}-${PROMPT_VERSION}`;
+    writeFileSync(new URL(`${stamp}.json`, dir), `${JSON.stringify({ summary, results }, null, 1)}\n`);
+
+    // Founder's label sheet (judge scores are NOT in it, so the labels stay blind).
+    const esc = (s: string) => `"${s.replace(/"/g, '""').replace(/\n/g, " ")}"`;
+    const rows = ["id,channel,slot,goal,format,hook,cta,brief,SPECIFIC,GROUNDED,NATURAL,ACTIONABLE,GOAL_FIT,MACHINE_MADE,COMMENT"];
+    for (const r of ok as unknown as ({ handle: string } & R)[])
+      for (const it of r.items) rows.push([esc(`${r.handle}#${it.slot}`), r.handle, it.slot, it.goal, it.format, esc(it.hook), esc(it.cta), esc(it.brief.split("\n— Dalil")[0].slice(0, 300)), "", "", "", "", "", "", ""].join(","));
+    writeFileSync(new URL("../../../docs/brain/eval-labels.csv", import.meta.url), `${rows.join("\n")}\n`);
+    writeFileSync(new URL("latest.json", dir), `${JSON.stringify({ file: `${stamp}.json`, summary }, null, 1)}\n`);
+    console.log(JSON.stringify(summary, null, 1));
+
+    // Regression gate against the committed baseline (same channel set only).
+    const baseUrl = new URL("../../../docs/brain/eval-baseline.json", import.meta.url);
+    if (!existsSync(baseUrl) || process.env.EVAL_UPDATE_BASELINE) writeFileSync(baseUrl, `${JSON.stringify(summary, null, 1)}\n`);
+    else {
+      const base = JSON.parse(readFileSync(baseUrl, "utf8")) as typeof summary;
+      if (JSON.stringify(base.channels) === JSON.stringify(summary.channels)) {
+        for (const c of CRITERIA) if (base.judge[c] != null && summary.judge[c] != null) expect(summary.judge[c] as number, `judge ${c} regressed`).toBeGreaterThanOrEqual((base.judge[c] as number) - 0.15);
+        expect(summary.residualHardFails, "residual hard fails regressed").toBeLessThanOrEqual(base.residualHardFails);
+      }
+    }
+    expect(summary.errors.length).toBeLessThan(chosen.length);
+  });
+});

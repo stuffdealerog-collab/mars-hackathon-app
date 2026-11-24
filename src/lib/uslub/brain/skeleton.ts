@@ -2,6 +2,9 @@
  * Plan skeleton (spec §A3) and KPIs (§A4). Code only: the LLM never picks day,
  * time, goal, format, link, metric or approval. Pure.
  */
+import { type Benchmark, benchBestHour } from "./bench";
+import { type Forecast, forecastSlot } from "./forecast";
+import type { LearnHints } from "./learn";
 import { largestRemainder } from "./rules";
 import { isWinner, median, WEEKDAYS } from "./stats";
 import { TZ_H, type ChannelStats, type Goal, type Lang, type RuleResult } from "./types";
@@ -11,7 +14,7 @@ export interface Slot {
   day: string; // ISO date (Tashkent)
   weekday: number; // 0 = Monday
   time: string; // "20:40"
-  timeSource: "data" | "competitor" | "prior";
+  timeSource: "data" | "learned" | "competitor" | "benchmark" | "prior";
   goal: Goal;
   format: "text" | "photo" | "album" | "video";
   exp?: "hour" | "format" | "hookType" | "length" | "language";
@@ -20,6 +23,10 @@ export interface Slot {
   metric: string;
   approvalReasons: string[];
   evidence: string[];
+  src?: string; // deep-link payload in `link`
+  hookType?: string; // assigned by code (rotation, learn loop), the LLM writes it
+  focus?: string[]; // F ids this slot must use (assigned by code)
+  forecast?: Forecast;
 }
 
 export interface SkeletonInput {
@@ -35,6 +42,9 @@ export interface SkeletonInput {
   bot?: string;
   lang: Lang;
   calendar: { id: string; name: string; daysAway: number }[];
+  planTag?: string; // short id in tracked links: src_<tag>_<slot>
+  bench?: Benchmark;
+  learned?: LearnHints;
 }
 
 const fired = (rules: RuleResult[], id: string) => rules.some((r) => r.id === id && r.status === "fired");
@@ -219,7 +229,9 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
   if (!formats.some((f) => f === "photo" || f === "video" || f === "album")) formats[goals.indexOf("trust")] = "photo";
 
   // times
-  const own = bestBucket(stats);
+  const own = stats?.coldStart ? undefined : bestBucket(stats);
+  const learnedHour = inp.learned?.supported.filter((x) => x.tag === "hour").sort((a, b) => b.score - a.score)[0]?.value;
+  const benchHour = benchBestHour(inp.bench);
   const compBuckets = inp.competitors.map(bestBucket).filter(Boolean) as string[];
   const compBest = compBuckets.sort((a, b) => compBuckets.filter((x) => x === b).length - compBuckets.filter((x) => x === a).length)[0];
   const priors = ["08:40", "12:40", "20:40"];
@@ -228,6 +240,7 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
   const tw = rules.find((r) => r.id === "R.TIME_WINNER" && r.status === "fired");
   let expVar: Slot["exp"] = "hour";
   if (!(tw?.data?.concentrated as boolean) && own) expVar = winner ? "hookType" : "format";
+  if (inp.learned?.nextExp) expVar = inp.learned.nextExp;
   const expIdx = goals.findIndex((g, i) => g !== "sale" && i > 0) >= 0 ? goals.findIndex((g, i) => g !== "sale" && i > 0) : 0;
 
   const yw = isoWeek(start);
@@ -240,9 +253,15 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
     if (own) {
       time = bucketTime(stats, own);
       timeSource = "data";
+    } else if (learnedHour && /^\d{2}-\d{2}$/.test(learnedHour)) {
+      time = bucketTime(stats, learnedHour);
+      timeSource = "learned";
     } else if (compBest) {
       time = `${pad(Number.parseInt(compBest, 10) + 1)}:40`;
       timeSource = "competitor";
+    } else if (benchHour) {
+      time = `${pad(Number.parseInt(benchHour, 10) + 1)}:40`;
+      timeSource = "benchmark";
     } else {
       timeSource = "prior";
       time = priors[i % 3];
@@ -251,6 +270,8 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
     }
     const evidence: string[] = [];
     if (timeSource === "data" && own) evidence.push(`S.hourLift.${own}`);
+    if (timeSource === "learned" && learnedHour) evidence.push(`S.learn.hour.${learnedHour}`);
+    if (timeSource === "benchmark" && benchHour) evidence.push(`S.bench.hourLift.${benchHour}`);
     let exp: Slot["exp"];
     if (i === expIdx) {
       exp = expVar;
@@ -273,7 +294,8 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
     if (goal === "sale") reasons.push("narx");
     if (formats[i] === "video") reasons.push("video");
     if (inp.approvedPosts < 5) reasons.push("birinchi postlar");
-    const link = goal !== "reach" && inp.bot ? `https://t.me/${inp.bot}?start=src_${yyww}_${i + 1}` : undefined;
+    const src = goal !== "reach" && inp.bot ? `src_${inp.planTag ?? yyww}_${i + 1}` : undefined;
+    const link = src ? `https://t.me/${inp.bot}?start=${src}` : undefined;
     return {
       slot: i + 1,
       day: dates[i].toISOString().slice(0, 10),
@@ -284,11 +306,13 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
       format: formats[i],
       exp,
       link,
+      src,
       metric,
       approvalReasons: reasons,
       evidence,
     };
   });
+  for (const s of slots) s.forecast = forecastSlot(s, stats, inp.bench, { lang: inp.lang, ctr: inp.learned?.ctr });
 
   // calendar overlay
   const ev = inp.calendar.filter((e) => e.daysAway <= 14)[0];
@@ -305,6 +329,81 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
   }
   return { weekOf, slots, counts: finalCounts };
 }
+
+/* --------------------------------------------- hook types and fact focus */
+
+export const HOOK_TYPES = ["number", "price", "question", "local", "before_after", "behind_scenes", "myth_fact", "product_spotlight"] as const;
+
+const HOOK_POOL: Record<Goal, string[]> = {
+  sale: ["price", "product_spotlight", "number", "question"],
+  trust: ["behind_scenes", "local", "number", "question", "myth_fact"],
+  reach: ["myth_fact", "question", "local", "number", "behind_scenes", "product_spotlight"],
+};
+
+/** Hook type of a real post's first line (regex only), to know what the channel already does. */
+export function hookTypeOf(firstLine: string): string {
+  const t = firstLine.trim();
+  if (/\d[\d\s.,]*\s?(so'?m|сўм|сум|ming|минг|тыс|k\b|\$)/i.test(t)) return "price";
+  if (t.endsWith("?")) return "question";
+  if (/\d/.test(t)) return "number";
+  return "product_spotlight";
+}
+
+/**
+ * Code assigns each slot a hook type: rotation per goal, at most 2 of a type, types the learn loop
+ * supported first, dropped types never, and for exp=hookType a type the channel has not used lately.
+ */
+const NEEDS: Record<string, string[]> = {
+  price: ["price"],
+  local: ["address", "landmark", "district"],
+  number: ["number", "year", "price"],
+  product_spotlight: ["product", "price"],
+};
+
+export function assignHookTypes(
+  slots: Slot[],
+  opts: { recentFirstLines?: string[]; supported?: string[]; dropped?: string[]; factTypes?: Set<string> } = {},
+): void {
+  const used = new Map<string, number>();
+  const recent = new Set((opts.recentFirstLines ?? []).map(hookTypeOf));
+  const dropped = new Set(opts.dropped ?? []);
+  // A hook type needs the facts it is made of (no address fact -> no "local" hook).
+  const possible = (h: string) => !opts.factTypes || !NEEDS[h] || NEEDS[h].some((t) => opts.factTypes?.has(t));
+  for (const s of slots) {
+    let pool = [...(opts.supported ?? []).filter((h) => HOOK_POOL[s.goal].includes(h)), ...HOOK_POOL[s.goal]].filter((h) => !dropped.has(h) && possible(h));
+    if (s.exp === "hookType") pool = [...pool.filter((h) => !recent.has(h)), ...pool];
+    const pick = pool.find((h) => (used.get(h) ?? 0) < 2) ?? pool[0] ?? "question";
+    used.set(pick, (used.get(pick) ?? 0) + 1);
+    s.hookType = pick;
+  }
+}
+
+type FactRef = { id: string; type: string };
+const FOCUS: Record<Goal | "trustFirst", string[]> = {
+  sale: ["price", "offer", "deadline", "product"],
+  trustFirst: ["address", "landmark", "district", "hours", "contact", "delivery"],
+  trust: ["review", "number", "year", "certificate", "person", "guarantee", "story", "process", "delivery", "payment", "address"],
+  reach: ["story", "number", "product", "year", "person", "landmark", "review"],
+};
+
+/** Code picks which facts each slot is about, rotating so two slots rarely share a fact. */
+export function assignFocus(slots: Slot[], facts: FactRef[], rules: RuleResult[]): void {
+  const usedCount = new Map<string, number>();
+  const trustFirst = fired(rules, "R.TRUST_GAP") || fired(rules, "R.INCONSISTENT");
+  let firstTrustDone = false;
+  for (const s of slots) {
+    const key: Goal | "trustFirst" = s.goal === "trust" && trustFirst && !firstTrustDone ? "trustFirst" : s.goal;
+    if (key === "trustFirst") firstTrustDone = true;
+    const order = FOCUS[key];
+    const cands = facts
+      .filter((f) => order.includes(f.type))
+      .sort((a, b) => (usedCount.get(a.id) ?? 0) - (usedCount.get(b.id) ?? 0) || order.indexOf(a.type) - order.indexOf(b.type));
+    const pick = cands.slice(0, key === "trustFirst" ? 3 : 2).map((f) => f.id);
+    for (const id of pick) usedCount.set(id, (usedCount.get(id) ?? 0) + 1);
+    s.focus = pick;
+  }
+}
+
 
 /* ------------------------------------------------------------------ KPIs */
 

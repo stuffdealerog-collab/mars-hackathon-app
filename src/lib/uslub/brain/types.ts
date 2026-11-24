@@ -53,6 +53,7 @@ export interface ChannelData {
   posts: RawPost[]; // newest first
   complete: boolean; // true when the scrape reached the start of the channel
   pages: number;
+  serviceTexts?: string[]; // service messages on the first page ("Channel name was changed to «…»")
 }
 
 export type BucketStat = { value: number | null; n: number; label: string };

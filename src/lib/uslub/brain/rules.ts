@@ -2,6 +2,7 @@
  * Decision rules (spec §C), ledger building and pillar-share mechanics.
  * Fully deterministic: code decides which rules fire; the LLM only explains them.
  */
+import { type Benchmark, MIN_BENCH_N } from "./bench";
 import { features, fmtNum, isLoser, isWinner, median, pct, reachBand, whyLine } from "./stats";
 import { LOSE, MIN_N, WIN, type ChannelStats, type Goal, type LedgerEntry, type RuleResult } from "./types";
 
@@ -19,6 +20,49 @@ export interface RuleCtx {
   competitors: ChannelStats[];
   kb?: KbSignals;
   calendar?: { id: string; name: string; daysAway: number }[];
+  /** Niche benchmark; replaces the prior reach bands when competitors are missing. */
+  bench?: Benchmark;
+  /** Tracked sale posts from the learn loop (views at 72h, unique bot starts, owner-reported sales). */
+  funnel?: FunnelData;
+}
+
+export interface FunnelData {
+  posts: { slot: number; planTag: string; views72: number; starts: number; sold?: number }[];
+  weekOrders?: number;
+  plans: number;
+}
+
+/** R.FUNNEL_LEAK (spec §C), pure: where the tracked sale posts lose people. */
+export function funnelRule(f: FunnelData | undefined): RuleResult {
+  const base = {
+    id: "R.FUNNEL_LEAK",
+    name: "Voronka teshigi",
+    kind: "problem" as const,
+    severity: 2 as const,
+    effects: "CTR < 0.3% → offer problem; CTR ≥ 1% with 0 orders → follow-up problem; ≥5 bot starts with 0 orders → owner task.",
+  };
+  if (!f || f.plans === 0) return { ...base, status: "inactive", trigger: "no tracked plan yet (src_ links)", ids: [] };
+  const big = f.posts.filter((p) => p.views72 >= 500);
+  if (!big.length) return { ...base, status: "insufficient", trigger: `tracked sale posts with ≥500 views at 72h: 0 (n=${f.posts.length})`, ids: [], n: f.posts.length };
+  const views = big.reduce((a, p) => a + p.views72, 0);
+  const starts = big.reduce((a, p) => a + p.starts, 0);
+  const ctr = starts / views;
+  const sold = big.reduce((a, p) => a + (p.sold ?? 0), 0) + (f.weekOrders ?? 0);
+  const ordersKnown = f.weekOrders != null || big.some((p) => p.sold != null);
+  const ids = ["S.funnel.ctr", "S.funnel.starts"];
+  const trig = `CTR ${pct(ctr)} (${starts}/${views}, n=${big.length})${ordersKnown ? ` · orders ${sold}` : " · orders: not reported"}`;
+  let leak: "offer" | "followup" | "owner" | null = null;
+  if (ctr < 0.003) leak = "offer";
+  else if (starts >= 5 && ordersKnown && sold === 0) leak = ctr >= 0.01 ? "followup" : "owner";
+  const effects =
+    leak === "offer"
+      ? "People see the post but do not click: test a clearer entry offer (price + one condition) on the next sale post."
+      : leak === "followup"
+        ? "Clicks are healthy but no orders: answer bot leads within 15 minutes and send the price list right away."
+        : leak === "owner"
+          ? "Leads arrive but no orders reported: owner task — reply to every lead, then tap 'Sotildi' in the bot."
+          : base.effects;
+  return { ...base, status: leak ? "fired" : "not_fired", trigger: trig, ids, effects, n: big.length, data: { ctr, starts, views, sold, leak } };
 }
 
 export const keyId = (k: string) => k.replace(/</g, "lt").replace(/>/g, "gt").replace(/[^\w.-]/g, "_");
@@ -86,7 +130,9 @@ export function runRules(s: ChannelStats, ctx: RuleCtx): RuleResult[] {
     out.push({ ...r, status: r.status ?? (fired === "insufficient" ? "insufficient" : fired ? "fired" : "not_fired") });
   const comps = ctx.competitors.filter((c) => !c.suspectBoosted && c.reachRate != null);
   const compReach = comps.length >= 2 ? median(comps.map((c) => c.reachRate as number)) : undefined;
-  const relReach = compReach && s.reachRate != null ? s.reachRate / compReach : undefined;
+  const benchReach = !compReach && ctx.bench?.reachRate && ctx.bench.n >= MIN_BENCH_N ? ctx.bench.reachRate.median : undefined;
+  const relReach = (compReach ?? benchReach) && s.reachRate != null ? s.reachRate / ((compReach ?? benchReach) as number) : undefined;
+  const relId = compReach ? "S.relReach" : "S.bench.relReach";
   const compPpw = comps.length >= 2 ? median(comps.map((c) => c.postsPerWeek)) : undefined;
   const kb = ctx.kb;
 
@@ -129,9 +175,9 @@ export function runRules(s: ChannelStats, ctx: RuleCtx): RuleResult[] {
       severity: 3,
       trigger:
         s.reachRate != null && band
-          ? `reachRate ${pct(s.reachRate)} ${s.reachRate < band.low ? "<" : "≥"} ${pct(band.low, 0)} (taxminiy, ${band.label})${relReach != null ? ` · relReach ${r2(relReach)}` : ""}`
+          ? `reachRate ${pct(s.reachRate)} ${s.reachRate < band.low ? "<" : "≥"} ${pct(band.low, 0)} (taxminiy, ${band.label})${relReach != null ? ` · relReach ${r2(relReach)}${benchReach ? ` (nisha, n=${ctx.bench?.n})` : ""}` : ""}`
           : "subscribers unknown",
-      ids: ["S.reachRate", ...(relReach != null ? ["S.relReach"] : [])],
+      ids: ["S.reachRate", ...(relReach != null ? [relId] : [])],
       effects: "reach +10, sale −10. KPI = reachRate and median views, not subscribers. No giveaways. +1 slot of the top-lift format.",
       n: s.maturePosts,
     },
@@ -394,16 +440,7 @@ export function runRules(s: ChannelStats, ctx: RuleCtx): RuleResult[] {
     s.postsInWindow > 0 && noise,
   );
 
-  out.push({
-    id: "R.FUNNEL_LEAK",
-    name: "Voronka teshigi",
-    status: "inactive",
-    kind: "problem",
-    severity: 2,
-    trigger: "needs tracked sale posts (src_ links) with ≥500 views at 72h",
-    ids: [],
-    effects: "CTR < 0.3% → offer problem; CTR ≥ 1% with 0 leads → bot flow; leads ≥ 5 with 0 orders → owner task.",
-  });
+  out.push(funnelRule(ctx.funnel));
 
   // COLD_START suppresses internal hour/format/language findings
   if (s.coldStart) {

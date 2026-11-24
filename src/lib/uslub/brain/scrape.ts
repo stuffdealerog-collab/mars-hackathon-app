@@ -5,6 +5,7 @@
  * so the Brain never claims to know either.
  */
 import type { ChannelData, Media, RawPost } from "./types";
+import { previewRedirected, serviceTexts } from "./validity";
 
 export class BrainScrapeError extends Error {
   constructor(
@@ -157,6 +158,9 @@ async function fetchPage(url: string, timeoutMs: number): Promise<string> {
     cache: "no-store",
   });
   if (!res.ok) throw new BrainScrapeError("FETCH_FAILED", `t.me returned ${res.status}`, 502);
+  // t.me/s/<handle> redirects to the t.me/<handle> contact page when there is no public preview.
+  if (res.url && previewRedirected(res.url))
+    throw new BrainScrapeError("NO_PUBLIC_PREVIEW", "Kanal topilmadi yoki yopiq (ochiq ko‘rinishi yo‘q)", 404);
   return res.text();
 }
 
@@ -182,6 +186,7 @@ export async function scrapeChannelData(
   let title: string | undefined;
   let subscribers: number | undefined;
   let hasHeader = false;
+  let service: string[] = [];
   let pages = 0;
   let complete = false;
   let before: number | null = null;
@@ -204,6 +209,7 @@ export async function scrapeChannelData(
       title = page.title;
       subscribers = page.subscribers;
       hasHeader = page.hasHeader;
+      service = serviceTexts(html).slice(0, 10);
     }
     const fresh = page.posts.filter((p) => !byId.has(p.id));
     for (const p of fresh) byId.set(p.id, p);
@@ -226,7 +232,7 @@ export async function scrapeChannelData(
     throw new BrainScrapeError("NO_PUBLIC_PREVIEW", "Kanal topilmadi yoki yopiq (ochiq ko‘rinishi yo‘q)", 404);
   }
   const posts = [...byId.values()].sort((a, b) => b.id - a.id).slice(0, maxPosts);
-  const data: ChannelData = { channel, title, subscribers, posts, complete, pages };
+  const data: ChannelData = { channel, title, subscribers, posts, complete, pages, serviceTexts: service };
   cache.set(key, { at: now, data });
   if (cache.size > 200) cache.delete(cache.keys().next().value as string);
   return data;
