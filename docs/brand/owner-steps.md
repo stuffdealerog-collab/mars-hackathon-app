@@ -12,6 +12,14 @@
 
 Имя, описание, «about», команды и кнопку меню выставляет код (сессия engine). Здесь их не трогайте, иначе следующий деплой перезапишет.
 
+## 1б. Telegram: баннер бота (картинка в пустом чате)
+
+Это картинка, которую человек видит над «Что умеет этот бот?», когда впервые открывает бота.
+
+1. В @BotFather отправьте `/setdescriptionpic`.
+2. Выберите `@hackathonproj1_bot`.
+3. Отправьте **как фото** [`bot-description-640x360.png`](https://mercat-ai.vercel.app/brand/bot-description-640x360.png) (узбекский) или [`bot-description-ru-640x360.png`](https://mercat-ai.vercel.app/brand/bot-description-ru-640x360.png) (русский), 640×360.
+
 ## 2. Telegram: главное Mini App и экран загрузки
 
 1. В @BotFather: `/mybots` → `@hackathonproj1_bot` → **Bot Settings** → **Configure Mini App**.
