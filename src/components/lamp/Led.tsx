@@ -151,7 +151,7 @@ export function LedStrip({
     <div
       role="img"
       aria-label={text ? (label ?? text) : "LED o‘chiq: hali havola yo‘q"}
-      className={`flex items-center overflow-hidden rounded-[12px] bg-[var(--stage)] px-3 ${className}`}
+      className={`flex items-center overflow-hidden rounded-[12px] bg-[var(--led-well,var(--stage))] px-3 ${className}`}
       style={{ boxShadow: "inset 0 0 0 1px var(--hair)", height: h + 22 }}
     >
       <span

@@ -30,7 +30,7 @@ export function ChannelSign({ bleed, side }: { bleed: number; side: "left" | "ri
   return (
     <div
       className="relative mb-6 border-b border-[var(--hair)] bg-[radial-gradient(rgb(255_181_71/.07)_1px,transparent_1.4px)] [background-size:7px_7px]"
-      style={{ ...pad, marginTop: -24, paddingTop: 22 }}
+      style={{ ...pad, marginTop: -24, paddingTop: 22, backgroundColor: "var(--led-well, var(--stage))" }}
     >
       <div className="mx-auto flex max-w-[1280px] flex-wrap items-end gap-x-12 gap-y-4 pb-5">
         {cells.length ? (

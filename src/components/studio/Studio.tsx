@@ -282,7 +282,7 @@ function Working() {
         <span ref={ledRef} className="inline-flex min-h-10 min-w-0 items-center truncate rounded-full bg-glass-2 px-4 text-[15px] font-medium shadow-[inset_0_0_0_1px_var(--hair-2)]">
           {source}
         </span>
-        <span className="shrink-0 rounded-[12px] bg-stage px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
+        <span className="shrink-0 rounded-[12px] bg-[var(--led-well,var(--stage))] px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
           <ElapsedLed />
         </span>
       </div>
