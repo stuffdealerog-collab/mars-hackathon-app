@@ -20,7 +20,9 @@ import type {
 } from "@/lib/uslub/contract";
 import type { Lang } from "../ui/lang";
 
-export type Fail = { ok: false; error?: string; code: string; status: number; reason?: string; addAdminUrl?: string };
+/** A blank still in a post's text, per script (approve and publish refuse with placeholder_left). */
+export type Missing = { script: Script; tokens: string[] };
+export type Fail = { ok: false; error?: string; code: string; status: number; reason?: string; addAdminUrl?: string; missing?: Missing[] };
 export type Ok<T> = { ok: true; data: T };
 export type Res<T> = Ok<T> | Fail;
 
@@ -107,7 +109,7 @@ function headers(): Record<string, string> {
 }
 
 async function failFrom(res: Response): Promise<Fail> {
-  const j = (await res.json().catch(() => null)) as { error?: string; code?: string; reason?: string; addAdminUrl?: string } | null;
+  const j = (await res.json().catch(() => null)) as { error?: string; code?: string; reason?: string; addAdminUrl?: string; missing?: unknown } | null;
   return {
     ok: false,
     status: res.status,
@@ -115,6 +117,7 @@ async function failFrom(res: Response): Promise<Fail> {
     code: j?.code ?? (res.status === 429 ? "rate_limited" : res.status === 404 ? "not_found" : "http"),
     reason: j?.reason,
     addAdminUrl: j?.addAdminUrl,
+    missing: Array.isArray(j?.missing) ? (j.missing as Missing[]).filter((m) => typeof m?.script === "string" && Array.isArray(m.tokens)) : undefined,
   };
 }
 
@@ -324,7 +327,7 @@ export function getPostImage(postId: string, lang: Lang) {
 
 /** Inside the Mini App only: the server checks initData, ownership and the bot's admin rights. */
 export function publishPost(postId: string, script: Script, chat: string, lang: Lang) {
-  return call<{ ok: boolean; url?: string; error?: string; code?: string; addAdminUrl?: string }>(
+  return call<{ ok: boolean; url?: string; error?: string; code?: string; addAdminUrl?: string; missing?: Missing[] }>(
     "/publish",
     { method: "POST", body: { postId, script, chat, lang, initData: tgInitData() } },
     35_000,
