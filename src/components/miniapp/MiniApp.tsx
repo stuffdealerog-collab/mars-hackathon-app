@@ -74,17 +74,20 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
       // The link the app was opened with comes first (bot button, startapp=brand_<id> from the
       // desktop Studio), then the brand this owner worked on last.
       const target = launchTarget(window.location.search, tg()?.initDataUnsafe?.start_param);
+      // Same rule as the desktop Studio: a brand that is gone or someone else's is forgotten; a
+      // network or server failure keeps it and Start offers «Qayta urinish».
       const open = async (id: string) => {
         await s.reopen(id);
-        return useStudio.getState().phase === "ready";
+        const st = useStudio.getState();
+        if (st.phase === "ready") return true;
+        const gone = ["brand_not_found", "not_found", "brand_forbidden"].includes(st.problem?.code ?? "");
+        if (gone && id === saved.brand) cloud.remove("brand");
+        if (!gone) useNav.setState({ retryBrand: id });
+        return false;
       };
       let opened = false;
       if (target.brand) opened = await open(target.brand);
-      if (!opened && saved.brand && saved.brand !== target.brand) {
-        opened = await open(saved.brand);
-        // A dead id (deleted, someone else's) must not open again at every launch.
-        if (!opened) cloud.remove("brand");
-      } else if (!opened && saved.brand && saved.brand === target.brand) cloud.remove("brand");
+      if (!opened && saved.brand && saved.brand !== target.brand) opened = await open(saved.brand);
       if (opened) {
         const after = useStudio.getState();
         if (target.post && after.posts.some((x) => x.id === target.post)) {
