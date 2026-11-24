@@ -42,10 +42,9 @@ try {
     warn(`BOT_USERNAME is "${configured}" but the token belongs to @${me.username} — update BOT_USERNAME in Vercel`);
   }
   const url = `${base}/api/telegram`;
+  // Always set (idempotent): a changed TELEGRAM_WEBHOOK_SECRET must reach Telegram too.
   const info = await call("getWebhookInfo");
-  if (info.url === url) {
-    console.log(`[webhook] already -> ${url}`);
-  } else {
+  {
     await call("setWebhook", {
       url,
       secret_token: secret,
@@ -62,7 +61,7 @@ try {
       ],
       max_connections: 40,
     });
-    console.log(`[webhook] set -> ${url}${info.url ? " (was another URL)" : ""}`);
+    console.log(`[webhook] set -> ${url}${info.url && info.url !== url ? " (was another URL)" : ""}`);
   }
 } catch (err) {
   warn(`not registered: ${redact(err instanceof Error ? err.message : err)}`);
