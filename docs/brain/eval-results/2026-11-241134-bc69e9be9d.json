@@ -1,0 +1,5111 @@
+{
+ "summary": {
+  "promptVersion": "bc69e9be9d",
+  "runAt": "2026-11-24T11:34:25.947Z",
+  "channels": [
+   "banafa_uz",
+   "floral_aesthetic_uz",
+   "foggi_uz",
+   "ieltscenteruz",
+   "imanshopuzb",
+   "MebelSmart_uz",
+   "phlebolife",
+   "safiabakery"
+  ],
+  "errors": [],
+  "items": 61,
+  "judged": 52,
+  "judge": {
+   "SPECIFIC": 2.48,
+   "GROUNDED": 2.56,
+   "NATURAL": 2.02,
+   "ACTIONABLE": 2.38,
+   "GOAL_FIT": 2.19
+  },
+  "anyOne": 0.35,
+  "allThree": 0.06,
+  "machineMade": 0.62,
+  "residualHardFails": 2,
+  "emptyHooks": 0,
+  "neuroHits": 0,
+  "meanHumanScore": 100,
+  "critic": {
+   "passed": 34,
+   "fixed": 14,
+   "owner_input": 13,
+   "timeout": 0
+  },
+  "pipelineSeconds": {
+   "median": 28.946,
+   "max": 46.154
+  }
+ },
+ "results": [
+  {
+   "handle": "banafa_uz",
+   "niche": "beauty",
+   "elapsedMs": 41588,
+   "pipelineMs": 30635,
+   "facts": 20,
+   "factList": [
+    {
+     "id": "F1",
+     "quote": "Tarkibida o'rik danagi moyi bor."
+    },
+    {
+     "id": "F2",
+     "quote": "U teriga yumshoq ta'sir qiladi va uni quritmaydi"
+    },
+    {
+     "id": "F3",
+     "quote": "Pardoz va SPF ni eritib yuvadi"
+    },
+    {
+     "id": "F4",
+     "quote": "Poralarni chuqur tozalaydi"
+    },
+    {
+     "id": "F5",
+     "quote": "Qora nuqtalarni eritadi"
+    },
+    {
+     "id": "F6",
+     "quote": "Poralarni to’ldirib qo'ymaydi"
+    },
+    {
+     "id": "F7",
+     "quote": "💳 Narxi: 108.000"
+    },
+    {
+     "id": "F8",
+     "quote": "Kun bo‘yi oqmaydi, o’chib ketmaydi"
+    },
+    {
+     "id": "F9",
+     "quote": "🪶@banafa_GC"
+    },
+    {
+     "id": "F10",
+     "quote": "NOTE 3in1 namlantiruvchi ton beruvchi kremlari (Glowing Skin va Healthy Skin)"
+    },
+    {
+     "id": "F11",
+     "quote": "Boncept Vita C 🍋 ampulasi"
+    },
+    {
+     "id": "F12",
+     "quote": "1 haftadayoq yuzingiz ichidan nurlanib chiqadi!"
+    },
+    {
+     "id": "F13",
+     "quote": "Qalam 02, 09 eng xit ranglari"
+    },
+    {
+     "id": "F14",
+     "quote": "🏷️Narxi: 66.000 so’m"
+    },
+    {
+     "id": "F15",
+     "quote": "🏷️Blesk: 94.000 so’m"
+    },
+    {
+     "id": "F16",
+     "quote": "Narxi: 106.000 so’m"
+    },
+    {
+     "id": "F17",
+     "quote": "Note marmarli rumyanasi ham xuddi shunaqa"
+    },
+    {
+     "id": "F18",
+     "quote": "TONYMOLY AZULENE ANTI BLEMISH — yog'li va muammoli teri uchun to'liq parvarish kompleksi"
+    },
+    {
+     "id": "F19",
+     "quote": "Tattoo qalam - issiq kunlarda ko’zga strelka va kayal sifatida chizsangiz bo’ladi. Oqib ketmaydi. Suvga chudamli ✨"
+    },
+    {
+     "id": "F20",
+     "quote": "Yumshoq rumyana - pigmentatsiyasi kuchli, surilshi oson va chiroyli  tarqaladi ✨"
+    }
+   ],
+   "firedRules": [
+    "R.INCONSISTENT",
+    "R.DEAD_ENDS",
+    "R.TRUST_GAP",
+    "R.CALENDAR"
+   ],
+   "ownerQuestions": 2,
+   "positioningHasFact": true,
+   "strategyOk": true,
+   "rationale": 5,
+   "items": [
+    {
+     "day": "2026-11-25",
+     "time": "08:40",
+     "goal": "trust",
+     "pillar": "Biz shu yerdamiz: haqiqiy do'kon, haqiqiy fikrlar",
+     "format": "photo",
+     "hook": "Buyurtmalarni shaxsan o'zim qabul qilaman: @banafa_GC",
+     "cta": "Savolingiz bo'lsa, shu yerga yozing: https://t.me/hackathonproj1_bot?start=src_ec1289_1",
+     "brief": "Ishonch posti: mijozlar kimga yozayotganini bilsin, buyurtmani odam shaxsan qabul qiladi. Faktlar: [F9]. Ish joyida suratga oling: buyurtma qutilari va qadoqlash stoli, telefondagi yozishma (mijoz ma'lumotlarisiz), kosmetika javoni. Haqiqiy suratlar, stock yo'q.\n— Dalil: F9 | Vaqt: taxminiy | Tasdiq: autopilot",
+     "metric": "≥594 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": false,
+     "slot": 1,
+     "timeSource": "prior",
+     "hookType": "behind_scenes",
+     "focus": [
+      "F9"
+     ],
+     "factIds": [
+      "F9"
+     ],
+     "approvalReasons": [],
+     "link": "https://t.me/hackathonproj1_bot?start=src_ec1289_1",
+     "src": "src_ec1289_1",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 490,
+       "mid": 566,
+       "high": 633
+      },
+      "basis": [
+       "S.medianViews",
+       "S.weekdayLift.Wed"
+      ],
+      "confidence": "data",
+      "display": "≈566 ko'rish (490–633)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 1,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 2,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Buyurtmalarni shaxsan o'zim qabul qilaman"
+     }
+    },
+    {
+     "day": "2026-11-27",
+     "time": "20:40",
+     "goal": "reach",
+     "pillar": "Poralar va qora nuqtalar: oldin va keyin",
+     "format": "video",
+     "hook": "Kechqurun pardoz va SPF ni teridan qanday olasiz?",
+     "cta": "Do'stingizga yuboring, u ham ko'rib qo'ysin",
+     "brief": "Burchak: kun oxirida pardoz va SPF ni teridan olib tashlash yo'lini qidirayotgan qizlar uchun reach video; mahsulot tarkibida o'rik danagi moyi bor, egasi uni pardoz va SPF ni eritib yuvadi deb yozgan. Faktlar: [F1, F3]. Telefonda qisqa video, 3 qadam: 1) do'kondagi mahsulot idishi va tarkibidagi o'rik danagi moyi yozuviga yaqin plan; 2) qo'lda pardoz va SPF surtilgan holda mahsulotni qo'llash; 3) suv bilan yuvilgandan keyingi teri. Hammasi haqiqiy, stock kadrsiz.\n— Dalil: F1 · F3 | Vaqt: taxminiy | Tasdiq: video, critic:HONESTY_CATEGORY | exp:hour",
+     "metric": "≥713 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 2,
+     "timeSource": "prior",
+     "exp": "hour",
+     "hookType": "question",
+     "focus": [
+      "F1",
+      "F3"
+     ],
+     "factIds": [
+      "F1",
+      "F3"
+     ],
+     "approvalReasons": [
+      "video",
+      "critic:HONESTY_CATEGORY"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 478,
+       "mid": 552,
+       "high": 617
+      },
+      "basis": [
+       "S.medianViews",
+       "S.formatLift.video",
+       "S.weekdayLift.Fri"
+      ],
+      "confidence": "data",
+      "display": "≈552 ko'rish (478–617)"
+     },
+     "critic": "owner_input",
+     "fails": [
+      {
+       "check": "HONESTY_CATEGORY",
+       "quote": "egasi uni pardoz va SPF ni eritib yuvadi deb yozgan",
+       "reason": "The brief presents a single owner's remark that the product dissolves makeup and SPF as a demonstrable fact for a video. That is an efficacy claim about sunscreen removal, and the brief gives no verification beyond the owner's own statement."
+      }
+     ],
+     "judge": {
+      "slot": 2,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 2
+      },
+      "machine_made": false,
+      "worst": "SPF ni teridan qanday olasiz?"
+     }
+    },
+    {
+     "day": "2026-11-29",
+     "time": "20:40",
+     "goal": "trust",
+     "pillar": "Biz shu yerdamiz: haqiqiy do'kon, haqiqiy fikrlar",
+     "format": "photo",
+     "hook": "Yuvinish vositasi terini quritib qo'ymasmikan, deb o'ylaysizmi?",
+     "cta": "Teringizga mosligini bilmoqchimisiz? Bizga yozing: https://t.me/hackathonproj1_bot?start=src_ec1289_3",
+     "brief": "Burchak: teri quruq yoki tortishib qolishidan qo'rqadigan mijoz; vosita teriga yumshoq ta'sir qiladi va uni quritmaydi [F2]. Qo'shimcha: tarkibida o'rik danagi moyi bor [F1]. Suratga oling: ish stolida vositaning o'zi, qo'lda ko'pigi yoki teksturasi, yuvinishdan keyingi yumshoq teri (yuz ko'rsatilmasa ham bo'ladi) — hammasi do'konning o'zida, tabiiy yorug'likda.\n— Dalil: F2 · F1 | Vaqt: taxminiy | Tasdiq: autopilot",
+     "metric": "≥594 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": false,
+     "slot": 3,
+     "timeSource": "prior",
+     "hookType": "question",
+     "focus": [
+      "F2"
+     ],
+     "factIds": [
+      "F2",
+      "F1"
+     ],
+     "approvalReasons": [],
+     "link": "https://t.me/hackathonproj1_bot?start=src_ec1289_3",
+     "src": "src_ec1289_3",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 514,
+       "mid": 594,
+       "high": 664
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "data",
+      "display": "≈594 ko'rish (514–664)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 3,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "quritib qo'ymasmikan, deb o'ylaysizmi?"
+     }
+    },
+    {
+     "day": "2026-11-30",
+     "time": "08:40",
+     "goal": "sale",
+     "pillar": "Narxi ochiq: podvodka, qalam, rumyana",
+     "format": "photo",
+     "hook": "Tattoo qalam 66.000 so'm — ko'zga strelka va kayal uchun, oqib ketmaydi",
+     "cta": "Narx yoki rangini so'rang, o'zim javob beraman: https://t.me/hackathonproj1_bot?start=src_ec1289_4",
+     "brief": "Burchak: pardozni arzonroq yig'moqchi qizlar uchun bitta aniq mahsulot va narx, issiq kunda oqib ketmasligi muhim bo'lganlarga. Narx: tattoo qalam 66.000 so'm [F14]; faktlar: F14, F19 (oqib ketmaydi, suvga chidamli), F13 (02 va 09 ranglari eng xit). F7 dagi 108.000 narxda mahsulot nomi ko'rsatilmagan, shuning uchun postga kiritilmadi. Do'kondan suratga oling: tattoo qalam qadoqda, qo'lda 02 va 09 ranglarining surtmasi (swatch), narx yozilgan qog'oz. Qora juma uchun muddat yoki chegirma faktlari yo'q, ularni yozmang.\n— Dalil: S.calendar.blackfriday · F14 · F19 · F13 | Vaqt: taxminiy | Tasdiq: narx, bayram, critic:GOAL_FIT",
+     "metric": "≥6 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 4,
+     "timeSource": "prior",
+     "hookType": "price",
+     "focus": [
+      "F7",
+      "F14"
+     ],
+     "factIds": [
+      "F14",
+      "F19",
+      "F13"
+     ],
+     "approvalReasons": [
+      "narx",
+      "bayram",
+      "critic:GOAL_FIT"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_ec1289_4",
+     "src": "src_ec1289_4",
+     "calendarEvent": "Qora juma",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 477,
+       "mid": 551,
+       "high": 616
+      },
+      "starts": {
+       "low": 2,
+       "high": 8,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews",
+       "S.weekdayLift.Mon"
+      ],
+      "confidence": "data",
+      "display": "≈551 ko'rish (477–616) · 2–8 botga o'tish (taxminiy)"
+     },
+     "critic": "owner_input",
+     "fails": [
+      {
+       "check": "GOAL_FIT",
+       "quote": "Narx yoki rangini so'rang, o'zim javob beraman: {{LINK}}",
+       "reason": "Goal is sale, but the CTA only invites a price or colour inquiry and gives no direct step toward buying the 66.000 so'm tattoo qalam."
+      }
+     ],
+     "judge": {
+      "slot": 4,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 2,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 3
+      },
+      "machine_made": false,
+      "worst": "Narx yoki rangini so'rang"
+     }
+    }
+   ],
+   "metrics": [
+    {
+     "slot": 1,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 53,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 2,
+     "critic": "owner_input",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 49,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 3,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 63,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 4,
+     "critic": "owner_input",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 71,
+     "neuroHits": 0,
+     "humanScore": 100
+    }
+   ]
+  },
+  {
+   "handle": "floral_aesthetic_uz",
+   "niche": "flowers",
+   "elapsedMs": 64480,
+   "pipelineMs": 40815,
+   "facts": 28,
+   "factList": [
+    {
+     "id": "F1",
+     "quote": "1 — 690 000"
+    },
+    {
+     "id": "F2",
+     "quote": "1 — 690 000"
+    },
+    {
+     "id": "F3",
+     "quote": "2 — 560 000"
+    },
+    {
+     "id": "F4",
+     "quote": "3 — 440 000 сум"
+    },
+    {
+     "id": "F5",
+     "quote": "♡ Фото Polaroid в каждом букете"
+    },
+    {
+     "id": "F6",
+     "quote": "@floral_aesthetic_tashkent"
+    },
+    {
+     "id": "F7",
+     "quote": "+998 (33) 383 33 73"
+    },
+    {
+     "id": "F8",
+     "quote": "1 — 670 000"
+    },
+    {
+     "id": "F9",
+     "quote": "2 — 900 000 сум"
+    },
+    {
+     "id": "F10",
+     "quote": "Композиции: Sweet Love 💖"
+    },
+    {
+     "id": "F11",
+     "quote": "стоимость по 450 000 сум"
+    },
+    {
+     "id": "F12",
+     "quote": "1 — 1 070 000"
+    },
+    {
+     "id": "F13",
+     "quote": "2 — 835 000"
+    },
+    {
+     "id": "F14",
+     "quote": "3 — 980 000 сум"
+    },
+    {
+     "id": "F15",
+     "quote": "1 — 470 000"
+    },
+    {
+     "id": "F16",
+     "quote": "2 — 470 000"
+    },
+    {
+     "id": "F17",
+     "quote": "3 — 450 000"
+    },
+    {
+     "id": "F18",
+     "quote": "4 — 450 000 сум"
+    },
+    {
+     "id": "F19",
+     "quote": "Рубиновый Лес ♥️"
+    },
+    {
+     "id": "F20",
+     "quote": "стоимость: 870 000 сум"
+    },
+    {
+     "id": "F21",
+     "quote": "1 — 1 000 000"
+    },
+    {
+     "id": "F22",
+     "quote": "2 — 1 100 000 сум"
+    },
+    {
+     "id": "F23",
+     "quote": "1 — 785 000"
+    },
+    {
+     "id": "F24",
+     "quote": "2 — 955 000"
+    },
+    {
+     "id": "F25",
+     "quote": "3 — 675 000 сум"
+    },
+    {
+     "id": "F26",
+     "quote": "1 — 615 000"
+    },
+    {
+     "id": "F27",
+     "quote": "2 — 620 000"
+    },
+    {
+     "id": "F28",
+     "quote": "3 — 450 000 сум"
+    }
+   ],
+   "firedRules": [
+    "R.SUSPECT_BOOSTED",
+    "R.LOW_REACH",
+    "R.TRUST_GAP",
+    "R.CALENDAR"
+   ],
+   "ownerQuestions": 2,
+   "positioningHasFact": true,
+   "strategyOk": true,
+   "rationale": 3,
+   "items": [
+    {
+     "day": "2026-11-25",
+     "time": "08:40",
+     "goal": "trust",
+     "pillar": "Polaroid surat: buket qanday topshiriladi",
+     "format": "photo",
+     "hook": "Gul buyurtma qilmoqchimisiz? Telegram: @floral_aesthetic_tashkent",
+     "cta": "Savolingiz bo'lsa, shu yerda so'rang: https://t.me/hackathonproj1_bot?start=src_195fbb_1",
+     "brief": "Gul olishda kimga yozishni bilmaydigan mijozga kontakt aniq bo'lsin; Qora juma oldidan bu qiymatli post, chegirma va narx so'zlarisiz. Faktlar: [F6, F7]. Do'konda suratga oling: telefon va Telegram nomi yozilgan vitrina yoki stol, yonida tayyor buket.\n— Dalil: S.calendar.blackfriday · F6 · F7 | Vaqt: taxminiy | Tasdiq: bayram, aksiya, til",
+     "metric": "≥778 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 1,
+     "timeSource": "prior",
+     "hookType": "question",
+     "focus": [
+      "F6",
+      "F7"
+     ],
+     "factIds": [
+      "F6",
+      "F7"
+     ],
+     "approvalReasons": [
+      "bayram",
+      "aksiya",
+      "til"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_195fbb_1",
+     "src": "src_195fbb_1",
+     "calendarEvent": "Qora juma",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 722,
+       "mid": 760,
+       "high": 798
+      },
+      "basis": [
+       "S.medianViews",
+       "S.weekdayLift.Wed"
+      ],
+      "confidence": "data",
+      "display": "≈760 ko'rish (722–798)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 1,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 2,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Qora juma oldidan bu qiymatli post"
+     }
+    },
+    {
+     "day": "2026-11-26",
+     "time": "17:40",
+     "goal": "sale",
+     "pillar": "Sweet Love: tayyor kompozitsiya, aniq narx",
+     "format": "photo",
+     "hook": "Buket 690 000 so'm, ikkinchisi 560 000 so'm",
+     "cta": "Qaysi biri yoqdi? Yozing: https://t.me/hackathonproj1_bot?start=src_195fbb_2",
+     "brief": "Byudjetiga qarab tanlaydigan mijoz uchun ikki xil narxdagi kompozitsiyani ko'rsating, narxlar rasm ostida raqam bilan. Faktlar: [F2, F3]. Vitrinadagi ikkala buketni alohida-alohida, tabiiy yorug'likda suratga oling, raqamlar 1 va 2 bilan.\n— Dalil: F2 · F3 | Vaqt: taxminiy | Tasdiq: narx, til",
+     "metric": "≥8 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 2,
+     "timeSource": "prior",
+     "hookType": "price",
+     "focus": [
+      "F2",
+      "F3"
+     ],
+     "factIds": [
+      "F2",
+      "F3"
+     ],
+     "approvalReasons": [
+      "narx",
+      "til"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_195fbb_2",
+     "src": "src_195fbb_2",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 698,
+       "mid": 735,
+       "high": 771
+      },
+      "starts": {
+       "low": 2,
+       "high": 11,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.16-19",
+       "S.weekdayLift.Thu"
+      ],
+      "confidence": "data",
+      "display": "≈735 ko'rish (698–771) · 2–11 botga o'tish (taxminiy)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 2,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 3
+      },
+      "machine_made": false,
+      "worst": "Buket 690 000 so'm, ikkinchisi 560 000 so'm"
+     }
+    },
+    {
+     "day": "2026-11-27",
+     "time": "14:40",
+     "goal": "trust",
+     "pillar": "Polaroid surat: buket qanday topshiriladi",
+     "format": "photo",
+     "hook": "Har bir buketga Polaroid surat qo'shamiz",
+     "cta": "Buketni so'rash uchun yozing: https://t.me/hackathonproj1_bot?start=src_195fbb_3",
+     "brief": "Sovg'a olayotgan mijozga buket bilan birga Polaroid surat berilishini ko'rsating. Fakt: [F5]. Do'konda suratga oling: Polaroid kamera, buketni qadoqlash jarayoni, tayyor buket yonida chiqqan surat.\n— Dalil: F5 | Vaqt: taxminiy | Tasdiq: aksiya, til | exp:hour",
+     "metric": "≥778 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 3,
+     "timeSource": "prior",
+     "exp": "hour",
+     "hookType": "behind_scenes",
+     "focus": [
+      "F5"
+     ],
+     "factIds": [
+      "F5"
+     ],
+     "approvalReasons": [
+      "aksiya",
+      "til"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_195fbb_3",
+     "src": "src_195fbb_3",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 757,
+       "mid": 797,
+       "high": 836
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.13-16",
+       "S.weekdayLift.Fri"
+      ],
+      "confidence": "data",
+      "display": "≈797 ko'rish (757–836)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 3,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 3,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 3
+      },
+      "machine_made": false,
+      "worst": ""
+     }
+    },
+    {
+     "day": "2026-11-28",
+     "time": "17:40",
+     "goal": "sale",
+     "pillar": "Sweet Love: tayyor kompozitsiya, aniq narx",
+     "format": "photo",
+     "hook": "Har bir buketga Polaroid foto qo'shamiz",
+     "cta": "Buket tanlashda yordam kerakmi? Yozing: https://t.me/hackathonproj1_bot?start=src_195fbb_4",
+     "brief": "Burchak: sovg'a uchun gul izlayotgan, buketda nima borligini oldindan bilmoqchi bo'lgan odam uchun; hook Polaroid foto haqida [F5]. Narxni postga qo'shmang: F4 va F8 narxlari qaysi buketga tegishli ekani ma'lum emas, egasi tasdiqlamaguncha yozmang [F4, F8]. Do'konda vitrinani umumiy planda, keyin bitta buketni yorug' joyda va Polaroid fotoni yaqin planda suratga oling [F5].\n— Dalil: F5 · F4 · F8 | Vaqt: taxminiy | Tasdiq: narx, til",
+     "metric": "≥8 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 4,
+     "timeSource": "prior",
+     "hookType": "product_spotlight",
+     "focus": [
+      "F4",
+      "F8"
+     ],
+     "factIds": [
+      "F5",
+      "F4",
+      "F8"
+     ],
+     "approvalReasons": [
+      "narx",
+      "til",
+      "critic:HOOK"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_195fbb_4",
+     "src": "src_195fbb_4",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 779,
+       "mid": 820,
+       "high": 862
+      },
+      "starts": {
+       "low": 2,
+       "high": 12,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.16-19",
+       "S.weekdayLift.Sat"
+      ],
+      "confidence": "data",
+      "display": "≈820 ko'rish (779–862) · 2–12 botga o'tish (taxminiy)"
+     },
+     "critic": "fixed",
+     "fails": [],
+     "judge": {
+      "slot": 4,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 3,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 1
+      },
+      "machine_made": false,
+      "worst": "Narxni postga qo'shmang"
+     }
+    },
+    {
+     "day": "2026-11-29",
+     "time": "12:40",
+     "goal": "reach",
+     "pillar": "Vitrina: bugungi buketlar narxi bilan",
+     "format": "video",
+     "hook": "Sweet Love 💖 kompozitsiyasi qanday yig'iladi?",
+     "cta": "Yoqsa, saqlab qo'ying yoki do'stingizga yuboring.",
+     "brief": "Burchak: odam buket qanday yig'ilishini ko'rishni yoqtiradi, bu ishonchni oshiradi [F10, F1]. Qisqa video telefonda, 3 qadam: 1) stol ustidagi gullar va material, 2) kompozitsiyani yig'ish jarayoni yaqin planda, 3) tayyor Sweet Love buketi aylanib ko'rsatiladi. Narxni videoda aytmang: F1 raqami qaysi buketga tegishli ekani aniq emas [F1].\n— Dalil: F10 · F1 | Vaqt: taxminiy | Tasdiq: video, til",
+     "metric": "≥933 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 5,
+     "timeSource": "prior",
+     "hookType": "behind_scenes",
+     "focus": [
+      "F1",
+      "F10"
+     ],
+     "factIds": [
+      "F10",
+      "F1"
+     ],
+     "approvalReasons": [
+      "video",
+      "til"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 700,
+       "mid": 737,
+       "high": 773
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.10-13"
+      ],
+      "confidence": "data",
+      "display": "≈737 ko'rish (700–773)"
+     },
+     "critic": "fixed",
+     "fails": [],
+     "judge": {
+      "slot": 5,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 3,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 3
+      },
+      "machine_made": false,
+      "worst": ""
+     }
+    },
+    {
+     "day": "2026-11-30",
+     "time": "20:40",
+     "goal": "reach",
+     "pillar": "Vitrina: bugungi buketlar narxi bilan",
+     "format": "video",
+     "hook": "Rubinovyy Les ♥️ buketi yaqindan ko'rinishi",
+     "cta": "Kimgadir kerak bo'lsa, shu videoni yuboring.",
+     "brief": "Burchak: tanlashdan oldin buketni har tomondan ko'rishni xohlaydigan odam uchun [F19]. Qisqa video telefonda, 3 qadam: 1) buket umumiy planda, 2) gul va barglar detali yaqindan, 3) qo'lda sekin aylantirish. Narxni aytmang: F1 raqami bu buketga tegishli ekani tasdiqlanmagan [F19, F1].\n— Dalil: F19 · F1 | Vaqt: taxminiy | Tasdiq: video, til",
+     "metric": "≥933 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 6,
+     "timeSource": "prior",
+     "hookType": "product_spotlight",
+     "focus": [
+      "F19",
+      "F1"
+     ],
+     "factIds": [
+      "F19",
+      "F1"
+     ],
+     "approvalReasons": [
+      "video",
+      "til"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 743,
+       "mid": 782,
+       "high": 821
+      },
+      "basis": [
+       "S.medianViews",
+       "S.weekdayLift.Mon"
+      ],
+      "confidence": "data",
+      "display": "≈782 ko'rish (743–821)"
+     },
+     "critic": "fixed",
+     "fails": [],
+     "judge": {
+      "slot": 6,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 1,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Rubinovyy Les ♥️ buketi yaqindan ko'rinishi"
+     }
+    },
+    {
+     "day": "2026-12-01",
+     "time": "08:40",
+     "goal": "reach",
+     "pillar": "Vitrina: bugungi buketlar narxi bilan",
+     "format": "photo",
+     "hook": "Рубиновый Лес ♥️ — тёмно-красный букет из нашей витрины",
+     "cta": "Сохраните пост, если ищете букет в красных тонах — или перешлите тому, кто дарит.",
+     "brief": "Угол: человек выбирает цветы в красной гамме и хочет увидеть композицию вживую, а не на картинке. Факты: [F19, F10]. Снять в студии: готовый букет «Рубиновый Лес» при дневном свете у окна, крупно текстуру цветов, затем рядом композицию Sweet Love для сравнения оттенков.\n— Dalil: F19 · F10 | Vaqt: taxminiy | Tasdiq: til",
+     "metric": "≥933 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 7,
+     "timeSource": "prior",
+     "hookType": "product_spotlight",
+     "focus": [
+      "F10",
+      "F19"
+     ],
+     "factIds": [
+      "F19",
+      "F10"
+     ],
+     "approvalReasons": [
+      "til"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 747,
+       "mid": 787,
+       "high": 826
+      },
+      "basis": [
+       "S.medianViews",
+       "S.weekdayLift.Tue"
+      ],
+      "confidence": "data",
+      "display": "≈787 ko'rish (747–826)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 7,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 2,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "— или перешлите тому, кто дарит"
+     }
+    },
+    {
+     "day": "2026-11-30",
+     "time": "12:40",
+     "goal": "reach",
+     "pillar": "Vitrina: bugungi buketlar narxi bilan",
+     "format": "photo",
+     "hook": "Sweet Love 💖 — от 690 000 сум",
+     "cta": "Перешлите тому, кому хотите намекнуть на такой букет.",
+     "brief": "Угол: клиент заранее хочет понимать ценовой уровень композиции Sweet Love, чтобы не гадать. Факты: [F1, F10]. Снять в студии: композицию Sweet Love на светлом фоне общим планом, затем деталь вблизи и рядом руку флориста, которая поправляет цветы.\n— Dalil: F1 · F10 | Vaqt: taxminiy | Tasdiq: til",
+     "metric": "≥933 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 8,
+     "timeSource": "prior",
+     "hookType": "number",
+     "focus": [
+      "F1",
+      "F10"
+     ],
+     "factIds": [
+      "F1",
+      "F10"
+     ],
+     "approvalReasons": [
+      "til"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 704,
+       "mid": 741,
+       "high": 778
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.10-13",
+       "S.weekdayLift.Mon"
+      ],
+      "confidence": "data",
+      "display": "≈741 ko'rish (704–778)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 8,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 1,
+       "NATURAL": 3,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 2
+      },
+      "machine_made": false,
+      "worst": "Sweet Love 💖 — от 690 000 сум"
+     }
+    },
+    {
+     "day": "2026-12-01",
+     "time": "20:40",
+     "goal": "trust",
+     "pillar": "Polaroid surat: buket qanday topshiriladi",
+     "format": "photo",
+     "hook": "Buket tayyor bo'lgach, Polaroid suratga olamiz",
+     "cta": "Buketingiz haqida so'rang, egasi o'zi javob beradi: https://t.me/hackathonproj1_bot?start=src_195fbb_9",
+     "brief": "Burchak: xaridor buket tasavvuridagidek chiqmasligidan qo'rqadi; Polaroid surat buket haqiqatan yig'ilganini ko'rsatadi. Faktlar: [F5]. Studiyada suratga oling: florist tayyor buketni Polaroid kamerada suratga oladi, chiqqan surat buket yonida turibdi, qo'l suratni qadoqqa soladi. Egasidan oldindan so'rang: Polaroid surat qaysi buyurtmalarga beriladi, postda faqat shuni yozing. «Chegirma» so'zisiz, shoshiltirmasdan.\n— Dalil: F5 | Vaqt: taxminiy | Tasdiq: critic:HONESTY_CATEGORY, aksiya, til",
+     "metric": "≥778 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 9,
+     "timeSource": "prior",
+     "hookType": "behind_scenes",
+     "focus": [
+      "F5"
+     ],
+     "factIds": [
+      "F5"
+     ],
+     "approvalReasons": [
+      "critic:HONESTY_CATEGORY",
+      "aksiya",
+      "til"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_195fbb_9",
+     "src": "src_195fbb_9",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 747,
+       "mid": 787,
+       "high": 826
+      },
+      "basis": [
+       "S.medianViews",
+       "S.weekdayLift.Tue"
+      ],
+      "confidence": "data",
+      "display": "≈787 ko'rish (747–826)"
+     },
+     "critic": "owner_input",
+     "fails": [
+      {
+       "check": "HONESTY_CATEGORY",
+       "quote": "Buket tayyor bo'lgach, Polaroid suratga olamiz",
+       "reason": "The hook promises a Polaroid photo for every finished bouquet, but the brief says the photo goes only to certain orders, which the owner must confirm first. Studio staging of the assembly is also presented as proof that the bouquet was really assembled."
+      }
+     ],
+     "judge": {
+      "slot": 9,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 2,
+       "NATURAL": 3,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 3
+      },
+      "machine_made": false,
+      "worst": "egasi o'zi javob beradi"
+     }
+    },
+    {
+     "day": "2026-12-01",
+     "time": "08:40",
+     "goal": "trust",
+     "pillar": "Polaroid surat: buket qanday topshiriladi",
+     "format": "photo",
+     "hook": "Buketlarimiz bilan birga Polaroid surat ham beriladi",
+     "cta": "Qaysi buket kerakligini yozing, Polaroid haqida so'rang: https://t.me/hackathonproj1_bot?start=src_195fbb_10",
+     "brief": "Angle: sovg'a oluvchi buket bilan birga esdalik surat ham olishini ko'radi, bu xaridorga ishonch beradi. Facts: [F5] (kanal postida Polaroid foto buketlarda borligi aytilgan; har bir buketga tegishli ekani aniq emas, shuning uchun matnda 'har bir' demaymiz). Photograph at the shop: tayyor buket yonida Polaroid suratni qo'lda ushlab turgan kadr; ikkinchi kadr: surat olinayotgan payt, stol ustida, tabiiy yorug'likda.\n— Dalil: F5 | Vaqt: taxminiy | Tasdiq: critic:HONESTY_CATEGORY, aksiya, til",
+     "metric": "≥778 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 10,
+     "timeSource": "prior",
+     "hookType": "product_spotlight",
+     "focus": [
+      "F5"
+     ],
+     "factIds": [
+      "F5"
+     ],
+     "approvalReasons": [
+      "critic:HONESTY_CATEGORY",
+      "aksiya",
+      "til"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_195fbb_10",
+     "src": "src_195fbb_10",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 747,
+       "mid": 787,
+       "high": 826
+      },
+      "basis": [
+       "S.medianViews",
+       "S.weekdayLift.Tue"
+      ],
+      "confidence": "data",
+      "display": "≈787 ko'rish (747–826)"
+     },
+     "critic": "owner_input",
+     "fails": [
+      {
+       "check": "HONESTY_CATEGORY",
+       "quote": "Buketlarimiz bilan birga Polaroid surat ham beriladi",
+       "reason": "The hook states as a general rule that every bouquet comes with a Polaroid photo, but the brief says the source only shows Polaroid photos with bouquets and does not confirm that each bouquet includes one. The hook should be hedged, e.g. 'Ba'zi buketlarimiz bilan Polaroid surat ham beriladi', to match the fact F5."
+      }
+     ],
+     "judge": {
+      "slot": 10,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 3
+      },
+      "machine_made": true,
+      "worst": "Qaysi buket kerakligini yozing, Polaroid haqida so'rang"
+     }
+    }
+   ],
+   "metrics": [
+    {
+     "slot": 1,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 65,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 2,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 43,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 3,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 40,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 4,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 39,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 5,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 46,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 6,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 43,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 7,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 55,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 8,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 30,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 9,
+     "critic": "owner_input",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 46,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 10,
+     "critic": "owner_input",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 52,
+     "neuroHits": 0,
+     "humanScore": 100
+    }
+   ]
+  },
+  {
+   "handle": "foggi_uz",
+   "niche": "clothing",
+   "elapsedMs": 53130,
+   "pipelineMs": 28030,
+   "facts": 37,
+   "factList": [
+    {
+     "id": "F1",
+     "quote": "4v1 komplekt - 84ming"
+    },
+    {
+     "id": "F2",
+     "quote": "4v1 komplekt - 84ming"
+    },
+    {
+     "id": "F3",
+     "quote": "Kombenzon - 79ming"
+    },
+    {
+     "id": "F4",
+     "quote": "Kombenzon - 79ming"
+    },
+    {
+     "id": "F5",
+     "quote": "Muslin plyonka - 34ming"
+    },
+    {
+     "id": "F6",
+     "quote": "Muslin plyonka - 34ming"
+    },
+    {
+     "id": "F7",
+     "quote": "Taroq toʻplam - 64ming"
+    },
+    {
+     "id": "F8",
+     "quote": "Taroq toʻplam - 64ming"
+    },
+    {
+     "id": "F9",
+     "quote": "Soʻrgʻich 2v1 - 24ming"
+    },
+    {
+     "id": "F10",
+     "quote": "Soʻrgʻich 2v1 - 24ming"
+    },
+    {
+     "id": "F11",
+     "quote": "📞(95)203-07-07"
+    },
+    {
+     "id": "F12",
+     "quote": "Jinis konbenzon - 3-12oy | 234ming"
+    },
+    {
+     "id": "F13",
+     "quote": "Jinis konbenzon - 3-12oy | 234ming"
+    },
+    {
+     "id": "F14",
+     "quote": "Koʻylak dvoyka - 6-18oy | 424ming"
+    },
+    {
+     "id": "F15",
+     "quote": "Koʻylak dvoyka - 6-18oy | 424ming"
+    },
+    {
+     "id": "F16",
+     "quote": "Dvoyka - 2-5yosh | 234ming"
+    },
+    {
+     "id": "F17",
+     "quote": "Dvoyka - 2-5yosh | 234ming"
+    },
+    {
+     "id": "F18",
+     "quote": "Paypoq gifyurli - 29ming"
+    },
+    {
+     "id": "F19",
+     "quote": "Paypoq gifyurli - 29ming"
+    },
+    {
+     "id": "F20",
+     "quote": "Golfi - 54ming"
+    },
+    {
+     "id": "F21",
+     "quote": "Golfi - 54ming"
+    },
+    {
+     "id": "F22",
+     "quote": "Oyoq kiyim - 17-26oʻl. | 124ming"
+    },
+    {
+     "id": "F23",
+     "quote": "Oyoq kiyim - 17-26oʻl. | 124ming"
+    },
+    {
+     "id": "F24",
+     "quote": "🦎Farhod bozori filiali"
+    },
+    {
+     "id": "F25",
+     "quote": "Onalar uchun pijamalar"
+    },
+    {
+     "id": "F26",
+     "quote": "🦎Sergeli filiali"
+    },
+    {
+     "id": "F27",
+     "quote": "Ona va bola uchun kerakli barchasi"
+    },
+    {
+     "id": "F28",
+     "quote": "Butilkalar"
+    },
+    {
+     "id": "F29",
+     "quote": "Buyurtma uchun @foggi_admin"
+    },
+    {
+     "id": "F30",
+     "quote": "🦎Yunusobod filiali"
+    },
+    {
+     "id": "F31",
+     "quote": "Mavsumga mos tayyor to'plam"
+    },
+    {
+     "id": "F32",
+     "quote": "🦎Foggi Yunusobod filiali"
+    },
+    {
+     "id": "F33",
+     "quote": "🕒Har kuni 9:00 dan 22:00 gacha ishlaydi"
+    },
+    {
+     "id": "F34",
+     "quote": "🦎Foggi Farhod bozori filiali"
+    },
+    {
+     "id": "F35",
+     "quote": "🕒Har kuni 9:00 dan 22:00 gacha ishlaydi"
+    },
+    {
+     "id": "F36",
+     "quote": "🦎Foggi Sergeli filiali"
+    },
+    {
+     "id": "F37",
+     "quote": "🕒Har kuni 9:00 dan 22:00 gacha ishlaydi"
+    }
+   ],
+   "firedRules": [
+    "R.COLD_START",
+    "R.LOW_REACH",
+    "R.HIDDEN_PRICE",
+    "R.TRUST_GAP",
+    "R.CALENDAR"
+   ],
+   "ownerQuestions": 1,
+   "positioningHasFact": true,
+   "strategyOk": true,
+   "rationale": 4,
+   "items": [
+    {
+     "day": "2026-11-25",
+     "time": "08:40",
+     "goal": "reach",
+     "pillar": "Mavsumga mos tayyor to'plam: bitta rasmda nima kerak",
+     "format": "text",
+     "hook": "Kombenzon - 79ming, 4v1 komplekt - 84ming",
+     "cta": "Saqlab qo'ying, kerak bo'lganda qaytib ko'rasiz.",
+     "brief": "Chaqaloqqa nima olishni bilmagan onalar uchun: ikki mahsulot narxi yonma-yon, qisqa matn. Faktlar: [F1, F3]. Suratga: do'konda 4v1 komplekt va kombenzonni stol ustiga yonma-yon qo'yib, telefonda yorug' joyda oling, haqiqiy narx yorlig'i ko'rinsin.\n— Dalil: F1 · F3 | Vaqt: taxminiy | Tasdiq: autopilot",
+     "metric": "≥1884 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": false,
+     "slot": 1,
+     "timeSource": "prior",
+     "hookType": "product_spotlight",
+     "focus": [
+      "F1",
+      "F3"
+     ],
+     "factIds": [
+      "F1",
+      "F3"
+     ],
+     "approvalReasons": [],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1021,
+       "mid": 1570,
+       "high": 2120
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "baseline",
+      "display": "≈1 570 ko'rish (1 021–2 120)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 1,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Kombenzon - 79ming, 4v1 komplekt - 84ming"
+     }
+    },
+    {
+     "day": "2026-11-26",
+     "time": "20:40",
+     "goal": "reach",
+     "pillar": "Mavsumga mos tayyor to'plam: bitta rasmda nima kerak",
+     "format": "video",
+     "hook": "Muslin plyonka - 34ming. Taroq to'plam - 64ming",
+     "cta": "Do'stingizga yuboring, ona bo'lishi kutayotgan bo'lsa.",
+     "brief": "Yangi onalarga kundalik kerak bo'ladigan ikki narsa, narxi bilan. Faktlar: [F5, F7]. Video, telefonda, qisqa: 1) muslin plyonkani qo'lda yoyib ko'rsating; 2) taroq to'plamni qutidan chiqaring; 3) narx yorlig'ini yaqin planda oling.\n— Dalil: F5 · F7 | Vaqt: taxminiy | Tasdiq: video | exp:hour",
+     "metric": "≥1884 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 2,
+     "timeSource": "prior",
+     "exp": "hour",
+     "hookType": "product_spotlight",
+     "focus": [
+      "F5",
+      "F7"
+     ],
+     "factIds": [
+      "F5",
+      "F7"
+     ],
+     "approvalReasons": [
+      "video"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1021,
+       "mid": 1570,
+       "high": 2120
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "baseline",
+      "display": "≈1 570 ko'rish (1 021–2 120)"
+     },
+     "critic": "fixed",
+     "fails": [],
+     "judge": {
+      "slot": 2,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 1,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "ona bo'lishi kutayotgan bo'lsa"
+     }
+    },
+    {
+     "day": "2026-11-27",
+     "time": "20:40",
+     "goal": "trust",
+     "pillar": "Filiallarimiz: manzil, soat, ichkarida nima bor",
+     "format": "photo",
+     "hook": "Yunusobod, Sergeli, Farhod bozori: Foggi shu yerda",
+     "cta": "Yaqin filialni tanlang va https://t.me/hackathonproj1_bot?start=src_3f729a_3 orqali savolingizni yozing.",
+     "brief": "Qora juma kunida chegirma va'dasiz, ona qaysi filialga borishini bilishi uchun. Faktlar: [F24, F26, F30]. Har uch filial peshtoqini va ichki ko'rinishini telefonda oling; kiraverishda ish vaqti yozuvi ko'rinsin.\n— Dalil: S.calendar.blackfriday · F24 · F26 · F30 | Vaqt: taxminiy | Tasdiq: bayram, aksiya",
+     "metric": "≥1570 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 3,
+     "timeSource": "prior",
+     "hookType": "local",
+     "focus": [
+      "F24",
+      "F26",
+      "F30"
+     ],
+     "factIds": [
+      "F24",
+      "F26",
+      "F30"
+     ],
+     "approvalReasons": [
+      "bayram",
+      "aksiya"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3f729a_3",
+     "src": "src_3f729a_3",
+     "calendarEvent": "Qora juma",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1021,
+       "mid": 1570,
+       "high": 2120
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "baseline",
+      "display": "≈1 570 ko'rish (1 021–2 120)"
+     },
+     "critic": "fixed",
+     "fails": [],
+     "judge": {
+      "slot": 3,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 2
+      },
+      "machine_made": false,
+      "worst": "Foggi shu yerda"
+     }
+    },
+    {
+     "day": "2026-11-28",
+     "time": "08:40",
+     "goal": "sale",
+     "pillar": "Narxi ochiq: komplekt va kombenzon",
+     "format": "photo",
+     "hook": "4v1 komplekt — 84ming, kombenzon — 79ming",
+     "cta": "Qaysi biri kerakligini yozing, https://t.me/hackathonproj1_bot?start=src_3f729a_4 orqali egasi o'zi javob beradi",
+     "brief": "Yangi tug'ilgan chaqaloq onasi uchun: komplekt yoki kombenzon o'rtasida tanlash qiyin, narxlar yonma-yon ko'rsatiladi. Faktlar: [F2, F4]. Do'konda ikkala mahsulotni bir stol ustiga yoyib, yorug' joyda suratga oling, har birining yoniga narx yozuvini qo'ying, ustida o'lchamni ko'rsatib qo'ying.\n— Dalil: F2 · F4 | Vaqt: taxminiy | Tasdiq: narx",
+     "metric": "≥16 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 4,
+     "timeSource": "prior",
+     "hookType": "price",
+     "focus": [
+      "F2",
+      "F4"
+     ],
+     "factIds": [
+      "F2",
+      "F4"
+     ],
+     "approvalReasons": [
+      "narx",
+      "critic:HOOK"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3f729a_4",
+     "src": "src_3f729a_4",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1021,
+       "mid": 1570,
+       "high": 2120
+      },
+      "starts": {
+       "low": 5,
+       "high": 24,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "baseline",
+      "display": "≈1 570 ko'rish (1 021–2 120) · 5–24 botga o'tish (taxminiy)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 4,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 2,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 3
+      },
+      "machine_made": true,
+      "worst": "egasi o'zi javob beradi"
+     }
+    },
+    {
+     "day": "2026-11-29",
+     "time": "12:40",
+     "goal": "reach",
+     "pillar": "Mavsumga mos tayyor to'plam: bitta rasmda nima kerak",
+     "format": "video",
+     "hook": "Soʻrgʻich 2v1 — 24ming. Jinis konbenzon 3-12oy — 234ming",
+     "cta": "Onalar guruhiga yuboring yoki saqlab qo'ying",
+     "brief": "Chaqaloqqa nima kerakligini bilmagan yosh onalar uchun qisqa video: ikkita mahsulot, narxi bilan. Faktlar: [F9, F12]. Telefonda 3 kadr: 1) soʻrgʻich 2v1 qadog'i va yaqin plan, 2) jinis konbenzonni qo'lda ochib ko'rsatish, 3) ikkalasi yonma-yon stolda, narx yozuvlari bilan.\n— Dalil: F9 · F12 | Vaqt: taxminiy | Tasdiq: video",
+     "metric": "≥1884 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 5,
+     "timeSource": "prior",
+     "hookType": "product_spotlight",
+     "focus": [
+      "F9",
+      "F12"
+     ],
+     "factIds": [
+      "F9",
+      "F12"
+     ],
+     "approvalReasons": [
+      "video"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1021,
+       "mid": 1570,
+       "high": 2120
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "baseline",
+      "display": "≈1 570 ko'rish (1 021–2 120)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 5,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 1,
+       "GOAL_FIT": 2
+      },
+      "machine_made": false,
+      "worst": "Onalar guruhiga yuboring yoki saqlab qo'ying"
+     }
+    },
+    {
+     "day": "2026-11-30",
+     "time": "20:40",
+     "goal": "trust",
+     "pillar": "Filiallarimiz: manzil, soat, ichkarida nima bor",
+     "format": "photo",
+     "hook": "Yunusobod va Farhod bozorida Foggi har kuni 9:00 dan 22:00 gacha ochiq",
+     "cta": "Yo'lga chiqishdan oldin savolingiz bo'lsa, yozing: https://t.me/hackathonproj1_bot?start=src_3f729a_6",
+     "brief": "Do'konga kelishni rejalashtirgan ota-onalar uchun: qaysi filial yaqin va qachon ochiq ekani aniq bo'lsin. Faktlar: [F32, F33, F34, F35]. Ikkala filialning kirish qismini kun yorug'ida suratga oling, peshtaxta va ish vaqti yozuvi ko'rinsin. Manzil xaritasi va ish vaqtini rasm ostiga qo'shing.\n— Dalil: F32 · F33 · F34 · F35 | Vaqt: taxminiy | Tasdiq: autopilot",
+     "metric": "≥1570 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": false,
+     "slot": 6,
+     "timeSource": "prior",
+     "hookType": "local",
+     "focus": [
+      "F32",
+      "F34"
+     ],
+     "factIds": [
+      "F32",
+      "F33",
+      "F34",
+      "F35"
+     ],
+     "approvalReasons": [],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3f729a_6",
+     "src": "src_3f729a_6",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1021,
+       "mid": 1570,
+       "high": 2120
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "baseline",
+      "display": "≈1 570 ko'rish (1 021–2 120)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 6,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 2
+      },
+      "machine_made": false,
+      "worst": "Yo'lga chiqishdan oldin savolingiz bo'lsa, yozing"
+     }
+    },
+    {
+     "day": "2026-12-01",
+     "time": "08:40",
+     "goal": "trust",
+     "pillar": "Filiallarimiz: manzil, soat, ichkarida nima bor",
+     "format": "photo",
+     "hook": "Sergeli va Farhod bozori: Foggi yaqin filialingiz qaysi?",
+     "cta": "Qaysi filial yaqin bo'lsa, shu haqda yozing: https://t.me/hackathonproj1_bot?start=src_3f729a_7",
+     "brief": "Angle: ona uchun bolalar kiyimini qayerdan olish mumkinligi, yaqin filialni tez topish. Facts: [F36, F24]. Photograph at the business: Sergeli filiali va Farhod bozori filiali kirish eshigi va peshtaxta, kunduzi, telefon bilan, haqiqiy suratlar.\n— Dalil: F36 · F24 | Vaqt: taxminiy | Tasdiq: da'vo",
+     "metric": "≥1570 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 7,
+     "timeSource": "prior",
+     "hookType": "local",
+     "focus": [
+      "F36",
+      "F24"
+     ],
+     "factIds": [
+      "F36",
+      "F24"
+     ],
+     "approvalReasons": [
+      "da'vo"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3f729a_7",
+     "src": "src_3f729a_7",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1021,
+       "mid": 1570,
+       "high": 2120
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "baseline",
+      "display": "≈1 570 ko'rish (1 021–2 120)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 7,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 1,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Foggi yaqin filialingiz qaysi?"
+     }
+    },
+    {
+     "day": "2026-11-30",
+     "time": "12:40",
+     "goal": "trust",
+     "pillar": "Filiallarimiz: manzil, soat, ichkarida nima bor",
+     "format": "photo",
+     "hook": "Sergeli yoki Yunusobod: Foggi filiali sizga yaqinmi?",
+     "cta": "Qaysi filialga borishni rejalayotganingizni yozing: https://t.me/hackathonproj1_bot?start=src_3f729a_8",
+     "brief": "Angle: ona uchun do'konni topish qulayligi, kerakli kiyim va aksessuar qayerda borligi. Facts: [F26, F30]. Photograph at the business: Sergeli filiali va Yunusobod filiali peshtaxtasi va javonlari, har biri alohida kadrda, haqiqiy suratlar.\n— Dalil: F26 · F30 | Vaqt: taxminiy | Tasdiq: autopilot",
+     "metric": "≥1570 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": false,
+     "slot": 8,
+     "timeSource": "prior",
+     "hookType": "local",
+     "focus": [
+      "F26",
+      "F30"
+     ],
+     "factIds": [
+      "F26",
+      "F30"
+     ],
+     "approvalReasons": [],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3f729a_8",
+     "src": "src_3f729a_8",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1021,
+       "mid": 1570,
+       "high": 2120
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "baseline",
+      "display": "≈1 570 ko'rish (1 021–2 120)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 8,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 1,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "rejalayotganingizni yozing"
+     }
+    },
+    {
+     "day": "2026-12-01",
+     "time": "20:40",
+     "goal": "trust",
+     "pillar": "Filiallarimiz: manzil, soat, ichkarida nima bor",
+     "format": "photo",
+     "hook": "Har kuni 9:00 dan 22:00 gacha: Yunusobod va Farhod bozori",
+     "cta": "Qaysi filialga kelishingizni yozing, javob beramiz: https://t.me/hackathonproj1_bot?start=src_3f729a_9",
+     "brief": "Angle: ish vaqti noqulay bo'lgan onalarga kechqurun ham kelish mumkinligini ko'rsatish. Facts: [F32, F34, F33, F35]. Photograph at the business: kechqurun ochiq turgan Foggi Yunusobod filiali va Foggi Farhod bozori filiali kirish qismi, vitrina yoritilgan holda, haqiqiy suratlar.\n— Dalil: F32 · F34 · F33 · F35 | Vaqt: taxminiy | Tasdiq: autopilot",
+     "metric": "≥1570 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 9,
+     "timeSource": "prior",
+     "hookType": "number",
+     "focus": [
+      "F32",
+      "F34"
+     ],
+     "factIds": [
+      "F32",
+      "F34",
+      "F33",
+      "F35"
+     ],
+     "approvalReasons": [
+      "critic:HOOK"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3f729a_9",
+     "src": "src_3f729a_9",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1021,
+       "mid": 1570,
+       "high": 2120
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "baseline",
+      "display": "≈1 570 ko'rish (1 021–2 120)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 9,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": false,
+      "worst": "Qaysi filialga kelishingizni yozing"
+     }
+    },
+    {
+     "day": "2026-12-01",
+     "time": "08:40",
+     "goal": "trust",
+     "pillar": "Filiallarimiz: manzil, soat, ichkarida nima bor",
+     "format": "photo",
+     "hook": "Sergeli filiali har kuni 9:00 dan 22:00 gacha ochiq",
+     "cta": "Kelishdan oldin savolingiz bo'lsa, bu yerga yozing: https://t.me/hackathonproj1_bot?start=src_3f729a_10",
+     "brief": "Sergeli yaqinida yashaydigan onalar do'konga qachon va qayerga borishni bilmaydi; hook va postda filial manzili va ish vaqtini ko'rsating. Faktlar: [F36, F37, F24]. Do'kon kirish eshigini tashqaridan, ichidagi javonlarni va savdo zalini telefonda o'zingiz suratga oling, stok rasm ishlatmang. Filial nomi va ish vaqti kadrda ko'rinib tursin.\n— Dalil: F36 · F37 · F24 | Vaqt: taxminiy | Tasdiq: autopilot",
+     "metric": "≥1570 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 10,
+     "timeSource": "prior",
+     "hookType": "local",
+     "focus": [
+      "F36",
+      "F24"
+     ],
+     "factIds": [
+      "F36",
+      "F37",
+      "F24"
+     ],
+     "approvalReasons": [
+      "critic:HOOK"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3f729a_10",
+     "src": "src_3f729a_10",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1021,
+       "mid": 1570,
+       "high": 2120
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "baseline",
+      "display": "≈1 570 ko'rish (1 021–2 120)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 10,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 3,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 2
+      },
+      "machine_made": false,
+      "worst": ""
+     }
+    }
+   ],
+   "metrics": [
+    {
+     "slot": 1,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 41,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 2,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 47,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 3,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 50,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 4,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 41,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 5,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 56,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 6,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 70,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 7,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 56,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 8,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 52,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 9,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 57,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 10,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 51,
+     "neuroHits": 0,
+     "humanScore": 100
+    }
+   ]
+  },
+  {
+   "handle": "ieltscenteruz",
+   "niche": "education",
+   "elapsedMs": 55102,
+   "pipelineMs": 33725,
+   "facts": 37,
+   "factList": [
+    {
+     "id": "F1",
+     "quote": "START DAY : 23.11.2026"
+    },
+    {
+     "id": "F2",
+     "quote": "🗓 𝘿𝘼𝙔𝙎: MON/WED/FRI\n🔜 𝙏𝙄𝙈𝙀 : 16:00 - 18:00\n⬇️𝘾𝙊𝙎𝙏 : 450.000"
+    },
+    {
+     "id": "F3",
+     "quote": "⬇️𝘾𝙊𝙎𝙏 : 450.000"
+    },
+    {
+     "id": "F4",
+     "quote": "FOTIMA KHAMIDOVNA"
+    },
+    {
+     "id": "F5",
+     "quote": "😎 +998981509707"
+    },
+    {
+     "id": "F6",
+     "quote": "😎 @theieltscenter"
+    },
+    {
+     "id": "F7",
+     "quote": "GAGARIN koʻchasi, SamDCHTI binosi (Eski Kooperativniy kollej )"
+    },
+    {
+     "id": "F8",
+     "quote": "Durdona 8.5 olishga va’da berdilar."
+    },
+    {
+     "id": "F9",
+     "quote": "8-sinf"
+    },
+    {
+     "id": "F10",
+     "quote": "O’qish davomiyligi 3 oy + 2hafta"
+    },
+    {
+     "id": "F11",
+     "quote": "Overall: 7.5"
+    },
+    {
+     "id": "F12",
+     "quote": "Listening: 9.0"
+    },
+    {
+     "id": "F13",
+     "quote": "Tutor: Parviz Ismatilloyev."
+    },
+    {
+     "id": "F14",
+     "quote": "📌17.11.2026☺️PRE-IELTS"
+    },
+    {
+     "id": "F15",
+     "quote": "📌18.11.2026 ☺️PRE-IELTS"
+    },
+    {
+     "id": "F16",
+     "quote": "🗓 𝘿𝘼𝙔𝙎: MON/WED/FRI\n🔜 𝙏𝙄𝙈𝙀 : 10:30 - 12:30"
+    },
+    {
+     "id": "F17",
+     "quote": "🗓 𝘿𝘼𝙔𝙎: TUE/THU/SAT\n🔜 𝙏𝙄𝙈𝙀 : 10:30 - 12:30"
+    },
+    {
+     "id": "F18",
+     "quote": "🔜 𝙏𝙄𝙈𝙀 : 14:00 - 16:00"
+    },
+    {
+     "id": "F19",
+     "quote": "⬇️𝘾𝙊𝙎𝙏 : 550.000"
+    },
+    {
+     "id": "F20",
+     "quote": "FIRDAVS BOLIQULOV"
+    },
+    {
+     "id": "F21",
+     "quote": "XISRAVBEK XISLATOVICH"
+    },
+    {
+     "id": "F22",
+     "quote": "⬇️𝘾𝙊𝙎𝙏 : 600.000"
+    },
+    {
+     "id": "F23",
+     "quote": "ALISHER YUSUPOV(🌌.🌌)"
+    },
+    {
+     "id": "F24",
+     "quote": "🔜 𝙏𝙄𝙈𝙀 : 18:00 - 20:00"
+    },
+    {
+     "id": "F25",
+     "quote": "GUNEL YUSUPOVA"
+    },
+    {
+     "id": "F26",
+     "quote": "🔜 𝙏𝙄𝙈𝙀 : 08:30 - 10:30"
+    },
+    {
+     "id": "F27",
+     "quote": "⬇️𝘾𝙊𝙎𝙏 : 450.000"
+    },
+    {
+     "id": "F28",
+     "quote": "RAHMATULLO SAFAROV"
+    },
+    {
+     "id": "F29",
+     "quote": "🔜 𝙏𝙄𝙈𝙀 : 8:30 - 10:30"
+    },
+    {
+     "id": "F30",
+     "quote": "⬇️𝘾𝙊𝙎𝙏 : 600.000"
+    },
+    {
+     "id": "F31",
+     "quote": "𝑷𝑨𝑹𝑽𝑰𝒁 𝑰𝑺𝑴𝑨𝑻𝑰𝑳𝑳𝑶𝒀𝑬𝑽"
+    },
+    {
+     "id": "F32",
+     "quote": "🏪 𝙏𝙄𝙈𝙀 : 16:00 - 18:00"
+    },
+    {
+     "id": "F33",
+     "quote": "➡️600.000so'm"
+    },
+    {
+     "id": "F34",
+     "quote": "✅START DAY : 12.11.2026"
+    },
+    {
+     "id": "F35",
+     "quote": "🔜 𝙏𝙄𝙈𝙀 : 16:00 - 18:00"
+    },
+    {
+     "id": "F36",
+     "quote": "⬇️𝘾𝙊𝙎𝙏 : 550.000"
+    },
+    {
+     "id": "F37",
+     "quote": "🔜 𝙏𝙄𝙈𝙀 : 14:00 - 16:00"
+    }
+   ],
+   "firedRules": [
+    "R.DECLINING",
+    "R.NEVER_ASKS",
+    "R.REPLICATE_WINNERS",
+    "R.CALENDAR",
+    "R.NOISE"
+   ],
+   "ownerQuestions": 1,
+   "positioningHasFact": true,
+   "strategyOk": true,
+   "rationale": 5,
+   "items": [
+    {
+     "day": "2026-11-25",
+     "time": "08:40",
+     "goal": "trust",
+     "pillar": "O'qituvchilar va o'quvchi natijalari",
+     "format": "photo",
+     "hook": "Listening: 9.0, Overall: 7.5 — o‘quvchimizning natijasi",
+     "cta": "Shunday natijaga qanday borilganini bilmoqchi bo‘lsangiz, bizga yozing: https://t.me/hackathonproj1_bot?start=src_e3ed83_1",
+     "brief": "Burchak: ota-ona va o‘quvchi natija real darsdan chiqqanini ko‘rsin, bu yangi yil oldi guruhga yozilish haqida o‘ylayotganlar uchun ishonch. Faktlar: [F11, F12]. Markazda suratga oling: o‘quvchining sertifikati (roziligi bilan) yoki o‘quv xonasida stol ustida natija varag‘i; ikkinchi kadr: darsdan oldin sinf xonasi. Sotuv gapisiz, faqat natija va ishonch.\n— Dalil: S.calendar.ny-booking · F11 · F12 | Vaqt: taxminiy | Tasdiq: bayram, da'vo",
+     "metric": "≥947 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 1,
+     "timeSource": "prior",
+     "hookType": "number",
+     "focus": [
+      "F11",
+      "F12"
+     ],
+     "factIds": [
+      "F11",
+      "F12"
+     ],
+     "approvalReasons": [
+      "bayram",
+      "da'vo"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_e3ed83_1",
+     "src": "src_e3ed83_1",
+     "calendarEvent": "Yangi yil bronlari mavsumi",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 947,
+       "mid": 1024,
+       "high": 1165
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.07-10",
+       "S.formatLift.photo",
+       "S.weekdayLift.Wed"
+      ],
+      "confidence": "data",
+      "display": "≈1 024 ko'rish (947–1 165)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 1,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 3
+      },
+      "machine_made": false,
+      "worst": "Shunday natijaga qanday borilganini bilmoqchi bo‘lsangiz"
+     }
+    },
+    {
+     "day": "2026-11-26",
+     "time": "20:40",
+     "goal": "sale",
+     "pillar": "Ochiladigan guruhlar: kun, vaqt, narx",
+     "format": "photo",
+     "hook": "IELTS kursi: oyiga 450.000 yoki 550.000, guruhga qarab",
+     "cta": "Qaysi guruhga qancha ekanini so‘rang, egasi o‘zi javob beradi: https://t.me/hackathonproj1_bot?start=src_e3ed83_2",
+     "brief": "Burchak: o‘quvchi narxni oldindan bilishni xohlaydi, shuning uchun hook'da ikkala narx ochiq aytiladi va guruhga qarab farqi aytiladi. Faktlar: [F3, F19]; qaysi guruhga qaysi narx tegishli ekanini egasidan aniqlang, postda guruhni o‘zi yozmasdan 'guruhga qarab' deb qoldiring. Markazda suratga oling: dars jadvali yozilgan doska yoki varaq, o‘qituvchi stoli, o‘quv xonasi. Muddat yoki joy cheklovi haqida F faktida ma'lumot yo‘q, shoshiltirmang.\n— Dalil: F3 · F19 | Vaqt: taxminiy | Tasdiq: narx",
+     "metric": "≥9 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 2,
+     "timeSource": "prior",
+     "hookType": "price",
+     "focus": [
+      "F3",
+      "F19"
+     ],
+     "factIds": [
+      "F3",
+      "F19"
+     ],
+     "approvalReasons": [
+      "narx"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_e3ed83_2",
+     "src": "src_e3ed83_2",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 807,
+       "mid": 873,
+       "high": 993
+      },
+      "starts": {
+       "low": 3,
+       "high": 13,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.19-22",
+       "S.formatLift.photo",
+       "S.weekdayLift.Thu"
+      ],
+      "confidence": "data",
+      "display": "≈873 ko'rish (807–993) · 3–13 botga o'tish (taxminiy)"
+     },
+     "critic": "fixed",
+     "fails": [],
+     "judge": {
+      "slot": 2,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 2,
+       "NATURAL": 1,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "egasi o‘zi javob beradi"
+     }
+    },
+    {
+     "day": "2026-11-27",
+     "time": "14:40",
+     "goal": "trust",
+     "pillar": "O'qituvchilar va o'quvchi natijalari",
+     "format": "photo",
+     "hook": "8-sinf o'quvchisi uchun IELTS: o'qish davomiyligi 3 oy + 2 hafta",
+     "cta": "Bolangiz darajasini bilmoqchimisiz? Bizga yozing: https://t.me/hackathonproj1_bot?start=src_e3ed83_3",
+     "brief": "Burchak: ota-onalar farzandi 8-sinfda IELTS ga erta boshlasa bo'ladimi, va kurs qancha vaqt davom etishini bilmaydi. Faktlar: [F9, F10]. Markazda suratga oling: dars xonasi, o'quvchilar kompyuter yoki daftar bilan o'tirgan holat (ruxsat bilan), doskadagi dars rejasi. Stock rasm yo'q.\n— Dalil: F9 · F10 | Vaqt: taxminiy | Tasdiq: autopilot | exp:hour",
+     "metric": "≥947 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": false,
+     "slot": 3,
+     "timeSource": "prior",
+     "exp": "hour",
+     "hookType": "number",
+     "focus": [
+      "F9",
+      "F10"
+     ],
+     "factIds": [
+      "F9",
+      "F10"
+     ],
+     "approvalReasons": [],
+     "link": "https://t.me/hackathonproj1_bot?start=src_e3ed83_3",
+     "src": "src_e3ed83_3",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 852,
+       "mid": 922,
+       "high": 1049
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.13-16",
+       "S.formatLift.photo",
+       "S.weekdayLift.Fri"
+      ],
+      "confidence": "data",
+      "display": "≈922 ko'rish (852–1 049)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 3,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 2,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "8-sinf o'quvchisi uchun IELTS: o'qish davomiyligi 3 oy + 2 hafta"
+     }
+    },
+    {
+     "day": "2026-11-28",
+     "time": "20:40",
+     "goal": "sale",
+     "pillar": "Ochiladigan guruhlar: kun, vaqt, narx",
+     "format": "photo",
+     "hook": "IELTS kursi qancha turadi? Guruhga qarab narx 450.000 yoki 600.000",
+     "cta": "Qaysi guruh sizga mos, so'rang: https://t.me/hackathonproj1_bot?start=src_e3ed83_4",
+     "brief": "Egasidan ma'lumot kerak: 450.000  , 600.000 — number 450.000  , 600.000 does not match any cited id\n— Dalil: F27 · F22 · F7 | Vaqt: taxminiy | Tasdiq: narx, critic:GROUNDED",
+     "metric": "≥9 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 4,
+     "timeSource": "prior",
+     "hookType": "question",
+     "focus": [
+      "F22",
+      "F27"
+     ],
+     "factIds": [
+      "F27",
+      "F22",
+      "F7"
+     ],
+     "approvalReasons": [
+      "narx",
+      "critic:GROUNDED",
+      "critic:HOOK"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_e3ed83_4",
+     "src": "src_e3ed83_4",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 788,
+       "mid": 852,
+       "high": 970
+      },
+      "starts": {
+       "low": 3,
+       "high": 13,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.19-22",
+       "S.formatLift.photo",
+       "S.weekdayLift.Sat"
+      ],
+      "confidence": "data",
+      "display": "≈852 ko'rish (788–970) · 3–13 botga o'tish (taxminiy)"
+     },
+     "critic": "owner_input",
+     "fails": [
+      {
+       "check": "GROUNDED",
+       "quote": "450.000  , 600.000",
+       "reason": "number 450.000  , 600.000 does not match any cited id"
+      }
+     ],
+     "judge": {
+      "slot": 4,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 1,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "number 450.000  , 600.000 does not match any cited id"
+     }
+    },
+    {
+     "day": "2026-11-29",
+     "time": "12:40",
+     "goal": "trust",
+     "pillar": "O'qituvchilar va o'quvchi natijalari",
+     "format": "photo",
+     "hook": "Tutor Parviz Ismatilloyev dars jarayonini qanday olib borishini ko'rsating",
+     "cta": "Tutor haqida savolingiz bo'lsa, shu yerda so'rang: https://t.me/hackathonproj1_bot?start=src_e3ed83_5",
+     "brief": "Angle: ota-ona va o'quvchi darsni kim o'tishini oldindan bilishni xohlaydi, shuning uchun tutor bilan tanishtiramiz. Facts: [F4, F13]. Photograph at the center: Parviz Ismatilloyev doska oldida dars paytida, Fotima Khamidovna bilan birga ish stolida; real o'quvchilarsiz yoki ularning roziligi bilan, 2-3 ta kadr.\n— Dalil: F4 · F13 | Vaqt: taxminiy | Tasdiq: autopilot",
+     "metric": "≥947 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": false,
+     "slot": 5,
+     "timeSource": "prior",
+     "hookType": "behind_scenes",
+     "focus": [
+      "F4",
+      "F13"
+     ],
+     "factIds": [
+      "F4",
+      "F13"
+     ],
+     "approvalReasons": [],
+     "link": "https://t.me/hackathonproj1_bot?start=src_e3ed83_5",
+     "src": "src_e3ed83_5",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 868,
+       "mid": 939,
+       "high": 1069
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.10-13",
+       "S.formatLift.photo",
+       "S.weekdayLift.Sun"
+      ],
+      "confidence": "data",
+      "display": "≈939 ko'rish (868–1 069)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 5,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 1,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "dars jarayonini qanday olib borishini ko'rsating"
+     }
+    },
+    {
+     "day": "2026-11-30",
+     "time": "08:40",
+     "goal": "sale",
+     "pillar": "Ochiladigan guruhlar: kun, vaqt, narx",
+     "format": "photo",
+     "hook": "IELTS kursi: oyiga 600.000 so'm, Parviz Ismatilloyev bilan",
+     "cta": "Joy bormi, so'rang: https://t.me/hackathonproj1_bot?start=src_e3ed83_6",
+     "brief": "Angle: kurs narxini aniq bilmagan o'quvchi ikkilanadi, shuning uchun narxni ochiq aytamiz. Facts: [F30, F33, F31]. Photograph at the center: sinf xonasi, stollar va doska, tutor Parviz Ismatilloyev ish joyida; narx yozilgan oddiy varaq bilan bitta kadr.\n— Dalil: F30 · F33 · F31 | Vaqt: taxminiy | Tasdiq: narx",
+     "metric": "≥9 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 6,
+     "timeSource": "prior",
+     "hookType": "price",
+     "focus": [
+      "F30",
+      "F33"
+     ],
+     "factIds": [
+      "F30",
+      "F33",
+      "F31"
+     ],
+     "approvalReasons": [
+      "narx"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_e3ed83_6",
+     "src": "src_e3ed83_6",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 937,
+       "mid": 1013,
+       "high": 1153
+      },
+      "starts": {
+       "low": 3,
+       "high": 15,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.07-10",
+       "S.formatLift.photo",
+       "S.weekdayLift.Mon"
+      ],
+      "confidence": "data",
+      "display": "≈1 013 ko'rish (937–1 153) · 3–15 botga o'tish (taxminiy)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 6,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 2,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Joy bormi, so'rang"
+     }
+    },
+    {
+     "day": "2026-12-01",
+     "time": "08:40",
+     "goal": "reach",
+     "pillar": "IELTS bo'yicha foydali mashqlar va savol-javob",
+     "format": "video",
+     "hook": "IELTS ustozini qanday tanlash kerak? Firdavs Boliqulov va Xisravbek Xislatovich",
+     "cta": "Kimning darsi sizga mos? Saqlab qo'ying yoki do'stingizga yuboring.",
+     "brief": "Burchak: IELTSga tayyorlanayotgan o'quvchi ustozini bilmay turib guruh tanlashga qiynaladi. Faktlar: [F20, F21]. Markazda telefonda qisqa video: 1) sinf eshigi va ustoz ismlari yozilgan jadval; 2) Firdavs Boliqulov dars paytida doskada tushuntirayotgani (ruxsat bilan); 3) Xisravbek Xislatovich o'quvchi uy vazifasini tekshirayotgani. Stock rasm yo'q, faqat real markaz.\n— Dalil: F20 · F21 | Vaqt: taxminiy | Tasdiq: video",
+     "metric": "≥1136 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 7,
+     "timeSource": "prior",
+     "hookType": "question",
+     "focus": [
+      "F20",
+      "F21"
+     ],
+     "factIds": [
+      "F20",
+      "F21"
+     ],
+     "approvalReasons": [
+      "video"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 896,
+       "mid": 969,
+       "high": 1102
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.07-10",
+       "S.weekdayLift.Tue"
+      ],
+      "confidence": "data",
+      "display": "≈969 ko'rish (896–1 102)"
+     },
+     "critic": "fixed",
+     "fails": [],
+     "judge": {
+      "slot": 7,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 1,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Saqlab qo'ying yoki do'stingizga yuboring."
+     }
+    },
+    {
+     "day": "2026-12-01",
+     "time": "12:40",
+     "goal": "reach",
+     "pillar": "IELTS bo'yicha foydali mashqlar va savol-javob",
+     "format": "video",
+     "hook": "Gunel Yusupova va Alisher Yusupov: IELTS Center ustozlari bilan tanishing",
+     "cta": "Ustozingizni tanlashda yordam bo'lsa, do'stingizga yuboring.",
+     "brief": "Burchak: ota-ona va o'quvchi ustoz kimligini ko'rib, ishonch hosil qilishni xohlaydi. Faktlar: [F23, F25]. Telefonda qisqa video: 1) markaz kirishi, Gagarin ko'chasi tomondan; 2) Gunel Yusupova sinfda o'zini tanishtiradi (ruxsat bilan); 3) Alisher Yusupov o'quvchilar bilan dars oldidan suhbatlashadi. Faqat real markazda suratga oling.\n— Dalil: F23 · F25 | Vaqt: taxminiy | Tasdiq: video",
+     "metric": "≥1136 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 8,
+     "timeSource": "prior",
+     "hookType": "product_spotlight",
+     "focus": [
+      "F23",
+      "F25"
+     ],
+     "factIds": [
+      "F23",
+      "F25"
+     ],
+     "approvalReasons": [
+      "video"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 884,
+       "mid": 956,
+       "high": 1088
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.10-13",
+       "S.weekdayLift.Tue"
+      ],
+      "confidence": "data",
+      "display": "≈956 ko'rish (884–1 088)"
+     },
+     "critic": "fixed",
+     "fails": [],
+     "judge": {
+      "slot": 8,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 1,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 1
+      },
+      "machine_made": true,
+      "worst": "Ustozingizni tanlashda yordam bo'lsa, do'stingizga yuboring."
+     }
+    }
+   ],
+   "metrics": [
+    {
+     "slot": 1,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 55,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 2,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 54,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 3,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 64,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 4,
+     "critic": "owner_input",
+     "hardFails": 1,
+     "emptyHook": false,
+     "hookLen": 66,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 5,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 74,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 6,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 58,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 7,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 79,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 8,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 73,
+     "neuroHits": 0,
+     "humanScore": 100
+    }
+   ]
+  },
+  {
+   "handle": "imanshopuzb",
+   "niche": "electronics",
+   "elapsedMs": 61446,
+   "pipelineMs": 46154,
+   "facts": 29,
+   "factList": [
+    {
+     "id": "F1",
+     "quote": "☁️ 128Gb"
+    },
+    {
+     "id": "F2",
+     "quote": "💰 355$"
+    },
+    {
+     "id": "F3",
+     "quote": "🔋 89$"
+    },
+    {
+     "id": "F4",
+     "quote": "🔋 96"
+    },
+    {
+     "id": "F5",
+     "quote": "☁️ 128Gb"
+    },
+    {
+     "id": "F6",
+     "quote": "💰 555$"
+    },
+    {
+     "id": "F7",
+     "quote": "🔋 91"
+    },
+    {
+     "id": "F8",
+     "quote": "☁️ 128Gb"
+    },
+    {
+     "id": "F9",
+     "quote": "💰 255$"
+    },
+    {
+     "id": "F10",
+     "quote": "🔋 92%"
+    },
+    {
+     "id": "F11",
+     "quote": "☁️ 256Gb"
+    },
+    {
+     "id": "F12",
+     "quote": "💰 630$"
+    },
+    {
+     "id": "F13",
+     "quote": "🔋 78%"
+    },
+    {
+     "id": "F14",
+     "quote": "☁️ 256Gb"
+    },
+    {
+     "id": "F15",
+     "quote": "💰 525$"
+    },
+    {
+     "id": "F16",
+     "quote": "🔋 81%"
+    },
+    {
+     "id": "F17",
+     "quote": "💰 225$"
+    },
+    {
+     "id": "F18",
+     "quote": "🔋 100%"
+    },
+    {
+     "id": "F19",
+     "quote": "💰 275$"
+    },
+    {
+     "id": "F20",
+     "quote": "☁️ 128Gb"
+    },
+    {
+     "id": "F21",
+     "quote": "💰 445$"
+    },
+    {
+     "id": "F22",
+     "quote": "🔋 93%"
+    },
+    {
+     "id": "F23",
+     "quote": "🔋 86%"
+    },
+    {
+     "id": "F24",
+     "quote": "Do’konimizdan 30 kungacha kafolat"
+    },
+    {
+     "id": "F25",
+     "quote": "3  oydan  24  oygacha bo’lib to’lash"
+    },
+    {
+     "id": "F26",
+     "quote": "O’zbekiston bo’ylab yetkazib berish mutlaqo BEPUL"
+    },
+    {
+     "id": "F27",
+     "quote": "+998500091606"
+    },
+    {
+     "id": "F28",
+     "quote": "Kichik yoshdagi mijozlarimiz uchun Planshetlarimiz keragan"
+    },
+    {
+     "id": "F29",
+     "quote": "Narxlari anrzon ishlashlari zo’r"
+    }
+   ],
+   "firedRules": [
+    "R.LOW_REACH",
+    "R.DEAD_ENDS",
+    "R.TRUST_GAP",
+    "R.CALENDAR"
+   ],
+   "ownerQuestions": 1,
+   "positioningHasFact": true,
+   "strategyOk": true,
+   "rationale": 3,
+   "items": [
+    {
+     "day": "2026-11-25",
+     "time": "08:40",
+     "goal": "trust",
+     "pillar": "Kafolat, bo'lib to'lash va yetkazib berish qanday ishlaydi",
+     "format": "photo",
+     "hook": "Telefon tanlashda savol bo'lsa, to'g'ridan-to'g'ri egasiga yozing",
+     "cta": "Savolingizni shu yerda yozing: https://t.me/hackathonproj1_bot?start=src_772985_1",
+     "brief": "Angle: xaridor telefonni olishdan oldin kimdan so'rashni bilishni xohlaydi; faqat ishonch posti, sotuv va yetkazish va'dasisiz, Konstitutsiya kuni bilan bog'lamang. Facts: [F27]. Photograph at the shop: egasi stol ortida telefonni tekshirayotgani va telefon raqami yozilgan vizitka yoki stol. Post matniga +998500091606 raqamini yozing.\n— Dalil: S.calendar.constitution · F27 | Vaqt: taxminiy | Tasdiq: bayram",
+     "metric": "≥240 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 1,
+     "timeSource": "prior",
+     "hookType": "behind_scenes",
+     "focus": [
+      "F27",
+      "F26"
+     ],
+     "factIds": [
+      "F27"
+     ],
+     "approvalReasons": [
+      "bayram"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_772985_1",
+     "src": "src_772985_1",
+     "calendarEvent": "Konstitutsiya kuni",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 225,
+       "mid": 240,
+       "high": 262
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "data",
+      "display": "≈240 ko'rish (225–262)"
+     },
+     "critic": "fixed",
+     "fails": [],
+     "judge": {
+      "slot": 1,
+      "scores": {
+       "SPECIFIC": 0,
+       "GROUNDED": 2,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "to'g'ridan-to'g'ri egasiga yozing"
+     }
+    },
+    {
+     "day": "2026-11-26",
+     "time": "12:40",
+     "goal": "sale",
+     "pillar": "Narxi ochiq telefon taklifi",
+     "format": "photo",
+     "hook": "iPhone — 355$",
+     "cta": "Narx va holat haqida so'rang: https://t.me/hackathonproj1_bot?start=src_772985_2",
+     "brief": "Angle: xaridor arzon va tekshirilgan telefon qidiradi, narxni darrov ko'rishni xohlaydi. Facts: [F2, F6]. F2 narxi 355$ asosiy mahsulot; F6 555$ qimmatroq variant sifatida qisqa tilga olinadi. Photograph at the shop: telefon ekrani va orqa tomoni yorug' joyda, batareya holati ko'rsatilgan sozlamalar ekrani yonida.\n— Dalil: F2 · F6 | Vaqt: taxminiy | Tasdiq: narx, critic:HONESTY_CATEGORY",
+     "metric": "≥3 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 2,
+     "timeSource": "prior",
+     "hookType": "price",
+     "focus": [
+      "F2",
+      "F6"
+     ],
+     "factIds": [
+      "F2",
+      "F6"
+     ],
+     "approvalReasons": [
+      "narx",
+      "critic:HONESTY_CATEGORY"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_772985_2",
+     "src": "src_772985_2",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 226,
+       "mid": 241,
+       "high": 263
+      },
+      "starts": {
+       "low": 1,
+       "high": 4,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.10-13"
+      ],
+      "confidence": "data",
+      "display": "≈241 ko'rish (226–263) · 1–4 botga o'tish (taxminiy)"
+     },
+     "critic": "owner_input",
+     "fails": [
+      {
+       "check": "HONESTY_CATEGORY",
+       "quote": "arzon va tekshirilgan telefon",
+       "reason": "Brief claims the phone is \"tekshirilgan\" (checked) and \"arzon\" (cheap), but no listed fact (F2, F6) supports a verification or a price comparison, so the claim is unsupported."
+      }
+     ]
+    },
+    {
+     "day": "2026-11-27",
+     "time": "20:40",
+     "goal": "trust",
+     "pillar": "Kafolat, bo'lib to'lash va yetkazib berish qanday ishlaydi",
+     "format": "photo",
+     "hook": "Batareya holati 96 — telefon sozlamalardagi raqam bilan",
+     "cta": "Qaysi telefon qiziq? Yozing: https://t.me/hackathonproj1_bot?start=src_772985_3",
+     "brief": "Angle: xaridor ishlatilgan telefonning batareyasi qanchalik eskirganidan qo'rqadi. Facts: [F3, F4]. F4 dagi batareya ko'rsatkichi 96 ni sozlamalar ekranidan ko'rsating; F3 dagi 89$ ning ma'nosi aniq emas, shuning uchun uni hookda ishlatmang. Photograph at the shop: sozlamalardagi batareya holati ekrani yaqin planda, telefon qo'lda.\n— Dalil: F3 · F4 | Vaqt: taxminiy | Tasdiq: autopilot | exp:hour",
+     "metric": "≥240 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": false,
+     "slot": 3,
+     "timeSource": "prior",
+     "exp": "hour",
+     "hookType": "number",
+     "focus": [
+      "F3",
+      "F4"
+     ],
+     "factIds": [
+      "F3",
+      "F4"
+     ],
+     "approvalReasons": [],
+     "link": "https://t.me/hackathonproj1_bot?start=src_772985_3",
+     "src": "src_772985_3",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 225,
+       "mid": 240,
+       "high": 262
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "data",
+      "display": "≈240 ko'rish (225–262)"
+     },
+     "critic": "fixed",
+     "fails": []
+    },
+    {
+     "day": "2026-11-28",
+     "time": "08:40",
+     "goal": "sale",
+     "pillar": "Narxi ochiq telefon taklifi",
+     "format": "photo",
+     "hook": "128Gb xotirali telefon — 255$, 256Gb xotirali — 630$",
+     "cta": "Qaysi biri mos? Yozing, egasi o'zi javob beradi: https://t.me/hackathonproj1_bot?start=src_772985_4",
+     "brief": "Narxni birinchi qatorlarda ko'rsatadigan sotuv posti: xaridor 128Gb va 256Gb orasidagi narx farqini bir qarashda ko'rishi kerak. Narxlar 128Gb uchun 255$ [F8, F9], 256Gb uchun 630$ [F11, F12]. Egasi postdan oldin qaysi model qaysi narxda ekanini tekshirsin, modelni nomi bilan yozing. Suratga oling: do'konda ikkala telefonni yonma-yon stolda, ekranda batareya holati ochiq, narx yozilgan qog'oz yonida.\n— Dalil: F8 · F9 · F11 · F12 | Vaqt: taxminiy | Tasdiq: narx",
+     "metric": "≥3 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 4,
+     "timeSource": "prior",
+     "hookType": "price",
+     "focus": [
+      "F9",
+      "F12"
+     ],
+     "factIds": [
+      "F8",
+      "F9",
+      "F11",
+      "F12"
+     ],
+     "approvalReasons": [
+      "narx"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_772985_4",
+     "src": "src_772985_4",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 225,
+       "mid": 240,
+       "high": 262
+      },
+      "starts": {
+       "low": 1,
+       "high": 4,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews"
+      ],
+      "confidence": "data",
+      "display": "≈240 ko'rish (225–262) · 1–4 botga o'tish (taxminiy)"
+     },
+     "critic": "passed",
+     "fails": []
+    },
+    {
+     "day": "2026-11-29",
+     "time": "12:40",
+     "goal": "reach",
+     "pillar": "Batareya holati bo'yicha telefonlar tanlovi",
+     "format": "video",
+     "hook": "Kichik yoshdagi mijozlar uchun planshetlar do'konimizda bor",
+     "cta": "Planshet qidirayotgan ota-onaga yuboring yoki saqlab qo'ying.",
+     "brief": "Bolasiga planshet qidirayotgan ota-onaga qaratilgan: do'konda kichik yoshdagi mijozlar uchun planshetlar bor [F28]. Egasi planshetlar haqida o'zi aytgan gapni takrorlaydi: narxi arzon va yaxshi ishlaydi [F29]. Aniq narx yo'q, shuning uchun raqam yozmang. Telefonda qisqa video, 3 qadam: 1) do'kondagi planshetlar javoni umumiy planda; 2) egasi bitta planshetni qo'liga olib yoqadi; 3) ekranda oddiy ilova ochiladi.\n— Dalil: F28 · F29 | Vaqt: taxminiy | Tasdiq: video, critic:HOOK",
+     "metric": "≥287 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 5,
+     "timeSource": "prior",
+     "hookType": "product_spotlight",
+     "focus": [
+      "F28",
+      "F29"
+     ],
+     "factIds": [
+      "F28",
+      "F29"
+     ],
+     "approvalReasons": [
+      "video",
+      "critic:HOOK"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 236,
+       "mid": 252,
+       "high": 276
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.10-13",
+       "S.formatLift.video"
+      ],
+      "confidence": "data",
+      "display": "≈252 ko'rish (236–276)"
+     },
+     "critic": "owner_input",
+     "fails": [
+      {
+       "check": "HOOK",
+       "quote": "Kichik yoshdagi mijozlar uchun planshetlar do'konimizda bor",
+       "reason": "The hook states only that tablets exist in the shop. It has no concrete detail such as a model, count, or price, so it is not concrete."
+      },
+      {
+       "check": "SWAP_TEST",
+       "quote": "Kichik yoshdagi mijozlar uchun planshetlar do'konimizda bor",
+       "reason": "The sentence could be posted unchanged by any electronics shop selling tablets, so it does not identify IMAN Shop."
+      }
+     ]
+    },
+    {
+     "day": "2026-11-30",
+     "time": "20:40",
+     "goal": "reach",
+     "pillar": "Batareya holati bo'yicha telefonlar tanlovi",
+     "format": "video",
+     "hook": "Bizdagi telefonlardan birida batareya 92% — ekranni ko'rsatamiz",
+     "cta": "Batareya haqida so'ragan do'stingizga yuboring.",
+     "brief": "Ishlatilgan telefon olishdan qo'rqadigan xaridor uchun og'riq: batareya holati noma'lum. Faqat bitta telefonda batareya 92% [F10], boshqasida 91 [F7] ko'rsatilgan; butun toifaga umumlashtirmang. Telefonda qisqa video, 3 qadam: 1) telefonni qo'lga olib sozlamalarni ochish; 2) batareya holati ekrani yaqin planda; 3) ikkinchi telefonda ham shu ekranni ko'rsatish. Kadrga haqiqiy do'kon fonini oling.\n— Dalil: F7 · F10 | Vaqt: taxminiy | Tasdiq: video, aksiya",
+     "metric": "≥287 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 6,
+     "timeSource": "prior",
+     "hookType": "number",
+     "focus": [
+      "F7",
+      "F10"
+     ],
+     "factIds": [
+      "F7",
+      "F10"
+     ],
+     "approvalReasons": [
+      "video",
+      "aksiya"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 241,
+       "mid": 257,
+       "high": 282
+      },
+      "basis": [
+       "S.medianViews",
+       "S.formatLift.video",
+       "S.weekdayLift.Mon"
+      ],
+      "confidence": "data",
+      "display": "≈257 ko'rish (241–282)"
+     },
+     "critic": "fixed",
+     "fails": []
+    },
+    {
+     "day": "2026-12-01",
+     "time": "08:40",
+     "goal": "reach",
+     "pillar": "Batareya holati bo'yicha telefonlar tanlovi",
+     "format": "photo",
+     "hook": "Batareya 78% va 81%: telefon olayotganda buni so'raysizmi?",
+     "cta": "Do'stingizga yuboring, telefon olishdan oldin batareyani so'rasin.",
+     "brief": "Burchak: telefon olayotgan odam batareya holatini ko'pincha so'ramaydi, shu og'riqqa javob beramiz. Faktlar: batareya 78% [F13] va 81% [F16]. Do'konda ikkala telefonning sozlamalaridagi batareya holati sahifasini ekran bilan birga suratga oling, yonma-yon qo'ying, soxta rasm ishlatmang.\n— Dalil: F13 · F16 | Vaqt: taxminiy | Tasdiq: aksiya",
+     "metric": "≥287 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 7,
+     "timeSource": "prior",
+     "hookType": "number",
+     "focus": [
+      "F13",
+      "F16"
+     ],
+     "factIds": [
+      "F13",
+      "F16"
+     ],
+     "approvalReasons": [
+      "aksiya"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 226,
+       "mid": 241,
+       "high": 263
+      },
+      "basis": [
+       "S.medianViews",
+       "S.weekdayLift.Tue"
+      ],
+      "confidence": "data",
+      "display": "≈241 ko'rish (226–263)"
+     },
+     "critic": "passed",
+     "fails": []
+    },
+    {
+     "day": "2026-11-30",
+     "time": "12:40",
+     "goal": "trust",
+     "pillar": "Kafolat, bo'lib to'lash va yetkazib berish qanday ishlaydi",
+     "format": "photo",
+     "hook": "Batareya 100% va 93%: ekranda ko'rganingizni o'zingiz tekshirasiz",
+     "cta": "Qaysi telefon qiziq? Egasiga yozing: https://t.me/hackathonproj1_bot?start=src_772985_8",
+     "brief": "Burchak: mijoz telefonning batareyasi haqiqatan qanday ekanini ko'rib ishonch hosil qilsin. Faktlar: batareya 100% [F18] va 93% [F22]. Do'kondagi telefonlarning batareya holati ekranini yaqin planda suratga oling, kadrda qo'l va telefon ko'rinsin, stok rasm yo'q.\n— Dalil: F18 · F22 | Vaqt: taxminiy | Tasdiq: aksiya, da'vo",
+     "metric": "≥240 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 8,
+     "timeSource": "prior",
+     "hookType": "number",
+     "focus": [
+      "F18",
+      "F22"
+     ],
+     "factIds": [
+      "F18",
+      "F22"
+     ],
+     "approvalReasons": [
+      "aksiya",
+      "da'vo",
+      "critic:CTA"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_772985_8",
+     "src": "src_772985_8",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 232,
+       "mid": 247,
+       "high": 270
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.10-13",
+       "S.weekdayLift.Mon"
+      ],
+      "confidence": "data",
+      "display": "≈247 ko'rish (232–270)"
+     },
+     "critic": "passed",
+     "fails": []
+    },
+    {
+     "day": "2026-12-01",
+     "time": "20:40",
+     "goal": "trust",
+     "pillar": "Kafolat, bo'lib to'lash va yetkazib berish qanday ishlaydi",
+     "format": "photo",
+     "hook": "Batareya 86% va do'kondan 30 kungacha kafolat",
+     "cta": "Kafolat shartlarini so'rang, egasi o'zi javob beradi: https://t.me/hackathonproj1_bot?start=src_772985_9",
+     "brief": "Burchak: mijoz sotib olgandan keyin nosoz chiqishidan qo'rqadi, kafolat shu qo'rquvga javob. Faktlar: batareya 86% [F23], do'kondan 30 kungacha kafolat [F24]. Telefonni va batareya holati ekranini suratga oling, yoniga do'konning kafolat berish jarayonini (qo'lda yozilgan daftar yoki chek) qo'shing, faqat haqiqiy hujjat.\n— Dalil: F23 · F24 | Vaqt: taxminiy | Tasdiq: aksiya, da'vo",
+     "metric": "≥240 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 9,
+     "timeSource": "prior",
+     "hookType": "number",
+     "focus": [
+      "F23",
+      "F24"
+     ],
+     "factIds": [
+      "F23",
+      "F24"
+     ],
+     "approvalReasons": [
+      "aksiya",
+      "da'vo"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_772985_9",
+     "src": "src_772985_9",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 226,
+       "mid": 241,
+       "high": 263
+      },
+      "basis": [
+       "S.medianViews",
+       "S.weekdayLift.Tue"
+      ],
+      "confidence": "data",
+      "display": "≈241 ko'rish (226–263)"
+     },
+     "critic": "passed",
+     "fails": []
+    },
+    {
+     "day": "2026-12-01",
+     "time": "08:40",
+     "goal": "trust",
+     "pillar": "Kafolat, bo'lib to'lash va yetkazib berish qanday ishlaydi",
+     "format": "photo",
+     "hook": "iPhone olmoqchimisiz? 3 oydan 24 oygacha bo'lib to'lash bor",
+     "cta": "Qaysi model sizga mos — yozing, o'zim hisoblab beraman: https://t.me/hackathonproj1_bot?start=src_772985_10",
+     "brief": "Pain: butun summani bir yo'la to'lay olmaydigan xaridor. Bo'lib to'lash shartini (3 oydan 24 oygacha) bosh gapga qo'ying. F3 dagi batareya raqami ($ belgisi bilan yozilgan, birligi noaniq) postga kiritilmasin: uni ishlatmang, batareya haqida raqamsiz gapiring yoki bu qismni olib tashlang. Do'konda stol ustiga bitta telefonni qo'yib, uning ekrani va batareya sozlamalari sahifasini yaqin planda suratga oling, stock rasm ishlatmang. [F25]\n— Dalil: F25 | Vaqt: taxminiy | Tasdiq: critic:SWAP_TEST",
+     "metric": "≥240 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 10,
+     "timeSource": "prior",
+     "hookType": "number",
+     "focus": [
+      "F25",
+      "F3"
+     ],
+     "factIds": [
+      "F25"
+     ],
+     "approvalReasons": [
+      "critic:SWAP_TEST"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_772985_10",
+     "src": "src_772985_10",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 226,
+       "mid": 241,
+       "high": 263
+      },
+      "basis": [
+       "S.medianViews",
+       "S.weekdayLift.Tue"
+      ],
+      "confidence": "data",
+      "display": "≈241 ko'rish (226–263)"
+     },
+     "critic": "owner_input",
+     "fails": [
+      {
+       "check": "SWAP_TEST",
+       "quote": "iPhone olmoqchimisiz? 3 oydan 24 oygacha bo'lib to'lash bor",
+       "reason": "Bo'lib to'lash muddati oralig'i va savol shakli har qanday elektronika do'koni postiga aynan shu holatda ko'chirilishi mumkin; do'konga xos aniq detal yo'q."
+      },
+      {
+       "check": "GOAL_FIT",
+       "quote": "iPhone olmoqchimisiz? 3 oydan 24 oygacha bo'lib to'lash bor",
+       "reason": "Goal 'trust', lekin hook sotib olish va bo'lib to'lash shartini oldinga suradi; ishonch yaratadigan element (kafolat, shaffoflik, tajriba) yo'q."
+      }
+     ]
+    }
+   ],
+   "metrics": [
+    {
+     "slot": 1,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 65,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 2,
+     "critic": "owner_input",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 13,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 3,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 55,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 4,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 52,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 5,
+     "critic": "owner_input",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 59,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 6,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 63,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 7,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 58,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 8,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 65,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 9,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 45,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 10,
+     "critic": "owner_input",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 59,
+     "neuroHits": 0,
+     "humanScore": 100
+    }
+   ]
+  },
+  {
+   "handle": "MebelSmart_uz",
+   "niche": "furniture",
+   "elapsedMs": 49263,
+   "pipelineMs": 27935,
+   "facts": 11,
+   "factList": [
+    {
+     "id": "F1",
+     "quote": "Zalingiz uchun qulay va sifatli ugalok."
+    },
+    {
+     "id": "F2",
+     "quote": "Razmeri — 2,60 × 1,60 m"
+    },
+    {
+     "id": "F3",
+     "quote": "Delfin mexanizmi"
+    },
+    {
+     "id": "F4",
+     "quote": "1,60 metrlik qismi sandiq vazifasini bajaradi"
+    },
+    {
+     "id": "F5",
+     "quote": "Moyshe Xitoy materiali ishlatilgan"
+    },
+    {
+     "id": "F6",
+     "quote": "Rossiya poroloni — 22 zichlik"
+    },
+    {
+     "id": "F7",
+     "quote": "Artiped prujina o‘rnatilgan"
+    },
+    {
+     "id": "F8",
+     "quote": "1 yillik kafolat"
+    },
+    {
+     "id": "F9",
+     "quote": "Eski narxi — 5 600 000 so‘m"
+    },
+    {
+     "id": "F10",
+     "quote": "Hozirgi narxi — 3 600 000 so‘m"
+    },
+    {
+     "id": "F11",
+     "quote": "+998 99 909 9"
+    }
+   ],
+   "firedRules": [
+    "R.LOW_REACH",
+    "R.OVERPOSTING",
+    "R.DECLINING",
+    "R.DEAD_ENDS",
+    "R.TRUST_GAP",
+    "R.CALENDAR"
+   ],
+   "ownerQuestions": 2,
+   "positioningHasFact": true,
+   "strategyOk": true,
+   "rationale": 4,
+   "items": [
+    {
+     "day": "2026-11-25",
+     "time": "08:40",
+     "goal": "trust",
+     "pillar": "Ugalok ichi: poroloni, prujina, kafolat",
+     "format": "photo",
+     "hook": "Ugalok haqida savolingiz bormi? Egasiga to'g'ridan-to'g'ri yozing",
+     "cta": "Savolingizni yozing, egasi o'zi javob beradi: https://t.me/hackathonproj1_bot?start=src_3fae82_1",
+     "brief": "Konstitutsiya kuni munosabati bilan sotuv so'zlarisiz, ishonch uchun post: mijoz ugalok haqida savolini egasiga to'g'ridan-to'g'ri bera oladi, telefon raqami ko'rsatiladi [F11]. Do'konda ugalokni yoniga telefon raqami yozilgan kartochka qo'yib suratga oling, haqiqiy joyda, stok rasm emas.\n— Dalil: S.calendar.constitution · F11 | Vaqt: taxminiy | Tasdiq: bayram",
+     "metric": "≥1035 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 1,
+     "timeSource": "prior",
+     "hookType": "question",
+     "focus": [
+      "F11"
+     ],
+     "factIds": [
+      "F11"
+     ],
+     "approvalReasons": [
+      "bayram"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3fae82_1",
+     "src": "src_3fae82_1",
+     "calendarEvent": "Konstitutsiya kuni",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1000,
+       "mid": 1053,
+       "high": 1147
+      },
+      "basis": [
+       "S.medianViews",
+       "S.formatLift.photo",
+       "S.weekdayLift.Wed"
+      ],
+      "confidence": "data",
+      "display": "≈1 053 ko'rish (1 000–1 147)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 1,
+      "scores": {
+       "SPECIFIC": 1,
+       "GROUNDED": 2,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Egasiga to'g'ridan-to'g'ri yozing"
+     }
+    },
+    {
+     "day": "2026-11-26",
+     "time": "12:40",
+     "goal": "sale",
+     "pillar": "Ugalok narxi va o'lchami",
+     "format": "photo",
+     "hook": "Ugalok: eski narxi 5 600 000 so'm, hozirgi narxi 3 600 000 so'm",
+     "cta": "Ugalok kerakmi? Yozing, egasi narx va qulayliklarini aytadi: https://t.me/hackathonproj1_bot?start=src_3fae82_2",
+     "brief": "Zal uchun ugalok narxi tushgani haqida; mijoz og'rig'i: qulay mebelni qimmatligi uchun tanlay olmaslik [F9, F10]. Do'konda ugalokni to'liq ochiq holatda, narx yozilgan qog'oz bilan birga suratga oling. Muddat yoki miqdor haqida ma'lumot yo'q, shuning uchun shoshirmang.\n— Dalil: F9 · F10 | Vaqt: taxminiy | Tasdiq: narx",
+     "metric": "≥10 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 2,
+     "timeSource": "prior",
+     "hookType": "price",
+     "focus": [
+      "F9",
+      "F10"
+     ],
+     "factIds": [
+      "F9",
+      "F10"
+     ],
+     "approvalReasons": [
+      "narx"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3fae82_2",
+     "src": "src_3fae82_2",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 999,
+       "mid": 1052,
+       "high": 1145
+      },
+      "starts": {
+       "low": 3,
+       "high": 16,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.10-13",
+       "S.formatLift.photo",
+       "S.weekdayLift.Thu"
+      ],
+      "confidence": "data",
+      "display": "≈1 052 ko'rish (999–1 145) · 3–16 botga o'tish (taxminiy)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 2,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 3
+      },
+      "machine_made": true,
+      "worst": "egasi narx va qulayliklarini aytadi"
+     }
+    },
+    {
+     "day": "2026-11-27",
+     "time": "20:40",
+     "goal": "trust",
+     "pillar": "Ugalok ichi: poroloni, prujina, kafolat",
+     "format": "photo",
+     "hook": "Ugalok razmeri 2,60 × 1,60 m, kafolati 1 yillik",
+     "cta": "O'lchamni xonangizga solishtirmoqchimisiz? Yozing: https://t.me/hackathonproj1_bot?start=src_3fae82_3",
+     "brief": "Mijoz og'rig'i: ugalok xonaga sig'adimi va kafolat bormi degan shubha [F2, F8]. Ugalok yoniga o'lchov tasmasini qo'yib 2,60 × 1,60 m ni ko'rsatadigan suratni oling, kafolat haqida alohida kartochka ham suratga tushiring. Vaqt tajribasi: post kechqurun chiqadi.\n— Dalil: F2 · F8 | Vaqt: taxminiy | Tasdiq: da'vo | exp:hour",
+     "metric": "≥1035 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 3,
+     "timeSource": "prior",
+     "exp": "hour",
+     "hookType": "number",
+     "focus": [
+      "F2",
+      "F8"
+     ],
+     "factIds": [
+      "F2",
+      "F8"
+     ],
+     "approvalReasons": [
+      "da'vo"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3fae82_3",
+     "src": "src_3fae82_3",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1006,
+       "mid": 1059,
+       "high": 1153
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.19-22",
+       "S.formatLift.photo",
+       "S.weekdayLift.Fri"
+      ],
+      "confidence": "data",
+      "display": "≈1 059 ko'rish (1 006–1 153)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 3,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Vaqt tajribasi: post kechqurun chiqadi"
+     }
+    },
+    {
+     "day": "2026-11-28",
+     "time": "08:40",
+     "goal": "sale",
+     "pillar": "Ugalok narxi va o'lchami",
+     "format": "photo",
+     "hook": "Delfin mexanizmli ugalok — hozirgi narxi 3 600 000 so‘m",
+     "cta": "Narx va o‘lchamni so‘rang: https://t.me/hackathonproj1_bot?start=src_3fae82_4",
+     "brief": "Zal uchun qulay ugalok qidirayotgan, narxini birinchi so‘raydigan xaridor uchun: narx va mexanizm birinchi qatorda. Faktlar: [F1, F3, F10]. Do'konda suratga oling: ugalokni zalda umumiy planda, so‘ng delfin mexanizmini ochilgan holda yaqin planda.\n— Dalil: F1 · F3 · F10 | Vaqt: taxminiy | Tasdiq: narx",
+     "metric": "≥10 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 4,
+     "timeSource": "prior",
+     "hookType": "price",
+     "focus": [
+      "F1",
+      "F3"
+     ],
+     "factIds": [
+      "F1",
+      "F3",
+      "F10"
+     ],
+     "approvalReasons": [
+      "narx",
+      "critic:HOOK"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3fae82_4",
+     "src": "src_3fae82_4",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 990,
+       "mid": 1042,
+       "high": 1134
+      },
+      "starts": {
+       "low": 3,
+       "high": 16,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews",
+       "S.formatLift.photo",
+       "S.weekdayLift.Sat"
+      ],
+      "confidence": "data",
+      "display": "≈1 042 ko'rish (990–1 134) · 3–16 botga o'tish (taxminiy)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 4,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 2
+      },
+      "machine_made": false,
+      "worst": "Narx va o‘lchamni so‘rang"
+     }
+    },
+    {
+     "day": "2026-11-29",
+     "time": "12:40",
+     "goal": "reach",
+     "pillar": "Ugalok ichida nima bor: sandiq va mexanizm",
+     "format": "video",
+     "hook": "Ugalokning 1,60 metrlik qismi — sandiq. Ichiga nima sig‘adi?",
+     "cta": "Zal uchun ugalok qidirayotgan odamga yuboring yoki saqlab qo‘ying.",
+     "brief": "Joy kam xonadonlar egalari uchun: ko‘rpa-to‘shak va ro‘zg‘or buyumlari qayerda saqlanadi degan og‘riq. Faktlar: [F4, F5]. Qisqa video telefonda, 3 qadam: 1) ugalok umumiy ko‘rinishda; 2) sandiq qismi ochiladi, ichiga ko‘rpa solinadi; 3) Moyshe Xitoy materialini yaqin planda qo‘l bilan ko‘rsating.\n— Dalil: F4 · F5 | Vaqt: taxminiy | Tasdiq: video",
+     "metric": "≥1242 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 5,
+     "timeSource": "prior",
+     "hookType": "product_spotlight",
+     "focus": [
+      "F4",
+      "F5"
+     ],
+     "factIds": [
+      "F4",
+      "F5"
+     ],
+     "approvalReasons": [
+      "video"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 930,
+       "mid": 979,
+       "high": 1066
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.10-13",
+       "S.formatLift.video",
+       "S.weekdayLift.Sun"
+      ],
+      "confidence": "data",
+      "display": "≈979 ko'rish (930–1 066)"
+     },
+     "critic": "fixed",
+     "fails": [],
+     "judge": {
+      "slot": 5,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 3,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 3
+      },
+      "machine_made": false,
+      "worst": "yuboring yoki saqlab qo‘ying"
+     }
+    },
+    {
+     "day": "2026-11-30",
+     "time": "20:40",
+     "goal": "reach",
+     "pillar": "Ugalok ichida nima bor: sandiq va mexanizm",
+     "format": "video",
+     "hook": "Ugalok ichida nima bor? Rossiya poroloni — 22 zichlik",
+     "cta": "Ugalok olmoqchi do‘stingizga yuboring yoki saqlab qo‘ying.",
+     "brief": "Ichi qanday ekanini bilmay ikkilanadigan xaridor uchun: poroloni va prujinani ko‘rsatish ishonch beradi. Faktlar: [F6, F7]. Qisqa video telefonda, 3 qadam: 1) ochilgan ugalok karkasi; 2) porolon qatlami va zichligi yozilgan yorliq yaqin planda; 3) artiped prujinani qo‘l bilan bosib ko‘rsating.\n— Dalil: F6 · F7 | Vaqt: taxminiy | Tasdiq: video",
+     "metric": "≥1242 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 6,
+     "timeSource": "prior",
+     "hookType": "behind_scenes",
+     "focus": [
+      "F6",
+      "F7"
+     ],
+     "factIds": [
+      "F6",
+      "F7"
+     ],
+     "approvalReasons": [
+      "video"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 928,
+       "mid": 977,
+       "high": 1064
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.19-22",
+       "S.formatLift.video",
+       "S.weekdayLift.Mon"
+      ],
+      "confidence": "data",
+      "display": "≈977 ko'rish (928–1 064)"
+     },
+     "critic": "fixed",
+     "fails": [],
+     "judge": {
+      "slot": 6,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 2,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": false,
+      "worst": "zichligi yozilgan yorliq"
+     }
+    },
+    {
+     "day": "2026-12-01",
+     "time": "08:40",
+     "goal": "reach",
+     "pillar": "Ugalok ichida nima bor: sandiq va mexanizm",
+     "format": "photo",
+     "hook": "Ugalok razmeri — 2,60 × 1,60 m. Zalingizga sig'adimi?",
+     "cta": "Saqlab qo'ying yoki zal o'lchamini o'lchaydigan qarindoshingizga yuboring.",
+     "brief": "Zali kichik yoki o'rtacha oilalar uchun: ugalok joyga sig'adimi degan savol. Faktlar: [F2, F1]. Do'konda ugalokni devor yonida turgan holda suratga oling, yoniga o'lchov lentasi qo'yib 2,60 m va 1,60 m tomonlarini ko'rsating.\n— Dalil: F2 · F1 | Vaqt: taxminiy | Tasdiq: autopilot",
+     "metric": "≥1242 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 7,
+     "timeSource": "prior",
+     "hookType": "number",
+     "focus": [
+      "F2",
+      "F1"
+     ],
+     "factIds": [
+      "F2",
+      "F1"
+     ],
+     "approvalReasons": [
+      "critic:HOOK"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1066,
+       "mid": 1122,
+       "high": 1221
+      },
+      "basis": [
+       "S.medianViews",
+       "S.formatLift.photo",
+       "S.weekdayLift.Tue"
+      ],
+      "confidence": "data",
+      "display": "≈1 122 ko'rish (1 066–1 221)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 7,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 3
+      },
+      "machine_made": true,
+      "worst": "zal o'lchamini o'lchaydigan qarindoshingizga yuboring"
+     }
+    },
+    {
+     "day": "2026-11-30",
+     "time": "12:40",
+     "goal": "trust",
+     "pillar": "Ugalok ichi: poroloni, prujina, kafolat",
+     "format": "photo",
+     "hook": "Ugalokka 1 yillik kafolat beramiz",
+     "cta": "Kafolat haqida so'rang: https://t.me/hackathonproj1_bot?start=src_3fae82_8",
+     "brief": "Xaridor ishonchsizligi: mebel buzilsa nima bo'ladi. Faktlar: [F8, F2]. Do'konda 2,60 × 1,60 m ugalokni umumiy planda suratga oling, yoniga kafolat haqida yozilgan qog'oz yoki hujjat qo'ying. Hujjat bo'lmasa, hech narsa o'ylab topmang, faqat egasi tasdiqlagan narsani ko'rsating.\n— Dalil: F8 · F2 | Vaqt: taxminiy | Tasdiq: da'vo",
+     "metric": "≥1035 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 8,
+     "timeSource": "prior",
+     "hookType": "number",
+     "focus": [
+      "F8",
+      "F2"
+     ],
+     "factIds": [
+      "F8",
+      "F2"
+     ],
+     "approvalReasons": [
+      "da'vo",
+      "critic:HOOK"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3fae82_8",
+     "src": "src_3fae82_8",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 923,
+       "mid": 971,
+       "high": 1057
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.10-13",
+       "S.formatLift.photo",
+       "S.weekdayLift.Mon"
+      ],
+      "confidence": "data",
+      "display": "≈971 ko'rish (923–1 057)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 8,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 3,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": false,
+      "worst": "Kafolat haqida so'rang"
+     }
+    },
+    {
+     "day": "2026-12-01",
+     "time": "20:40",
+     "goal": "trust",
+     "pillar": "Ugalok ichi: poroloni, prujina, kafolat",
+     "format": "photo",
+     "hook": "2,60 × 1,60 m ugalok kafolatlimi? Ha, 1 yillik kafolat bor",
+     "cta": "Shartlarini egasidan so'rang: https://t.me/hackathonproj1_bot?start=src_3fae82_9",
+     "brief": "Kechki payt oila bilan qaror qiladigan xaridor uchun: kafolat shartlari qanday. Faktlar: [F8, F2]. Ugalokning yaqin suratini oling: choklar, o'rindiq va burchak qismi ko'rinsin. Kafolat shartlarini egasi o'zi aytadi, postda ularni o'ylab topmang.\n— Dalil: F8 · F2 | Vaqt: taxminiy | Tasdiq: da'vo",
+     "metric": "≥1035 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 9,
+     "timeSource": "prior",
+     "hookType": "question",
+     "focus": [
+      "F8",
+      "F2"
+     ],
+     "factIds": [
+      "F8",
+      "F2"
+     ],
+     "approvalReasons": [
+      "da'vo",
+      "critic:HOOK",
+      "critic:HOOK"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3fae82_9",
+     "src": "src_3fae82_9",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1083,
+       "mid": 1140,
+       "high": 1242
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.19-22",
+       "S.formatLift.photo",
+       "S.weekdayLift.Tue"
+      ],
+      "confidence": "data",
+      "display": "≈1 140 ko'rish (1 083–1 242)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 9,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "kafolatlimi? Ha, 1 yillik kafolat bor"
+     }
+    },
+    {
+     "day": "2026-12-01",
+     "time": "08:40",
+     "goal": "trust",
+     "pillar": "Ugalok ichi: poroloni, prujina, kafolat",
+     "format": "photo",
+     "hook": "Burchak divanga 1 yillik kafolat — razmeri 2,60 × 1,60 m",
+     "cta": "Kafolat shartlarini so'rang: https://t.me/hackathonproj1_bot?start=src_3fae82_10",
+     "brief": "Burchak divan olmoqchi, lekin ishlamay qolishidan xavotir olgan xaridor uchun: avval kafolat, keyin o'lcham. Faktlar: [F8, F2]. Do'konda suratga oling: divanni butun holda zalda, yoniga o'lchov lentasi qo'yib 2,60 × 1,60 m ko'rsating; ikkinchi kadrda kafolat beriladigan joy (tikuv, mexanizm) yaqin planda. Haqiqiy divan, stok rasm emas. Narx va aksiya haqida yozmang, bu ishonch posti.\n— Dalil: F8 · F2 | Vaqt: taxminiy | Tasdiq: aksiya, da'vo",
+     "metric": "≥1035 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 10,
+     "timeSource": "prior",
+     "hookType": "number",
+     "focus": [
+      "F8",
+      "F2"
+     ],
+     "factIds": [
+      "F8",
+      "F2"
+     ],
+     "approvalReasons": [
+      "aksiya",
+      "da'vo",
+      "critic:HOOK"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_3fae82_10",
+     "src": "src_3fae82_10",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 1066,
+       "mid": 1122,
+       "high": 1221
+      },
+      "basis": [
+       "S.medianViews",
+       "S.formatLift.photo",
+       "S.weekdayLift.Tue"
+      ],
+      "confidence": "data",
+      "display": "≈1 122 ko'rish (1 066–1 221)"
+     },
+     "critic": "fixed",
+     "fails": [],
+     "judge": {
+      "slot": 10,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 2,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Burchak divanga 1 yillik kafolat — razmeri 2,60 × 1,60 m"
+     }
+    }
+   ],
+   "metrics": [
+    {
+     "slot": 1,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 65,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 2,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 63,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 3,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 47,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 4,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 55,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 5,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 60,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 6,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 53,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 7,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 53,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 8,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 33,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 9,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 58,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 10,
+     "critic": "fixed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 56,
+     "neuroHits": 0,
+     "humanScore": 100
+    }
+   ]
+  },
+  {
+   "handle": "phlebolife",
+   "niche": "clinic",
+   "elapsedMs": 39177,
+   "pipelineMs": 28946,
+   "facts": 19,
+   "factList": [
+    {
+     "id": "F1",
+     "quote": "Bugun va ertaga Buxoroda qabullar bo'lib o'tmoqda"
+    },
+    {
+     "id": "F2",
+     "quote": "+998977655522"
+    },
+    {
+     "id": "F3",
+     "quote": "31-dekabrgacha EVLK qilganlarga kompression chulki — SOVG'A!"
+    },
+    {
+     "id": "F4",
+     "quote": "Lazer bilan davolash — kesishsiz, choksiz, narkozsiz"
+    },
+    {
+     "id": "F5",
+     "quote": "kesishsiz, choksiz, narkozsiz"
+    },
+    {
+     "id": "F6",
+     "quote": "Muolajadan keyin uyga ketasiz, qolmaysiz"
+    },
+    {
+     "id": "F7",
+     "quote": "Ertasiga odatdagi hayotga qaytasiz"
+    },
+    {
+     "id": "F8",
+     "quote": "Konsultatsiyaga yozilish: +998 55 510-61-00"
+    },
+    {
+     "id": "F9",
+     "quote": "Konsultatsiyaga yozilish: +998 55 500-61-00"
+    },
+    {
+     "id": "F10",
+     "quote": "Aksiya 31-dekabrgacha"
+    },
+    {
+     "id": "F11",
+     "quote": "Operatsiyadan so'ng bemor og‘riqsiz va azoblarsiz normal hayotga qaytgan."
+    },
+    {
+     "id": "F12",
+     "quote": "Shifokor - Umarov Baxtiyor, Phlebolife ToshMI filiali"
+    },
+    {
+     "id": "F13",
+     "quote": "Phlebolife ToshMI filiali"
+    },
+    {
+     "id": "F14",
+     "quote": "Bugun va ertaga Namangan shahardamiz 🔥"
+    },
+    {
+     "id": "F15",
+     "quote": "Tel: +998 97 765-55-22"
+    },
+    {
+     "id": "F16",
+     "quote": "Operatsiyadan so'ng bemor og‘riqsiz va azoblarsiz normal hayotga qaytgan."
+    },
+    {
+     "id": "F17",
+     "quote": "Termiz: +998 97-765-55-22"
+    },
+    {
+     "id": "F18",
+     "quote": "Qarshi: +998 95-410-61-00"
+    },
+    {
+     "id": "F19",
+     "quote": "Tel: +998 97-765-55-22"
+    }
+   ],
+   "firedRules": [
+    "R.INCONSISTENT",
+    "R.DEAD_ENDS",
+    "R.TRUST_GAP",
+    "R.LANGUAGE_WINNER",
+    "R.CALENDAR"
+   ],
+   "ownerQuestions": 3,
+   "positioningHasFact": true,
+   "strategyOk": true,
+   "rationale": 5,
+   "items": [
+    {
+     "day": "2026-11-25",
+     "time": "08:40",
+     "goal": "trust",
+     "pillar": "Shifokor va bemor natijalari",
+     "format": "photo",
+     "hook": "Phlebolife ToshMI filiali: varikozda shifokorga qayerga borish mumkin?",
+     "cta": "Qabul vaqtini so'rang, egasi o'zi javob beradi: https://t.me/hackathonproj1_bot?start=src_2f611f_1",
+     "brief": "Burchak: varikozdan xavotirda, qayerga borishni bilmagan odam uchun \"filial manzili shu\" posti, joriy qabul sanasi yoki jadvali yozilmaydi. Faktlar: [F13, F2]. Filial kirishini va qabul xonasini telefonda suratga oling, shifokor ish joyida bo'lsin (rozilik bilan). F1 dagi Buxoro qabullari eski bo'lishi mumkin, shuning uchun postda ishlatilmaydi. Telefon raqami: +998977655522.\n— Dalil: F13 · F2 | Vaqt: taxminiy | Tasdiq: critic:HONESTY_CATEGORY",
+     "metric": "≥704 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 1,
+     "timeSource": "prior",
+     "hookType": "local",
+     "focus": [
+      "F13",
+      "F1",
+      "F2"
+     ],
+     "factIds": [
+      "F13",
+      "F2"
+     ],
+     "approvalReasons": [
+      "critic:HONESTY_CATEGORY"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_2f611f_1",
+     "src": "src_2f611f_1",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 579,
+       "mid": 731,
+       "high": 800
+      },
+      "basis": [
+       "S.medianViews",
+       "S.formatLift.photo",
+       "S.weekdayLift.Wed"
+      ],
+      "confidence": "data",
+      "display": "≈731 ko'rish (579–800)"
+     },
+     "critic": "owner_input",
+     "fails": [
+      {
+       "check": "HONESTY_CATEGORY",
+       "quote": "egasi o'zi javob beradi",
+       "reason": "The CTA claims the owner personally answers inquiries, but the item cites only facts F13 and F2 and no fact supports this claim, so it is an unverified promise about service."
+      }
+     ],
+     "judge": {
+      "slot": 1,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 1,
+       "NATURAL": 1,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "egasi o'zi javob beradi"
+     }
+    },
+    {
+     "day": "2026-11-27",
+     "time": "20:40",
+     "goal": "reach",
+     "pillar": "Varikoz haqida qisqa savol-javob",
+     "format": "video",
+     "hook": "Muolajadan keyin uyga ketasizmi yoki klinikada qolasizmi?",
+     "cta": "Varikozdan qo'rqadigan tanishingizga yuboring yoki o'zingiz saqlab qo'ying.",
+     "brief": "Burchak: varikozni davolashdan qo'rqqanlar kasalxonada yotib qolishdan cho'chiydi; videoda kanalning o'z so'zi: muolajadan keyin uyga ketasiz, qolmaysiz [F6]. Ertangi kun haqida faqat shifokor aytgan ma'noda gapiring: ertasiga odatdagi hayotga qaytasiz, har bir bemorda shifokor ko'rigiga qarab farq qilishi mumkin [F7]. Telefonda 3 qadamli video, bir daqiqadan oshmasin: 1) Phlebolife xonasi kirish eshigidan, shifokor kutib oladi; 2) muolaja xonasi va jihozlar, bemorsiz yoki roziligi bilan; 3) shifokor kameraga: «Muolajadan keyin uyga ketasiz, tiklanish har kimda har xil, buni ko'rikda aytamiz». Stok material ishlatilmasin.\n— Dalil: F6 · F7 | Vaqt: taxminiy | Tasdiq: video, critic:HONESTY_CATEGORY | exp:hour",
+     "metric": "≥844 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": true,
+     "slot": 2,
+     "timeSource": "prior",
+     "exp": "hour",
+     "hookType": "question",
+     "focus": [
+      "F6",
+      "F7"
+     ],
+     "factIds": [
+      "F6",
+      "F7"
+     ],
+     "approvalReasons": [
+      "video",
+      "critic:HONESTY_CATEGORY"
+     ],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 556,
+       "mid": 702,
+       "high": 768
+      },
+      "basis": [
+       "S.medianViews",
+       "S.formatLift.video"
+      ],
+      "confidence": "data",
+      "display": "≈702 ko'rish (556–768)"
+     },
+     "critic": "owner_input",
+     "fails": [
+      {
+       "check": "HONESTY_CATEGORY",
+       "quote": "muolajadan keyin uyga ketasiz, qolmaysiz [F6]",
+       "reason": "The absolute 'qolmaysiz' (you will not stay) conflicts with the brief's own F7 note that recovery and the need to stay can differ per patient after the doctor's exam. The line should be qualified to match F7."
+      }
+     ],
+     "judge": {
+      "slot": 2,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 3,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 3
+      },
+      "machine_made": false,
+      "worst": ""
+     }
+    },
+    {
+     "day": "2026-11-29",
+     "time": "20:40",
+     "goal": "trust",
+     "pillar": "Shifokor va bemor natijalari",
+     "format": "photo",
+     "hook": "Umarov Baxtiyor Phlebolife ToshMI filialida lazer bilan davolaydi",
+     "cta": "Muolaja haqida savolingiz bormi? Shifokorga yozing: https://t.me/hackathonproj1_bot?start=src_2f611f_3",
+     "brief": "Burchak: varikozdan qo'rqib, operatsiyani kechiktirayotgan odam, uning og'rig'i — kesish va narkozdan qo'rqish; shifokor muolajani o'zi qanday o'tkazishini ko'rsatamiz, hech qanday va'dasiz. Faktlar: [F12, F13, F6]. Phlebolife ToshMI filialida suratga oling: shifokor Umarov Baxtiyor ish joyida (haqiqiy, stock emas), lazer jihozi, qabul xonasi. Surat tagida qisqa matn: shifokor ismi, filial nomi, muolajadan keyin uyga ketishingiz haqida. Har bir bemorga muolaja turi shifokor ko'rigidan keyin aniqlanishini yozing.\n— Dalil: F12 · F13 · F6 | Vaqt: taxminiy | Tasdiq: critic:HONESTY_CATEGORY",
+     "metric": "≥704 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 3,
+     "timeSource": "prior",
+     "hookType": "behind_scenes",
+     "focus": [
+      "F12",
+      "F5"
+     ],
+     "factIds": [
+      "F12",
+      "F13",
+      "F6"
+     ],
+     "approvalReasons": [
+      "critic:HONESTY_CATEGORY"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_2f611f_3",
+     "src": "src_2f611f_3",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 540,
+       "mid": 682,
+       "high": 747
+      },
+      "basis": [
+       "S.medianViews",
+       "S.formatLift.photo"
+      ],
+      "confidence": "data",
+      "display": "≈682 ko'rish (540–747)"
+     },
+     "critic": "owner_input",
+     "fails": [
+      {
+       "check": "HONESTY_CATEGORY",
+       "quote": "Umarov Baxtiyor Phlebolife ToshMI filialida lazer bilan davolaydi",
+       "reason": "The hook states as fact that the laser procedure treats varicose veins (\"davolaydi\"), which is a treatment claim. The brief itself says the procedure type is determined only after the doctor's exam and that no promises are made, so this hook overstates the outcome."
+      }
+     ],
+     "judge": {
+      "slot": 3,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 2,
+       "NATURAL": 3,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 3
+      },
+      "machine_made": false,
+      "worst": "Shifokorga yozing"
+     }
+    },
+    {
+     "day": "2026-11-30",
+     "time": "08:40",
+     "goal": "sale",
+     "pillar": "EVLK va sovg'a chulki",
+     "format": "photo",
+     "hook": "EVLK qilganlarga kompression chulki — sovg'a, 31-dekabrgacha",
+     "cta": "Chulki sovg'a bo'ladimi, bilmoqchimisiz? Savolingizni shu yerda qoldiring: https://t.me/hackathonproj1_bot?start=src_2f611f_4",
+     "brief": "Burchak: varikozni lazer bilan davolatmoqchi, lekin operatsiyadan qo'rqqan va aksiya muddatini bilmoqchi bo'lgan odam uchun. Aksiya sovg'asi — kompression chulki va 31-dekabrgacha muddat [F3, F10]; qo'shimcha: kesishsiz, choksiz, narkozsiz [F4]. Phlebolife ToshMI filialida suratga oling: kompression chulkining o'zi stol ustida, yaqin planda; ikkinchi kadr — qabul xonasi. Haqiqiy suratlar, stock emas. Narx F ro'yxatida yo'q, shuning uchun raqam yozilmaydi; Konstitutsiya kuni bilan bog'lamang, chunki faktlarda bunday bog'lanish yo'q.\n— Dalil: S.calendar.constitution · F3 · F10 · F4 · F13 | Vaqt: taxminiy | Tasdiq: narx, bayram",
+     "metric": "≥7 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 4,
+     "timeSource": "prior",
+     "hookType": "product_spotlight",
+     "focus": [
+      "F3",
+      "F10"
+     ],
+     "factIds": [
+      "F3",
+      "F10",
+      "F4",
+      "F13"
+     ],
+     "approvalReasons": [
+      "narx",
+      "bayram"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_2f611f_4",
+     "src": "src_2f611f_4",
+     "calendarEvent": "Konstitutsiya kuni",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 540,
+       "mid": 682,
+       "high": 747
+      },
+      "starts": {
+       "low": 2,
+       "high": 10,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews",
+       "S.formatLift.photo"
+      ],
+      "confidence": "data",
+      "display": "≈682 ko'rish (540–747) · 2–10 botga o'tish (taxminiy)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 4,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 1,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Chulki sovg'a bo'ladimi, bilmoqchimisiz?"
+     }
+    }
+   ],
+   "metrics": [
+    {
+     "slot": 1,
+     "critic": "owner_input",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 70,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 2,
+     "critic": "owner_input",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 57,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 3,
+     "critic": "owner_input",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 65,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 4,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 60,
+     "neuroHits": 0,
+     "humanScore": 100
+    }
+   ]
+  },
+  {
+   "handle": "safiabakery",
+   "niche": "cafe",
+   "elapsedMs": 40953,
+   "pipelineMs": 28845,
+   "facts": 22,
+   "factList": [
+    {
+     "id": "F1",
+     "quote": "«Viktoriya» torti şokolad qança köp bölsa"
+    },
+    {
+     "id": "F2",
+     "quote": "Şokoladli sirop şimdirilgan boy ta’mli şokoladli biskvit va kakaoli mayin krem"
+    },
+    {
+     "id": "F3",
+     "quote": "Safia filiallarida qidiring!"
+    },
+    {
+     "id": "F4",
+     "quote": "Tortni dasturxonga tortişdan 2 soat oldin eritişni tavsiya etamiz."
+    },
+    {
+     "id": "F5",
+     "quote": "22-noyabrgaça qatlama xamırlı pişiriqlar xaridi uçun bir finjon qahva sovğaga berıladı!"
+    },
+    {
+     "id": "F6",
+     "quote": "bir finjon qahva sovğaga berıladı!"
+    },
+    {
+     "id": "F7",
+     "quote": "ilovada ikki karra keshbekga ega bo‘ling!"
+    },
+    {
+     "id": "F8",
+     "quote": "📌 28-noyabr | 12:00 | Teleminora"
+    },
+    {
+     "id": "F9",
+     "quote": "Ishtirok etish narxi: 150 000 so‘m"
+    },
+    {
+     "id": "F10",
+     "quote": "78 113 40 40"
+    },
+    {
+     "id": "F11",
+     "quote": "Safiada yangilik — Din-Din torti! 🧚‍♀️"
+    },
+    {
+     "id": "F12",
+     "quote": "ilovada yangi tort uchun ikki karra keshbekka ega bo‘ling!"
+    },
+    {
+     "id": "F13",
+     "quote": "Shota Rustaveli ko‘chasida yangi filialimizni  ochmoqdamiz!"
+    },
+    {
+     "id": "F14",
+     "quote": "03.11.2026"
+    },
+    {
+     "id": "F15",
+     "quote": "Buxorodagi Safianing shinam  filiali 🕌💛"
+    },
+    {
+     "id": "F16",
+     "quote": "⚪️bolalar kapuchinosi"
+    },
+    {
+     "id": "F17",
+     "quote": "🔴qaymoqli olcha"
+    },
+    {
+     "id": "F18",
+     "quote": "⚫️shokoladli milksheyk"
+    },
+    {
+     "id": "F19",
+     "quote": "🟠qovoqli milksheyk"
+    },
+    {
+     "id": "F20",
+     "quote": "Pani Valevskaya — Polsha klassikasi Safiada 🤍"
+    },
+    {
+     "id": "F21",
+     "quote": "Leningrad tortida biz sevgan barcha lazzatlar mujassam: uvalanuvchan qumoq xamirli korjlar va mayin shokoladli zavarnoy krem."
+    },
+    {
+     "id": "F22",
+     "quote": "Ushbu tort uchun ikki karra keshbek esa Safia ilovasida sizni kutmoqda 📲"
+    }
+   ],
+   "firedRules": [
+    "R.HIDDEN_PRICE",
+    "R.DEAD_ENDS",
+    "R.TRUST_GAP",
+    "R.REPLICATE_WINNERS",
+    "R.CALENDAR"
+   ],
+   "ownerQuestions": 3,
+   "positioningHasFact": true,
+   "strategyOk": true,
+   "rationale": 4,
+   "items": [
+    {
+     "day": "2026-11-25",
+     "time": "08:40",
+     "goal": "reach",
+     "pillar": "Yangi tortlar: Din-Din va Pani Valevskaya",
+     "format": "text",
+     "hook": "«Viktoriya» torti: shokoladli sirop shimdirilgan biskvit va kakaoli krem",
+     "cta": "Shokoladsevar do'stingizga yuboring yoki saqlab qo'ying.",
+     "brief": "Shokoladli tort yoqtiradiganlar uchun: biskvit qanchalik mayin va nam ekanini ko'rsatish. Faktlar: [F1, F2]. Safia kafesida «Viktoriya» tortini butun va kesilgan holda tabiiy yorug'likda suratga oling: kesimda biskvit va krem qatlami ko'rinsin. Stok rasm ishlatmang.\n— Dalil: F1 · F2 | Vaqt: taxminiy | Tasdiq: autopilot",
+     "metric": "≥5568 views at 72h (lift 1.2) [S.medianViews]",
+     "needsApproval": false,
+     "slot": 1,
+     "timeSource": "prior",
+     "hookType": "product_spotlight",
+     "focus": [
+      "F1",
+      "F2"
+     ],
+     "factIds": [
+      "F1",
+      "F2"
+     ],
+     "approvalReasons": [],
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 3948,
+       "mid": 4393,
+       "high": 4795
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.07-10",
+       "S.formatLift.text",
+       "S.weekdayLift.Wed"
+      ],
+      "confidence": "data",
+      "display": "≈4 393 ko'rish (3 948–4 795)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 1,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 2,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Shokoladsevar do'stingizga yuboring yoki saqlab qo'ying."
+     }
+    },
+    {
+     "day": "2026-11-26",
+     "time": "20:40",
+     "goal": "trust",
+     "pillar": "Filiallar va tort jarayoni",
+     "format": "photo",
+     "hook": "Shota Rustaveli ko'chasida yangi filial ochilmoqda",
+     "cta": "Qaysi filial sizga yaqin? Savolingizni yozing: https://t.me/hackathonproj1_bot?start=src_7ddbb9_2",
+     "brief": "Mijozlar Safiani qayerdan topishini bilishi kerak: manzil va filiallar haqida ishonch uyg'otish. Faktlar: [F13, F15, F3]. Shota Rustaveli ko'chasidagi filial kirish qismini va ichki ko'rinishini kunduzi telefonda suratga oling. Buxorodagi filialdan ham bitta real kadr qo'shing. Filial ochilish sanasi faktlarda yo'q, shuning uchun sana yozmang.\n— Dalil: F13 · F15 · F3 | Vaqt: taxminiy | Tasdiq: autopilot | exp:hour",
+     "metric": "≥4640 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": false,
+     "slot": 2,
+     "timeSource": "prior",
+     "exp": "hour",
+     "hookType": "local",
+     "focus": [
+      "F13",
+      "F15",
+      "F3"
+     ],
+     "factIds": [
+      "F13",
+      "F15",
+      "F3"
+     ],
+     "approvalReasons": [],
+     "link": "https://t.me/hackathonproj1_bot?start=src_7ddbb9_2",
+     "src": "src_7ddbb9_2",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 4048,
+       "mid": 4504,
+       "high": 4916
+      },
+      "basis": [
+       "S.medianViews",
+       "S.formatLift.photo",
+       "S.weekdayLift.Thu"
+      ],
+      "confidence": "data",
+      "display": "≈4 504 ko'rish (4 048–4 916)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 2,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Qaysi filial sizga yaqin? Savolingizni yozing"
+     }
+    },
+    {
+     "day": "2026-11-28",
+     "time": "11:20",
+     "goal": "sale",
+     "pillar": "Tort va keshbek, narx bilan",
+     "format": "photo",
+     "hook": "Master-klass: ishtirok narxi 150 000 so'm, 28-noyabr, Teleminora",
+     "cta": "Joy qolganini so'rang: https://t.me/hackathonproj1_bot?start=src_7ddbb9_3 orqali yozing, egasi o'zi javob beradi.",
+     "brief": "Burchak: Qora juma kuni tort tayyorlashni o'rganmoqchi bo'lganlar uchun aniq narx va joy. Faqat F9 narxi va F8 sanasi/joyidan foydalaning, chegirma yoki muddat o'ylab topmang. Tort bilan bog'liq F4 maslahatini (dasturxonga tortishdan 2 soat oldin eritish) qo'shimcha chiziq sifatida yozing. Suratga: kondiyterlik stolida tayyor tort va yoniga qo'lda yozilgan 150 000 so'm kartochkasi, o'z filialingizda, stok rasm emas.\n— Dalil: S.calendar.blackfriday · F9 · F8 · F4 | Vaqt: taxminiy | Tasdiq: narx, bayram",
+     "metric": "≥46 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 3,
+     "timeSource": "prior",
+     "hookType": "price",
+     "focus": [
+      "F9",
+      "F4"
+     ],
+     "factIds": [
+      "F9",
+      "F8",
+      "F4"
+     ],
+     "approvalReasons": [
+      "narx",
+      "bayram"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_7ddbb9_3",
+     "src": "src_7ddbb9_3",
+     "calendarEvent": "Qora juma",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 4298,
+       "mid": 4782,
+       "high": 5220
+      },
+      "starts": {
+       "low": 14,
+       "high": 72,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.10-13",
+       "S.formatLift.photo",
+       "S.weekdayLift.Sat"
+      ],
+      "confidence": "data",
+      "display": "≈4 782 ko'rish (4 298–5 220) · 14–72 botga o'tish (taxminiy)"
+     },
+     "critic": "passed",
+     "fails": [],
+     "judge": {
+      "slot": 3,
+      "scores": {
+       "SPECIFIC": 3,
+       "GROUNDED": 1,
+       "NATURAL": 2,
+       "ACTIONABLE": 2,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "Master-klass"
+     }
+    },
+    {
+     "day": "2026-11-29",
+     "time": "08:40",
+     "goal": "trust",
+     "pillar": "Filiallar va tort jarayoni",
+     "format": "photo",
+     "hook": "Shota Rustaveli ko'chasida yangi filial ochilmoqda",
+     "cta": "Yo'lni so'rang: https://t.me/hackathonproj1_bot?start=src_7ddbb9_4 orqali yozing, egasi o'zi javob beradi.",
+     "brief": "Burchak: yaqin atrofdagi mijoz Safiani qayerdan topishini bilmaydi, shu og'riqqa manzil bilan javob [F13]. Faqat F13 dagi manzildan foydalaning, ochilish sanasi yoki soatlarni qo'shmang, ular ro'yxatda yo'q. F15 (Buxoro filiali) ni bu postda ishlatmang. Suratga: Shota Rustaveli ko'chasidagi yangi filial binosining kirish eshigi va tashqi ko'rinishi, telefonda kunduzi, 2-3 kadr. Ichki ko'rinish faqat u tayyor bo'lsa suratga olinadi; Buxoro filiali kadrlarini ishlatmang.\n— Dalil: F13 | Vaqt: taxminiy | Tasdiq: critic:HONESTY_CATEGORY",
+     "metric": "≥4640 views and ≥3 bot starts [S.medianViews]",
+     "needsApproval": true,
+     "slot": 4,
+     "timeSource": "prior",
+     "hookType": "local",
+     "focus": [
+      "F13",
+      "F15"
+     ],
+     "factIds": [
+      "F13"
+     ],
+     "approvalReasons": [
+      "critic:HONESTY_CATEGORY",
+      "critic:HOOK"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_7ddbb9_4",
+     "src": "src_7ddbb9_4",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 4438,
+       "mid": 4938,
+       "high": 5390
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.07-10",
+       "S.formatLift.photo",
+       "S.weekdayLift.Sun"
+      ],
+      "confidence": "data",
+      "display": "≈4 938 ko'rish (4 438–5 390)"
+     },
+     "critic": "owner_input",
+     "fails": [
+      {
+       "check": "HONESTY_CATEGORY",
+       "quote": "egasi o'zi javob beradi",
+       "reason": "Claim that the owner personally answers messages is not backed by any listed fact (only F13, the address, is cited). It is an unverified promise to customers."
+      },
+      {
+       "check": "VOICE",
+       "quote": "Shota Rustaveli ko'chasida yangi filial ochilmoqda\nYo'lni so'rang: {{LINK}} orqali yozing, egasi o'zi javob beradi.",
+       "reason": "The voice calls for about 1.3 emojis per 100 characters, but this copy has none across roughly 120 characters. That falls short of the specified manner."
+      }
+     ],
+     "judge": {
+      "slot": 4,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 3,
+       "NATURAL": 2,
+       "ACTIONABLE": 3,
+       "GOAL_FIT": 2
+      },
+      "machine_made": true,
+      "worst": "egasi o'zi javob beradi"
+     }
+    },
+    {
+     "day": "2026-12-01",
+     "time": "11:20",
+     "goal": "sale",
+     "pillar": "Tort va keshbek, narx bilan",
+     "format": "photo",
+     "hook": "Qatlama xamirli pishiriq olsangiz, Safia ilovasida ikki karra keshbek bor",
+     "cta": "Pishiriq va qahva uchun filialga kiring, keshbek haqida botda so'rang: https://t.me/hackathonproj1_bot?start=src_7ddbb9_5",
+     "brief": "Egasidan ma'lumot kerak: Qatlama xamirli pishiriq olsangiz, Safia ilovasida ikki karra keshbek bor — sale item lacks a KB price fact\n— Dalil: F7 · F6 · F5 | Vaqt: taxminiy | Tasdiq: narx, critic:PRICE",
+     "metric": "≥46 bot starts (CTR 1%, taxminiy) and ≥1 order [S.medianViews]",
+     "needsApproval": true,
+     "slot": 5,
+     "timeSource": "prior",
+     "hookType": "product_spotlight",
+     "focus": [
+      "F6",
+      "F7"
+     ],
+     "factIds": [
+      "F7",
+      "F6",
+      "F5"
+     ],
+     "approvalReasons": [
+      "narx",
+      "critic:PRICE"
+     ],
+     "link": "https://t.me/hackathonproj1_bot?start=src_7ddbb9_5",
+     "src": "src_7ddbb9_5",
+     "forecast": {
+      "status": "ok",
+      "views": {
+       "low": 4447,
+       "mid": 4947,
+       "high": 5400
+      },
+      "starts": {
+       "low": 15,
+       "high": 74,
+       "source": "prior"
+      },
+      "basis": [
+       "S.medianViews",
+       "S.hourLift.10-13",
+       "S.formatLift.photo",
+       "S.weekdayLift.Tue"
+      ],
+      "confidence": "data",
+      "display": "≈4 947 ko'rish (4 447–5 400) · 15–74 botga o'tish (taxminiy)"
+     },
+     "critic": "owner_input",
+     "fails": [
+      {
+       "check": "PRICE",
+       "quote": "Qatlama xamirli pishiriq olsangiz, Safia ilovasida ikki karra keshbek bor",
+       "reason": "sale item lacks a KB price fact"
+      },
+      {
+       "check": "HONESTY_CATEGORY",
+       "quote": "hookType\":\"product_spotlight\"",
+       "reason": "The hook leads with a cashback offer (\"ikki karra keshbek bor\"), not with the product, so the hookType label does not match the content."
+      }
+     ],
+     "judge": {
+      "slot": 5,
+      "scores": {
+       "SPECIFIC": 2,
+       "GROUNDED": 1,
+       "NATURAL": 2,
+       "ACTIONABLE": 1,
+       "GOAL_FIT": 1
+      },
+      "machine_made": true,
+      "worst": "Qatlama xamirli pishiriq olsangiz, Safia ilovasida ikki karra keshbek bor"
+     }
+    }
+   ],
+   "metrics": [
+    {
+     "slot": 1,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 72,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 2,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 50,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 3,
+     "critic": "passed",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 64,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 4,
+     "critic": "owner_input",
+     "hardFails": 0,
+     "emptyHook": false,
+     "hookLen": 50,
+     "neuroHits": 0,
+     "humanScore": 100
+    },
+    {
+     "slot": 5,
+     "critic": "owner_input",
+     "hardFails": 1,
+     "emptyHook": false,
+     "hookLen": 73,
+     "neuroHits": 0,
+     "humanScore": 100
+    }
+   ]
+  }
+ ]
+}

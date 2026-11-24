@@ -33,12 +33,14 @@ export function factNumbers(text: string): { raw: string; value: number; unit: s
     .replace(/\b\d{1,2}[./]\d{1,2}[./]\d{2,4}\b/g, " ")
     .replace(/\b\d{1,2}\s?[–-]\s?\d{1,2}\b(?!\s?%)/g, " ") // hour ranges like 19–22
     .replace(/\bn\s?=\s?\d+/gi, " ");
-  const re = new RegExp(String.raw`(\d[\d\s.,]*\d|\d)\s?${UNIT}?`, "gi");
+  // A number is either thousands-grouped with ONE consistent separator ("450 000", "450.000", "1,600,000") or
+  // plain with an optional decimal part ("3.5", "2,60"). So "450.000, 600.000" and "450.000 450.000" stay two numbers.
+  const re = new RegExp(String.raw`(?<num>\d{1,3}(?<sep>[ .,\u00a0])\d{3}(?:\k<sep>\d{3})*(?!\d)|\d+(?:[.,]\d+)?)\s?(?<unit>${UNIT})?`, "gi");
   const out: { raw: string; value: number; unit: string }[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(t))) {
-    const unit = m[2] ?? "";
-    const value = parseNumber(m[1], unit);
+    const unit = m.groups?.unit ?? "";
+    const value = parseNumber((m.groups?.num ?? "").replace(/\u00a0/g, " "), unit);
     if (value == null) continue;
     if (!unit && value < 11) continue;
     out.push({ raw: m[0].trim(), value, unit });

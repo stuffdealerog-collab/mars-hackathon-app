@@ -1,0 +1,41 @@
+{
+ "promptVersion": "bc69e9be9d",
+ "runAt": "2026-11-24T11:40:59.547Z",
+ "channels": [
+  "banafa_uz",
+  "floral_aesthetic_uz",
+  "foggi_uz",
+  "ieltscenteruz",
+  "MebelSmart_uz",
+  "imanshopuzb",
+  "phlebolife",
+  "safiabakery"
+ ],
+ "errors": [],
+ "items": 61,
+ "judged": 61,
+ "judge": {
+  "SPECIFIC": 2.56,
+  "GROUNDED": 2.52,
+  "NATURAL": 2.26,
+  "ACTIONABLE": 2.41,
+  "GOAL_FIT": 2.3
+ },
+ "anyOne": 0.21,
+ "allThree": 0.08,
+ "machineMade": 0.54,
+ "residualHardFails": 1,
+ "emptyHooks": 0,
+ "neuroHits": 0,
+ "meanHumanScore": 100,
+ "critic": {
+  "passed": 29,
+  "fixed": 23,
+  "owner_input": 9,
+  "timeout": 0
+ },
+ "pipelineSeconds": {
+  "median": 29.251,
+  "max": 36.753
+ }
+}

@@ -4,56 +4,151 @@ import type { ChannelAudit } from "@/lib/uslub/contract";
 import { upcomingEvents } from "./calendar";
 import { extractIds, groundedCheck } from "./lint";
 import { brainJson, GROUNDING, SONNET } from "./llm";
+import { type Benchmark, benchLedger, benchmarkFor, type ChannelSummary, type Niche, nicheOf } from "./bench";
+import { funnelLedger, learnFor, type LearnReport } from "./learn-run";
+import { recordAnalysis, loadSummaries } from "./memory";
 import { keyId, postLedger, ruleLedger, runRules, statsLedger, type KbSignals } from "./rules";
-import { scrapeChannelData } from "./scrape";
+import { BrainScrapeError, normalizeChannel, scrapeChannelData } from "./scrape";
+import { sufficiency } from "./sufficiency";
+import { channelValidity, noPreview, type Validity, type ValidityCode } from "./validity";
 import { computeStats, LEXICON, WEEKDAYS, whyLine } from "./stats";
 import { WIN, type ChannelData, type ChannelStats, type Lang, type LedgerEntry, type RuleResult } from "./types";
 
 export type Stage = { stage: string; [k: string]: unknown };
 export type OnStage = (e: Stage) => void;
 
+export interface CompetitorIssue {
+  channel: string;
+  code: ValidityCode | "fetch_failed";
+  message: Validity["message"];
+  evidence: string;
+}
+
 export interface Analysis {
   data: ChannelData;
   stats: ChannelStats;
   competitors: { data: ChannelData; stats: ChannelStats }[];
+  competitorIssues: CompetitorIssue[];
+  validity: Validity;
+  niche: Niche;
+  bench?: Benchmark;
+  learn?: LearnReport;
   rules: RuleResult[];
   ledger: LedgerEntry[];
 }
 
-/** Deterministic part: scrape (own + competitors in parallel), stats, rules, ledger. */
+const fetchFailed = (handle: string): CompetitorIssue => ({
+  channel: `@${handle.replace(/^@/, "")}`,
+  code: "fetch_failed",
+  message: {
+    uz: `@${handle.replace(/^@/, "")} — Telegram javob bermadi, taqqoslashga olinmadi.`,
+    ru: `@${handle.replace(/^@/, "")} — Telegram не ответил, в сравнение не взят.`,
+    en: `@${handle.replace(/^@/, "")} — Telegram did not answer, left out of the comparison.`,
+  },
+  evidence: "fetch failed",
+});
+
+/**
+ * Deterministic part: scrape (own + competitors in parallel), validity gate for competitors,
+ * stats, niche benchmark, learn loop over previous plans, rules, ledger. Also records what it saw
+ * (snapshots + channel summary) so the next analysis knows more.
+ */
 export async function analyzeDeterministic(input: {
   channel: string;
   competitors?: string[];
   category?: string;
   kb?: KbSignals;
   kbAddress?: string;
+  lang?: Lang;
+  brandId?: string;
+  /** True only when the caller is the verified Telegram owner of brandId and the channel is the brand's own. */
+  ownerVerified?: boolean;
   now?: number;
   onStage?: OnStage;
+  /** Frozen channel data (eval harness): no network, no learning, no recording. */
+  preloaded?: { own: ChannelData; competitors?: ChannelData[]; summaries?: ChannelSummary[] };
 }): Promise<Analysis> {
   const now = input.now ?? Date.now();
+  const lang = input.lang ?? "uz";
   const emit = input.onStage ?? (() => {});
+  const live = !input.preloaded;
   emit({ stage: "scrape", status: "start" });
-  const [own, ...comps] = await Promise.all([
-    scrapeChannelData(input.channel, { onPage: (pages, posts) => emit({ stage: "scrape", channel: input.channel, pages, posts }) }),
-    ...(input.competitors ?? []).slice(0, 3).map((c) => scrapeChannelData(c).catch(() => null)),
-  ]);
+  type CompResult = { handle: string; data?: ChannelData; err?: unknown };
+  const [own, comps] = input.preloaded
+    ? [input.preloaded.own, (input.preloaded.competitors ?? []).map((d): CompResult => ({ handle: d.channel, data: d }))]
+    : await Promise.all([
+        scrapeChannelData(input.channel, { onPage: (pages, posts) => emit({ stage: "scrape", channel: input.channel, pages, posts }) }),
+        Promise.all(
+          (input.competitors ?? []).slice(0, 3).map((c) =>
+            scrapeChannelData(c).then(
+              (data): CompResult => ({ handle: c, data }),
+              (err: unknown): CompResult => ({ handle: c, err }),
+            ),
+          ),
+        ),
+      ]);
   emit({ stage: "scrape", status: "done", posts: own.posts.length, subscribers: own.subscribers ?? null });
+
+  // Validity gate: a squatted, empty, dead or private "competitor" never becomes a benchmark row.
+  const competitorIssues: CompetitorIssue[] = [];
+  const validComps: ChannelData[] = [];
+  for (const c of comps) {
+    if (!c.data) {
+      const handle = normalizeChannel(c.handle) ?? c.handle;
+      if (c.err instanceof BrainScrapeError && c.err.code === "NO_PUBLIC_PREVIEW") {
+        const v = noPreview(handle);
+        competitorIssues.push({ channel: `@${handle}`, code: v.code, message: v.message, evidence: v.evidence });
+      } else competitorIssues.push(fetchFailed(handle));
+      continue;
+    }
+    if (c.data.channel.toLowerCase() === own.channel.toLowerCase()) continue;
+    const v = channelValidity(c.data, now, { role: "competitor", serviceTexts: c.data.serviceTexts });
+    if (v.ok) validComps.push(c.data);
+    else competitorIssues.push({ channel: `@${c.data.channel}`, code: v.code, message: v.message, evidence: v.evidence });
+  }
+  const validity = channelValidity(own, now, { role: "own", serviceTexts: own.serviceTexts });
+  if (competitorIssues.length) emit({ stage: "validity", competitorIssues });
+
   const stats = computeStats(own, now, { kbAddress: input.kbAddress });
-  const competitors = comps.filter((c): c is ChannelData => c != null).map((d) => ({ data: d, stats: computeStats(d, now) }));
+  const competitors = validComps.map((d) => ({ data: d, stats: computeStats(d, now) }));
   emit({ stage: "stats", medianViews: stats.medianViews ?? null, reachRate: stats.reachRate ?? null, postsPerWeek: stats.postsPerWeek, maturePosts: stats.maturePosts });
+
   const category = input.category ?? "";
+  const niche = nicheOf(category, own.title);
+  const [summaries, learn] = await Promise.all([
+    input.preloaded?.summaries ?? (live ? loadSummaries(now).catch(() => [] as ChannelSummary[]) : Promise.resolve([] as ChannelSummary[])),
+    live ? learnFor(own.channel, own.posts, now, lang, { brandId: input.ownerVerified ? input.brandId : undefined, ownerReports: Boolean(input.ownerVerified && input.brandId) }).catch(() => undefined) : Promise.resolve(undefined),
+  ]);
+  const bench = benchmarkFor(summaries, niche, own.channel);
+  emit({ stage: "bench", niche, n: bench?.n ?? 0, scope: bench?.scope ?? null, reachMedian: bench?.reachRate?.median ?? null });
+  if (learn) emit({ stage: "learn", plans: learn.plans.length, measured: learn.outcomes.filter((o) => o.status === "final").length, changes: learn.changes });
+
   const rules = runRules(stats, {
     category,
     competitors: competitors.map((c) => c.stats),
     kb: input.kb,
     calendar: upcomingEvents(category, now).map((e) => ({ id: e.id, name: e.name.en, daysAway: e.daysAway })),
+    bench,
+    funnel: learn?.funnel,
   });
   emit({ stage: "rules", rules: rules.map((r) => ({ id: r.id, status: r.status, trigger: r.trigger, kind: r.kind })) });
   const cal = upcomingEvents(category, now).map(
     (e): LedgerEntry => ({ id: `S.calendar.${e.id}`, label: e.name.uz, value: e.date, display: `${e.name.uz} (${e.date})`, source: "rule", prior: e.confidence !== "fixed" }),
   );
-  const ledger = [...statsLedger(stats, competitors.map((c) => c.stats)), ...postLedger(stats, competitors.map((c) => c.stats)), ...ruleLedger(rules), ...cal];
-  return { data: own, stats, competitors, rules, ledger };
+  const ledger = [
+    ...statsLedger(stats, competitors.map((c) => c.stats)),
+    ...(bench ? benchLedger(bench, { reachRate: stats.reachRate }, lang) : []),
+    ...(learn ? [...learn.ledger, ...funnelLedger(learn.funnel)] : []),
+    ...postLedger(stats, competitors.map((c) => c.stats)),
+    ...ruleLedger(rules),
+    ...cal,
+  ];
+
+  if (live) {
+    // Best-effort memory writes; the answer never waits on them failing.
+    void Promise.allSettled([recordAnalysis(own, stats, niche, now), ...competitors.map((c) => recordAnalysis(c.data, c.stats, niche, now))]);
+  }
+  return { data: own, stats, competitors, competitorIssues, validity, niche, bench, learn, rules, ledger };
 }
 
 const FindingsSchema = z.object({
@@ -67,7 +162,7 @@ const FindingsSchema = z.object({
   ),
 });
 
-const D1 = `You are the Analitik of Uslub AI. You explain a Telegram channel audit to a small-business owner in Tashkent who has no marketer. The analysis has been done: code computed the stats and decided which rules fired. Your only job is to explain them so the owner understands and trusts them.
+const D1 = `You are the Analitik of Mercat, an AI marketing department. You explain a Telegram channel audit to a small-business owner in Tashkent who has no marketer. The analysis has been done: code computed the stats and decided which rules fired. Your only job is to explain them so the owner understands and trusts them.
 
 INPUT: firedRules [{id, kind, severity, trigger, effects, ids}], ledger, topPosts, benchmark.
 
@@ -176,7 +271,7 @@ export function assembleAudit(a: Analysis, findings: Finding[]): ChannelAudit {
   };
 }
 
-export async function runAudit(input: { channel: string; competitors?: string[]; lang?: Lang; category?: string; onStage?: OnStage }) {
+export async function runAudit(input: { channel: string; competitors?: string[]; lang?: Lang; category?: string; brandId?: string; onStage?: OnStage }) {
   const a = await analyzeDeterministic(input);
   const findings = await writeFindings(a, input.lang ?? "uz", input.onStage);
   const audit = assembleAudit(a, findings);
@@ -188,6 +283,12 @@ export async function runAudit(input: { channel: string; competitors?: string[];
     firedRules: a.rules.filter((r) => r.status === "fired"),
     findings,
     stats: summarizeStats(a.stats),
+    validity: a.validity,
+    competitorIssues: a.competitorIssues,
+    niche: a.niche,
+    bench: a.bench ? { ...a.bench, channels: undefined, channelCount: a.bench.channels.length } : null,
+    learn: a.learn ? { plans: a.learn.plans, outcomes: a.learn.outcomes, scores: a.learn.scores, experiments: a.learn.experiments, calibration: a.learn.calibration, changes: a.learn.changes } : null,
+    sufficiency: sufficiency({ stats: a.stats, bench: a.bench, competitors: a.competitors.length, learn: a.learn }, input.lang ?? "uz"),
   };
 }
 

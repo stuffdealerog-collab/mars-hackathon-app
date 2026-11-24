@@ -117,7 +117,7 @@ export async function scrapeChannel(input: string, opts: { timeoutMs?: number; m
   try {
     res = await fetch(`https://t.me/s/${username}`, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; UslubBot/1.0; +https://t.me)",
+        "User-Agent": "Mozilla/5.0 (compatible; MercatBot/1.0; +https://t.me)",
         "Accept-Language": "uz,ru;q=0.8,en;q=0.6",
       },
       redirect: "manual",

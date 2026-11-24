@@ -1,12 +1,17 @@
 # Mercat Brain v1: implementable spec
 
-> Implementation map: `src/lib/uslub/brain/` —
-> `types.ts` (§0 primitives), `scrape.ts` (A1.1 t.me/s scraper), `stats.ts` (§B features + metrics),
-> `rules.ts` (§C rules, ledger, pillar shares), `audit.ts` (A1 pipeline + D1), `skeleton.ts` (A3 + A4),
-> `strategy.ts` (A2 pipeline: D0, D2, D3, critic, repair), `lint.ts` (§E code checks), `calendar.ts` (§F),
-> `llm.ts` (structured output + fallbacks + cache_control). Routes: `POST /api/uslub/analyze`, `POST /api/uslub/strategy`
-> (the contract paths; the spec's `/api/brain/*` names map to these). Not yet built: web context (W#), learn loop (A5),
-> FUNNEL_LEAK data (shown as `inactive`).
+> Implementation map (v2): `src/lib/uslub/brain/` —
+> `types.ts` (§0), `scrape.ts` (A1.1, detects "no public preview" redirects), `validity.ts` (competitor gate:
+> squatted / empty / stale / tiny / no preview), `stats.ts` (§B), `rules.ts` (§C incl. live R.FUNNEL_LEAK and
+> niche-benchmark relReach), `bench.ts` (niche benchmarks from text-free channel summaries, `bench-seed.json` =
+> the frozen golden set), `forecast.ts` (expected views/starts per slot), `learn.ts` + `learn-run.ts` (A5 learn loop),
+> `memory.ts` (Neon tables `brain_*`), `audit.ts` (A1 + D1), `skeleton.ts` (A3/A4 + hook-type and fact-focus
+> assignment), `strategy.ts` (A2: D0 cached, D2 with web W#, D3 per parallel group, critic → repair → critic),
+> `web.ts` (W#), `sufficiency.ts` (honest "not enough data" panel), `knowledge*.ts` + `kbstore.ts` (owner memory),
+> `adcheck*.ts` (ad-placement check). Routes: `POST /api/uslub/analyze`, `POST /api/uslub/strategy` (NDJSON with
+> `stream:true`), `POST /api/uslub/learn`, `POST|GET /api/uslub/knowledge`, `POST /api/uslub/adcheck`.
+> Bot: plan-link leads (`src_<tag>_<slot>`), `Sotildi` button, `/natija`. Eval: `tests/brain/eval/`, results in
+> `docs/brain/eval.md`.
 
 **Core principle:** Code decides what is true, when to post, and why. The LLM decides only how to say it, and its output is checked. Any claim without a ledger id gets deleted. It is never softened instead.
 

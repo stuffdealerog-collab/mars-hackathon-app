@@ -1,0 +1,520 @@
+{
+ "about": "Real public Telegram channels of Uzbek small and mid-size businesses, verified 2026-11-24 (t.me/s preview, >=500 subscribers, a post within 60 days). Used for the Brain evals and as the niche benchmark seed. 'rejected' = known bad handles for validity regression.",
+ "channels": [
+  {
+   "handle": "atirlarolami",
+   "niche": "beauty",
+   "title": "𝑨𝑻𝑰𝑹𝑳𝑨𝑹 𝑶𝑳𝑨𝑴𝑰 OPTOM 𝑲𝒐𝒔𝒎𝒆𝒕𝒊𝒌𝒂 𝑷𝒂𝒓𝒇𝒚𝒖𝒎𝒆𝒓𝒊𝒚𝒂 𝒅𝒐'𝒌𝒐𝒏𝒊✨",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "banafa_uz",
+   "niche": "beauty",
+   "title": "banafa.uz | Kosmetika internet do’koni",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "lashmakermagazin",
+   "niche": "beauty",
+   "title": "Lashmakermagazin Ташкент",
+   "lang": "ru"
+  },
+  {
+   "handle": "lashop_uz",
+   "niche": "beauty",
+   "title": "🇺🇿LASHop- ВСЕ для наращивания ресниц и оформления бровей",
+   "lang": "ru"
+  },
+  {
+   "handle": "MCosmeticUZ",
+   "niche": "beauty",
+   "title": "M COSMETIC",
+   "lang": "mixed"
+  },
+  {
+   "handle": "nail_studio",
+   "niche": "beauty",
+   "title": "NAIL STUDIO🤍",
+   "lang": "ru"
+  },
+  {
+   "handle": "pcosmuz",
+   "niche": "beauty",
+   "title": "Cosm.uz",
+   "lang": "ru"
+  },
+  {
+   "handle": "Trixolog_soch_soqol_qosh",
+   "niche": "beauty",
+   "title": "SOCH EKISH / Rasmiy kanal",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "chenson_official",
+   "niche": "cafe",
+   "title": "Chenson",
+   "lang": "ru"
+  },
+  {
+   "handle": "gayane_torty",
+   "niche": "cafe",
+   "title": "Gayane.torti",
+   "lang": "ru"
+  },
+  {
+   "handle": "safiabakery",
+   "niche": "cafe",
+   "title": "Safia Cafe & Bakery | Channel",
+   "lang": "mixed"
+  },
+  {
+   "handle": "tarelkabistro_uz",
+   "niche": "cafe",
+   "title": "«ТАРЕЛКА ORIENT» Сеть кафе бистро здоровой еды",
+   "lang": "ru"
+  },
+  {
+   "handle": "yapona",
+   "niche": "cafe",
+   "title": "Yaponamama.uz",
+   "lang": "mixed"
+  },
+  {
+   "handle": "zakaz_natko_uz",
+   "niche": "cafe",
+   "title": "НАТ&КО ❤️",
+   "lang": "ru"
+  },
+  {
+   "handle": "cancercenteruz",
+   "niche": "clinic",
+   "title": "Respublika Onkologiya markazi",
+   "lang": "mixed"
+  },
+  {
+   "handle": "clinics_uz",
+   "niche": "clinic",
+   "title": "Klinika va shifokor aksiyalari | Акции клиник",
+   "lang": "uz-Cyrl"
+  },
+  {
+   "handle": "ezguniyat_med",
+   "niche": "clinic",
+   "title": "EZGU NIYAT тиббиёт маркази",
+   "lang": "mixed"
+  },
+  {
+   "handle": "mclinic_uzb",
+   "niche": "clinic",
+   "title": "M-Clinic",
+   "lang": "mixed"
+  },
+  {
+   "handle": "phlebolife",
+   "niche": "clinic",
+   "title": "VARIKOZ | PHLEBOLIFE | Toshkent, Samarqand, Nukus, Qo'qon, Navoiy",
+   "lang": "mixed"
+  },
+  {
+   "handle": "atybatyuz",
+   "niche": "clothing",
+   "title": "Аты Баты",
+   "lang": "ru"
+  },
+  {
+   "handle": "chiccotashkent",
+   "niche": "clothing",
+   "title": "Chicco tashkent 👶🏻❣️",
+   "lang": "mixed"
+  },
+  {
+   "handle": "dilmuss_uzz",
+   "niche": "clothing",
+   "title": "DILMUSS",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "foggi_uz",
+   "niche": "clothing",
+   "title": "Foggi | Bolalar kiyimlari va aksessuarlari",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "fononofficial",
+   "niche": "clothing",
+   "title": "Fonon Jewellery",
+   "lang": "mixed"
+  },
+  {
+   "handle": "imperia_shop",
+   "niche": "clothing",
+   "title": "IMPERIA",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "MNG_Tashkent",
+   "niche": "clothing",
+   "title": "Mango Tashkent City Mall",
+   "lang": "mixed"
+  },
+  {
+   "handle": "nextmall",
+   "niche": "clothing",
+   "title": "Next Mall",
+   "lang": "mixed"
+  },
+  {
+   "handle": "ramsey_uzbekistan",
+   "niche": "clothing",
+   "title": "Ramsey",
+   "lang": "ru"
+  },
+  {
+   "handle": "standartuzbekistan",
+   "niche": "clothing",
+   "title": "Standart",
+   "lang": "mixed"
+  },
+  {
+   "handle": "vip_brand_uz",
+   "niche": "clothing",
+   "title": "Vip Brand (Rasmiy)",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "volidam_boutique_uz",
+   "niche": "clothing",
+   "title": "VOLIDAM_BOUTIQUE🇺🇿 Tashkent🇺🇿",
+   "lang": "mixed"
+  },
+  {
+   "handle": "abakusuz",
+   "niche": "ecommerce",
+   "title": "Abakus Shop bolalar do’koni",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "goldenbooks_uz",
+   "niche": "ecommerce",
+   "title": "Golden Books",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "MarketplaceUzum",
+   "niche": "ecommerce",
+   "title": "Uzum Sotuvchilari | Продавцы Uzum",
+   "lang": "mixed"
+  },
+  {
+   "handle": "openshop_uz",
+   "niche": "ecommerce",
+   "title": "OPENSHOP.UZ",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "piyola_market",
+   "niche": "ecommerce",
+   "title": "Piyolamarket.uz - Internet do'koni",
+   "lang": "mixed"
+  },
+  {
+   "handle": "uzum_market",
+   "niche": "ecommerce",
+   "title": "Uzum Market",
+   "lang": "mixed"
+  },
+  {
+   "handle": "examsuz",
+   "niche": "education",
+   "title": "IELTS IDP in Uzbekistan",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "ieltscenteruz",
+   "niche": "education",
+   "title": "IELTS CENTER",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "inha_uz",
+   "niche": "education",
+   "title": "INHA University in Tashkent",
+   "lang": "mixed"
+  },
+  {
+   "handle": "internationUZ",
+   "niche": "education",
+   "title": "INTER NATION school",
+   "lang": "mixed"
+  },
+  {
+   "handle": "kursy_uz",
+   "niche": "education",
+   "title": "Курсы в Ташкенте | Курсы.уз",
+   "lang": "ru"
+  },
+  {
+   "handle": "Multilevel_zone",
+   "niche": "education",
+   "title": "MULTILEVEL ZONE",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "najottalim",
+   "niche": "education",
+   "title": "Najot Ta'lim",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "pdpuz",
+   "niche": "education",
+   "title": "PDP Academy",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "rikseducation",
+   "niche": "education",
+   "title": "RIKS Education",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "Tashkec_uz",
+   "niche": "education",
+   "title": "Korean Education Center",
+   "lang": "mixed"
+  },
+  {
+   "handle": "worlduz",
+   "niche": "education",
+   "title": "World.uz | Chet elda ta'lim",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "alifshopuz",
+   "niche": "electronics",
+   "title": "Alif Shop Uzbekistan",
+   "lang": "mixed"
+  },
+  {
+   "handle": "asaxiyuz",
+   "niche": "electronics",
+   "title": "Asaxiy Market",
+   "lang": "mixed"
+  },
+  {
+   "handle": "diskontuz",
+   "niche": "electronics",
+   "title": "DISKONT",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "ideastore_uz",
+   "niche": "electronics",
+   "title": "idea.uz",
+   "lang": "mixed"
+  },
+  {
+   "handle": "imanshopuzb",
+   "niche": "electronics",
+   "title": "IMAN Shop | Muddati to'lov",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "imkonsavdomarkazi",
+   "niche": "electronics",
+   "title": "IMKON SAVDO MARKAZI",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "ishonch",
+   "niche": "electronics",
+   "title": "ISHONCH do‘konlari",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "macbrouz",
+   "niche": "electronics",
+   "title": "McBro",
+   "lang": "mixed"
+  },
+  {
+   "handle": "mastercomptashkent",
+   "niche": "electronics",
+   "title": "Компьютеры и ноутбуки Ташкент",
+   "lang": "mixed"
+  },
+  {
+   "handle": "mediapark_uzb",
+   "niche": "electronics",
+   "title": "MEDIAPARK",
+   "lang": "mixed"
+  },
+  {
+   "handle": "mistore_tashkent",
+   "niche": "electronics",
+   "title": "Xiaomi Store - O'zbekistondagi rasmiy do'kon",
+   "lang": "mixed"
+  },
+  {
+   "handle": "radius_uz",
+   "niche": "electronics",
+   "title": "radius.uz",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "texnomart",
+   "niche": "electronics",
+   "title": "texnomart",
+   "lang": "mixed"
+  },
+  {
+   "handle": "uz_gadget_shop",
+   "niche": "electronics",
+   "title": "Uz Gadget SHOP",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "evosuzbekistan",
+   "niche": "fastfood",
+   "title": "EVOS",
+   "lang": "mixed"
+  },
+  {
+   "handle": "kfcuzbekistanofficial",
+   "niche": "fastfood",
+   "title": "KFC Uzbekistan",
+   "lang": "mixed"
+  },
+  {
+   "handle": "maxwayfooduz",
+   "niche": "fastfood",
+   "title": "Max Way 🥪",
+   "lang": "mixed"
+  },
+  {
+   "handle": "oqtepalavashuz",
+   "niche": "fastfood",
+   "title": "🌯 Oqtepa Lavash",
+   "lang": "mixed"
+  },
+  {
+   "handle": "UzumTezkor",
+   "niche": "fastfood",
+   "title": "Uzum Tezkor",
+   "lang": "mixed"
+  },
+  {
+   "handle": "yaposha",
+   "niche": "fastfood",
+   "title": "Суши бар \"Япоша\"",
+   "lang": "mixed"
+  },
+  {
+   "handle": "credo_flowers",
+   "niche": "flowers",
+   "title": "🌼 CREDO Flowers 💐 цветы, букеты, доставка в Ташкенте",
+   "lang": "mixed"
+  },
+  {
+   "handle": "floral_aesthetic_uz",
+   "niche": "flowers",
+   "title": "Floral Aesthetic",
+   "lang": "mixed"
+  },
+  {
+   "handle": "flowersuztashkent",
+   "niche": "flowers",
+   "title": "flowers.uz 🍀",
+   "lang": "ru"
+  },
+  {
+   "handle": "flowersuzvitrina",
+   "niche": "flowers",
+   "title": "Flowers.uz - Online Vitrina🌿",
+   "lang": "mixed"
+  },
+  {
+   "handle": "gardenuz",
+   "niche": "flowers",
+   "title": "𝐅𝐥𝐨𝐰𝐞𝐫𝐬 𝐆𝐚𝐫𝐝𝐞𝐧🌱",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "honey_flowers_uz",
+   "niche": "flowers",
+   "title": "Honey Flowers | Цветы и букеты Ташкент",
+   "lang": "ru"
+  },
+  {
+   "handle": "ROZAUZ",
+   "niche": "flowers",
+   "title": "Javohir_gullar🌹",
+   "lang": "mixed"
+  },
+  {
+   "handle": "jannatmakon_uz",
+   "niche": "furniture",
+   "title": "JANNAT MAKON UZ",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "kengmakonuz",
+   "niche": "furniture",
+   "title": "Keng Makon mebellar fabrikasi",
+   "lang": "mixed"
+  },
+  {
+   "handle": "lifesmileuz",
+   "niche": "furniture",
+   "title": "Life Smile - Oshxona buyumlari (Rasmiy kanal)",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "MebelSmart_uz",
+   "niche": "furniture",
+   "title": "Mebel Smart",
+   "lang": "mixed"
+  },
+  {
+   "handle": "samantepgilam",
+   "niche": "furniture",
+   "title": "SAG Gilamlari",
+   "lang": "mixed"
+  },
+  {
+   "handle": "ShoshMebelUZ",
+   "niche": "furniture",
+   "title": "SHOSH | MEBEL MAXSULOTLARI ISHLAB CHIQARUVCHIDAN",
+   "lang": "uz-Latn"
+  },
+  {
+   "handle": "weltewhomeuz",
+   "niche": "furniture",
+   "title": "🇹🇷 Weltew Home",
+   "lang": "uz-Latn"
+  }
+ ],
+ "rejected": [
+  {
+   "handle": "lesailes_uz",
+   "subscribers": 1,
+   "reason": "squatted: title 'Hamkorlik uchun' (formerly 'Sotiladi'), not Les Ailes"
+  },
+  {
+   "handle": "olx_uz",
+   "title": "👑 SHOXONA ZINALAR 🇺🇿",
+   "subscribers": 2140,
+   "reason": "squatted: title 'SHOXONA ZINALAR', not OLX"
+  },
+  {
+   "handle": "tbcuz",
+   "title": "Ташкентский Бизнес Клуб",
+   "subscribers": 205,
+   "reason": "title 'Tashkent Business Club' not TBC Bank (wrong handle)"
+  },
+  {
+   "handle": "bonapetit_uz",
+   "reason": "no public preview (t.me/s redirects to the contact page)"
+  }
+ ]
+}

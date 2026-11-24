@@ -1,0 +1,2889 @@
+[
+ {
+  "channel": "atirlarolami",
+  "niche": "beauty",
+  "subscribers": 865,
+  "medianViews": 566,
+  "reachRate": 0.6538,
+  "postsPerWeek": 8,
+  "maturePosts": 32,
+  "suspect": false,
+  "hourLift": {
+   "07-10": 0.939,
+   "19-22": 1.02,
+   "13-16": 1.049
+  },
+  "formatLift": {
+   "photo": 1.104,
+   "album": 0.972,
+   "video": 1.001
+  },
+  "weekdayLift": {
+   "Thu": 0.958,
+   "Sun": 1.035,
+   "Tue": 0.977
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.12,
+   "album": 0.68,
+   "video": 0.21,
+   "other": 0
+  },
+  "saleShare": 0.09,
+  "ctaRate": 0.06,
+  "emojiPer100": 2.5,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "banafa_uz",
+  "niche": "beauty",
+  "subscribers": 1940,
+  "medianViews": 594,
+  "reachRate": 0.3062,
+  "postsPerWeek": 2.5,
+  "maturePosts": 24,
+  "suspect": false,
+  "hourLift": {
+   "10-13": 0.9,
+   "16-19": 0.965,
+   "13-16": 1.026
+  },
+  "formatLift": {
+   "video": 0.949,
+   "album": 1.194
+  },
+  "weekdayLift": {
+   "Fri": 0.952,
+   "Wed": 0.933,
+   "Mon": 0.885,
+   "Tue": 1.174,
+   "Thu": 1.178
+  },
+  "formatMix": {
+   "text": 0.04,
+   "photo": 0,
+   "album": 0.12,
+   "video": 0.85,
+   "other": 0
+  },
+  "saleShare": 0.35,
+  "ctaRate": 0.38,
+  "emojiPer100": 1.6,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "lashmakermagazin",
+  "niche": "beauty",
+  "subscribers": 620,
+  "medianViews": 114,
+  "reachRate": 0.1839,
+  "postsPerWeek": 19.7,
+  "maturePosts": 51,
+  "suspect": true,
+  "hourLift": {
+   "13-16": 1.026,
+   "10-13": 1.018,
+   "07-10": 0.996,
+   "16-19": 1.002
+  },
+  "formatLift": {
+   "text": 1,
+   "photo": 1.006,
+   "video": 1.019
+  },
+  "weekdayLift": {
+   "Sat": 0.962,
+   "Fri": 0.991,
+   "Wed": 1.002,
+   "Mon": 1.1,
+   "Sun": 1.015
+  },
+  "formatMix": {
+   "text": 0.23,
+   "photo": 0.62,
+   "album": 0.03,
+   "video": 0.12,
+   "other": 0
+  },
+  "saleShare": 0.2,
+  "ctaRate": 0.1,
+  "emojiPer100": 0.2,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "lashop_uz",
+  "niche": "beauty",
+  "subscribers": 3840,
+  "medianViews": 1960,
+  "reachRate": 0.5104,
+  "postsPerWeek": 2,
+  "maturePosts": 23,
+  "suspect": false,
+  "hourLift": {
+   "10-13": 0.978,
+   "13-16": 0.948,
+   "07-10": 1.083
+  },
+  "formatLift": {
+   "photo": 1.065,
+   "album": 1.013
+  },
+  "weekdayLift": {
+   "Tue": 1.144,
+   "Sat": 0.769,
+   "Fri": 1.113,
+   "Wed": 0.851,
+   "Thu": 1.083
+  },
+  "formatMix": {
+   "text": 0.04,
+   "photo": 0.35,
+   "album": 0.61,
+   "video": 0,
+   "other": 0
+  },
+  "saleShare": 0.04,
+  "ctaRate": 0.17,
+  "emojiPer100": 2.2,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "mcosmeticuz",
+  "niche": "beauty",
+  "subscribers": 36800,
+  "medianViews": 11000,
+  "reachRate": 0.2989,
+  "postsPerWeek": 29,
+  "maturePosts": 11,
+  "suspect": true,
+  "hourLift": {
+   "16-19": 1.009
+  },
+  "formatLift": {
+   "album": 1
+  },
+  "weekdayLift": {
+   "Fri": 0.986,
+   "Thu": 1.009
+  },
+  "formatMix": {
+   "text": 0.14,
+   "photo": 0.14,
+   "album": 0.48,
+   "video": 0.14,
+   "other": 0.1
+  },
+  "saleShare": 0.55,
+  "ctaRate": 0.69,
+  "emojiPer100": 1.6,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "nail_studio",
+  "niche": "beauty",
+  "subscribers": 619,
+  "medianViews": 448,
+  "reachRate": 0.7229,
+  "postsPerWeek": 0.8,
+  "maturePosts": 8,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0.18,
+   "photo": 0.45,
+   "album": 0.27,
+   "video": 0.09,
+   "other": 0
+  },
+  "saleShare": 0.27,
+  "ctaRate": 0.73,
+  "emojiPer100": 2.8,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "pcosmuz",
+  "niche": "beauty",
+  "subscribers": 3760,
+  "medianViews": 2235,
+  "reachRate": 0.5944,
+  "postsPerWeek": 4.5,
+  "maturePosts": 48,
+  "suspect": false,
+  "hourLift": {
+   "19-22": 1.011,
+   "13-16": 0.997,
+   "07-10": 1.124,
+   "10-13": 1.111,
+   "16-19": 1
+  },
+  "formatLift": {
+   "text": 1.015,
+   "video": 1.063,
+   "photo": 1.053
+  },
+  "weekdayLift": {
+   "Tue": 0.986,
+   "Fri": 1.063,
+   "Thu": 0.948,
+   "Wed": 1.063,
+   "Sun": 0.966,
+   "Sat": 1.133,
+   "Mon": 1.011
+  },
+  "formatMix": {
+   "text": 0.52,
+   "photo": 0.18,
+   "album": 0.02,
+   "video": 0.28,
+   "other": 0
+  },
+  "saleShare": 0.82,
+  "ctaRate": 0.76,
+  "emojiPer100": 0.7,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "trixolog_soch_soqol_qosh",
+  "niche": "beauty",
+  "subscribers": 586,
+  "medianViews": 437,
+  "reachRate": 0.7457,
+  "postsPerWeek": 2,
+  "maturePosts": 30,
+  "suspect": false,
+  "hourLift": {
+   "19-22": 0.988,
+   "13-16": 0.892,
+   "10-13": 1.116,
+   "16-19": 1.036,
+   "22-01": 0.854
+  },
+  "formatLift": {
+   "video": 0.975
+  },
+  "weekdayLift": {
+   "Fri": 0.91,
+   "Mon": 0.892,
+   "Sun": 0.849,
+   "Thu": 1.102,
+   "Wed": 1.026,
+   "Sat": 1.129
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.03,
+   "album": 0.03,
+   "video": 0.93,
+   "other": 0
+  },
+  "saleShare": 0.03,
+  "ctaRate": 1,
+  "emojiPer100": 3.4,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "chenson_official",
+  "niche": "cafe",
+  "subscribers": 1490,
+  "medianViews": 1120,
+  "reachRate": 0.7517,
+  "postsPerWeek": 0.5,
+  "maturePosts": 5,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0,
+   "photo": 1,
+   "album": 0,
+   "video": 0,
+   "other": 0
+  },
+  "saleShare": 0.8,
+  "ctaRate": 0.8,
+  "emojiPer100": 2.3,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "gayane_torty",
+  "niche": "cafe",
+  "subscribers": 1370,
+  "medianViews": 2620,
+  "reachRate": 1.9124,
+  "postsPerWeek": 0.3,
+  "maturePosts": 3,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0.25,
+   "photo": 0,
+   "album": 0,
+   "video": 0.75,
+   "other": 0
+  },
+  "saleShare": 0.25,
+  "ctaRate": 0.75,
+  "emojiPer100": 1.1,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "safiabakery",
+  "niche": "cafe",
+  "subscribers": 8850,
+  "medianViews": 4640,
+  "reachRate": 0.5243,
+  "postsPerWeek": 4.3,
+  "maturePosts": 59,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 0.991,
+   "16-19": 1.006,
+   "10-13": 1.026,
+   "07-10": 0.953
+  },
+  "formatLift": {
+   "text": 0.906,
+   "photo": 1.026
+  },
+  "weekdayLift": {
+   "Fri": 0.991,
+   "Wed": 1.082,
+   "Mon": 0.959,
+   "Sun": 1.106,
+   "Sat": 0.972,
+   "Thu": 0.921,
+   "Tue": 1.026
+  },
+  "formatMix": {
+   "text": 0.3,
+   "photo": 0.68,
+   "album": 0,
+   "video": 0.02,
+   "other": 0
+  },
+  "saleShare": 0.68,
+  "ctaRate": 0.05,
+  "emojiPer100": 1.2,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "tarelkabistro_uz",
+  "niche": "cafe",
+  "subscribers": 1510,
+  "medianViews": 84,
+  "reachRate": 0.0556,
+  "postsPerWeek": 60,
+  "maturePosts": 31,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 0.896,
+   "10-13": 1.071,
+   "07-10": 1.067
+  },
+  "formatLift": {
+   "text": 0.96,
+   "video": 0.998
+  },
+  "weekdayLift": {
+   "Sat": 0.915,
+   "Fri": 0.976,
+   "Thu": 1.067,
+   "Wed": 1.16
+  },
+  "formatMix": {
+   "text": 0.58,
+   "photo": 0.05,
+   "album": 0.02,
+   "video": 0.35,
+   "other": 0
+  },
+  "saleShare": 0.65,
+  "ctaRate": 0.38,
+  "emojiPer100": 2.7,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "yapona",
+  "niche": "cafe",
+  "subscribers": 6250,
+  "medianViews": 6320,
+  "reachRate": 1.0112,
+  "postsPerWeek": 0.5,
+  "maturePosts": 11,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 1.009,
+   "19-22": 1.082
+  },
+  "formatLift": {
+   "video": 0.906,
+   "text": 1.014
+  },
+  "weekdayLift": {
+   "Sat": 1.004
+  },
+  "formatMix": {
+   "text": 0.25,
+   "photo": 0.17,
+   "album": 0.25,
+   "video": 0.33,
+   "other": 0
+  },
+  "saleShare": 0.67,
+  "ctaRate": 0.75,
+  "emojiPer100": 1.2,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "zakaz_natko_uz",
+  "niche": "cafe",
+  "subscribers": 1250,
+  "medianViews": 746,
+  "reachRate": 0.5968,
+  "postsPerWeek": 2,
+  "maturePosts": 24,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 1.085,
+   "19-22": 0.978,
+   "16-19": 1.103,
+   "10-13": 0.995
+  },
+  "formatLift": {
+   "photo": 0.97,
+   "video": 0.988
+  },
+  "weekdayLift": {
+   "Mon": 0.927,
+   "Tue": 0.965,
+   "Sat": 1.101,
+   "Fri": 1,
+   "Wed": 1.015
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.32,
+   "album": 0.08,
+   "video": 0.52,
+   "other": 0.08
+  },
+  "saleShare": 0.2,
+  "ctaRate": 0.28,
+  "emojiPer100": 1.3,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "cancercenteruz",
+  "niche": "clinic",
+  "subscribers": 3930,
+  "medianViews": 1950,
+  "reachRate": 0.4962,
+  "postsPerWeek": 7.5,
+  "maturePosts": 58,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 0.984,
+   "13-16": 0.879,
+   "19-22": 1.159,
+   "10-13": 1.081,
+   "07-10": 0.872
+  },
+  "formatLift": {
+   "video": 0.962,
+   "photo": 0.898,
+   "album": 1.037,
+   "text": 2.231
+  },
+  "weekdayLift": {
+   "Fri": 1.136,
+   "Wed": 0.881,
+   "Tue": 0.91,
+   "Mon": 0.929,
+   "Thu": 0.987
+  },
+  "formatMix": {
+   "text": 0.05,
+   "photo": 0.47,
+   "album": 0.17,
+   "video": 0.3,
+   "other": 0.02
+  },
+  "saleShare": 0.02,
+  "ctaRate": 0.32,
+  "emojiPer100": 0.4,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "clinics_uz",
+  "niche": "clinic",
+  "subscribers": 16700,
+  "medianViews": 6740,
+  "reachRate": 0.4036,
+  "postsPerWeek": 2,
+  "maturePosts": 28,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 0.964,
+   "16-19": 1.033,
+   "10-13": 0.939,
+   "07-10": 1.026
+  },
+  "formatLift": {
+   "photo": 0.984
+  },
+  "weekdayLift": {
+   "Thu": 1.074,
+   "Wed": 0.883,
+   "Mon": 0.967,
+   "Fri": 1.114,
+   "Sat": 1.009
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.96,
+   "album": 0,
+   "video": 0.04,
+   "other": 0
+  },
+  "saleShare": 0.93,
+  "ctaRate": 0.96,
+  "emojiPer100": 2,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "ezguniyat_med",
+  "niche": "clinic",
+  "subscribers": 1550,
+  "medianViews": 528,
+  "reachRate": 0.3406,
+  "postsPerWeek": 12.5,
+  "maturePosts": 54,
+  "suspect": false,
+  "hourLift": {
+   "19-22": 0.971,
+   "16-19": 0.945,
+   "10-13": 1.038,
+   "13-16": 1.063
+  },
+  "formatLift": {
+   "video": 0.986
+  },
+  "weekdayLift": {
+   "Fri": 0.939,
+   "Thu": 1.048,
+   "Wed": 0.966,
+   "Tue": 1.067,
+   "Mon": 0.973,
+   "Sat": 1.074
+  },
+  "formatMix": {
+   "text": 0.02,
+   "photo": 0.03,
+   "album": 0,
+   "video": 0.95,
+   "other": 0
+  },
+  "saleShare": 0.07,
+  "ctaRate": 0.95,
+  "emojiPer100": 1.7,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "mclinic_uzb",
+  "niche": "clinic",
+  "subscribers": 553,
+  "medianViews": 373,
+  "reachRate": 0.6736,
+  "postsPerWeek": 3.5,
+  "maturePosts": 33,
+  "suspect": false,
+  "hourLift": {
+   "19-22": 1.123,
+   "16-19": 0.996,
+   "13-16": 1.053,
+   "10-13": 0.979,
+   "07-10": 1.083
+  },
+  "formatLift": {
+   "video": 1.055,
+   "album": 0.849,
+   "photo": 1.083
+  },
+  "weekdayLift": {
+   "Fri": 1.044,
+   "Mon": 0.963,
+   "Sun": 1.048,
+   "Sat": 1.026,
+   "Wed": 0.995,
+   "Tue": 1.037
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.08,
+   "album": 0.19,
+   "video": 0.69,
+   "other": 0.03
+  },
+  "saleShare": 0.44,
+  "ctaRate": 0.78,
+  "emojiPer100": 0.8,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "phlebolife",
+  "niche": "clinic",
+  "subscribers": 1020,
+  "medianViews": 704,
+  "reachRate": 0.6897,
+  "postsPerWeek": 2.5,
+  "maturePosts": 18,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 0.842,
+   "16-19": 0.829
+  },
+  "formatLift": {
+   "album": 1.144,
+   "text": 0.869,
+   "video": 0.995,
+   "photo": 0.946
+  },
+  "weekdayLift": {
+   "Sat": 0.307,
+   "Thu": 0.989,
+   "Wed": 1.144,
+   "Tue": 0.9
+  },
+  "formatMix": {
+   "text": 0.41,
+   "photo": 0.18,
+   "album": 0.14,
+   "video": 0.27,
+   "other": 0
+  },
+  "saleShare": 0.23,
+  "ctaRate": 0.5,
+  "emojiPer100": 1.6,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "atybatyuz",
+  "niche": "clothing",
+  "subscribers": 4600,
+  "medianViews": 2310,
+  "reachRate": 0.5022,
+  "postsPerWeek": 5,
+  "maturePosts": 34,
+  "suspect": false,
+  "hourLift": {
+   "10-13": 1.012,
+   "13-16": 0.979,
+   "16-19": 1.023
+  },
+  "formatLift": {
+   "photo": 0.994,
+   "video": 1.019,
+   "album": 1.008,
+   "other": 0.992
+  },
+  "weekdayLift": {
+   "Thu": 1.061,
+   "Wed": 0.979,
+   "Sun": 0.969,
+   "Tue": 0.892,
+   "Sat": 1.031
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.19,
+   "album": 0.38,
+   "video": 0.35,
+   "other": 0.08
+  },
+  "saleShare": 0.49,
+  "ctaRate": 0.84,
+  "emojiPer100": 0.1,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "chiccotashkent",
+  "niche": "clothing",
+  "subscribers": 5250,
+  "postsPerWeek": 42,
+  "maturePosts": 0,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0.02,
+   "photo": 0.26,
+   "album": 0.57,
+   "video": 0.14,
+   "other": 0
+  },
+  "saleShare": 0.48,
+  "ctaRate": 0.48,
+  "emojiPer100": 1.4,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "dilmuss_uzz",
+  "niche": "clothing",
+  "subscribers": 56100,
+  "postsPerWeek": 60,
+  "maturePosts": 0,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0.1,
+   "photo": 0,
+   "album": 0.02,
+   "video": 0.88,
+   "other": 0
+  },
+  "saleShare": 0.3,
+  "ctaRate": 0.5,
+  "emojiPer100": 1.2,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "foggi_uz",
+  "niche": "clothing",
+  "subscribers": 9440,
+  "medianViews": 1570,
+  "reachRate": 0.1663,
+  "postsPerWeek": 60,
+  "maturePosts": 7,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0.42,
+   "photo": 0.03,
+   "album": 0,
+   "video": 0.55,
+   "other": 0
+  },
+  "saleShare": 0.15,
+  "ctaRate": 0.68,
+  "emojiPer100": 1.9,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "fononofficial",
+  "niche": "clothing",
+  "subscribers": 3710,
+  "medianViews": 2600,
+  "reachRate": 0.7008,
+  "postsPerWeek": 0.5,
+  "maturePosts": 18,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 0.987,
+   "10-13": 1.166,
+   "13-16": 1.077
+  },
+  "formatLift": {
+   "video": 1.077,
+   "album": 1.128,
+   "photo": 0.963
+  },
+  "weekdayLift": {
+   "Sun": 1.251,
+   "Thu": 0.996,
+   "Sat": 1.147,
+   "Mon": 1.008
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.33,
+   "album": 0.22,
+   "video": 0.44,
+   "other": 0
+  },
+  "saleShare": 0.06,
+  "ctaRate": 0.94,
+  "emojiPer100": 0.2,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "imperia_shop",
+  "niche": "clothing",
+  "subscribers": 6100,
+  "medianViews": 3780,
+  "reachRate": 0.6197,
+  "postsPerWeek": 5.5,
+  "maturePosts": 22,
+  "suspect": false,
+  "hourLift": {
+   "10-13": 0.872,
+   "16-19": 1.154
+  },
+  "formatLift": {
+   "video": 0.91,
+   "text": 1.179
+  },
+  "weekdayLift": {
+   "Fri": 0.797,
+   "Thu": 1.13,
+   "Mon": 2.739
+  },
+  "formatMix": {
+   "text": 0.35,
+   "photo": 0.06,
+   "album": 0,
+   "video": 0.58,
+   "other": 0
+  },
+  "saleShare": 0.52,
+  "ctaRate": 0.42,
+  "emojiPer100": 1.9,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "mng_tashkent",
+  "niche": "clothing",
+  "subscribers": 5210,
+  "medianViews": 4410,
+  "reachRate": 0.8464,
+  "postsPerWeek": 0.3,
+  "maturePosts": 19,
+  "suspect": false,
+  "hourLift": {
+   "19-22": 0.904,
+   "16-19": 1.139,
+   "10-13": 1.031,
+   "13-16": 1.041
+  },
+  "formatLift": {
+   "album": 0.998,
+   "other": 0.858,
+   "photo": 1.053
+  },
+  "weekdayLift": {
+   "Mon": 0.782,
+   "Wed": 1.044,
+   "Thu": 1.083,
+   "Fri": 1.041
+  },
+  "formatMix": {
+   "text": 0.05,
+   "photo": 0.32,
+   "album": 0.47,
+   "video": 0,
+   "other": 0.16
+  },
+  "saleShare": 0.26,
+  "ctaRate": 0.53,
+  "emojiPer100": 0.7,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "nextmall",
+  "niche": "clothing",
+  "subscribers": 851,
+  "medianViews": 275,
+  "reachRate": 0.3226,
+  "postsPerWeek": 2,
+  "maturePosts": 31,
+  "suspect": false,
+  "hourLift": {
+   "19-22": 0.935,
+   "10-13": 1.057,
+   "13-16": 1.008,
+   "16-19": 1.051
+  },
+  "formatLift": {
+   "video": 1.014,
+   "album": 0.936,
+   "photo": 1
+  },
+  "weekdayLift": {
+   "Thu": 1.033,
+   "Sat": 0.891,
+   "Wed": 1,
+   "Fri": 0.969,
+   "Mon": 1.014
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.16,
+   "album": 0.28,
+   "video": 0.56,
+   "other": 0
+  },
+  "saleShare": 0.75,
+  "ctaRate": 0.13,
+  "emojiPer100": 1.4,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "ramsey_uzbekistan",
+  "niche": "clothing",
+  "subscribers": 1310,
+  "medianViews": 1060,
+  "reachRate": 0.8092,
+  "postsPerWeek": 1.3,
+  "maturePosts": 15,
+  "suspect": false,
+  "hourLift": {
+   "10-13": 0.959,
+   "16-19": 0.99
+  },
+  "formatLift": {
+   "video": 0.944,
+   "album": 1.019
+  },
+  "weekdayLift": {
+   "Mon": 1.192,
+   "Thu": 1.146
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.13,
+   "album": 0.6,
+   "video": 0.27,
+   "other": 0
+  },
+  "saleShare": 0.33,
+  "ctaRate": 0.07,
+  "emojiPer100": 0.4,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "standartuzbekistan",
+  "niche": "clothing",
+  "subscribers": 21900,
+  "medianViews": 4155,
+  "reachRate": 0.1897,
+  "postsPerWeek": 40,
+  "maturePosts": 4,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0,
+   "photo": 0,
+   "album": 0.4,
+   "video": 0.57,
+   "other": 0.03
+  },
+  "saleShare": 0,
+  "ctaRate": 0.98,
+  "emojiPer100": 1.8,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "vip_brand_uz",
+  "niche": "clothing",
+  "subscribers": 25200,
+  "medianViews": 5415,
+  "reachRate": 0.2149,
+  "postsPerWeek": 12.3,
+  "maturePosts": 31,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 1.085,
+   "19-22": 0.968,
+   "13-16": 0.946
+  },
+  "formatLift": {
+   "video": 1.048,
+   "album": 1.062,
+   "photo": 0.921
+  },
+  "weekdayLift": {
+   "Fri": 1.085,
+   "Thu": 0.939,
+   "Wed": 0.998,
+   "Sat": 0.968
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.45,
+   "album": 0.33,
+   "video": 0.21,
+   "other": 0
+  },
+  "saleShare": 0.91,
+  "ctaRate": 0.88,
+  "emojiPer100": 1.5,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "volidam_boutique_uz",
+  "niche": "clothing",
+  "subscribers": 13700,
+  "medianViews": 3605,
+  "reachRate": 0.2631,
+  "postsPerWeek": 51,
+  "maturePosts": 8,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0,
+   "photo": 0.04,
+   "album": 0.22,
+   "video": 0.75,
+   "other": 0
+  },
+  "saleShare": 0.39,
+  "ctaRate": 0.71,
+  "emojiPer100": 3.1,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "abakusuz",
+  "niche": "ecommerce",
+  "subscribers": 8560,
+  "medianViews": 1300,
+  "reachRate": 0.1519,
+  "postsPerWeek": 38.2,
+  "maturePosts": 36,
+  "suspect": false,
+  "hourLift": {
+   "10-13": 0.991,
+   "07-10": 0.985,
+   "16-19": 1.023,
+   "13-16": 0.998
+  },
+  "formatLift": {
+   "video": 0.992,
+   "text": 0.996,
+   "album": 1.007
+  },
+  "weekdayLift": {
+   "Sat": 0.996,
+   "Fri": 1.009,
+   "Thu": 0.962,
+   "Wed": 1.008,
+   "Tue": 1.037,
+   "Mon": 0.989,
+   "Sun": 1.066
+  },
+  "formatMix": {
+   "text": 0.41,
+   "photo": 0.07,
+   "album": 0.11,
+   "video": 0.39,
+   "other": 0.02
+  },
+  "saleShare": 0.46,
+  "ctaRate": 0.54,
+  "emojiPer100": 0.5,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "goldenbooks_uz",
+  "niche": "ecommerce",
+  "subscribers": 6240,
+  "medianViews": 2215,
+  "reachRate": 0.355,
+  "postsPerWeek": 9.8,
+  "maturePosts": 24,
+  "suspect": true,
+  "hourLift": {
+   "19-22": 0.918,
+   "10-13": 0.958,
+   "13-16": 1.041,
+   "16-19": 1.005,
+   "22-01": 0.957
+  },
+  "formatLift": {
+   "album": 0.97,
+   "photo": 0.992
+  },
+  "weekdayLift": {
+   "Fri": 1.046,
+   "Wed": 0.955,
+   "Mon": 0.971,
+   "Thu": 1.117,
+   "Tue": 0.918
+  },
+  "formatMix": {
+   "text": 0.04,
+   "photo": 0.25,
+   "album": 0.54,
+   "video": 0.11,
+   "other": 0.07
+  },
+  "saleShare": 0.68,
+  "ctaRate": 0.79,
+  "emojiPer100": 0.9,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "marketplaceuzum",
+  "niche": "ecommerce",
+  "subscribers": 40100,
+  "medianViews": 7355,
+  "reachRate": 0.1834,
+  "postsPerWeek": 16.5,
+  "maturePosts": 39,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 1.004,
+   "13-16": 0.993,
+   "10-13": 1.011
+  },
+  "formatLift": {
+   "text": 1.022,
+   "album": 0.974
+  },
+  "weekdayLift": {
+   "Fri": 1.104,
+   "Thu": 0.968,
+   "Wed": 0.974,
+   "Tue": 0.997,
+   "Mon": 1.035
+  },
+  "formatMix": {
+   "text": 0.62,
+   "photo": 0,
+   "album": 0.36,
+   "video": 0,
+   "other": 0.02
+  },
+  "saleShare": 0.47,
+  "ctaRate": 0.42,
+  "emojiPer100": 1,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "openshop_uz",
+  "niche": "ecommerce",
+  "subscribers": 13200,
+  "medianViews": 960,
+  "reachRate": 0.0727,
+  "postsPerWeek": 29.2,
+  "maturePosts": 41,
+  "suspect": true,
+  "hourLift": {
+   "13-16": 1.028,
+   "19-22": 1.034,
+   "10-13": 0.96,
+   "16-19": 1.008
+  },
+  "formatLift": {
+   "album": 1.038,
+   "video": 1.009,
+   "photo": 0.988,
+   "text": 0.99
+  },
+  "weekdayLift": {
+   "Sat": 0.92,
+   "Fri": 1.019,
+   "Thu": 0.964,
+   "Wed": 1.008,
+   "Mon": 1.016,
+   "Sun": 1.031
+  },
+  "formatMix": {
+   "text": 0.11,
+   "photo": 0.22,
+   "album": 0.09,
+   "video": 0.57,
+   "other": 0
+  },
+  "saleShare": 0.89,
+  "ctaRate": 0.85,
+  "emojiPer100": 1.7,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "piyola_market",
+  "niche": "ecommerce",
+  "subscribers": 39700,
+  "medianViews": 4970,
+  "reachRate": 0.1252,
+  "postsPerWeek": 34.9,
+  "maturePosts": 46,
+  "suspect": true,
+  "hourLift": {
+   "13-16": 0.998,
+   "16-19": 1.129,
+   "10-13": 1.013
+  },
+  "formatLift": {
+   "video": 1.015
+  },
+  "weekdayLift": {
+   "Thu": 1.018,
+   "Wed": 1.078,
+   "Tue": 0.904,
+   "Mon": 0.977,
+   "Sun": 0.97,
+   "Sat": 1.239
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0,
+   "album": 0,
+   "video": 1,
+   "other": 0
+  },
+  "saleShare": 0,
+  "ctaRate": 0,
+  "emojiPer100": 0,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "uzum_market",
+  "niche": "ecommerce",
+  "subscribers": 155000,
+  "medianViews": 50350,
+  "reachRate": 0.3248,
+  "postsPerWeek": 9.8,
+  "maturePosts": 59,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 0.997,
+   "10-13": 0.97,
+   "16-19": 1.052,
+   "19-22": 1.007
+  },
+  "formatLift": {
+   "album": 0.987,
+   "photo": 1.035,
+   "other": 0.885,
+   "text": 1.003,
+   "video": 1.041
+  },
+  "weekdayLift": {
+   "Fri": 0.987,
+   "Thu": 0.945,
+   "Wed": 1.041,
+   "Tue": 0.956,
+   "Mon": 1.164,
+   "Sun": 1.057,
+   "Sat": 0.987
+  },
+  "formatMix": {
+   "text": 0.33,
+   "photo": 0.27,
+   "album": 0.08,
+   "video": 0.18,
+   "other": 0.13
+  },
+  "saleShare": 0.45,
+  "ctaRate": 0.33,
+  "emojiPer100": 2.7,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "examsuz",
+  "niche": "education",
+  "subscribers": 23300,
+  "medianViews": 7630,
+  "reachRate": 0.3275,
+  "postsPerWeek": 4.5,
+  "maturePosts": 42,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 0.974,
+   "13-16": 0.856,
+   "07-10": 0.989,
+   "10-13": 0.923,
+   "19-22": 1.135
+  },
+  "formatLift": {
+   "photo": 0.873,
+   "text": 0.937,
+   "other": 0.859,
+   "album": 1.421,
+   "video": 1.012
+  },
+  "weekdayLift": {
+   "Thu": 1.057,
+   "Wed": 0.728,
+   "Tue": 0.909,
+   "Mon": 0.934,
+   "Fri": 1.009,
+   "Sat": 1.215
+  },
+  "formatMix": {
+   "text": 0.35,
+   "photo": 0.17,
+   "album": 0.07,
+   "video": 0.32,
+   "other": 0.1
+  },
+  "saleShare": 0.32,
+  "ctaRate": 0.6,
+  "emojiPer100": 0.6,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "ieltscenteruz",
+  "niche": "education",
+  "subscribers": 2970,
+  "medianViews": 947,
+  "reachRate": 0.3189,
+  "postsPerWeek": 7.5,
+  "maturePosts": 52,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 1.017,
+   "19-22": 0.903,
+   "16-19": 0.965,
+   "10-13": 1.051,
+   "07-10": 1.063
+  },
+  "formatLift": {
+   "photo": 1.018,
+   "album": 0.982
+  },
+  "weekdayLift": {
+   "Sat": 0.956,
+   "Thu": 0.983,
+   "Wed": 1.034,
+   "Mon": 1.017,
+   "Sun": 0.903,
+   "Fri": 0.928,
+   "Tue": 0.969
+  },
+  "formatMix": {
+   "text": 0.05,
+   "photo": 0.63,
+   "album": 0.29,
+   "video": 0.03,
+   "other": 0
+  },
+  "saleShare": 0.05,
+  "ctaRate": 0.71,
+  "emojiPer100": 6.3,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "inha_uz",
+  "niche": "education",
+  "subscribers": 7300,
+  "medianViews": 3245,
+  "reachRate": 0.4445,
+  "postsPerWeek": 5,
+  "maturePosts": 22,
+  "suspect": false,
+  "hourLift": {
+   "10-13": 1.017,
+   "07-10": 1.136,
+   "13-16": 0.896,
+   "16-19": 0.785
+  },
+  "formatLift": {
+   "album": 0.913,
+   "photo": 0.988,
+   "video": 1.032
+  },
+  "weekdayLift": {
+   "Wed": 1.056,
+   "Tue": 0.988,
+   "Mon": 0.924,
+   "Thu": 1.2
+  },
+  "formatMix": {
+   "text": 0.07,
+   "photo": 0.43,
+   "album": 0.3,
+   "video": 0.2,
+   "other": 0
+  },
+  "saleShare": 0.1,
+  "ctaRate": 0.83,
+  "emojiPer100": 1,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "internationuz",
+  "niche": "education",
+  "subscribers": 10700,
+  "medianViews": 2055,
+  "reachRate": 0.1921,
+  "postsPerWeek": 45.3,
+  "maturePosts": 42,
+  "suspect": true,
+  "hourLift": {
+   "13-16": 0.957,
+   "10-13": 1.031,
+   "07-10": 0.897,
+   "19-22": 1.002,
+   "16-19": 1.041
+  },
+  "formatLift": {
+   "photo": 1.063,
+   "text": 0.904
+  },
+  "weekdayLift": {
+   "Sat": 0.928,
+   "Fri": 1.011,
+   "Thu": 0.993,
+   "Wed": 1.034,
+   "Tue": 0.982,
+   "Mon": 1.013,
+   "Sun": 0.975
+  },
+  "formatMix": {
+   "text": 0.5,
+   "photo": 0.47,
+   "album": 0.02,
+   "video": 0.02,
+   "other": 0
+  },
+  "saleShare": 0,
+  "ctaRate": 0,
+  "emojiPer100": 6,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "kursy_uz",
+  "niche": "education",
+  "subscribers": 3160,
+  "medianViews": 322,
+  "reachRate": 0.1019,
+  "postsPerWeek": 13,
+  "maturePosts": 55,
+  "suspect": true,
+  "hourLift": {
+   "16-19": 1.012,
+   "07-10": 1.043,
+   "13-16": 0.96,
+   "10-13": 1.009,
+   "19-22": 1.006
+  },
+  "formatLift": {
+   "photo": 1.007,
+   "video": 0.986,
+   "album": 1.152
+  },
+  "weekdayLift": {
+   "Fri": 1.029,
+   "Thu": 0.96,
+   "Wed": 1.011,
+   "Tue": 1.012,
+   "Mon": 1.041,
+   "Sat": 0.966,
+   "Sun": 0.973
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.43,
+   "album": 0.05,
+   "video": 0.52,
+   "other": 0
+  },
+  "saleShare": 0.97,
+  "ctaRate": 1,
+  "emojiPer100": 1.1,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "multilevel_zone",
+  "niche": "education",
+  "subscribers": 223000,
+  "postsPerWeek": 58,
+  "maturePosts": 1,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0.29,
+   "photo": 0.31,
+   "album": 0.09,
+   "video": 0.1,
+   "other": 0.21
+  },
+  "saleShare": 0,
+  "ctaRate": 0.16,
+  "emojiPer100": 1.2,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "najottalim",
+  "niche": "education",
+  "subscribers": 40100,
+  "medianViews": 4800,
+  "reachRate": 0.1197,
+  "postsPerWeek": 38.8,
+  "maturePosts": 44,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 1.038,
+   "13-16": 1.031,
+   "10-13": 0.986,
+   "07-10": 1.041,
+   "19-22": 0.984
+  },
+  "formatLift": {
+   "text": 0.998,
+   "video": 0.996,
+   "photo": 1.142
+  },
+  "weekdayLift": {
+   "Sat": 0.993,
+   "Fri": 1.102,
+   "Wed": 1.114,
+   "Tue": 0.974,
+   "Mon": 1.014,
+   "Sun": 1.015
+  },
+  "formatMix": {
+   "text": 0.37,
+   "photo": 0.12,
+   "album": 0.02,
+   "video": 0.48,
+   "other": 0.02
+  },
+  "saleShare": 0.07,
+  "ctaRate": 0.12,
+  "emojiPer100": 0.8,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "pdpuz",
+  "niche": "education",
+  "subscribers": 7890,
+  "medianViews": 1515,
+  "reachRate": 0.192,
+  "postsPerWeek": 6.5,
+  "maturePosts": 54,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 1.092,
+   "19-22": 0.968,
+   "10-13": 0.936,
+   "22-01": 1.033,
+   "16-19": 1.006
+  },
+  "formatLift": {
+   "video": 1.011,
+   "album": 1.012,
+   "text": 1.027,
+   "photo": 1.013
+  },
+  "weekdayLift": {
+   "Sat": 1.032,
+   "Fri": 0.96,
+   "Tue": 1.032,
+   "Wed": 1.012,
+   "Sun": 1,
+   "Thu": 0.926,
+   "Mon": 1.054
+  },
+  "formatMix": {
+   "text": 0.07,
+   "photo": 0.21,
+   "album": 0.05,
+   "video": 0.66,
+   "other": 0
+  },
+  "saleShare": 0.27,
+  "ctaRate": 0.61,
+  "emojiPer100": 1.2,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "rikseducation",
+  "niche": "education",
+  "subscribers": 1170,
+  "medianViews": 550,
+  "reachRate": 0.4701,
+  "postsPerWeek": 1.5,
+  "maturePosts": 46,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 0.965,
+   "10-13": 1.05,
+   "19-22": 1.08
+  },
+  "formatLift": {
+   "video": 0.993,
+   "text": 1.023,
+   "photo": 1.08
+  },
+  "weekdayLift": {
+   "Thu": 1.07,
+   "Wed": 1.011,
+   "Mon": 0.957,
+   "Tue": 1.051,
+   "Sat": 0.984,
+   "Fri": 1.134
+  },
+  "formatMix": {
+   "text": 0.13,
+   "photo": 0.15,
+   "album": 0.04,
+   "video": 0.68,
+   "other": 0
+  },
+  "saleShare": 0.21,
+  "ctaRate": 0.74,
+  "emojiPer100": 1.4,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "tashkec_uz",
+  "niche": "education",
+  "subscribers": 10400,
+  "medianViews": 5345,
+  "reachRate": 0.5139,
+  "postsPerWeek": 5.3,
+  "maturePosts": 53,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 1.127,
+   "10-13": 0.928,
+   "07-10": 1.02,
+   "16-19": 1.051
+  },
+  "formatLift": {
+   "album": 0.898,
+   "photo": 1.125,
+   "other": 1.133,
+   "text": 0.899,
+   "video": 0.963
+  },
+  "weekdayLift": {
+   "Fri": 1.127,
+   "Thu": 1.074,
+   "Tue": 0.898,
+   "Wed": 1.059,
+   "Mon": 0.862
+  },
+  "formatMix": {
+   "text": 0.25,
+   "photo": 0.5,
+   "album": 0.15,
+   "video": 0.05,
+   "other": 0.05
+  },
+  "saleShare": 0.02,
+  "ctaRate": 0.07,
+  "emojiPer100": 3,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "worlduz",
+  "niche": "education",
+  "subscribers": 13400,
+  "medianViews": 1155,
+  "reachRate": 0.0862,
+  "postsPerWeek": 11.3,
+  "maturePosts": 60,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 1.012,
+   "13-16": 1.033,
+   "10-13": 1.02,
+   "07-10": 0.991,
+   "19-22": 0.972
+  },
+  "formatLift": {
+   "video": 1.031,
+   "photo": 0.995
+  },
+  "weekdayLift": {
+   "Fri": 0.982,
+   "Wed": 0.992,
+   "Tue": 0.966,
+   "Mon": 1.027,
+   "Thu": 1.052,
+   "Sat": 1.089
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.58,
+   "album": 0.02,
+   "video": 0.4,
+   "other": 0
+  },
+  "saleShare": 0.83,
+  "ctaRate": 0.98,
+  "emojiPer100": 2,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "alifshopuz",
+  "niche": "electronics",
+  "subscribers": 4000,
+  "medianViews": 1005,
+  "reachRate": 0.2511,
+  "postsPerWeek": 7,
+  "maturePosts": 37,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 1.025,
+   "13-16": 1.012,
+   "10-13": 0.968,
+   "19-22": 1.034
+  },
+  "formatLift": {
+   "album": 1.039,
+   "photo": 0.996,
+   "text": 1.013,
+   "other": 1.152
+  },
+  "weekdayLift": {
+   "Fri": 1.063,
+   "Thu": 1.012,
+   "Wed": 0.992,
+   "Tue": 1.045,
+   "Mon": 1.032
+  },
+  "formatMix": {
+   "text": 0.26,
+   "photo": 0.28,
+   "album": 0.31,
+   "video": 0.08,
+   "other": 0.08
+  },
+  "saleShare": 0.26,
+  "ctaRate": 0.49,
+  "emojiPer100": 1.8,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "asaxiyuz",
+  "niche": "electronics",
+  "subscribers": 4970,
+  "medianViews": 1030,
+  "reachRate": 0.2072,
+  "postsPerWeek": 8.3,
+  "maturePosts": 40,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 0.992,
+   "19-22": 0.972,
+   "10-13": 1.159,
+   "16-19": 0.976,
+   "07-10": 0.978
+  },
+  "formatLift": {
+   "photo": 0.992,
+   "text": 1.152,
+   "album": 0.988
+  },
+  "weekdayLift": {
+   "Fri": 0.986,
+   "Thu": 1.086,
+   "Wed": 1.039,
+   "Mon": 0.972,
+   "Tue": 1.008
+  },
+  "formatMix": {
+   "text": 0.06,
+   "photo": 0.65,
+   "album": 0.2,
+   "video": 0.08,
+   "other": 0
+  },
+  "saleShare": 0.55,
+  "ctaRate": 0.78,
+  "emojiPer100": 1,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "diskontuz",
+  "niche": "electronics",
+  "subscribers": 61500,
+  "medianViews": 7280,
+  "reachRate": 0.1184,
+  "postsPerWeek": 19,
+  "maturePosts": 6,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0,
+   "photo": 0.05,
+   "album": 0.68,
+   "video": 0.26,
+   "other": 0
+  },
+  "saleShare": 1,
+  "ctaRate": 1,
+  "emojiPer100": 1.4,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "ideastore_uz",
+  "niche": "electronics",
+  "subscribers": 80400,
+  "medianViews": 9900,
+  "reachRate": 0.1231,
+  "postsPerWeek": 19,
+  "maturePosts": 4,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0.05,
+   "photo": 0,
+   "album": 0.26,
+   "video": 0.68,
+   "other": 0
+  },
+  "saleShare": 0.84,
+  "ctaRate": 0.79,
+  "emojiPer100": 1.9,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "imanshopuzb",
+  "niche": "electronics",
+  "subscribers": 1820,
+  "medianViews": 240,
+  "reachRate": 0.1316,
+  "postsPerWeek": 41.6,
+  "maturePosts": 31,
+  "suspect": false,
+  "hourLift": {
+   "10-13": 1.006,
+   "13-16": 1.03
+  },
+  "formatLift": {
+   "video": 1.056,
+   "album": 1.015
+  },
+  "weekdayLift": {
+   "Tue": 1.006,
+   "Mon": 1.03
+  },
+  "formatMix": {
+   "text": 0.02,
+   "photo": 0.1,
+   "album": 0.35,
+   "video": 0.52,
+   "other": 0
+  },
+  "saleShare": 0.44,
+  "ctaRate": 0.44,
+  "emojiPer100": 1.1,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "imkonsavdomarkazi",
+  "niche": "electronics",
+  "subscribers": 16900,
+  "medianViews": 7280,
+  "reachRate": 0.4308,
+  "postsPerWeek": 18,
+  "maturePosts": 32,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 0.859,
+   "07-10": 0.698,
+   "10-13": 1.294,
+   "16-19": 1.315
+  },
+  "formatLift": {
+   "photo": 0.931,
+   "album": 1.236,
+   "video": 0.859
+  },
+  "weekdayLift": {
+   "Sat": 0.766,
+   "Fri": 1.085,
+   "Thu": 1.307,
+   "Wed": 0.856,
+   "Tue": 1.431,
+   "Mon": 1.07,
+   "Sun": 0.859
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.46,
+   "album": 0.28,
+   "video": 0.26,
+   "other": 0
+  },
+  "saleShare": 0.77,
+  "ctaRate": 1,
+  "emojiPer100": 1.6,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "ishonch",
+  "niche": "electronics",
+  "subscribers": 46500,
+  "medianViews": 12900,
+  "reachRate": 0.2774,
+  "postsPerWeek": 27,
+  "maturePosts": 8,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0,
+   "photo": 0.07,
+   "album": 0.26,
+   "video": 0.67,
+   "other": 0
+  },
+  "saleShare": 0.78,
+  "ctaRate": 0.93,
+  "emojiPer100": 1.3,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "macbrouz",
+  "niche": "electronics",
+  "subscribers": 7160,
+  "medianViews": 1935,
+  "reachRate": 0.2703,
+  "postsPerWeek": 3.5,
+  "maturePosts": 38,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 0.966,
+   "22-01": 1.003,
+   "10-13": 0.909,
+   "07-10": 1.027,
+   "13-16": 1.072,
+   "19-22": 1.01
+  },
+  "formatLift": {
+   "video": 0.965,
+   "album": 1.095
+  },
+  "weekdayLift": {
+   "Thu": 0.961,
+   "Mon": 0.97,
+   "Sat": 1.064,
+   "Wed": 0.966,
+   "Tue": 1.003,
+   "Fri": 1.095
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.03,
+   "album": 0.32,
+   "video": 0.66,
+   "other": 0
+  },
+  "saleShare": 0.79,
+  "ctaRate": 0.71,
+  "emojiPer100": 1.6,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "mastercomptashkent",
+  "niche": "electronics",
+  "subscribers": 992,
+  "medianViews": 243,
+  "reachRate": 0.2445,
+  "postsPerWeek": 4,
+  "maturePosts": 42,
+  "suspect": false,
+  "hourLift": {
+   "19-22": 1.083,
+   "16-19": 1.07,
+   "13-16": 0.985,
+   "10-13": 1.015
+  },
+  "formatLift": {
+   "other": 1.324,
+   "text": 1.041,
+   "photo": 1.056
+  },
+  "weekdayLift": {
+   "Fri": 1.04,
+   "Thu": 1.001,
+   "Tue": 1.202,
+   "Sat": 1.074,
+   "Mon": 0.988
+  },
+  "formatMix": {
+   "text": 0.33,
+   "photo": 0.55,
+   "album": 0.05,
+   "video": 0,
+   "other": 0.07
+  },
+  "saleShare": 0.93,
+  "ctaRate": 0.79,
+  "emojiPer100": 0,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "mediapark_uzb",
+  "niche": "electronics",
+  "subscribers": 14900,
+  "medianViews": 2805,
+  "reachRate": 0.1883,
+  "postsPerWeek": 14.8,
+  "maturePosts": 50,
+  "suspect": false,
+  "hourLift": {
+   "10-13": 0.979,
+   "16-19": 0.989,
+   "13-16": 0.989
+  },
+  "formatLift": {
+   "video": 0.979,
+   "text": 0.971,
+   "photo": 0.966
+  },
+  "weekdayLift": {
+   "Fri": 0.958,
+   "Thu": 0.987,
+   "Wed": 0.956,
+   "Tue": 1.059,
+   "Mon": 0.989,
+   "Sun": 0.961,
+   "Sat": 0.976
+  },
+  "formatMix": {
+   "text": 0.07,
+   "photo": 0.27,
+   "album": 0.03,
+   "video": 0.63,
+   "other": 0
+  },
+  "saleShare": 0.57,
+  "ctaRate": 0.83,
+  "emojiPer100": 1.4,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "mistore_tashkent",
+  "niche": "electronics",
+  "subscribers": 2870,
+  "medianViews": 1505,
+  "reachRate": 0.5244,
+  "postsPerWeek": 0.5,
+  "maturePosts": 35,
+  "suspect": true,
+  "hourLift": {
+   "16-19": 1.046,
+   "13-16": 0.969,
+   "19-22": 0.953,
+   "10-13": 0.973
+  },
+  "formatLift": {
+   "album": 1.046,
+   "video": 0.969,
+   "photo": 0.883
+  },
+  "weekdayLift": {
+   "Thu": 1.114,
+   "Tue": 0.997,
+   "Mon": 0.951,
+   "Fri": 1.01,
+   "Wed": 0.973
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.09,
+   "album": 0.63,
+   "video": 0.29,
+   "other": 0
+  },
+  "saleShare": 0.86,
+  "ctaRate": 1,
+  "emojiPer100": 1.9,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "radius_uz",
+  "niche": "electronics",
+  "subscribers": 4460,
+  "medianViews": 1030,
+  "reachRate": 0.2309,
+  "postsPerWeek": 5.5,
+  "maturePosts": 27,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 0.922,
+   "07-10": 0.971,
+   "10-13": 1.098
+  },
+  "formatLift": {
+   "album": 1.049,
+   "photo": 0.94
+  },
+  "weekdayLift": {
+   "Sat": 0.65,
+   "Fri": 1.057,
+   "Wed": 0.971,
+   "Tue": 0.912,
+   "Thu": 1.029
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.44,
+   "album": 0.48,
+   "video": 0.07,
+   "other": 0
+  },
+  "saleShare": 0.48,
+  "ctaRate": 0.78,
+  "emojiPer100": 1.5,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "texnomart",
+  "niche": "electronics",
+  "subscribers": 64500,
+  "medianViews": 12200,
+  "reachRate": 0.1891,
+  "postsPerWeek": 22,
+  "maturePosts": 11,
+  "suspect": false,
+  "hourLift": {
+   "10-13": 1.025,
+   "13-16": 0.881
+  },
+  "formatLift": {
+   "video": 1.012,
+   "album": 1.087
+  },
+  "weekdayLift": {
+   "Sat": 1.037,
+   "Fri": 0.943
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.05,
+   "album": 0.41,
+   "video": 0.55,
+   "other": 0
+  },
+  "saleShare": 0.82,
+  "ctaRate": 0.77,
+  "emojiPer100": 0.8,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "uz_gadget_shop",
+  "niche": "electronics",
+  "subscribers": 6700,
+  "postsPerWeek": 13,
+  "maturePosts": 0,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0,
+   "photo": 0,
+   "album": 1,
+   "video": 0,
+   "other": 0
+  },
+  "saleShare": 1,
+  "ctaRate": 1,
+  "emojiPer100": 3.6,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "evosuzbekistan",
+  "niche": "fastfood",
+  "subscribers": 14900,
+  "medianViews": 16200,
+  "reachRate": 1.0872,
+  "postsPerWeek": 1.8,
+  "maturePosts": 23,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 0.996,
+   "10-13": 0.865,
+   "13-16": 1.064,
+   "19-22": 1.069,
+   "22-01": 1.057
+  },
+  "formatLift": {
+   "video": 0.99,
+   "photo": 1.021,
+   "album": 1.177
+  },
+  "weekdayLift": {
+   "Fri": 1.166,
+   "Thu": 1.03,
+   "Mon": 0.835,
+   "Wed": 1.063
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.52,
+   "album": 0.13,
+   "video": 0.35,
+   "other": 0
+  },
+  "saleShare": 0.35,
+  "ctaRate": 0.52,
+  "emojiPer100": 6.6,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "kfcuzbekistanofficial",
+  "niche": "fastfood",
+  "subscribers": 5350,
+  "medianViews": 4455,
+  "reachRate": 0.8327,
+  "postsPerWeek": 2.5,
+  "maturePosts": 45,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 0.947,
+   "16-19": 0.969,
+   "10-13": 1.135,
+   "19-22": 1.049
+  },
+  "formatLift": {
+   "video": 0.974,
+   "album": 1.068,
+   "photo": 0.964
+  },
+  "weekdayLift": {
+   "Thu": 1.032,
+   "Wed": 1.035,
+   "Tue": 0.958,
+   "Mon": 0.935,
+   "Fri": 1.071,
+   "Sun": 1.02,
+   "Sat": 0.921
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.18,
+   "album": 0.16,
+   "video": 0.67,
+   "other": 0
+  },
+  "saleShare": 0.36,
+  "ctaRate": 0.11,
+  "emojiPer100": 2.3,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "maxwayfooduz",
+  "niche": "fastfood",
+  "subscribers": 1470,
+  "medianViews": 1770,
+  "reachRate": 1.2041,
+  "postsPerWeek": 0.5,
+  "maturePosts": 14,
+  "suspect": false,
+  "hourLift": {
+   "10-13": 0.654,
+   "19-22": 1.252,
+   "16-19": 0.923
+  },
+  "formatLift": {
+   "video": 0.917,
+   "photo": 0.922,
+   "album": 1.014
+  },
+  "weekdayLift": {
+   "Fri": 0.346,
+   "Tue": 1.075,
+   "Thu": 1
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.43,
+   "album": 0.36,
+   "video": 0.21,
+   "other": 0
+  },
+  "saleShare": 0.36,
+  "ctaRate": 0.43,
+  "emojiPer100": 1.6,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "oqtepalavashuz",
+  "niche": "fastfood",
+  "subscribers": 26100,
+  "medianViews": 11000,
+  "reachRate": 0.4215,
+  "postsPerWeek": 3.3,
+  "maturePosts": 43,
+  "suspect": false,
+  "hourLift": {
+   "19-22": 1.005,
+   "10-13": 0.978,
+   "13-16": 1.008,
+   "16-19": 1
+  },
+  "formatLift": {
+   "album": 1.002,
+   "video": 0.998,
+   "photo": 1.059
+  },
+  "weekdayLift": {
+   "Wed": 0.923,
+   "Fri": 0.999,
+   "Tue": 1.058,
+   "Mon": 1.023,
+   "Sat": 1.008,
+   "Thu": 0.992
+  },
+  "formatMix": {
+   "text": 0.02,
+   "photo": 0.13,
+   "album": 0.24,
+   "video": 0.6,
+   "other": 0
+  },
+  "saleShare": 0.36,
+  "ctaRate": 0.82,
+  "emojiPer100": 3.7,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "uzumtezkor",
+  "niche": "fastfood",
+  "subscribers": 24100,
+  "medianViews": 6730,
+  "reachRate": 0.2793,
+  "postsPerWeek": 4.5,
+  "maturePosts": 31,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 1.025,
+   "16-19": 1.03,
+   "10-13": 0.888
+  },
+  "formatLift": {
+   "album": 1.055,
+   "text": 1.025,
+   "photo": 1.121,
+   "other": 0.915
+  },
+  "weekdayLift": {
+   "Fri": 1.027,
+   "Tue": 0.997,
+   "Thu": 1.129,
+   "Wed": 0.963,
+   "Sun": 0.984
+  },
+  "formatMix": {
+   "text": 0.28,
+   "photo": 0.19,
+   "album": 0.34,
+   "video": 0.06,
+   "other": 0.13
+  },
+  "saleShare": 0.66,
+  "ctaRate": 0.63,
+  "emojiPer100": 1.6,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "yaposha",
+  "niche": "fastfood",
+  "subscribers": 3790,
+  "medianViews": 1520,
+  "reachRate": 0.4011,
+  "postsPerWeek": 8.5,
+  "maturePosts": 57,
+  "suspect": false,
+  "hourLift": {
+   "13-16": 1.016,
+   "10-13": 0.992,
+   "16-19": 1.011
+  },
+  "formatLift": {
+   "video": 0.939,
+   "photo": 1.003,
+   "album": 1.069
+  },
+  "weekdayLift": {
+   "Sat": 0.935,
+   "Fri": 0.957,
+   "Thu": 0.954,
+   "Wed": 1.035,
+   "Tue": 1.011,
+   "Mon": 1.063,
+   "Sun": 0.977
+  },
+  "formatMix": {
+   "text": 0.02,
+   "photo": 0.73,
+   "album": 0.1,
+   "video": 0.15,
+   "other": 0
+  },
+  "saleShare": 0.82,
+  "ctaRate": 0.15,
+  "emojiPer100": 1.3,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "credo_flowers",
+  "niche": "flowers",
+  "subscribers": 800,
+  "medianViews": 205,
+  "reachRate": 0.2563,
+  "postsPerWeek": 6.5,
+  "maturePosts": 34,
+  "suspect": true,
+  "hourLift": {
+   "13-16": 1.007,
+   "16-19": 1.144,
+   "10-13": 1.023
+  },
+  "formatLift": {
+   "album": 0.98,
+   "photo": 1.074
+  },
+  "weekdayLift": {
+   "Wed": 0.93,
+   "Sat": 0.98,
+   "Fri": 1.015,
+   "Sun": 1.017,
+   "Tue": 1.062
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.26,
+   "album": 0.74,
+   "video": 0,
+   "other": 0
+  },
+  "saleShare": 1,
+  "ctaRate": 1,
+  "emojiPer100": 2.4,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "floral_aesthetic_uz",
+  "niche": "flowers",
+  "subscribers": 3470,
+  "medianViews": 778,
+  "reachRate": 0.2241,
+  "postsPerWeek": 12.5,
+  "maturePosts": 24,
+  "suspect": true,
+  "hourLift": {
+   "10-13": 0.895,
+   "16-19": 0.987,
+   "13-16": 1.019
+  },
+  "formatLift": {
+   "album": 0.986
+  },
+  "weekdayLift": {
+   "Fri": 1.023,
+   "Thu": 0.933,
+   "Wed": 0.954,
+   "Tue": 1.019,
+   "Mon": 1.01,
+   "Sat": 1.133
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.07,
+   "album": 0.9,
+   "video": 0.03,
+   "other": 0
+  },
+  "saleShare": 0.97,
+  "ctaRate": 0.97,
+  "emojiPer100": 0.8,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "flowersuztashkent",
+  "niche": "flowers",
+  "subscribers": 2620,
+  "medianViews": 1340,
+  "reachRate": 0.5115,
+  "postsPerWeek": 1.5,
+  "maturePosts": 11,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 0.926,
+   "19-22": 0.965
+  },
+  "formatLift": {
+   "video": 1.027
+  },
+  "weekdayLift": {
+   "Tue": 0.965
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0,
+   "album": 0,
+   "video": 1,
+   "other": 0
+  },
+  "saleShare": 0,
+  "ctaRate": 0.09,
+  "emojiPer100": 1,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "flowersuzvitrina",
+  "niche": "flowers",
+  "subscribers": 1800,
+  "postsPerWeek": 26,
+  "maturePosts": 0,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0,
+   "photo": 0.15,
+   "album": 0.73,
+   "video": 0.12,
+   "other": 0
+  },
+  "saleShare": 0.96,
+  "ctaRate": 0.96,
+  "emojiPer100": 4.1,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "gardenuz",
+  "niche": "flowers",
+  "subscribers": 1020,
+  "medianViews": 405,
+  "reachRate": 0.3971,
+  "postsPerWeek": 1.8,
+  "maturePosts": 42,
+  "suspect": false,
+  "hourLift": {
+   "19-22": 0.998,
+   "16-19": 1.054,
+   "22-01": 0.883,
+   "13-16": 0.984,
+   "07-10": 1.04
+  },
+  "formatLift": {
+   "video": 1.001,
+   "photo": 1.146
+  },
+  "weekdayLift": {
+   "Mon": 0.888,
+   "Thu": 1.047,
+   "Fri": 1.065,
+   "Tue": 0.99,
+   "Sat": 1.052,
+   "Wed": 1.049
+  },
+  "formatMix": {
+   "text": 0.02,
+   "photo": 0.11,
+   "album": 0.04,
+   "video": 0.82,
+   "other": 0
+  },
+  "saleShare": 0.27,
+  "ctaRate": 0.62,
+  "emojiPer100": 0.9,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "honey_flowers_uz",
+  "niche": "flowers",
+  "subscribers": 3720,
+  "medianViews": 630,
+  "reachRate": 0.1692,
+  "postsPerWeek": 7.7,
+  "maturePosts": 8,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0,
+   "photo": 0,
+   "album": 0.75,
+   "video": 0.25,
+   "other": 0
+  },
+  "saleShare": 1,
+  "ctaRate": 1,
+  "emojiPer100": 3.8,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "rozauz",
+  "niche": "flowers",
+  "subscribers": 1920,
+  "medianViews": 3020,
+  "reachRate": 1.5729,
+  "postsPerWeek": 2.3,
+  "maturePosts": 28,
+  "suspect": false,
+  "hourLift": {
+   "22-01": 0.924,
+   "13-16": 0.883,
+   "16-19": 1.154
+  },
+  "formatLift": {
+   "video": 0.927,
+   "photo": 1.08
+  },
+  "weekdayLift": {
+   "Tue": 0.695,
+   "Mon": 1.43,
+   "Sun": 1.038
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.21,
+   "album": 0.04,
+   "video": 0.75,
+   "other": 0
+  },
+  "saleShare": 0.04,
+  "ctaRate": 0,
+  "emojiPer100": 3.7,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "jannatmakon_uz",
+  "niche": "furniture",
+  "subscribers": 5110,
+  "postsPerWeek": 0.3,
+  "maturePosts": 1,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0,
+   "photo": 0,
+   "album": 0,
+   "video": 1,
+   "other": 0
+  },
+  "saleShare": 1,
+  "ctaRate": 0,
+  "emojiPer100": 2,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "kengmakonuz",
+  "niche": "furniture",
+  "subscribers": 1610,
+  "medianViews": 1215,
+  "reachRate": 0.7547,
+  "postsPerWeek": 1.8,
+  "maturePosts": 24,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 1.024,
+   "10-13": 1.003
+  },
+  "formatLift": {
+   "video": 0.946,
+   "album": 1.101
+  },
+  "weekdayLift": {
+   "Sun": 1.024,
+   "Sat": 0.943,
+   "Thu": 0.94,
+   "Fri": 1.101
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0,
+   "album": 0.12,
+   "video": 0.88,
+   "other": 0
+  },
+  "saleShare": 0.15,
+  "ctaRate": 0.65,
+  "emojiPer100": 1.5,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "lifesmileuz",
+  "niche": "furniture",
+  "subscribers": 5960,
+  "medianViews": 1250,
+  "reachRate": 0.2097,
+  "postsPerWeek": 22.1,
+  "maturePosts": 20,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 1.015,
+   "13-16": 1.031,
+   "10-13": 0.932
+  },
+  "formatLift": {
+   "album": 0.97,
+   "video": 0.966
+  },
+  "weekdayLift": {
+   "Fri": 0.837,
+   "Thu": 1.004,
+   "Sun": 0.997,
+   "Sat": 0.97
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0,
+   "album": 0.56,
+   "video": 0.44,
+   "other": 0
+  },
+  "saleShare": 0.13,
+  "ctaRate": 0.09,
+  "emojiPer100": 0.8,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "mebelsmart_uz",
+  "niche": "furniture",
+  "subscribers": 6220,
+  "medianViews": 1035,
+  "reachRate": 0.1664,
+  "postsPerWeek": 18.7,
+  "maturePosts": 48,
+  "suspect": false,
+  "hourLift": {
+   "10-13": 0.959,
+   "19-22": 1.022,
+   "13-16": 1.074,
+   "16-19": 0.966,
+   "22-01": 0.937
+  },
+  "formatLift": {
+   "album": 0.994,
+   "photo": 1.017,
+   "video": 0.97
+  },
+  "weekdayLift": {
+   "Sat": 0.984,
+   "Fri": 0.988,
+   "Thu": 1.041,
+   "Wed": 1.004,
+   "Tue": 1.098,
+   "Sun": 0.993,
+   "Mon": 0.921
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.5,
+   "album": 0.31,
+   "video": 0.19,
+   "other": 0
+  },
+  "saleShare": 0.19,
+  "ctaRate": 0.02,
+  "emojiPer100": 0.6,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "samantepgilam",
+  "niche": "furniture",
+  "subscribers": 2150,
+  "medianViews": 1725,
+  "reachRate": 0.8023,
+  "postsPerWeek": 0.8,
+  "maturePosts": 22,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 1.007,
+   "10-13": 0.977
+  },
+  "formatLift": {
+   "album": 0.83,
+   "video": 0.991
+  },
+  "weekdayLift": {
+   "Tue": 0.922,
+   "Mon": 0.937,
+   "Thu": 1.036,
+   "Wed": 1.03,
+   "Fri": 0.984
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0.09,
+   "album": 0.14,
+   "video": 0.77,
+   "other": 0
+  },
+  "saleShare": 0.09,
+  "ctaRate": 0.14,
+  "emojiPer100": 1.2,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "shoshmebeluz",
+  "niche": "furniture",
+  "subscribers": 854,
+  "medianViews": 571,
+  "reachRate": 0.668,
+  "postsPerWeek": 3,
+  "maturePosts": 39,
+  "suspect": false,
+  "hourLift": {
+   "16-19": 1.002,
+   "13-16": 0.9,
+   "19-22": 1.001,
+   "10-13": 1.074
+  },
+  "formatLift": {
+   "video": 1.001,
+   "album": 0.995
+  },
+  "weekdayLift": {
+   "Fri": 0.947,
+   "Mon": 0.995,
+   "Thu": 0.992,
+   "Wed": 1.002,
+   "Tue": 0.991,
+   "Sat": 1.065
+  },
+  "formatMix": {
+   "text": 0,
+   "photo": 0,
+   "album": 0.33,
+   "video": 0.68,
+   "other": 0
+  },
+  "saleShare": 0.63,
+  "ctaRate": 0.98,
+  "emojiPer100": 1.8,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ },
+ {
+  "channel": "weltewhomeuz",
+  "niche": "furniture",
+  "subscribers": 940,
+  "medianViews": 368,
+  "reachRate": 0.3915,
+  "postsPerWeek": 0.8,
+  "maturePosts": 9,
+  "suspect": false,
+  "hourLift": {},
+  "formatLift": {},
+  "weekdayLift": {},
+  "formatMix": {
+   "text": 0,
+   "photo": 0,
+   "album": 0.33,
+   "video": 0.67,
+   "other": 0
+  },
+  "saleShare": 0.44,
+  "ctaRate": 0.89,
+  "emojiPer100": 1.3,
+  "capturedAt": "2026-11-24T11:14:44.094Z"
+ }
+]
