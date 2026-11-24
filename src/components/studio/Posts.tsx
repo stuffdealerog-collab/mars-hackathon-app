@@ -1,5 +1,5 @@
 import type { PostDraft, Script } from "@/lib/uslub/contract";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { plural } from "../ui/format";
 import { useCopy, useLang, type Lang } from "../ui/lang";
@@ -174,16 +174,15 @@ export function PostsSplit({ lamps }: { lamps: Lamps }) {
 
         <div className="min-w-0">
           {drafts === 0 && <p className="mb-3 px-1 text-[14px] text-ink-2">{c.queue.allDone}</p>}
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={current.id}
-              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0, transition: { duration: reduce ? 0.12 : 0.24, ease: EASE_OUT } }}
-              exit={{ opacity: 0, transition: { duration: reduce ? 0.1 : 0.16, ease: EASE_OUT } }}
-            >
-              <PostCard post={current} script={s} inTelegram={false} inspector advance />
-            </motion.div>
-          </AnimatePresence>
+          {/* The next post comes in at once. A waited-for exit would hold the column empty while
+              the picture inside plays its own exit (up to 0.9 s): too long between two posts. */}
+          <motion.div
+            key={current.id}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0, transition: { duration: reduce ? 0.12 : 0.24, ease: EASE_OUT } }}
+          >
+            <PostCard post={current} script={s} inTelegram={false} inspector advance />
+          </motion.div>
           {keysUsed && <p className="mt-4 px-1 text-[12.5px] text-ink-3">{c.keys.hint}</p>}
           <div className="mt-6 @min-[920px]:hidden">{inspector}</div>
         </div>
