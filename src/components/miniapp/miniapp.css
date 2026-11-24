@@ -1,0 +1,755 @@
+/*
+ * Mercat Mini App shell: a native-feeling app inside Telegram, drawn in the lamp world.
+ * Every screen fills the webview and scrolls inside its own region; motion is transform and
+ * opacity only (Android webviews), with a calmer path under prefers-reduced-motion.
+ */
+
+html.ma-html,
+html.ma-html body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.ma {
+  --ma-safe-top: 0px;
+  --ma-safe-bottom: 0px;
+  --ma-content-top: 0px;
+  --ma-bottom: 0px;
+  --ma-top: calc(var(--ma-safe-top) + var(--ma-content-top));
+  --ma-sheet: var(--glass-2);
+  --ma-row-press: var(--glass-2);
+  --ma-filament: #fff7ea;
+  --ma-filament-glow: #ffd6a0;
+  position: fixed;
+  inset: 0 0 var(--tg-bottom-bar, 0px) 0;
+  overflow: hidden;
+  background: var(--stage);
+  color: var(--ink);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+[data-theme="light"] .ma,
+.ma[data-theme="light"] {
+  --ma-sheet: #ffffff;
+  --ma-row-press: var(--glass-2);
+  --ma-filament: #ffb547;
+  --ma-filament-glow: #ffb547;
+}
+
+/* Chrome is not text to select. */
+.ma-chrome,
+.ma button,
+.ma [role="tab"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ------------------------------------------------------------------ layers */
+.ma-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--stage);
+  transition: transform 380ms var(--ease-out);
+}
+.ma-layer__dim {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 380ms var(--ease-out);
+}
+.ma-layer[data-covered="true"] {
+  transform: translateX(-26%);
+}
+.ma-layer[data-covered="true"] > .ma-layer__dim {
+  opacity: 0.42;
+}
+[data-theme="light"] .ma-layer[data-covered="true"] > .ma-layer__dim {
+  opacity: 0.14;
+}
+.ma-layer[data-anim="in"] {
+  animation: ma-push-in 380ms var(--ease-out) both;
+  box-shadow: -18px 0 40px -12px rgb(0 0 0 / 0.5);
+}
+.ma-layer[data-anim="out"] {
+  animation: ma-push-out 300ms var(--ease-io) both;
+  pointer-events: none;
+}
+@keyframes ma-push-in {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+@keyframes ma-push-out {
+  from { transform: none; }
+  to { transform: translateX(100%); }
+}
+/* Android: Material shared-axis X instead of the iOS slide. */
+.ma[data-platform="android"] .ma-layer[data-anim="in"] {
+  animation: ma-axis-in 300ms var(--ease-out) both;
+  box-shadow: none;
+}
+.ma[data-platform="android"] .ma-layer[data-anim="out"] {
+  animation: ma-axis-out 200ms var(--ease-in) both;
+}
+.ma[data-platform="android"] .ma-layer[data-covered="true"] {
+  transform: translateX(-8%);
+}
+@keyframes ma-axis-in {
+  from { transform: translateX(12%); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes ma-axis-out {
+  to { transform: translateX(12%); opacity: 0; }
+}
+
+/* A flow change (start → run → ready) swaps the base layer with a short crossfade. */
+.ma-base-in {
+  animation: ma-base-in 420ms var(--ease-out) both;
+}
+@keyframes ma-base-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.ma-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.ma-scroll::-webkit-scrollbar {
+  display: none;
+}
+.ma-pad {
+  padding: calc(var(--ma-top) + 14px) 16px 28px;
+}
+
+/* --------------------------------------------------------------- top bar */
+/* In fullscreen the row between Telegram's two pills carries the compact title. */
+.ma-topbar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 30;
+  height: var(--ma-top);
+  pointer-events: none;
+}
+.ma-topbar__bg {
+  position: absolute;
+  inset: 0;
+  background: var(--stage);
+  box-shadow: 0 1px 0 var(--hair);
+  opacity: 0;
+  transition: opacity 200ms var(--ease-out);
+}
+.ma-topbar__title {
+  position: absolute;
+  left: 104px;
+  right: 104px;
+  top: var(--ma-safe-top);
+  height: var(--ma-content-top);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+.ma-topbar[data-compact="true"] .ma-topbar__bg,
+.ma-topbar[data-compact="true"] .ma-topbar__title,
+.ma-topbar[data-pinned="true"] .ma-topbar__title {
+  opacity: 1;
+  transform: none;
+}
+
+/* ------------------------------------------------------------------- tabs */
+.ma-tabs {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.ma-tabpanel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 140ms var(--ease-out),
+    visibility 0s linear 140ms;
+}
+.ma-tabpanel[data-active="true"] {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 220ms var(--ease-out),
+    visibility 0s;
+}
+
+.ma-tabbar {
+  position: relative;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 0 8px var(--ma-bottom);
+  background: var(--stage);
+  box-shadow: 0 -1px 0 var(--hair);
+}
+.ma-tabbtn {
+  position: relative;
+  display: flex;
+  min-height: 56px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding-top: 6px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  font-weight: 560;
+  letter-spacing: 0.005em;
+  transition: color var(--t-state) var(--ease-out);
+}
+.ma-tabbtn[aria-selected="true"] {
+  color: var(--ink);
+}
+.ma-tabbtn:active .ma-tabbtn__icon {
+  transform: scale(0.9);
+}
+.ma-tabbtn__icon {
+  transition: transform var(--t-tap) var(--ease-out);
+}
+/* The signature: the selected tab's filament is lit, like a working lamp. */
+.ma-tabbtn__filament {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 22px;
+  height: 3px;
+  margin-left: -11px;
+  border-radius: 0 0 3px 3px;
+  background: transparent;
+  transition:
+    background var(--t-state) var(--ease-out),
+    box-shadow var(--t-state) var(--ease-out);
+}
+.ma-tabbtn[aria-selected="true"] .ma-tabbtn__filament {
+  background: var(--ma-filament);
+  box-shadow: 0 0 12px 2px var(--ma-filament-glow);
+}
+.ma-tabbtn__badge {
+  position: absolute;
+  top: 6px;
+  left: calc(50% + 8px);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--glass-3);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------- type and groups */
+.ma-h1 {
+  font-size: 30px;
+  font-weight: 640;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.ma-h2 {
+  margin: 30px 4px 10px;
+  font-size: 19px;
+  font-weight: 620;
+  letter-spacing: -0.012em;
+}
+.ma-group {
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+.ma-row {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 12px 16px;
+  text-align: left;
+}
+.ma-row + .ma-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  height: 1px;
+  background: var(--hair);
+}
+.ma-press {
+  transition:
+    background var(--t-tap) var(--ease-out),
+    transform var(--t-tap) var(--ease-out);
+}
+.ma-press:active {
+  background: var(--ma-row-press);
+}
+.ma-card-press {
+  transition: transform var(--t-tap) var(--ease-out);
+}
+.ma-card-press:active {
+  transform: scale(0.98);
+}
+
+.ma-iconbtn {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--ink-2);
+  transition:
+    background var(--t-tap) var(--ease-out),
+    transform var(--t-tap) var(--ease-out);
+}
+.ma-iconbtn:active {
+  background: var(--glass-2);
+  transform: scale(0.94);
+}
+
+.ma-chip {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 0 14px;
+  border-radius: 999px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 560;
+  transition: transform var(--t-tap) var(--ease-out);
+}
+.ma-chip:active {
+  transform: scale(0.96);
+}
+
+.ma-field {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-radius: 16px;
+  background: var(--glass-2);
+  box-shadow: inset 0 0 0 1px var(--hair-2);
+  transition: box-shadow var(--t-state) var(--ease-out);
+}
+.ma-field:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--focus);
+}
+.ma-field[data-invalid] {
+  box-shadow: inset 0 0 0 1.5px var(--bad);
+}
+.ma-field input {
+  min-width: 0;
+  flex: 1;
+  height: 54px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 17px;
+  outline: none;
+}
+.ma-field input::placeholder {
+  color: var(--ink-3);
+}
+.ma-shake {
+  animation: ma-shake 320ms var(--ease-out);
+}
+@keyframes ma-shake {
+  20% { transform: translateX(-6px); }
+  45% { transform: translateX(5px); }
+  70% { transform: translateX(-3px); }
+}
+
+/* ---------------------------------------------------------------- sheets */
+.ma-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: rgb(0 0 0 / 0.55);
+  animation: ma-fade-in 260ms var(--ease-out) both;
+}
+[data-theme="light"] .ma-backdrop {
+  background: rgb(10 10 15 / 0.32);
+}
+.ma-backdrop[data-leaving] {
+  animation: ma-fade-out 240ms var(--ease-in) both;
+}
+.ma-sheet {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 61;
+  display: flex;
+  max-height: calc(100% - var(--ma-top) - 20px);
+  flex-direction: column;
+  border-radius: 26px 26px 0 0;
+  background: var(--ma-sheet);
+  box-shadow:
+    0 -1px 0 var(--hair-2),
+    0 -30px 60px -24px rgb(0 0 0 / 0.6);
+  animation: ma-sheet-in 380ms var(--ease-out) both;
+  will-change: transform;
+}
+.ma-sheet[data-leaving] {
+  animation: ma-sheet-out 240ms var(--ease-in) both;
+}
+.ma-sheet[data-dragging] {
+  animation: none;
+  transition: none;
+}
+.ma-sheet__head {
+  flex: none;
+  padding: 8px 16px 4px;
+  touch-action: none;
+}
+.ma-sheet__grab {
+  width: 38px;
+  height: 5px;
+  margin: 0 auto 10px;
+  border-radius: 3px;
+  background: var(--hair-2);
+}
+.ma-sheet__body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 16px calc(20px + var(--ma-bottom));
+  scrollbar-width: none;
+}
+.ma-sheet__body::-webkit-scrollbar {
+  display: none;
+}
+@keyframes ma-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes ma-sheet-out {
+  to { transform: translateY(100%); }
+}
+@keyframes ma-fade-in {
+  from { opacity: 0; }
+}
+@keyframes ma-fade-out {
+  to { opacity: 0; }
+}
+
+/* ----------------------------------------------------------------- toast */
+.ma-toast {
+  position: absolute;
+  top: calc(var(--ma-top) + 8px);
+  left: 12px;
+  right: 12px;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--glass-3);
+  box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.55), inset 0 0 0 1px var(--hair);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 520;
+  line-height: 1.35;
+  animation: ma-toast 2600ms var(--ease-out) both;
+  pointer-events: none;
+}
+[data-theme="light"] .ma-toast {
+  background: #1b1b20;
+  color: #f3f1ec;
+}
+@keyframes ma-toast {
+  0% { opacity: 0; transform: translateY(-14px) scale(0.98); }
+  10% { opacity: 1; transform: none; }
+  86% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-8px); }
+}
+
+/* -------------------------------------------------------------- skeleton */
+.ma-skel {
+  border-radius: 12px;
+  background: linear-gradient(100deg, var(--glass) 30%, var(--glass-2) 50%, var(--glass) 70%);
+  background-size: 300% 100%;
+  animation: ma-shimmer 1.6s linear infinite;
+}
+@keyframes ma-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+
+/* ---------------------------------------------------------------- launch */
+.ma-launch {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: var(--stage);
+}
+.ma-launch[data-leaving] {
+  animation: ma-fade-out 280ms var(--ease-in) both;
+}
+.ma-launch__lamp {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  background: #17171b;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.13);
+}
+.ma-launch__glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(60% 34% at 50% 0%, #fff7ea 0%, transparent 100%),
+    radial-gradient(150% 100% at 50% -10%, #ffd6a0 0%, color-mix(in oklab, #ffd6a0 55%, #b8642f) 34%, transparent 86%);
+  opacity: 0;
+  animation: lamp-on 720ms linear 220ms both;
+}
+.ma-launch__filament {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  width: 34px;
+  height: 4px;
+  margin-left: -17px;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 0.16);
+  animation: ma-filament 720ms linear 220ms both;
+}
+@keyframes ma-filament {
+  0% { background: rgb(255 255 255 / 0.16); box-shadow: none; }
+  8%, 21%, 46%, 100% { background: #fff7ea; box-shadow: 0 0 16px 3px #ffd6a0; }
+  12% { background: rgb(255 255 255 / 0.3); box-shadow: none; }
+}
+.ma-launch__spill {
+  position: absolute;
+  inset: 30% -60% -90% -60%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 214 160 / 0.45), rgb(255 214 160 / 0.12) 55%, transparent);
+  opacity: 0;
+  animation: ma-fade-in-to 900ms var(--ease-out) 400ms both;
+}
+[data-theme="light"] .ma-launch__spill {
+  background: radial-gradient(closest-side, rgb(255 181 71 / 0.35), rgb(255 181 71 / 0.08) 55%, transparent);
+}
+@keyframes ma-fade-in-to {
+  to { opacity: 1; }
+}
+.ma-launch__spectrum {
+  width: 132px;
+  height: 2px;
+  margin: 26px auto 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #ffd6a0, #ffb547, #ff8a3d, #ff6152, #ff4580, #e04bc9, #9e62ff, #6273ff, #2f9cff, #25d0c2);
+  transform: scaleX(0);
+  animation: ma-spectrum 640ms var(--ease-out) 520ms both;
+}
+@keyframes ma-spectrum {
+  to { transform: scaleX(1); }
+}
+.ma-launch__name {
+  margin-top: 16px;
+  font-size: 17px;
+  font-weight: 620;
+  letter-spacing: -0.015em;
+  text-align: center;
+  opacity: 0;
+  animation: ma-fade-in-to 400ms var(--ease-out) 600ms both;
+}
+
+/* --------------------------------------------------------------- run */
+/* Ten lamps fit one phone screen during the run. */
+.ma-run .lamp--sm {
+  min-height: 72px;
+}
+.ma-run .lamp__body {
+  padding: 20px 12px 10px;
+  gap: 4px;
+}
+
+/* -------------------------------------------------------------- post deck */
+.ma-deck {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.ma-deck::-webkit-scrollbar {
+  display: none;
+}
+.ma-page {
+  flex: 0 0 100%;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  scrollbar-width: none;
+}
+.ma-page::-webkit-scrollbar {
+  display: none;
+}
+.ma-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.ma-dots > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hair-2);
+  transition:
+    background var(--t-state) var(--ease-out),
+    transform var(--t-state) var(--ease-out);
+}
+.ma-dots > span[data-on="true"] {
+  background: var(--ink);
+  transform: scale(1.15);
+}
+.ma-dots > span[data-state="approved"] {
+  background: var(--ok);
+}
+.ma-dots > span[data-state="published"] {
+  background: #25d0c2;
+}
+
+/* The publisher's lamp lights when a post goes out: the stamp is that light. */
+.ma-stamp {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.ma-stamp[data-state="approved"] {
+  background: color-mix(in oklab, var(--ok) 14%, transparent);
+  color: var(--ok);
+}
+.ma-stamp[data-state="published"] {
+  background: #25d0c2;
+  color: #04201d;
+  box-shadow: 0 0 22px -2px rgb(37 208 194 / 0.7);
+  animation: lamp-on 720ms linear both;
+}
+
+.ma-thumb {
+  position: relative;
+  width: 64px;
+  height: 80px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--glass-2);
+}
+
+/* Stagger for the first arrival of the post list only. */
+.ma-rise {
+  animation: ma-rise 420ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@keyframes ma-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ma-layer,
+  .ma-layer__dim {
+    transition-duration: 0ms !important;
+  }
+  .ma-layer[data-covered="true"] {
+    transform: none;
+  }
+  .ma-layer[data-anim="in"],
+  .ma[data-platform="android"] .ma-layer[data-anim="in"] {
+    animation: ma-fade-in 160ms linear both;
+    box-shadow: none;
+  }
+  .ma-layer[data-anim="out"],
+  .ma[data-platform="android"] .ma-layer[data-anim="out"] {
+    animation: ma-fade-out 140ms linear both;
+  }
+  .ma-sheet {
+    animation: ma-fade-in 160ms linear both;
+  }
+  .ma-sheet[data-leaving] {
+    animation: ma-fade-out 140ms linear both;
+  }
+  .ma-base-in,
+  .ma-rise {
+    animation: ma-fade-in 160ms linear both;
+  }
+  .ma-skel {
+    animation: none;
+  }
+  .ma-shake {
+    animation: none;
+  }
+  .ma-launch__glow,
+  .ma-launch__filament,
+  .ma-launch__spill,
+  .ma-launch__spectrum,
+  .ma-launch__name,
+  .ma-stamp[data-state="published"] {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
+  .ma-toast {
+    animation-name: ma-toast-calm;
+  }
+  @keyframes ma-toast-calm {
+    0%, 100% { opacity: 0; }
+    8%, 88% { opacity: 1; }
+  }
+}
