@@ -1,213 +1,358 @@
 ---
 name: Mercat
-description: Calm paper. Near-black ink, 1px lines, one quiet green for the one thing to press. Colour comes from the owner's own posts and pictures.
+description: An AI marketing department drawn as a panel of lamps. Light means work, lime means the owner's hand.
 colors:
-  paper: "#f7f5f0"
-  card: "#ffffff"
-  ink: "#1b1a17"
-  ink-2: "#57534b"
-  ink-3: "#85807a"
-  line: "#e5e0d6"
-  line-2: "#cdc6b8"
-  tint: "#efebe3"
-  accent: "#1f5c47"
-  accent-hover: "#184a39"
-  accent-ink: "#ffffff"
-  ok: "#2b7350"
-  bad: "#a3352b"
-  bad-soft: "#f8ece9"
-  dark-paper: "#181816"
-  dark-card: "#22211e"
-  dark-ink: "#efece6"
-  dark-ink-2: "#b5b0a6"
-  dark-ink-3: "#8a857c"
-  dark-line: "#34322d"
-  dark-line-2: "#4a4740"
-  dark-tint: "#2b2a26"
-  dark-accent: "#7fc4a6"
-  dark-accent-ink: "#0f1f18"
+  stage: "#000000"
+  glass: "#0d0d10"
+  glass-2: "#17171b"
+  glass-3: "#222227"
+  hair: "rgb(255 255 255 / 0.08)"
+  hair-2: "rgb(255 255 255 / 0.14)"
+  ink: "#f3f1ec"
+  ink-2: "#a8a49c"
+  ink-3: "#85817a"
+  led: "#ffb547"
+  led-off: "rgb(255 181 71 / 0.1)"
+  lime: "#d7ff3a"
+  lime-ink: "#0b0c02"
+  ok: "#3be08a"
+  bad: "#ff5a4e"
+  light-stage: "#ffffff"
+  light-glass: "#f3f2ef"
+  light-glass-2: "#eae9e5"
+  light-glass-3: "#dfddd8"
+  light-ink: "#0d0d11"
+  light-ink-2: "#57544e"
+  light-ink-3: "#6e6a63"
+  light-led: "#c26a00"
+  light-focus: "#5a7000"
+  lamp-brand: "#ffd6a0"
+  lamp-analyst: "#ffb547"
+  lamp-strategist: "#ff8a3d"
+  lamp-copywriter: "#ff6152"
+  lamp-editor: "#ff4580"
+  lamp-translator: "#e04bc9"
+  lamp-designer: "#9e62ff"
+  lamp-video: "#6273ff"
+  lamp-radar: "#2f9cff"
+  lamp-publisher: "#25d0c2"
 typography:
   display:
     fontFamily: "Onest, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "52px"
+    fontSize: "64px"
     fontWeight: 600
-    lineHeight: 1.05
-    letterSpacing: "-0.025em"
+    lineHeight: 1
+    letterSpacing: "-0.035em"
   display-mobile:
+    fontFamily: "Onest, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "40px"
+    fontWeight: 600
+    lineHeight: 1
+    letterSpacing: "-0.035em"
+  headline:
+    fontFamily: "Onest, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "44px"
+    fontWeight: 600
+    lineHeight: 1.04
+    letterSpacing: "-0.03em"
+  headline-mobile:
     fontFamily: "Onest, ui-sans-serif, system-ui, sans-serif"
     fontSize: "32px"
     fontWeight: 600
-    lineHeight: 1.1
-    letterSpacing: "-0.025em"
+    lineHeight: 1.04
+    letterSpacing: "-0.03em"
   title:
     fontFamily: "Onest, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "30px"
-    fontWeight: 600
-    lineHeight: 1.12
+    fontSize: "21px"
+    fontWeight: 620
+    lineHeight: 1.2
     letterSpacing: "-0.02em"
-  section:
+  lamp-title:
     fontFamily: "Onest, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "20px"
-    fontWeight: 600
-    lineHeight: 1.3
+    fontSize: "15px"
+    fontWeight: 640
+    lineHeight: 1.15
     letterSpacing: "-0.01em"
   body:
     fontFamily: "Onest, ui-sans-serif, system-ui, sans-serif"
     fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.5
-  small:
+  post:
     fontFamily: "Onest, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "14px"
+    fontSize: "15px"
     fontWeight: 400
     lineHeight: 1.45
+  label:
+    fontFamily: "Onest, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "12.5px"
+    fontWeight: 400
+    lineHeight: 1.3
   button:
     fontFamily: "Onest, ui-sans-serif, system-ui, sans-serif"
     fontSize: "16px"
-    fontWeight: 600
-    lineHeight: 1.2
+    fontWeight: 620
+    lineHeight: 1
+    letterSpacing: "-0.01em"
 rounded:
-  segment: "8px"
-  control: "12px"
-  card: "16px"
+  mark: "7px"
+  led-strip: "12px"
+  lamp-sm: "18px"
+  card: "20px"
+  lamp: "22px"
+  panel: "24px"
+  lamp-lg: "28px"
+  pill: "999px"
 spacing:
+  panel-gap: "10px"
   gutter-mobile: "16px"
-  gutter-desktop: "24px"
-  section-gap: "48px"
-  column: "760px"
+  gutter-desktop: "32px"
+  lamp-pad-top: "26px"
+  lamp-pad-x: "14px"
+  section-mobile: "64px"
+  section-desktop: "96px"
+  container: "1180px"
+components:
+  button-lime:
+    backgroundColor: "{colors.lime}"
+    textColor: "{colors.lime-ink}"
+    typography: "{typography.button}"
+    rounded: "{rounded.pill}"
+    padding: "0 22px"
+    height: "52px"
+  button-quiet:
+    backgroundColor: "{colors.glass-2}"
+    textColor: "{colors.ink}"
+    typography: "{typography.button}"
+    rounded: "{rounded.pill}"
+    padding: "0 22px"
+    height: "52px"
+  button-quiet-hover:
+    backgroundColor: "{colors.glass-3}"
+  field:
+    backgroundColor: "{colors.glass-2}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.pill}"
+    padding: "4px 4px 4px 18px"
+    height: "60px"
+  lamp-tile:
+    backgroundColor: "{colors.glass}"
+    textColor: "{colors.ink}"
+    typography: "{typography.lamp-title}"
+    rounded: "{rounded.lamp}"
+    padding: "26px 14px 13px"
+    height: "132px"
+  lamp-tile-sm:
+    backgroundColor: "{colors.glass}"
+    rounded: "{rounded.lamp-sm}"
+    height: "92px"
+  namuna-chip:
+    textColor: "{colors.ink-2}"
+    rounded: "{rounded.pill}"
+    padding: "0 9px"
+    height: "22px"
+  tg-post:
+    backgroundColor: "{colors.glass-2}"
+    textColor: "{colors.ink}"
+    typography: "{typography.post}"
+    padding: "12px 14px 9px"
+  segmented:
+    backgroundColor: "{colors.glass}"
+    textColor: "{colors.ink-2}"
+    rounded: "{rounded.pill}"
+    padding: "3px"
+  segmented-item-active:
+    backgroundColor: "{colors.glass-3}"
+    textColor: "{colors.ink}"
+    height: "36px"
+  switch-on:
+    backgroundColor: "{colors.lime}"
+    rounded: "{rounded.pill}"
+    width: "52px"
+    height: "32px"
 ---
 
 # Design System: Mercat
 
 ## Overview
 
-Mercat is a tool a shop owner uses on a phone between customers. It should feel like a well-kept paper notebook, not a machine: warm paper background, near-black ink, thin 1px lines, generous space, and one quiet green used only on the single thing to press on a screen.
+**Creative North Star: "Chiroqlar yonadi" (the lights come on)**
 
-The colour on the page belongs to the owner: their post pictures, their photos. The interface itself stays neutral so those pictures carry the page.
+The marketing department is a panel of ten lamps on a true black stage. Each employee owns one lamp and one hue, and the hues run in pipeline order from warm white through amber, coral, rose, magenta, violet, indigo and blue to teal, so a fully lit panel reads as a single spectrum. A lamp glows only while its employee works or holds a result; dark glass means idle. Nothing glows for decoration.
 
-Replaced on 2026-11-24: the "lamp world" (lit lamp panel, LED readouts, lime, glow, mesh gradients, dot-matrix numbers, orbs, AI portraits, mono-uppercase eyebrows, dot-grid backgrounds, the Spektr intro, the dark `.uslub-legacy` views). The owner judged it heavy, machine-made and too close to Higgsfield. None of it may come back.
+Three other materials sit beside the lamps. An amber 5×7 dot-matrix LED, taken from the running-line signs above Tashkent shops, prints measured numbers and the channel's real facts. Lime is the owner's hand: it marks the one decision the owner makes on a screen. A dashed outline says "namuna": the figure is sample data, not the owner's channel. Everything else is quiet glass, hairlines and one sans family, Onest.
 
-Tokens live in `src/app/globals.css` (`:root`, and `[data-theme="dark"]` for the Telegram dark theme) and are exposed to Tailwind as `bg-paper`, `text-ink`, `text-ink-2`, `border-line`, `bg-accent`, etc.
+The layout is drawn first and never moves. State changes are carried by light, weight and stroke pattern: a lamp warms up with a filament flicker, cools down slowly, and its title goes from 450 to 640 weight when it lights. The world refuses the category default where every card glows, and the SaaS feature grid.
+
+**Simplified on 2026-11-24 (owner's correction).** The lamp world stays; it must be simpler and obvious. One lamp panel on the landing (not two). Every screen says what is happening and what to do next. A lit lamp carries one short honest result ("60 post o‘qildi", "7 post rejada", "2/5 rasm"). Roles that do nothing yet (Videograf, Mijoz radar) stay dark with "tez orada". Spektr is the wow moment of the first run. The old "AI OS" screens (mesh-gradient GlowCards, glossy orbs, AI portraits, dot grids, neon pills) are gone; their content now lives in the lamp system. **Simple mode is the default**: the 3-step path with a ten-light strip; **Professional rejim** (a switch on the ready screen) shows the full panel and the strategy and plan details. Every screen speaks uz / ru / en.
+
+**Key Characteristics:**
+- True black stage (dark) or white stage (Telegram light theme), with glass tiles drawn by a 1px inset hairline instead of borders or shadows.
+- Ten lamp hues, one per employee, in fixed pipeline order. Lime is never a lamp.
+- Amber LED dot matrix for measured numbers only.
+- One enabled lime action per screen.
+- Pills for every control; generous 18 to 28px corners for tiles.
+- Onest throughout, semibold display with tight negative tracking.
+- Motion is ballistic and physical: 720ms warm-up with flicker, 1000ms ease-in cool-down, press scale 0.96, nothing reflows.
 
 ## Colors
 
-### Neutral (almost everything)
+A black stage lit only by work: ten spectral lamp hues, one amber for numbers, one lime for the owner, warm off-white ink.
 
-- **Paper `#f7f5f0`**: page background. Warm, not grey, not pure white.
-- **Card `#ffffff`**: surfaces that hold the owner's content (post cards, findings, form fields).
-- **Ink `#1b1a17`**: text and the active tab underline.
-- **Ink-2 `#57534b`**: secondary text, labels, notes.
-- **Ink-3 `#85807a`**: hints and examples under fields, waiting checklist steps.
-- **Line `#e5e0d6`** and **Line-2 `#cdc6b8`**: 1px borders. Line-2 for controls (inputs, secondary buttons), Line for containers.
-- **Tint `#efebe3`**: segmented-control track, picture placeholders.
+### Primary
+- **Owner Lime** (`lime`): the owner's hand. Primary buttons (Bo'limni yoqish, Tasdiqlash, Telegramda joylash), the "sizni kutmoqda" dot inside a lamp, the on state of a switch, text selection, caret and the focus ring. Text on lime is always Lime Ink (`lime-ink`). In the light theme the focus ring darkens to Deep Olive (`light-focus`) for contrast; lime fills stay the same.
 
-### Accent (one per screen)
+### Secondary
+- **Shop-Sign Amber** (`led`): lit dots of the LED readout and nothing else. Unlit dots are the same amber at 10% (`led-off`). In the light theme the LED prints in Burnt Amber (`light-led`).
 
-- **Accent `#1f5c47`** (deep green) with white text: the primary button only. One primary action per screen: "Boshlash", "Postlarni tayyorlash", "Qayta urinish", "Tasdiqlash"/"Kanalga joylash" on a post card.
+### Tertiary
+- **The Lamp Spectrum** (`lamp-brand` … `lamp-publisher`): one hue per employee in pipeline order: Brend xotirasi warm white, Analitik amber, Strateg orange, Kopirayter coral, Muharrir rose, Tarjimon magenta, Dizayner violet, Videograf indigo, Mijoz radar blue, SMM-menejer teal. Each lamp also carries a hot `core` (the filament and the glow's top) and a `deep` tone (where its light falls into the dark), defined in `src/components/lamp/lamps.ts`. Results on the two lightest lamps (Brend xotirasi, Analitik) print dark (#1c0f05); the rest print white.
+- **Error Red** (`bad`): invalid field stroke, error filament, the wavy underline under a "neuro-word" the editor flagged.
 
-### Status
-
-- **Ok `#2b7350`**: done checks, "Tasdiqlandi".
-- **Bad `#a3352b`** on **Bad-soft `#f8ece9`**: errors and the "Muammo" label of a finding.
-
-### Telegram dark
-
-Inside the Mini App the theme follows Telegram's `colorScheme`; `[data-theme="dark"]` swaps every token (paper `#181816`, ink `#efece6`, accent `#7fc4a6` with dark text). The Mini App paints Telegram's header and background with the same paper colour.
+### Neutral
+- **True Black Stage** (`stage`): the page ground in the dark world.
+- **Dark Glass** (`glass`, `glass-2`, `glass-3`): three steps of near-black for idle tiles, raised surfaces (fields, posts, quiet buttons) and pressed or selected states.
+- **Filament Hairline** (`hair`, `hair-2`): white at 7% and 13%, drawn as a 1px inset ring. This is the only border in the system.
+- **Warm Ink** (`ink`, `ink-2`, `ink-3`): primary text, secondary text, placeholders and meta.
+- **Light theme** (`light-stage`, `light-glass*`, `light-ink*`): white stage, warm paper glass, near-black ink. Used only where the host (Telegram) asks for light.
 
 ### Named Rules
+**The Light Means Work Rule.** A lamp glows only while its employee works (`warming`) or holds a result (`on`, `you`). Idle is dark glass. Never light a tile, a card or a section for decoration, and never give a non-lamp surface a coloured glow.
 
-- **One green.** The accent marks the one thing to press: one control per screen, or one per post card in the Postlar list (each card is its own decision). Never on icons, borders, charts, text links or decoration.
-- **No decorative colour.** No gradients, glows, coloured shadows, coloured section backgrounds.
-- **The owner's colour wins.** Post pictures and the owner's photos are shown full-bleed in their cards and are the only saturated colour on the page.
+**The Owner's Hand Rule.** Lime marks owner actions only, with one enabled lime action per screen. Lime is never a lamp hue, never a chart colour, never decoration.
+
+**The Measured Numbers Rule.** Amber LED dots print measured numbers and the channel's real facts only: never slogans, labels or invented figures. When there is nothing measured, the strip stays dark with its unlit grid showing.
+
+**The Namuna Rule.** Any figure, post or result that is not from the owner's channel carries a dashed-outline "namuna" chip. The dashed stroke means sample and is used for nothing else.
 
 ## Typography
 
-One family: **Onest** (Google Fonts via `next/font`, Latin preloaded, Cyrillic on demand). It covers Uzbek Latin ‘ and Uzbek Cyrillic ў қ ғ ҳ.
+**Display Font:** Onest (with ui-sans-serif, system-ui)
+**Body Font:** Onest
+**Label/Mono Font:** none. Numbers use Onest with tabular figures, or the LED matrix.
+
+**Character:** One calm, phone-legible family with full Uzbek Cyrillic (ў қ ғ ҳ). Hierarchy comes from size, weight and tight negative tracking at display sizes, never from a second face.
 
 ### Hierarchy
-
-- Display (landing h1): 32 px mobile / 52 px desktop, 600, tight tracking.
-- Title (Studio h1): 30 px mobile / 40 px desktop, 600.
-- Section: 20–24 px, 600.
-- Body: 16 px / 1.5. Post text: 16 px / 1.5, `white-space: pre-line`.
-- Small: 14 px, for hints, notes and metadata.
+- **Display** (600, 40px mobile / 64px from 640px, line-height 1, -0.035em): the landing promise. Max 14ch, balanced.
+- **Headline** (600, 32px / 44px, line-height 1.04, -0.03em): section heads. Max 16ch.
+- **Title** (620, 21 to 22px, -0.02em): card and rule heads, the Studio's "Tasdiqlash" and "Bo'lim tayyor".
+- **Lamp title** (640 lit, 450 idle, 15px, 13.5px on small lamps): the employee name. Weight carries state.
+- **Body** (400, 16 to 17px, line-height 1.5): supporting copy, max 46ch. Posts set at 15px / 1.45 to match Telegram.
+- **Label** (400 to 500, 12 to 13.5px): lamp job and state words, meta, chips, counters. Sentence case, no uppercase tracking.
 
 ### Named Rules
+**The One Family Rule.** Onest only. No mono costume for numbers or code, no display serif, no system display face.
 
-- **Sentence case everywhere.** No uppercase eyebrows, no mono labels, no letter-spaced captions.
-- **Numbers are plain text.** Tabular figures (`.tnum`) for counts; no dot-matrix or display numerals. Uzbek and Russian use a space for thousands and a comma for decimals (`num()` in `src/components/ui/lang.ts`); "12 000" never breaks across lines (`keepNumbers()`).
-- **Apostrophes:** ‘ in o‘/g‘, ’ for the tutuq belgisi. Never ASCII '.
+**The Weight Shows State Rule.** A lamp's title moves from 450 to 640 as the lamp lights. The layout does not change; only weight and light do.
+
+**The No Eyebrows Rule.** No kickers, eyebrows or small uppercase labels above headings.
 
 ## Layout
 
-- Mobile first at 375 px: 16 px side gutters, one column, no horizontal scroll.
-- Studio and Mini App: one centred column, max 760 px. Landing: max 1080 px, hero text max ~22ch.
-- Vertical rhythm: 48 px between sections, 20–24 px between cards, 12–16 px inside cards.
-- Tabs (Kanal · Postlar · Video) stick to the top of the Studio column with a 1px bottom line.
+A single 1180px container with 16px gutters on phones and 32px from 640px. The phone column is the design: the first viewport on a 390px phone stacks an LED strip, the 40px promise, the link field with its lime button at roughly y 300, then the top of the dark lamp panel as the fold teaser. From 1024px the hero column sits left and the full panel right (about 1 : 0.95).
+
+The lamp panel is a 2-column grid with a 10px gap, ten lamps in pipeline order, two per row (five per row in the Studio from 640px). Sections are separated by 64px (mobile) or 96px (desktop) of vertical padding.
+
+Studio and the Mini App are one phone column, max 760px, in three phases:
+1. **Start** — the LED sign (dark until a channel is typed), "Kanalingiz uchun bir haftalik postlar", the link field, "Kanalim hali bo‘sh" (the description form: text, optional channel, up to 5 photos), then the 3 steps.
+2. **Working** — the LED sign with the channel and an m:ss clock, "Bo‘lim ishlayapti", one line saying what is happening now, then the panel. Spektr plays once on the first run; lamps light from real results.
+3. **Ready** — the brand name, the ten-light strip (or the full panel in Professional rejim), the Professional switch, then the tabs **Kanal · Postlar · Video**. Kanal: measured numbers on the LED, 3 findings, "Qanday yozasiz" in five lines, the week plan (each row: "Post tayyor" or "Postini yozish"). Postlar: one "Post tili" switch, then each post as a Telegram bubble with its picture, "Tavsiya: day, time", Tahrirlash / Tasdiqlash, then Kanalga joylash. Video: a plain "in development" notice.
+
+**The Layout Never Moves Rule.** Every state a screen can reach is laid out before it is reached. Lamps, results, chips and counters have reserved space; switching state changes light, weight and opacity, never size or position (CLS 0).
 
 ## Elevation & Depth
 
-Flat. Depth comes from the 1px line and the white card on paper. No shadows except the 1px inset ring on controls and the selected segment.
+Flat glass in the dark world. Depth comes from tone (stage → glass → glass-2 → glass-3), the 1px inset hairline, and emitted light. Lit lamps are the only things that throw light: a blurred spill of the lamp hue (opacity 0.42 dark, 0.30 light) beneath the tile, and an inner top highlight.
+
+### Shadow Vocabulary
+- **Hairline ring** (`box-shadow: inset 0 0 0 1px var(--hair)`): every tile, card, post, quiet button and segmented control.
+- **Lamp spill** (`background: var(--hue); filter: blur(28px)`, inset 22% 8% -12% 8%): only under a working or finished lamp.
+- **Lamp highlight** (`inset 0 1px 0 rgb(255 255 255 / 0.4), inset 0 0 0 1px rgb(255 255 255 / 0.1)`): the glass lip of a lit lamp.
+- **Light-theme paper** (`0 1px 2px rgb(10 10 15 / 0.08), 0 8px 24px -12px rgb(10 10 15 / 0.18)`): Telegram posts and deck edges on the white stage only.
+
+### Named Rules
+**The Only Lamps Emit Rule.** Drop shadows and coloured glows belong to lit lamps (and the LED's own dot glow). Every other surface is flat with a hairline.
 
 ## Shapes
 
-- Controls (buttons, inputs): 12 px radius, 48–52 px tall.
-- Cards: 16 px radius, 1px Line border.
-- Segmented control: 10 px track, 8 px segments.
-- Step numbers: 32 px circles with a 1px Line-2 border.
+Soft, generous and consistent. Every control is a pill (999px): buttons, the link field, chips, segmented controls, switches. Tiles round at 22px (lamp), 18px (small lamp), 28px (large lamp); cards at 20 to 24px. The LED strip is a tighter 12px. The Telegram post keeps Telegram's own bubble silhouette (20 20 20 6px), and the approval deck stacks two ghost edges of that bubble above the front post. Each lamp carries a 26×3px filament bar centred 11px from its top; the logo is the same lamp in miniature.
 
 ## Components
 
 ### Buttons
+- **Shape:** pill (999px), 52px tall (50px when sitting inside the field), 22px side padding, 16px / 620.
+- **Lime:** Owner Lime fill, Lime Ink text. The one owner decision on a screen.
+- **Quiet:** glass-2 fill with hairline ring, ink text; hover steps to glass-3. Everything that is not the owner's decision, including icon-only edit buttons.
+- **Hover / Press:** lime brightens 7% on hover; both scale to 0.96 on press over 120ms expo-out. Disabled: 45% opacity, no pointer.
+- **Focus:** 2px lime outline at 3px offset (Deep Olive in light theme).
 
-- `.btn` — primary, accent fill. One per screen.
-- `.btn-2` — secondary, card fill with a 1px Line-2 ring.
-- `.link` — text action, underlined in Line-2.
-Disabled: 50% opacity. Full width on mobile when it is the screen's main action.
+### Chips
+- **Namuna:** 22px pill, 1px dashed ink-3 stroke, 12px / 500 ink-2 text, no fill. Sits next to whatever it qualifies. `?mock=1` runs the made-up bakery under a "Namuna…" banner with "Kanalimni tekshirish"; sample posts cannot be published.
 
-### Inputs
+### Cards / Containers
+- **Corner Style:** 20 to 24px.
+- **Background:** glass (dark) or light-glass, never tinted with a lamp hue.
+- **Shadow Strategy:** hairline ring only (see Elevation & Depth).
+- **Internal Padding:** 16 to 28px. The brand-voice card is five label/value lines on an 88px label column, no tag clouds.
 
-`.input` — 52 px, 16 px text (iOS does not zoom), 1px Line-2 ring, 1.5px ink ring on focus, Bad ring when invalid. Every field has a visible label above and a hint or error line below.
+### Inputs / Fields
+- **Style:** 60px pill on glass-2, hairline-2 ring, 17px input text, leading link icon in ink-3, the lime submit nested inside the right end.
+- **Focus:** the ring thickens to 1.5px lime.
+- **Error:** the ring turns 1.5px Error Red with a 13px message beneath, in reserved space.
 
-### Segmented control
+### Navigation
+- **Header:** the Mark on the left; text links (14px / 500, ink-2 → ink on hover) and a quiet pill to Telegram on the right, all with 44px minimum targets.
+- **Segmented control:** glass pill track with 3px padding; the active item is glass-3 with ink text, inactive ink-2. Never lime.
+- **Switch:** 52×32 pill on glass-3; lime with a Lime Ink knob when on (an owner setting: Professional rejim).
+- **Language:** a `uz · ru · en` segmented control in every header; the choice is remembered.
+- **Tabs (Studio):** Kanal · Postlar · Video, a 2px ink underline on the active tab, sticky under the header.
 
-`.seg` — language switch (`uz · ru · en`) and the post script switch (O‘z · Ўз · Ру · En).
+### Lamp Tile (signature)
+One employee, one lamp. Dark glass, filament hairline, name at the bottom, result in the middle. States: `off` (dark, title 450 ink-2), `warming` (glass pulses 0.34 ↔ 0.70 every 2.4s, filament hot), `on` (full glow with flicker-in, result fades in 260ms later), `you` (lit, with a lime dot and "sizni kutmoqda": waiting for the owner), `error` (glow 16% desaturated, red filament). Results show the lamp's measured number in the LED matrix printed in the lamp's own ink, or a short phrase.
 
-### Progress checklist
+### LED Readout (signature)
+A 5×7 dot-matrix in amber with a soft dot glow, unlit dots drawn as a 10% amber grid. The full-width strip sits on the stage colour with a 12px radius and hairline, stays dark until a real channel or number exists, and scrolls long text as a shop-sign running line (linear, about 0.55s per character, min 6s).
 
-A plain list while Mercat works: a 24 px circle per step — empty (waiting, ink-3 text), a slow spinner (working), a green check (done), a red cross (failed) — and one line of text with the real count ("Kanal o‘qildi · 60 post", "Haftalik reja tuzilmoqda · 3/7"). Elapsed seconds are shown; there is no progress bar.
+Lamp results come from real data only: Brend xotirasi «siz», tone · Analitik N post o‘qildi · Strateg N post rejada (n/m while planning) · Kopirayter N post yozildi · Muharrir robot iboralarsiz · Tarjimon N til · Dizayner n/m rasm · SMM-menejer "sizni kutmoqda" until a post is published. The ready screen shows the panel as a ten-light strip (`lamp--xs`, light only) with "7/8 xodim"; Professional rejim shows the full panel.
 
-### Post card
-
-White card: header line (weekday, time · goal, and "Tasdiqlandi" when approved), the picture full-bleed (or a tint placeholder "Rasm chizilmoqda…"), the script switch, the text, then actions: "Tahrirlash" (secondary) + "Tasdiqlash" (primary); after approval "Kanalga joylash" (primary) with one line explaining the bot.
-
-### Finding
-
-White card: a small coloured word ("Muammo" in Bad, "Imkoniyat" in Ink-2, "Yaxshi tomoni" in Ok), the finding in 16 px, the evidence numbers in 14 px Ink-2.
-
-### Sample banner
-
-`?mock=1` only: a white card under the header, "Namuna: o‘ylab topilgan non do‘koni…" with a link to start with the owner's own channel.
+### Telegram Post
+The owner's unit of work drawn close to Telegram's bubble: the picture full-bleed on top (while it is drawn, the slot is the Dizayner's lamp, warming), avatar and channel name tinted with the brand tone, 16px body, the time. Above it "Tavsiya: Dushanba, 07:30" (a suggestion, never a schedule) and "Tasdiqlandi" once approved; below it Tahrirlash (quiet) and Tasdiqlash (lime), then Kanalga joylash (lime) with one line about the bot.
 
 ### Motion
-
-Almost none: 150 ms colour transitions on controls, a slow 2.4 s opacity "breathe" on waiting text and picture placeholders, a 1.6 s spinner in the checklist. All of it stops under `prefers-reduced-motion`.
+- **Lamp on:** 720ms, a flicker keyframe (0 → 0.75 → 0.18 → 0.9 → 0.5 → 1 by 46%), then steady. Spill fades in on expo-out.
+- **Lamp off:** 1000ms ease-in (cubic-bezier(0.7, 0, 0.84, 0)). Cooling is slower than warming, like a real filament.
+- **Tap 120ms, state 200ms, panel 360ms**, all expo-out (cubic-bezier(0.16, 1, 0.3, 1)).
+- **Pipeline step:** each next lamp lights faster, 420ms down to 170ms.
+- **Numbers** settle on a spring (stiffness 170, damping 18) with a slight overshoot; they never jump.
+- **Spektr** (the signature moment, the first run of a page only): the LED sign with the owner's channel squeezes to a white-hot point (380ms), charges, drops onto the panel, splits into ten hue beams 22ms apart; each lamp flashes once as its beam lands (a power-on lamp test), then only working employees stay lit. About 1.9s, on WAAPI. Retries do not replay it.
+- **Reduced motion:** no flicker, no Spektr, no running line; lamps fade over 150ms and the state still reads.
 
 ## Do's and Don'ts
 
-### Do
+### Do:
+- **Do** light a lamp only for `warming`, `on` or `you`, and leave every other tile dark glass with its filament hairline.
+- **Do** keep the ten lamp hues in pipeline order (warm white → amber → orange → coral → rose → magenta → violet → indigo → blue → teal) so a full panel reads as one spectrum.
+- **Do** give each screen exactly one enabled lime action, with Lime Ink (#0b0c02) text.
+- **Do** print measured numbers in the amber LED matrix, and leave the strip dark with its unlit grid when nothing is measured yet.
+- **Do** put a dashed "namuna" chip on every figure, post or result that is not from the owner's channel.
+- **Do** draw edges as a 1px inset hairline (white at 7% / 13%) and round controls as pills.
+- **Do** warm lamps up in 720ms with the flicker and cool them in 1000ms ease-in; press-scale controls to 0.96.
+- **Do** reserve space for every state so nothing moves when a lamp lights (CLS 0), and honour `prefers-reduced-motion`.
+- **Do** follow Telegram's theme inside `/tg`, using the light tokens on the white stage.
 
-- Answer "what is this and what do I do" on the first screen: one field, an example, the empty-channel option, three steps.
-- Show only real numbers from the owner's channel; label anything else "Namuna".
-- Use shop words: kanal, post, narx, rasm, reja, tasdiqlash.
-- Put the owner's pictures and posts at the centre of the page.
-- Show errors as a plain sentence with "Qayta urinish".
+### Don't:
+- **Don't** glow, tint or spill light on anything that is not a working or finished lamp.
+- **Don't** use lime as a lamp hue, a chart colour, a link colour or decoration, and don't put two enabled lime actions on one screen.
+- **Don't** use the LED amber for labels, slogans or invented numbers.
+- **Don't** use a dashed outline for anything except "namuna" sample data.
+- **Don't** add a second typeface, a monospace "tech" face, or kickers and eyebrows above headings.
+- **Don't** resize, reflow or reorder the panel when state changes; change light and weight only.
+- **Don't** add drop shadows to dark-theme surfaces; the light-theme paper shadow is for posts and deck edges only.
+- **Don't** build feature grids of identical glowing cards.
 
-### Don't
+## Known gaps
 
-- No lamps, LEDs, glow, neon, lime, mesh or any gradients, orbs, 3D icons, AI portraits, dot-grid or noise backgrounds.
-- No mono-uppercase eyebrows, no dot-matrix or oversized "hero numbers".
-- No agent/employee theatre ("Kopirayter yozdi…", avatars, node graphs).
-- No dashed "empty state" boxes, no decorative illustrations.
-- No second accent-coloured control in the same screen or card.
-- Never show sample data as if it were the owner's.
+- `/studio` on the plain web is always dark; only `/tg` follows a light theme.
+- The landing's example post has no picture yet; add one made by the picture pipeline once it runs on a real channel (with the owner's permission).
+- Video is a notice only (needs API keys); Mijoz radar is dark ("tez orada").
