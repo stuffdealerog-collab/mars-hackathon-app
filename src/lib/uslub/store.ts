@@ -68,7 +68,7 @@ type PostRow = {
   variants: Record<Script, string>;
   neuro_hits: Partial<Record<Script, NeuroHit[]>>;
   human_score: number;
-  status: PostDraft["status"];
+  status: string; // PostDraft["status"], or a publish claim (see claimPublish)
   published_url: string | null;
   slot?: PlanSlot | null;
   image?: PostImage | null;
@@ -83,7 +83,7 @@ const toPost = (r: PostRow): PostDraft => ({
   variants: r.variants,
   neuroHits: r.neuro_hits ?? {},
   humanScore: r.human_score,
-  status: r.status,
+  status: contractStatus(r.status),
   publishedUrl: r.published_url ?? undefined,
   ...(r.slot ? { slot: r.slot } : {}),
   ...(r.image ? { image: r.image } : {}),
@@ -348,10 +348,79 @@ export async function markPublished(id: string, url: string | null, chat: string
   if (!isDbConfigured()) {
     const p = mem.posts.get(id);
     if (p) mem.posts.set(id, { ...p, status: "published", publishedUrl: url ?? undefined });
+    memClaims.delete(id);
   } else {
     await getSql()`UPDATE posts SET status = 'published', published_url = ${url} WHERE id = ${id}`;
   }
   await safeLogEvent(telegramId, "post_published", { post_id: id, chat });
+}
+
+/* ---------------------------------------------------------- publish claim
+ * While a post is being sent to its channel it is stored as "publishing:<prev>:<unix ms>" (prev = the status it
+ * had, draft or approved). Readers see <prev> (toPost), so the contract's three statuses stay as they are; a second
+ * publish of the same post finds the claim and sends nothing (publish-once.ts). markPublished replaces the claim
+ * with "published"; a failed send puts <prev> back. A claim older than PUBLISH_CLAIM_STALE_MS belongs to a call
+ * that died mid-send (the bot webhook's maxDuration is 120 s, the publish route's 30 s) and may be taken over. */
+
+export const PUBLISH_CLAIM_STALE_MS = 180_000;
+const CLAIM_RE = /^publishing:(draft|approved):(\d{1,15})$/;
+type Unpublished = "draft" | "approved";
+
+/** The contract status of a stored one: a publish claim reads as the status it replaced. */
+export function contractStatus(raw: string): PostDraft["status"] {
+  if (raw === "published" || raw === "approved" || raw === "draft") return raw;
+  return (CLAIM_RE.exec(raw)?.[1] as Unpublished | undefined) ?? "draft";
+}
+
+export type PublishClaim =
+  | { kind: "claimed"; token: string; prev: Unpublished }
+  | { kind: "published"; url?: string }
+  | { kind: "busy" }
+  | { kind: "missing" };
+
+/** In-memory claims (no DATABASE_URL): the post keeps its status, the claim lives here. */
+const memClaims = new Map<string, { token: string; at: number }>();
+
+/**
+ * Takes the right to send this post, atomically: only one caller gets "claimed" until it calls releasePublish
+ * (or markPublished). "published" = already in the channel; "busy" = another call is sending it right now.
+ */
+export async function claimPublish(id: string, now = Date.now(), retried = false): Promise<PublishClaim> {
+  if (!isUuid(id)) return { kind: "missing" };
+  if (!isDbConfigured()) {
+    const p = mem.posts.get(id);
+    if (!p) return { kind: "missing" };
+    if (p.status === "published") return { kind: "published", url: p.publishedUrl };
+    const held = memClaims.get(id);
+    if (held && now - held.at < PUBLISH_CLAIM_STALE_MS) return { kind: "busy" };
+    const token = `publishing:${p.status}:${now}`;
+    memClaims.set(id, { token, at: now });
+    return { kind: "claimed", token, prev: p.status };
+  }
+  const rows = (await getSql()`SELECT status, published_url FROM posts WHERE id = ${id}`) as { status: string; published_url: string | null }[];
+  const row = rows[0];
+  if (!row) return { kind: "missing" };
+  if (row.status === "published") return { kind: "published", url: row.published_url ?? undefined };
+  const held = CLAIM_RE.exec(row.status);
+  if (held && now - Number(held[2]) < PUBLISH_CLAIM_STALE_MS) return { kind: "busy" };
+  const prev: Unpublished = held ? (held[1] as Unpublished) : row.status === "approved" ? "approved" : "draft";
+  const token = `publishing:${prev}:${now}`;
+  // Compare-and-set on the status just read: of two concurrent callers only one changes it.
+  const won = (await getSql()`
+    UPDATE posts SET status = ${token} WHERE id = ${id} AND status = ${row.status} RETURNING id
+  `) as { id: string }[];
+  if (won.length) return { kind: "claimed", token, prev };
+  // The status changed between the read and the update (claimed, published or approved meanwhile): look once more.
+  return retried ? { kind: "busy" } : claimPublish(id, now, true);
+}
+
+/** Ends a claim: a post still holding it goes back to the status it had. A no-op once markPublished ran. */
+export async function releasePublish(id: string, claim: { token: string; prev: Unpublished }): Promise<void> {
+  if (!isDbConfigured()) {
+    if (memClaims.get(id)?.token === claim.token) memClaims.delete(id);
+    return;
+  }
+  await getSql()`UPDATE posts SET status = ${claim.prev} WHERE id = ${id} AND status = ${claim.token}`;
 }
 
 export async function countPublished(brandId: string): Promise<number> {

@@ -18,6 +18,7 @@ export type ErrorCode =
   | "post_not_found"
   | "not_found"
   | "conflict"
+  | "publish_in_progress"
   | "own_brand_needed"
   | "rate_limited"
   | "channel_invalid"
@@ -83,6 +84,11 @@ const MESSAGES: Record<ErrorCode, Msg> = {
     uz: "Buni hozir bajarib bo‘lmaydi. Sahifani yangilab, qayta urinib ko‘ring.",
     ru: "Сейчас это сделать нельзя. Обновите страницу и попробуйте снова.",
     en: "This can't be done right now. Reload the page and try again.",
+  },
+  publish_in_progress: {
+    uz: "Bu post hozir kanalga joylanmoqda. Bir daqiqadan keyin kanalni tekshiring, qayta bosish shart emas.",
+    ru: "Этот пост сейчас публикуется в канал. Проверьте канал через минуту, нажимать ещё раз не нужно.",
+    en: "This post is being posted to the channel right now. Check the channel in a minute; no need to tap again.",
   },
   own_brand_needed: {
     uz: "Bu brend faqat ochiq kanal postlaridan tuzilgan. Ma’lumot qo‘shish uchun avval biznesingiz tavsifi bilan o‘z brendingizni yarating.",

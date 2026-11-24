@@ -19,7 +19,8 @@ import type { PostDraft, Script } from "./contract";
 import { errorText } from "./errors";
 import { findPlaceholders, placeholderNote } from "./placeholders";
 import { publishErrorCode } from "./publish-errors";
-import { addBotAsAdminLink, publishPost } from "./publish";
+import { addBotAsAdminLink } from "./publish";
+import { publishOnce } from "./publish-once";
 import { parseChannelUsername } from "./scrape";
 import {
   claimBrand,
@@ -232,11 +233,14 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
   }
   // expectedText / expectedImageUrl: publish.ts (images) re-checks them right before sending and answers 409 when
   // they changed. A direct object literal, so every field name is type-checked against publishPost.
-  const res = await publishPost({ postId: post.id, script, chat: brand.channel, userId: user.id, expectedText: shownText(fresh, script), expectedImageUrl: shownPhoto(fresh) });
+  // publishOnce: a second press (or Telegram delivering this one twice) never sends the post again.
+  const res = await publishOnce({ postId: post.id, script, chat: brand.channel, userId: user.id, expectedText: shownText(fresh, script), expectedImageUrl: shownPhoto(fresh) });
   if (res.ok) {
-    await api.sendMessage(chatId, t(locale, "pub.done", { url: res.url ?? "" }), { link_preview_options: { is_disabled: true } });
+    await api.sendMessage(chatId, t(locale, res.already ? "pub.already" : "pub.done", { url: res.url ?? "" }), { link_preview_options: { is_disabled: true } });
     return;
   }
+  // The first press is still sending it and will report "✅ Kanalga joylandi"; this press already showed "Joylanmoqda…".
+  if (res.inProgress) return;
   if (res.status === 409) {
     // Changed in the last milliseconds before sending: show the new version, publish nothing.
     const latest = await getPost(post.id);

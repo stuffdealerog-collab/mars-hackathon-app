@@ -11,7 +11,7 @@ import type { BrandProfile } from "./contract";
 import { generatePosts } from "./copywriter";
 import { createOnboardGate, type GateResult } from "./limit";
 import { errorBody } from "./http";
-import { publishPost } from "./publish";
+import { publishOnce } from "./publish-once";
 import { parseChannelUsername, ScrapeError } from "./scrape";
 import { getBrand, getPost, savePosts } from "./store";
 import { studioLink } from "./handoff";
@@ -39,16 +39,20 @@ export function gateMessage(result: Exclude<GateResult, { ok: true }>, locale: L
 /**
  * "📢 Publish" button in the bot. `userId` is the trusted ctx.from.id; the same
  * authorization path as /api/uslub/publish (owner + own channel + admin checks).
+ * Publishes at most once (publish-once.ts). null = say nothing: the first press of the button is still sending
+ * the post and will report it.
  */
-export async function publishFromBot(postId: string, userId: number, locale: Locale = "uz"): Promise<{ text: string; addAdminUrl?: string }> {
+export async function publishFromBot(postId: string, userId: number, locale: Locale = "uz"): Promise<{ text: string; addAdminUrl?: string } | null> {
   const post = await getPost(postId);
   const brand = post ? await getBrand(post.brandId) : null;
   if (!post || !brand?.channel) return { text: t(locale, "bot.need_channel") };
+  if (brand.ownerTelegramId === userId && post.status === "published") return { text: t(locale, "pub.already", { url: post.publishedUrl ?? "" }) };
   const script = pickScript(post.variants, undefined, brand.dna?.languages);
   const blanks = findPlaceholders(post.variants[script] ?? "");
   if (blanks.length) return { text: placeholderNote(blanks, locale) };
-  const res = await publishPost({ postId, script, chat: brand.channel, userId });
-  if (res.ok) return { text: t(locale, "pub.done", { url: res.url ?? "" }) };
+  const res = await publishOnce({ postId, script, chat: brand.channel, userId });
+  if (res.ok) return { text: t(locale, res.already ? "pub.already" : "pub.done", { url: res.url ?? "" }) };
+  if (res.inProgress) return null;
   // Same localized reasons as the publish link; a missing bot admin comes with the "add the bot" button.
   return {
     text: t(locale, "pub.failed", { error: publishError(locale, res.status, res.error, res.addAdminUrl, brand.channel) }),

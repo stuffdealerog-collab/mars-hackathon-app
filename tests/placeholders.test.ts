@@ -21,6 +21,9 @@ vi.mock("@/lib/uslub/errors", async () => await import("../src/lib/uslub/errors"
 vi.mock("@/lib/uslub/publish-errors", async () => await import("../src/lib/uslub/publish-errors"));
 const publishPost = vi.fn(async (): Promise<{ ok: boolean; status: number; url?: string; error?: string; addAdminUrl?: string }> => ({ ok: true, status: 200, url: "https://t.me/x/1" }));
 vi.mock("@/lib/uslub/publish", () => ({ publishPost, addBotAsAdminLink: () => "https://t.me/test_bot?startchannel&admin=post_messages" }));
+// The publish route sends through publish-once.ts, which imports "./publish": the same fake there.
+vi.mock("../src/lib/uslub/publish", () => ({ publishPost, addBotAsAdminLink: () => "https://t.me/test_bot?startchannel&admin=post_messages" }));
+vi.mock("@/lib/uslub/publish-once", async () => await import("../src/lib/uslub/publish-once"));
 
 // The copywriter's model calls, by purpose.
 const llmJson = vi.fn();
