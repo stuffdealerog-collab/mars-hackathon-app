@@ -4,6 +4,8 @@
  * copy the week, make the bot an admin). Never Tasdiqlash or Joylash: those live on the post.
  */
 import { ClipboardList, Copy, Download, ImagePlus, Package, PenLine, RefreshCw, ShieldCheck } from "lucide-react";
+import type { ContentPlan, PostDraft, Script } from "@/lib/uslub/contract";
+import type { Copy as CopyText } from "../ui/copy";
 import { weekday } from "../ui/format";
 import { fmt, useCopy } from "../ui/lang";
 import { useDesk } from "./desk";
@@ -11,7 +13,18 @@ import { pictureBusy, slotKey, useStudio } from "./store";
 
 type Tool = { key: string; icon: typeof Copy; label: string; run: () => void; off?: string | true };
 
-async function copyText(text: string): Promise<boolean> {
+/** The week as plain text: each plan day with its hook, then every post in the chosen script. */
+export function weekText(plan: ContentPlan | null, posts: PostDraft[], c: CopyText, script: Script): string {
+  const lines: string[] = [];
+  for (const it of plan?.items ?? []) {
+    const d = weekday(it.day);
+    lines.push(`${d != null ? c.weekdays[d] : it.day} ${it.time}: ${it.hook}`);
+  }
+  for (const p of posts) lines.push("", `${p.slot ? `${p.slot.day} ${p.slot.time}` : ""}`.trim(), p.variants[script] ?? p.variants.uz_latn ?? "");
+  return lines.join("\n").trim();
+}
+
+export async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
     return true;
@@ -95,15 +108,7 @@ export function Tools({ collapsed }: { collapsed: boolean }) {
         icon: ClipboardList,
         label: c.tools.copyWeek,
         off: !ready || (!s.plan && !s.posts.length) ? true : undefined,
-        run: () => {
-          const lines: string[] = [];
-          for (const it of s.plan?.items ?? []) {
-            const d = weekday(it.day);
-            lines.push(`${d != null ? c.weekdays[d] : it.day} ${it.time}: ${it.hook}`);
-          }
-          for (const p of s.posts) lines.push("", `${p.slot ? `${p.slot.day} ${p.slot.time}` : ""}`.trim(), p.variants[script] ?? p.variants.uz_latn ?? "");
-          void copyText(lines.join("\n").trim()).then(done);
-        },
+        run: () => void copyText(weekText(s.plan, s.posts, c, script)).then(done),
       },
       {
         key: "admin",

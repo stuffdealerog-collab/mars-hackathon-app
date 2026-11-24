@@ -77,7 +77,7 @@ export function useHotkeys(enabled: boolean) {
 }
 
 /** Enter on an approved post: the first press asks, the second publishes (or opens the bot). */
-function publishStep(post: PostDraft, picked: Script | null) {
+export function publishStep(post: PostDraft, picked: Script | null) {
   const st = useStudio.getState();
   const desk = useDesk.getState();
   const script = picked && post.variants[picked]?.trim() ? picked : "uz_latn";

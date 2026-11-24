@@ -63,3 +63,19 @@ export function ownerText(text: string, lang: Lang): string {
 export function isMachineEvidence(text: string): boolean {
   return RULE_TOKEN.test(text);
 }
+
+/**
+ * How well a typed query matches a command (the Ctrl K palette): the whole query at the start 3,
+ * at the start of a word 2, its letters in order 1, no match 0. Case-insensitive, any script.
+ */
+export function rank(query: string, text: string): number {
+  const q = query.trim().toLowerCase();
+  const t = text.toLowerCase();
+  if (!q) return 1;
+  if (t.startsWith(q)) return 3;
+  // The ‘ of o‘ and g‘ is part of an Uzbek word, never a break.
+  if (t.split(/[\s·/:,.-]+/).some((w) => w.startsWith(q))) return 2;
+  let i = 0;
+  for (const ch of t) if (ch === q[i] && ++i === q.length) return 1;
+  return 0;
+}
