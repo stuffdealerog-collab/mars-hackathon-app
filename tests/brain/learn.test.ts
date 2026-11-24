@@ -5,7 +5,7 @@ import { forecastSlot } from "../../src/lib/uslub/brain/forecast";
 import { ageCurve, calibration, changeLines, funnelInput, hints, judgeExperiments, matchPosts, measure, scoreTags, type StoredPlan } from "../../src/lib/uslub/brain/learn";
 import { funnelRule, runRules } from "../../src/lib/uslub/brain/rules";
 import { parseChannelPage } from "../../src/lib/uslub/brain/scrape";
-import { assignFocus, assignHookTypes, buildSkeleton, hookTypeOf } from "../../src/lib/uslub/brain/skeleton";
+import { assignFocus, assignHookTypes, buildSkeleton, hookTypeOf, postCount } from "../../src/lib/uslub/brain/skeleton";
 import { computeStats } from "../../src/lib/uslub/brain/stats";
 import { sufficiency } from "../../src/lib/uslub/brain/sufficiency";
 import type { ChannelData, RawPost } from "../../src/lib/uslub/brain/types";
@@ -290,6 +290,14 @@ describe("skeleton v2", () => {
     expect(sale.every((s) => s.focus!.some((f) => f === "F1" || f === "F2"))).toBe(true);
     expect(hookTypeOf("Napoleon — 45 000 so'm")).toBe("price");
     expect(hookTypeOf("Nega tort qimmat?")).toBe("question");
+  });
+});
+
+describe("post count cap", () => {
+  it("OVERPOSTING never plans more than 10 posts (a 40-a-week channel got 28 in v1)", () => {
+    const stats = { ...computeStats(safia(), NOW), postsPerWeek: 40, postsInWindow: 60 };
+    const rules = [{ id: "R.OVERPOSTING", name: "", status: "fired" as const, kind: "problem" as const, severity: 2 as const, trigger: "", ids: [], effects: "" }];
+    expect(postCount(stats, rules)).toBe(10);
   });
 });
 

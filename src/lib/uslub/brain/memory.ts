@@ -80,7 +80,7 @@ let summaryCache: { at: number; rows: ChannelSummary[] } | null = null;
 /** Seed (golden set, committed) + the latest DB summary per channel from the last 90 days. Cached 10 min. */
 export async function loadSummaries(now = Date.now()): Promise<ChannelSummary[]> {
   if (summaryCache && now - summaryCache.at < 10 * 60_000) return summaryCache.rows;
-  let rows: ChannelSummary[] = [...(seed as ChannelSummary[])];
+  let rows: ChannelSummary[] = [...(seed as unknown as ChannelSummary[])];
   if (!isDbConfigured()) rows = [...rows, ...mem.summaries];
   else {
     const db = (await getSql()`

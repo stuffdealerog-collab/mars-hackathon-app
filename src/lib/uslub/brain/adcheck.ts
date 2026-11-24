@@ -19,7 +19,12 @@ export const SOURCES = {
 } as const;
 
 export const ERR_LOW = 0.1;
-export const ERR_HIGH = 0.5;
+/**
+ * Calibrated on 82 real Uzbek SMB channels (golden set, 2026-11-24): niche median reach is 23–67% and
+ * p75 reaches 102% (fast food), so the 50% line from Russian ad-buyer articles flagged about half of
+ * ordinary channels. Without a niche benchmark only views above 120% of subscribers warn.
+ */
+export const ERR_HIGH = 1.2;
 export const FLAT_CV = 0.12;
 export const SATURATION = 0.85;
 export const AD_LOAD_MAX = 0.4;
@@ -92,8 +97,11 @@ export function adSignals(
   data: ChannelData,
   stats: ChannelStats,
   now: number,
-  opts: { priceUzs?: number; history?: { at: string; subscribers: number }[] } = {},
+  opts: { priceUzs?: number; history?: { at: string; subscribers: number }[]; errBand?: { low: number; high: number; label: string } } = {},
 ): AdCheck {
+  const errLow = opts.errBand?.low ?? ERR_LOW;
+  const errHigh = opts.errBand?.high ?? ERR_HIGH;
+  const errThreshold = opts.errBand ? `${pct0(errLow)}–${pct0(errHigh)} (${opts.errBand.label})` : `taxminiy: ${pct0(ERR_LOW)}–${pct0(ERR_HIGH)}`;
   const signals: AdSignal[] = [];
   const subs = data.subscribers;
   const med = stats.medianViews;
@@ -105,7 +113,7 @@ export function adSignals(
       id: "err",
       status: "insufficient",
       display: subs ? `n=${stats.maturePosts}` : "obunachilar noma'lum",
-      threshold: "taxminiy: 10%–50%",
+      threshold: errThreshold,
       source: "heuristic",
       n: stats.maturePosts,
       note: {
@@ -130,17 +138,17 @@ export function adSignals(
       },
     });
   } else {
-    const warn = err > ERR_HIGH || err < ERR_LOW;
+    const warn = err > errHigh || err < errLow;
     signals.push({
       id: "err",
       status: warn ? "warn" : "ok",
       value: err,
       display: pct0(err),
-      threshold: "taxminiy: 10%–50%",
-      source: "heuristic",
+      threshold: errThreshold,
+      source: opts.errBand ? "data" : "heuristic",
       n: Math.min(30, stats.maturePosts),
       note: warn
-        ? err > ERR_HIGH
+        ? err > errHigh
           ? {
               uz: `Post o‘rtacha ${pct0(err)} obunachiga yetadi — bu juda baland, ko‘rishlar sotib olingan bo‘lishi mumkin.`,
               ru: `Пост в среднем видят ${pct0(err)} подписчиков — слишком много, просмотры могли купить.`,

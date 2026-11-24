@@ -149,17 +149,19 @@ describe("ad-placement signals", () => {
     expect(check(channel([])).signals.every((s) => s.status === "insufficient")).toBe(true);
   });
 
-  it("real fixture (@safiabakery): ERR just over 50% is one sign → caution, CPM inside the spot.uz band", () => {
+  it("real fixture (@safiabakery): 51% reach is normal for Uzbek channels (no 50% false alarm), CPM inside the spot.uz band", () => {
     const html = readFileSync(new URL("./fixtures/safiabakery.html", import.meta.url), "utf8");
     const page = parseChannelPage("safiabakery", html);
     const d: ChannelData = { channel: "safiabakery", title: page.title, subscribers: page.subscribers, posts: page.posts, complete: false, pages: 1 };
     const r = check(d, { priceUzs: 400_000 });
-    expect(sig(r, "err")).toMatchObject({ status: "warn", display: "51%" });
+    expect(sig(r, "err")).toMatchObject({ status: "ok", display: "51%" });
     expect(sig(r, "flat")?.status).toBe("ok");
-    expect(r.verdict).toBe("caution");
     expect(r.priceBand?.position).toBe("within");
     expect(r.cpm?.basis).toBe("mature");
     expect(channelValidity(d, NOW, { role: "competitor" }).code).toBe("ok");
+    // With a niche band (real channels of the same niche) the line moves with the niche.
+    const tight = check(d, { errBand: { low: 0.1, high: 0.45, label: "test niche, n=5" } });
+    expect(sig(tight, "err")).toMatchObject({ status: "warn", threshold: "10%–45% (test niche, n=5)", source: "data" });
   });
 });
 

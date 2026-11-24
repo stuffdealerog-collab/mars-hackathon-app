@@ -1,5 +1,7 @@
 import "server-only";
 import { adSignals, SOURCES, type AdCheck, type AdSignal } from "./adcheck";
+import { benchmarkFor, nicheOf, NICHE_LABEL } from "./bench";
+import { loadSummaries } from "./memory";
 import { BrainScrapeError, normalizeChannel, scrapeChannelData } from "./scrape";
 import { computeStats } from "./stats";
 import type { Lang } from "./types";
@@ -28,6 +30,7 @@ export interface AdCheckResponse {
 export async function runAdCheck(input: {
   channel: string;
   priceUzs?: number;
+  category?: string;
   lang?: Lang;
   now?: number;
   history?: { at: string; subscribers: number }[];
@@ -54,7 +57,13 @@ export async function runAdCheck(input: {
   }
   const stats = computeStats(data, now);
   const validity = channelValidity(data, now, { role: "competitor" });
-  const check = adSignals(data, stats, now, { priceUzs: input.priceUzs, history: input.history });
+  // The "normal" reach band comes from real channels of the same niche when we have ≥5 of them.
+  const niche = nicheOf(input.category, data.title);
+  const bench = benchmarkFor(await loadSummaries(now).catch(() => []), niche, data.channel);
+  const errBand = bench?.reachRate
+    ? { low: Math.max(0.05, bench.reachRate.p25 * 0.4), high: Math.max(0.8, bench.reachRate.p75 * 1.6), label: `${NICHE_LABEL[niche][lang]}, n=${bench.n}` }
+    : undefined;
+  const check = adSignals(data, stats, now, { priceUzs: input.priceUzs, history: input.history, errBand });
   const unusable = validity.code === "empty" || validity.code === "squatted";
   return {
     channel: `@${data.channel}`,

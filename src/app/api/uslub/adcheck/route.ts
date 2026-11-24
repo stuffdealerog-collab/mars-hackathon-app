@@ -8,12 +8,13 @@ export const maxDuration = 30;
 
 const Body = z.object({
   channel: z.string().trim().min(2).max(100),
+  category: z.string().trim().max(80).optional(),
   priceUzs: z.number().int().positive().max(10_000_000_000).optional(),
   lang: z.enum(["uz", "ru", "en"]).optional(),
 });
 
 /**
- * POST { channel, priceUzs?, lang? }
+ * POST { channel, category?, priceUzs?, lang? }
  *   -> { channel, title, subscribers, verdict, summary, signals, cpm?, priceBand?, validity, sources, ... }
  * "Should I buy an ad post here?": boost signs (ERR, flat views, early saturation,
  * subscriber jumps), ad load, ad-post reach and price per 1000 views. No LLM.
@@ -22,7 +23,7 @@ export const POST = handle(async (req) => {
   rateLimit(req, "brain-adcheck", 10);
   const body = await readJson(req, Body);
   try {
-    return json(await runAdCheck({ channel: body.channel, priceUzs: body.priceUzs, lang: body.lang ?? "uz" }));
+    return json(await runAdCheck({ channel: body.channel, category: body.category, priceUzs: body.priceUzs, lang: body.lang ?? "uz" }));
   } catch (err) {
     throw toHttp(err);
   }
