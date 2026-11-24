@@ -82,7 +82,8 @@ function transliterateWord(word: string): string {
   const normalized = word.replace(APOS_RE, APOS);
   const lower = normalized.toLowerCase();
   const letters = lower.replace(/'/g, "");
-  if (/w/.test(letters) || /c(?!h)/.test(lower)) return word; // not Uzbek Latin
+  // Not Uzbek Latin: "w", a "c" outside "ch", English "th", or camelCase (iPhone, TikTok).
+  if (/w/.test(letters) || /c(?!h)/.test(lower) || /th/.test(lower) || /[a-z][A-Z]/.test(word)) return word;
 
   const allCaps = /[a-z]/i.test(word) && word === word.toUpperCase() && letters.length > 1;
 
@@ -179,7 +180,11 @@ const WORD = new RegExp(`[A-Za-z](?:[A-Za-z]|[${APOSTROPHES}](?=[A-Za-z])|(?<=[O
 export function latinToCyrillic(text: string, keep: string[] = []): string {
   if (!text) return text;
   const kept = new Set(keep.map((w) => w.toLowerCase()));
-  const tr = (w: string) => (kept.has(w.toLowerCase()) ? w : transliterateWord(w));
+  // Words glued to digits are model/product codes (PS5, A54, 4K): keep them.
+  const tr = (w: string, offset: number, all: string) =>
+    kept.has(w.toLowerCase()) || /\d/.test(all[offset - 1] ?? "") || /\d/.test(all[offset + w.length] ?? "")
+      ? w
+      : transliterateWord(w);
   let out = "";
   let last = 0;
   for (const m of text.matchAll(PROTECTED)) {

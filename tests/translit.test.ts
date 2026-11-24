@@ -87,6 +87,16 @@ describe("latinToCyrillic", () => {
     expect(latinToCyrillic("Wildberries")).toBe("Wildberries");
   });
 
+  it("keeps English brand words, camelCase names and product codes", () => {
+    expect(latinToCyrillic("The North Face etiklari")).toBe("The North Face этиклари");
+    expect(latinToCyrillic("PS5 va iPhone 15 Pro, Samsung A54")).toBe("PS5 ва iPhone 15 Про, Самсунг A54");
+    expect(latinToCyrillic("2024-yil")).toBe("2024-йил");
+  });
+
+  it("keeps listed brand names in Latin", () => {
+    expect(latinToCyrillic("Safia filiallarida Uzum karta", ["Safia", "Uzum"])).toBe("Safia филиалларида Uzum карта");
+  });
+
   it("keeps quote marks around words", () => {
     expect(latinToCyrillic("'Salom' dedi")).toBe("'Салом' деди");
   });

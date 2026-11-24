@@ -8,7 +8,7 @@ import { classifySensitivity } from "@/lib/uslub/sensitivity";
 import { countPublished, publicBrand, savePosts } from "@/lib/uslub/store";
 import { planVideo } from "@/lib/uslub/video";
 
-export const maxDuration = 120;
+export const maxDuration = 90;
 
 const Body = z.object({
   channel: z.string().trim().max(200).optional(),
@@ -18,6 +18,24 @@ const Body = z.object({
   include: z.array(z.enum(["posts", "radar", "video"])).optional(),
   initData: z.string().max(8192).optional(),
 });
+
+class DeadlineError extends Error {
+  constructor() {
+    super("timeout");
+  }
+}
+
+/** Resolves with the task, or rejects with DeadlineError at `deadline` (epoch ms). */
+function withDeadline<T>(task: Promise<T>, deadline: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new DeadlineError()), Math.max(1000, deadline - Date.now()));
+  });
+  task.catch(() => undefined); // a late failure must not become an unhandled rejection
+  return Promise.race([task, timeout]).finally(() => clearTimeout(timer));
+}
+
+const isTimeout = (r: PromiseSettledResult<unknown>) => r.status === "rejected" && r.reason instanceof DeadlineError;
 
 const errMsg = (r: PromiseSettledResult<unknown>) =>
   r.status === "rejected" ? (r.reason instanceof Error ? r.reason.message : "failed") : undefined;
@@ -37,12 +55,20 @@ export const POST = handle(async (req) => {
   const { brand, cached } = await buildBrand({ channel: body.channel, knowledge: body.knowledge, ownerTelegramId: telegramUserId(req, body.initData) });
   const brief = body.brief?.trim() || "Kanal uchun bu haftaning eng foydali postlari: mahsulot, mijozlar savoli va taklif";
 
+  // Everything must answer within ~55 s of the request; slow parts (usually radar) are
+  // reported as pending so the UI can fetch them from their own route.
+  const deadline = started + 55_000;
   const [postsR, leadsR, videoR, publishedR] = await Promise.allSettled([
-    include.has("posts") ? generatePosts(brand, brief, body.count ?? 3) : Promise.resolve([]),
-    include.has("radar") ? findLeads(brand) : Promise.resolve([]),
-    include.has("video") ? planVideo(brand, `${brief}. 20 soniyalik Reels`) : Promise.resolve(null),
+    include.has("posts") ? withDeadline(generatePosts(brand, brief, body.count ?? 3), deadline) : Promise.resolve([]),
+    include.has("radar") ? withDeadline(findLeads(brand), deadline) : Promise.resolve([]),
+    include.has("video") ? withDeadline(planVideo(brand, `${brief}. 20 soniyalik Reels`), deadline) : Promise.resolve(null),
     countPublished(brand.id),
   ]);
+  const pending = {
+    posts: isTimeout(postsR) ? "/api/uslub/posts" : undefined,
+    radar: isTimeout(leadsR) ? "/api/uslub/radar" : undefined,
+    video: isTimeout(videoR) ? "/api/uslub/video" : undefined,
+  };
 
   const posts = postsR.status === "fulfilled" ? postsR.value : [];
   if (posts.length) await savePosts(posts);
@@ -59,6 +85,7 @@ export const POST = handle(async (req) => {
     leads,
     video,
     errors: { posts: errMsg(postsR), radar: errMsg(leadsR), video: errMsg(videoR) },
+    pending, // parts that missed the deadline: call that route with { brandId } to get them
     ms: Date.now() - started,
   });
 });
