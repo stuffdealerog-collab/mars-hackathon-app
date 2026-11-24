@@ -87,10 +87,13 @@ describe("publish authorization", () => {
     });
   });
 
-  it("requires the caller to administer the channel", () => {
+  it("requires the caller to administer the channel with post rights", () => {
     const bot = { status: "administrator", can_post_messages: true };
     expect(checkChatRights({ status: "creator" }, bot, "u")).toMatchObject({ ok: true });
-    expect(checkChatRights({ status: "administrator" }, bot, "u")).toMatchObject({ ok: true });
+    expect(checkChatRights({ status: "administrator", can_post_messages: true }, bot, "u")).toMatchObject({ ok: true });
+    // privilege escalation: an admin without post rights must not publish through the bot
+    expect(checkChatRights({ status: "administrator", can_post_messages: false }, bot, "u")).toMatchObject({ ok: false, status: 403 });
+    expect(checkChatRights({ status: "administrator" }, bot, "u")).toMatchObject({ ok: false, status: 403 });
     expect(checkChatRights({ status: "member" }, bot, "u")).toMatchObject({ ok: false, status: 403 });
     expect(checkChatRights(null, bot, "u")).toMatchObject({ ok: false, status: 403 });
   });

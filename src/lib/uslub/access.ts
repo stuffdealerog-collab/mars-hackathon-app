@@ -80,13 +80,26 @@ export function checkPublishAccess(args: {
 
 export type MemberInfo = { status: string; can_post_messages?: boolean } | null;
 
-/** Step 2 (after getChatMember): the caller must administer the channel and the bot must be able to post. */
+/** Channel post right: the creator always has it; an administrator only with can_post_messages === true. */
+const canPost = (m: MemberInfo) =>
+  m?.status === "creator" || (m?.status === "administrator" && m.can_post_messages === true);
+
+/**
+ * Step 2 (after getChatMember): the caller must be allowed to post in the channel
+ * themselves (no privilege escalation through the bot), and so must the bot.
+ */
 export function checkChatRights(user: MemberInfo, bot: MemberInfo, addAdminUrl: string): AccessDecision {
   if (!user || (user.status !== "creator" && user.status !== "administrator")) {
-    return { ok: false, status: 403, error: "Siz bu kanalning egasi yoki admini emassiz." };
+    return { ok: false, status: 403, error: "Siz bu kanalning egasi yoki admini emassiz. / Вы не владелец и не админ этого канала." };
   }
-  const botCanPost =
-    bot?.status === "creator" || (bot?.status === "administrator" && bot.can_post_messages !== false);
+  if (!canPost(user)) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Sizda bu kanalda post yozish huquqi yo‘q. / У вас нет права публиковать в этом канале.",
+    };
+  }
+  const botCanPost = canPost(bot);
   if (!botCanPost) {
     return {
       ok: false,
