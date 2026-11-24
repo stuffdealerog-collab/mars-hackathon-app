@@ -62,12 +62,16 @@ export const POST = handle(async (req) => {
   return json({ job: publicJob(job) }, job.status === "failed" ? 502 : 201);
 });
 
-/** GET ?id= -> { job }  Polls the provider when due (at most every few seconds per job). */
-export const GET = handle(async (req) => {
-  await connection();
+const poll = handle(async (req) => {
   rateLimit(req, "media_poll", 120);
   const id = new URL(req.url).searchParams.get("id")?.trim() ?? "";
   if (!id) throw new HttpError(400, "id is required");
   const job = await mediaCall(() => media().jobs.refresh(id));
   return json({ job: publicJob(job) });
 });
+
+/** GET ?id= -> { job }  Polls the provider when due (at most every few seconds per job). */
+export async function GET(req: Request) {
+  await connection(); // outside handle(): its try/catch must not swallow Next's prerender signal
+  return poll(req);
+}
