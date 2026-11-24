@@ -10,6 +10,7 @@
 import type { BrandProfile, ChannelAudit, ContentPlan, PlanItem, PostDraft, PostImage, Script, Strategy, VisualStyle } from "@/lib/uslub/contract";
 import { create } from "zustand";
 import { COPY } from "../ui/copy";
+import { fmt } from "../ui/format";
 import { useLang, type Lang } from "../ui/lang";
 import * as api from "./api";
 import type { Fail } from "./api";
@@ -155,7 +156,7 @@ const limitOf = (f: Fail): Problem["limit"] =>
 export function problemOf(f: Fail): Problem {
   const c = copy();
   const limit = limitOf(f);
-  if (limit) return { code: f.code, message: limit === "anonymous" ? c.limit.guest : c.limit.app, limit };
+  if (limit) return { code: f.code, message: limit === "anonymous" ? fmt(c.limit.guest, { bot: `@${useStudio.getState().bot}` }) : c.limit.app, limit };
   if (f.code === "network") return { code: f.code, message: c.error.network };
   if (f.code === "timeout") return { code: f.code, message: c.error.timeout };
   if (f.error && f.code !== "internal" && !/^(internal error|http \d+)$/i.test(f.error)) return { code: f.code, message: f.error };

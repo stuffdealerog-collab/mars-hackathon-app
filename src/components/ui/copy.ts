@@ -88,7 +88,7 @@ const uz = {
   /** A 429 day limit: calm, never "something broke". Guests on the website are sent to the bot. */
   limit: {
     title: "Bugungi limit tugadi",
-    guest: "Saytdagi mehmonlar uchun bugungi limit tugadi. Davom etish uchun Mercat’ni Telegram bot orqali oching.",
+    guest: "Saytdagi mehmonlar uchun bugungi limit tugadi. Davom etish uchun Mercat’ni Telegram’dagi {bot} boti orqali oching.",
     app: "Mercat’ning bugungi limiti tugadi. Ertaga qayta urinib ko‘ring.",
     openBot: "Botda ochish",
   },
@@ -424,7 +424,7 @@ const ru: Copy = {
   },
   limit: {
     title: "Лимит на сегодня исчерпан",
-    guest: "Гостевой лимит на сайте на сегодня закончился. Чтобы продолжить, откройте Mercat через Telegram-бота.",
+    guest: "Гостевой лимит на сайте на сегодня закончился. Чтобы продолжить, откройте Mercat через бота {bot} в Telegram.",
     app: "Дневной лимит Mercat на сегодня исчерпан. Попробуйте завтра.",
     openBot: "Открыть в боте",
   },
@@ -758,7 +758,7 @@ const en: Copy = {
   },
   limit: {
     title: "Today's limit is used up",
-    guest: "The website's guest limit for today is used up. To keep going, open Mercat through the Telegram bot.",
+    guest: "The website's guest limit for today is used up. To keep going, open Mercat through {bot} in Telegram.",
     app: "Mercat's limit for today is used up. Try again tomorrow.",
     openBot: "Open in the bot",
   },
