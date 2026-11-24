@@ -51,7 +51,7 @@ const uz: IntroCopy = {
     { title: "Tasdiqlang — bot joylaydi", line: "Siz tasdiqlamaguncha kanalga hech narsa chiqmaydi." },
   ],
   empty: "Kanalim hali bo‘sh",
-  admin: "Bir marta: {bot} botini kanalga «Xabar joylash» huquqi bilan admin qiling.",
+  admin: "Bir marta: {bot} botini kanalga «Yozuvli xabarlar» huquqi bilan admin qiling.",
   pro: {
     phone: "Marketolog bo‘lsangiz: «Pro» rejim Sozlamalarda.",
     desktop: "Marketolog bo‘lsangiz: «Pro» rejim panel pastidagi almashtirgichda.",

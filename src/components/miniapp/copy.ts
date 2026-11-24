@@ -71,7 +71,7 @@ const uz = {
   },
   admin: {
     title: "Botni kanalga admin qiling",
-    text: "Post joylanishi uchun {bot} kanalingizda «Xabar joylash» huquqi bilan admin bo‘lishi kerak.",
+    text: "Post joylanishi uchun {bot} kanalingizda «Yozuvli xabarlar» huquqi bilan admin bo‘lishi kerak.",
     step: "Telegram kanal ro‘yxatini ochadi: kanalingizni tanlang va «Saqlash»ni bosing.",
     open: "Admin qilish",
     retry: "Qayta joylash",
