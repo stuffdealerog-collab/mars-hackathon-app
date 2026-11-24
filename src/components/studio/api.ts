@@ -46,9 +46,41 @@ export const botPublishUrl = (bot: string, postId: string, script: Script = "uz_
   return `https://t.me/${bot}?start=${encodeURIComponent(`publish_${postId}${suffix}`.slice(0, 64))}`;
 };
 
-function headers(): Record<string, string> {
+const HANDOFF = "mercat.k";
+
+/** The bot's signed link key (`?k=`): lets a desktop browser act for the owner's Telegram account. */
+export function handoffKey(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    return localStorage.getItem(HANDOFF) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function saveHandoff(k: string | null) {
+  try {
+    if (k) localStorage.setItem(HANDOFF, k);
+    else localStorage.removeItem(HANDOFF);
+  } catch {
+    /* private mode: this page only */
+  }
+}
+
+/**
+ * The Authorization header for /api/uslub and the media components: the Mini App's initData
+ * first, then the bot's handoff key; none for a channel pasted in a plain browser.
+ */
+export function authHeader(): string | undefined {
   const init = tgInitData();
-  return { "content-type": "application/json", ...(init ? { authorization: `tma ${init}` } : {}) };
+  if (init) return `tma ${init}`;
+  const k = handoffKey();
+  return k ? `handoff ${k}` : undefined;
+}
+
+function headers(): Record<string, string> {
+  const auth = authHeader();
+  return { "content-type": "application/json", ...(auth ? { authorization: auth } : {}) };
 }
 
 async function failFrom(res: Response): Promise<Fail> {
@@ -72,7 +104,7 @@ function caught(err: unknown, timedOut: boolean): Fail {
  * One JSON request. `timeoutMs` sits a little above the route's maxDuration so the server's own
  * limit decides and its `{ error, code }` reaches the owner.
  */
-async function call<T>(path: string, init: { method: "GET" | "POST"; body?: unknown }, timeoutMs: number): Promise<Res<T>> {
+async function call<T>(path: string, init: { method: "GET" | "POST"; body?: unknown; keepalive?: boolean }, timeoutMs: number): Promise<Res<T>> {
   const ctrl = new AbortController();
   let timedOut = false;
   const timer = setTimeout(() => {
@@ -85,6 +117,7 @@ async function call<T>(path: string, init: { method: "GET" | "POST"; body?: unkn
       headers: headers(),
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
       signal: ctrl.signal,
+      keepalive: init.keepalive,
     });
     if (!res.ok) return await failFrom(res);
     const json = (await res.json().catch(() => null)) as T | null;
@@ -228,8 +261,8 @@ export function listPosts(brandId: string, lang: Lang) {
 }
 
 /** Persists the approval. Edited texts ride along so the bot publishes what the owner saw. */
-export function approvePost(postId: string, lang: Lang, variants?: Partial<Record<Script, string>>) {
-  return call<{ post: PostDraft }>("/posts/approve", { method: "POST", body: { postId, lang, ...(variants ? { variants } : {}) } }, 20_000);
+export function approvePost(postId: string, lang: Lang, variants?: Partial<Record<Script, string>>, keepalive = false) {
+  return call<{ post: PostDraft }>("/posts/approve", { method: "POST", body: { postId, lang, ...(variants ? { variants } : {}) }, keepalive }, 20_000);
 }
 
 /* --------------------------------------------------------------- pictures */

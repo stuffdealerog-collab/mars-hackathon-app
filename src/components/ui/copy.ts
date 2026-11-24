@@ -84,7 +84,7 @@ const uz = {
     generic: "Nimadir ishlamadi. Qayta urinib ko‘ring.",
   },
 
-  tabs: { channel: "Kanal", posts: "Postlar", video: "Video" },
+  tabs: { channel: "Kanal", posts: "Postlar", video: "Video", dept: "Bo‘lim" },
 
   channel: {
     subscribers: "obunachi",
@@ -143,6 +143,10 @@ const uz = {
     scriptNames: { uz_latn: "O‘zbekcha (lotin)", uz_cyrl: "Ўзбекча (кирилл)", ru: "Русский", en: "English" },
     image: {
       running: "Rasm tayyorlanmoqda…",
+      failed: "Rasm chiqmadi",
+      retry: "Qayta urinish",
+      none: "Rasmsiz post",
+      alt: "Post uchun rasm",
     },
   },
 
@@ -155,9 +159,10 @@ const uz = {
     banner: "Namuna: o‘ylab topilgan non do‘koni, sizning kanalingiz emas.",
     cta: "Kanalimni tekshirish",
     chip: "namuna",
+    noImage: "Namunada rasm chizilmaydi",
   },
 
-  reopen: { loading: "Yuklanmoqda…" },
+  reopen: { loading: "Yuklanmoqda…", noPlan: "Haftalik reja bu qurilmada yo‘q", buildPlan: "Rejani tuzish" },
 
   tg: {
     outsideTitle: "Bu ekran Telegram ichida ochiladi",
@@ -198,12 +203,23 @@ const uz = {
     expand: "Panelni ochish",
     settings: "Sozlamalar",
     soonNav: "Avval kanal havolasini qo‘ying",
+    noChannel: "Kanal hali yo‘q",
+    live: "jonli",
+    reading: "o‘qilmoqda",
+    sample: "namuna",
+    recent: "So‘nggi kanallar",
+    newChannel: "Yangi kanal",
+    openTg: "Telegramda ochish",
+    moveRight: "Hubni o‘ngga o‘tkazish",
+    moveLeft: "Hubni chapga o‘tkazish",
   },
   dept: {
     label: "Bo‘lim xodimlari",
     working: "Bo‘lim ishlayapti",
     ready: "Bo‘lim tayyor",
     staff: "{n} xodim ishladi",
+    title: "Bo‘lim",
+    log: "Ish jurnali",
   },
   pro: {
     label: "Professional rejim",
@@ -241,6 +257,64 @@ const uz = {
     output: "Natija",
     formats: { photo: "rasm", video: "video", text: "matn", album: "albom", poll: "so‘rovnoma", carousel: "karusel" },
   },
+
+  mode: { simple: "Oddiy", pro: "Pro" },
+  tools: {
+    title: "Asboblar",
+    ctxPost: "post {i}/{n}",
+    ctxChannel: "kanal",
+    otherImage: "Boshqa rasm",
+    productPhoto: "Mahsulot fotosi",
+    copyText: "Matnni nusxalash",
+    download: "Rasmni yuklab olish",
+    newPost: "Yangi post",
+    addPhotos: "Rasm qo‘shish",
+    copyWeek: "Haftani nusxalash",
+    botAdmin: "Botni admin qilish",
+    copied: "Nusxalandi",
+    needPlan: "Avval haftalik reja kerak",
+    notInSample: "Namunada ishlamaydi",
+  },
+  queue: {
+    waiting: "Sizni kutmoqda",
+    approved: "Tasdiqlangan",
+    published: "Joylangan",
+    suggest: "tavsiya: {when}",
+    notAuto: "O‘zi joylanmaydi. Siz tasdiqlab, o‘zingiz joylaysiz.",
+    empty: "Hali post yo‘q. Kanal bo‘limida rejadagi kunni tanlab, «Postini yozish»ni bosing.",
+    toChannel: "Kanalga o‘tish",
+    allDone: "Hammasi tasdiqlandi. Endi Telegramda joylang",
+  },
+  approve: {
+    toast: "Tasdiqlandi",
+    undo: "Bekor qilish",
+    failed: "Tasdiqlanmadi: {why}",
+    show: "Ko‘rish",
+    next: "Tasdiqlandi. Keyingi: {when}",
+  },
+  publish: {
+    toTelegram: "Telegramda joylash",
+    confirm: "Ha, {channel} kanaliga joylash",
+    cancel: "Bekor",
+  },
+  insp: {
+    plan: "Reja",
+    lang: "Til",
+    image: "Rasm",
+    brief: "Topshiriq",
+    natural: "Tabiiylik {n}/100",
+    cyrlStale: "Kirill matni tasdiqlanganda yangilanadi",
+  },
+  refs: {
+    channel: "Kanalingizdagi {n} ta rasm asosida",
+    owner: "Siz yuborgan rasmlar asosida ({n} ta)",
+    mixed: "Kanal va sizning rasmlaringiz asosida ({n} ta)",
+  },
+  first: { title: "Kanalingizni o‘qidik", cta: "Postlarni ko‘rish · {n}" },
+  sign: { notMeasured: "Kanal hali o‘lchanmagan", measuring: "o‘lchanmoqda…" },
+  access: { forbidden: "Bu kanal Telegramdagi hisobingizga tegishli. Uni bot orqali oching." },
+  keys: { hint: "Enter tasdiqlash · E tahrir · J/K postlar · 1–4 til" },
+  problem: { dismiss: "Yopish" },
 
   weekdays: ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"],
 };
@@ -325,7 +399,7 @@ const ru: Copy = {
     generic: "Что-то не сработало. Попробуйте ещё раз.",
   },
 
-  tabs: { channel: "Канал", posts: "Посты", video: "Видео" },
+  tabs: { channel: "Канал", posts: "Посты", video: "Видео", dept: "Отдел" },
 
   channel: {
     subscribers: "подписчиков",
@@ -384,6 +458,10 @@ const ru: Copy = {
     scriptNames: { uz_latn: "Узбекский (латиница)", uz_cyrl: "Узбекский (кириллица)", ru: "Русский", en: "Английский" },
     image: {
       running: "Готовим картинку…",
+      failed: "Картинка не получилась",
+      retry: "Попробовать ещё раз",
+      none: "Пост без картинки",
+      alt: "Картинка к посту",
     },
   },
 
@@ -396,9 +474,10 @@ const ru: Copy = {
     banner: "Пример: выдуманная пекарня, а не ваш канал.",
     cta: "Проверить мой канал",
     chip: "пример",
+    noImage: "В образце картинки не рисуются",
   },
 
-  reopen: { loading: "Загрузка…" },
+  reopen: { loading: "Загрузка…", noPlan: "Плана недели на этом устройстве нет", buildPlan: "Составить план" },
 
   tg: {
     outsideTitle: "Этот экран открывается внутри Telegram",
@@ -438,12 +517,23 @@ const ru: Copy = {
     expand: "Развернуть панель",
     settings: "Настройки",
     soonNav: "Сначала вставьте ссылку на канал",
+    noChannel: "Канала пока нет",
+    live: "подключён",
+    reading: "читаем",
+    sample: "образец",
+    recent: "Недавние каналы",
+    newChannel: "Новый канал",
+    openTg: "Открыть в Telegram",
+    moveRight: "Перенести хаб вправо",
+    moveLeft: "Перенести хаб влево",
   },
   dept: {
     label: "Сотрудники отдела",
     working: "Отдел работает",
     ready: "Отдел готов",
     staff: "Отработали: {n}",
+    title: "Отдел",
+    log: "Журнал работы",
   },
   pro: {
     label: "Профессиональный режим",
@@ -481,6 +571,64 @@ const ru: Copy = {
     output: "Результат",
     formats: { photo: "фото", video: "видео", text: "текст", album: "альбом", poll: "опрос", carousel: "карусель" },
   },
+
+  mode: { simple: "Простой", pro: "Pro" },
+  tools: {
+    title: "Инструменты",
+    ctxPost: "пост {i}/{n}",
+    ctxChannel: "канал",
+    otherImage: "Другая картинка",
+    productPhoto: "Фото товара",
+    copyText: "Копировать текст",
+    download: "Скачать картинку",
+    newPost: "Новый пост",
+    addPhotos: "Добавить фото",
+    copyWeek: "Копировать неделю",
+    botAdmin: "Сделать бота админом",
+    copied: "Скопировано",
+    needPlan: "Сначала нужен план недели",
+    notInSample: "В образце не работает",
+  },
+  queue: {
+    waiting: "Ждут вас",
+    approved: "Одобрены",
+    published: "Опубликованы",
+    suggest: "рекомендуем: {when}",
+    notAuto: "Сам пост не выйдет: вы одобряете и публикуете.",
+    empty: "Постов пока нет. В разделе «Канал» выберите день плана и нажмите «Написать пост».",
+    toChannel: "Перейти в канал",
+    allDone: "Всё одобрено. Теперь опубликуйте в Telegram",
+  },
+  approve: {
+    toast: "Одобрено",
+    undo: "Отменить",
+    failed: "Не одобрено: {why}",
+    show: "Показать",
+    next: "Одобрено. Следующий: {when}",
+  },
+  publish: {
+    toTelegram: "Опубликовать в Telegram",
+    confirm: "Да, опубликовать в {channel}",
+    cancel: "Отмена",
+  },
+  insp: {
+    plan: "План",
+    lang: "Язык",
+    image: "Картинка",
+    brief: "Задание",
+    natural: "Естественность {n}/100",
+    cyrlStale: "Кириллица обновится при одобрении",
+  },
+  refs: {
+    channel: "По фото вашего канала ({n})",
+    owner: "По вашим фото ({n})",
+    mixed: "По фото канала и вашим ({n})",
+  },
+  first: { title: "Мы прочитали ваш канал", cta: "Посмотреть посты · {n}" },
+  sign: { notMeasured: "Канал ещё не измерен", measuring: "измеряем…" },
+  access: { forbidden: "Этот канал привязан к вашему аккаунту Telegram. Откройте его через бота." },
+  keys: { hint: "Enter одобрить · E править · J/K посты · 1–4 язык" },
+  problem: { dismiss: "Закрыть" },
 
   weekdays: ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"],
 };
@@ -563,7 +711,7 @@ const en: Copy = {
     generic: "Something didn’t work. Try again.",
   },
 
-  tabs: { channel: "Channel", posts: "Posts", video: "Video" },
+  tabs: { channel: "Channel", posts: "Posts", video: "Video", dept: "Department" },
 
   channel: {
     subscribers: "subscribers",
@@ -622,6 +770,10 @@ const en: Copy = {
     scriptNames: { uz_latn: "Uzbek (Latin)", uz_cyrl: "Uzbek (Cyrillic)", ru: "Russian", en: "English" },
     image: {
       running: "Preparing the picture…",
+      failed: "The picture didn’t work",
+      retry: "Try again",
+      none: "Post without a picture",
+      alt: "Picture for the post",
     },
   },
 
@@ -634,9 +786,10 @@ const en: Copy = {
     banner: "Example: a made-up bakery, not your channel.",
     cta: "Check my channel",
     chip: "sample",
+    noImage: "The sample has no pictures",
   },
 
-  reopen: { loading: "Loading…" },
+  reopen: { loading: "Loading…", noPlan: "No week plan on this device", buildPlan: "Build the plan" },
 
   tg: {
     outsideTitle: "This screen opens inside Telegram",
@@ -676,12 +829,23 @@ const en: Copy = {
     expand: "Expand the panel",
     settings: "Settings",
     soonNav: "Paste a channel link first",
+    noChannel: "No channel yet",
+    live: "live",
+    reading: "reading",
+    sample: "sample",
+    recent: "Recent channels",
+    newChannel: "New channel",
+    openTg: "Open in Telegram",
+    moveRight: "Move the hub right",
+    moveLeft: "Move the hub left",
   },
   dept: {
     label: "The department",
     working: "The department is working",
     ready: "The department is done",
     staff: "Worked: {n}",
+    title: "Department",
+    log: "Work log",
   },
   pro: {
     label: "Professional mode",
@@ -719,6 +883,64 @@ const en: Copy = {
     output: "Result",
     formats: { photo: "photo", video: "video", text: "text", album: "album", poll: "poll", carousel: "carousel" },
   },
+
+  mode: { simple: "Simple", pro: "Pro" },
+  tools: {
+    title: "Tools",
+    ctxPost: "post {i}/{n}",
+    ctxChannel: "channel",
+    otherImage: "Another picture",
+    productPhoto: "Product photo",
+    copyText: "Copy text",
+    download: "Download picture",
+    newPost: "New post",
+    addPhotos: "Add photos",
+    copyWeek: "Copy the week",
+    botAdmin: "Make the bot an admin",
+    copied: "Copied",
+    needPlan: "Needs the week plan first",
+    notInSample: "Not in the sample",
+  },
+  queue: {
+    waiting: "Waiting for you",
+    approved: "Approved",
+    published: "Published",
+    suggest: "suggested: {when}",
+    notAuto: "Nothing goes out by itself. You approve, then publish.",
+    empty: "No posts yet. In Channel, pick a day in the plan and press “Write this post”.",
+    toChannel: "Go to Channel",
+    allDone: "All approved. Now publish in Telegram",
+  },
+  approve: {
+    toast: "Approved",
+    undo: "Undo",
+    failed: "Not approved: {why}",
+    show: "Show",
+    next: "Approved. Next: {when}",
+  },
+  publish: {
+    toTelegram: "Publish in Telegram",
+    confirm: "Yes, publish to {channel}",
+    cancel: "Cancel",
+  },
+  insp: {
+    plan: "Plan",
+    lang: "Language",
+    image: "Picture",
+    brief: "Brief",
+    natural: "Natural {n}/100",
+    cyrlStale: "The Cyrillic version updates on approval",
+  },
+  refs: {
+    channel: "Based on your channel’s photos ({n})",
+    owner: "Based on your photos ({n})",
+    mixed: "Based on your channel’s and your photos ({n})",
+  },
+  first: { title: "We read your channel", cta: "See the posts · {n}" },
+  sign: { notMeasured: "Nothing measured yet", measuring: "measuring…" },
+  access: { forbidden: "This channel belongs to your Telegram account. Open it from the bot." },
+  keys: { hint: "Enter approve · E edit · J/K posts · 1–4 language" },
+  problem: { dismiss: "Dismiss" },
 
   weekdays: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
 };

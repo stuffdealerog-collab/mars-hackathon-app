@@ -17,7 +17,13 @@ export const SOON_ROLES: readonly AgentRole[] = ["video", "radar"];
 const SOON = SOON_ROLES;
 const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
 
-export type Lamps = { state: Record<AgentRole, LampState>; soon: Set<AgentRole>; result: Partial<Record<AgentRole, React.ReactNode>> };
+/** `result`: what each lamp shows; `words`: the same in plain text (tooltips, aria labels). */
+export type Lamps = {
+  state: Record<AgentRole, LampState>;
+  soon: Set<AgentRole>;
+  result: Partial<Record<AgentRole, React.ReactNode>>;
+  words: Partial<Record<AgentRole, string>>;
+};
 
 function Num({ n, word }: { n: number | string; word: string }) {
   return (
@@ -51,12 +57,14 @@ export function useLamps(gate = false): Lamps {
     const state = Object.fromEntries(LAMP_ORDER.map((r) => [r, "off"])) as Record<AgentRole, LampState>;
     const soon = new Set<AgentRole>(SOON);
     const result: Lamps["result"] = {};
-    if (gate) return { state, soon, result };
+    const words: Lamps["words"] = {};
+    if (gate) return { state, soon, result, words };
 
     state.brand = by(!!brand, "voice");
     if (brand) {
       const d = brand.dna;
       const first = d.tone.split(/[,.;]/)[0]?.trim();
+      words.brand = [d.address !== "n/a" ? c.channel.address[d.address] : null, first].filter(Boolean).join(", ");
       result.brand = (
         <span className="line-clamp-2 text-[14px] font-semibold leading-tight">
           {[d.address !== "n/a" ? c.channel.address[d.address] : null, first].filter(Boolean).join(", ")}
@@ -67,12 +75,24 @@ export function useLamps(gate = false): Lamps {
     const read = mode === "fresh" ? !!brand : !!audit || postsRead != null;
     state.analyst = by(read, "read");
     const count = (forms: readonly string[], n: number) => <Num n={n} word={plural(forms, n, lang)} />;
-    if (mode === "fresh" && brand) result.analyst = <span className="text-[14px] font-semibold leading-tight">{c.lampResult.described}</span>;
-    else if (audit || postsRead != null) result.analyst = count(c.lampResult.postsRead, audit?.postsAnalyzed ?? postsRead ?? 0);
+    const say = (forms: readonly string[], n: number | string, by = Number(n)) => `${n} ${plural(forms, by, lang)}`;
+    if (mode === "fresh" && brand) {
+      result.analyst = <span className="text-[14px] font-semibold leading-tight">{c.lampResult.described}</span>;
+      words.analyst = c.lampResult.described;
+    } else if (audit || postsRead != null) {
+      const n = audit?.postsAnalyzed ?? postsRead ?? 0;
+      result.analyst = count(c.lampResult.postsRead, n);
+      words.analyst = say(c.lampResult.postsRead, n);
+    }
 
     state.strategist = by(!!plan, "plan");
-    if (plan) result.strategist = count(c.lampResult.planned, plan.items.length);
-    else if (progress?.m) result.strategist = <Num n={`${progress.n}/${progress.m}`} word={plural(c.lampResult.planned, progress.m, lang)} />;
+    if (plan) {
+      result.strategist = count(c.lampResult.planned, plan.items.length);
+      words.strategist = say(c.lampResult.planned, plan.items.length);
+    } else if (progress?.m) {
+      result.strategist = <Num n={`${progress.n}/${progress.m}`} word={plural(c.lampResult.planned, progress.m, lang)} />;
+      words.strategist = say(c.lampResult.planned, `${progress.n}/${progress.m}`, progress.m);
+    }
 
     const written = posts.length > 0;
     state.copywriter = by(written, "posts");
@@ -84,6 +104,9 @@ export function useLamps(gate = false): Lamps {
       // What it translated into, by name: no count to misread.
       const into = SCRIPTS.filter((s) => s !== "uz_latn" && posts.some((p) => p.variants[s]?.trim()));
       result.translator = <span className="text-[14px] font-semibold leading-tight">{into.map((s) => c.posts.scripts[s]).join(" · ")}</span>;
+      words.copywriter = say(c.lampResult.written, posts.length);
+      words.editor = c.lampResult.clean;
+      words.translator = into.map((s) => c.posts.scripts[s]).join(" · ");
     }
 
     const images = posts.map((p) => p.image).filter(Boolean);
@@ -93,9 +116,11 @@ export function useLamps(gate = false): Lamps {
     if (open) {
       state.designer = "warming";
       result.designer = <Num n={`${ready}/${posts.length}`} word={plural(c.lampResult.pictures, posts.length, lang)} />;
+      words.designer = say(c.lampResult.pictures, `${ready}/${posts.length}`, posts.length);
     } else if (ready) {
       state.designer = "on";
       result.designer = count(c.lampResult.pictures, ready);
+      words.designer = say(c.lampResult.pictures, ready);
     } else if (images.length) state.designer = "error";
     else if (imgStep === "run") state.designer = "warming"; // studying the channel's photos first
     else if (imgStep === "skip") soon.add("designer");
@@ -104,9 +129,10 @@ export function useLamps(gate = false): Lamps {
     if (published) {
       state.publisher = "on";
       result.publisher = count(c.lampResult.published, published);
+      words.publisher = say(c.lampResult.published, published);
     } else if (written) state.publisher = "you";
 
-    return { state, soon, result };
+    return { state, soon, result, words };
   }, [gate, steps, mode, brand, audit, postsRead, plan, progress, posts, c, lang]);
 }
 

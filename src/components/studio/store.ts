@@ -17,7 +17,10 @@ import { sampleAudit, sampleBrand, samplePlan, samplePosts } from "./sample";
 
 export type Phase = "start" | "working" | "ready" | "reopening";
 export type Mode = "channel" | "fresh";
-export type Tab = "channel" | "posts" | "video";
+export type Tab = "channel" | "posts" | "dept" | "video";
+export type ApproveResult = { ok: true } | { ok: false; message: string; undone?: boolean };
+export type PublishResult = { ok: true; url?: string } | { ok: false; message: string; adminUrl?: string; botUrl?: string };
+export type RecentBrand = { id: string; name: string; channel?: string };
 export type StepKey = "read" | "voice" | "photos" | "plan" | "posts" | "images";
 export type StepStatus = "wait" | "run" | "done" | "fail" | "skip";
 /** t0/t1: when the step started and finished (ms), for "how long it took" in Professional rejim. */
@@ -78,7 +81,26 @@ interface StudioState {
   /** Professional rejim: the full lamp panel, the strategy and plan details. Off = the simple path. */
   pro: boolean;
   setPro: (v: boolean) => void;
-  configure: (o: { bot: string }) => void;
+  /**
+   * The one place that reads the page's own parameters: `?ui=pro|simple` (wins and is saved),
+   * `?k=` (the bot's handoff key, saved and removed from the address bar), `?mock=1`.
+   * `approveDelayMs`: the desktop Studio passes 4000 (Bekor qilish window), the Mini App nothing.
+   */
+  configure: (o: { bot: string; approveDelayMs?: number }) => void;
+  approveDelayMs: number;
+  /** Approvals waiting out their undo window (post id -> true). The post already shows approved. */
+  pendingApprove: Record<string, true>;
+  /** Ready right after a run (not a reopen): Kanal opens on the first-look summary. */
+  justFinished: boolean;
+  /** Grows on every successful approve and publish: the SMM-menejer lamp answers the owner's hand. */
+  handTick: number;
+  /** Sample: back to /studio without ?mock (a reset would run the next channel under the bakery). */
+  newChannel: () => void;
+  /** Re-reads the brand's posts (status, link, picture) after publishing through the bot. */
+  refreshPosts: () => Promise<void>;
+  undoApprove: (id: string) => void;
+  /** Sends every waiting approval now (page hide, or publish of that post). */
+  flushApprovals: () => void;
   setPostScript: (s: Script) => void;
   writeSlot: (item: PlanItem) => Promise<void>;
   /** Writes the missed slots again, in one call. */
@@ -92,10 +114,13 @@ interface StudioState {
   reloadAudit: () => Promise<void>;
   setTab: (t: Tab) => void;
   editPost: (id: string, script: Script, text: string) => void;
-  approve: (id: string) => Promise<void>;
-  publish: (id: string, script: Script) => Promise<void>;
+  /** `delayMs` defaults to `approveDelayMs`; the post shows approved at once and can be undone meanwhile. */
+  approve: (id: string, delayMs?: number) => Promise<ApproveResult>;
+  publish: (id: string, script: Script) => Promise<PublishResult>;
   /** A picture card reports its post's picture (it starts, polls and regenerates on its own). */
-  imageChanged: (id: string, image: PostImage) => void;
+  setImage: (id: string, image: PostImage) => void;
+  /** @deprecated The Mini App's PostPicture retry; PostImage retries by itself. Kept until it moves. */
+  retryImage: (id: string) => Promise<void>;
   /** The run is learning the picture style from the channel's (or the owner's) photos. */
   styleLearning: boolean;
   /** The style card reports a re-learned style (the owner added or removed photos). */
@@ -157,6 +182,43 @@ let polling = false;
 /** When a mounted picture last reported (it polls on its own; the store then leaves that post alone). */
 const seen = new Map<string, number>();
 const isOpen = (i?: PostImage | null) => i?.status === "queued" || i?.status === "running";
+
+/** Approvals inside their undo window: settle("go") sends, "undo" drops, "flushed" was sent already. */
+type Waiting = { timer: ReturnType<typeof setTimeout>; settle: (v: "go" | "undo" | "flushed") => void; done: Promise<ApproveResult> };
+const waiting = new Map<string, Waiting>();
+let lastRefresh = 0;
+
+const RECENT = "mercat.recent";
+/** Channels opened on this device, newest first (up to 8): the hub's "So‘nggi kanallar". */
+export function recentBrands(): RecentBrand[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RECENT) ?? "[]") as unknown;
+    return Array.isArray(raw) ? raw.filter((r): r is RecentBrand => typeof r?.id === "string" && typeof r?.name === "string").slice(0, 8) : [];
+  } catch {
+    return [];
+  }
+}
+function rememberRecent(b: BrandProfile) {
+  try {
+    const me: RecentBrand = { id: b.id, name: b.dna?.name || b.channel || "Kanal", channel: b.channel };
+    localStorage.setItem(RECENT, JSON.stringify([me, ...recentBrands().filter((r) => r.id !== b.id)].slice(0, 8)));
+  } catch {
+    /* private mode */
+  }
+}
+
+/** Reads ?ui= and ?k= once, saves them, and takes ?k= out of the address bar. */
+function readPageParams(): { pro: boolean | null } {
+  const u = new URL(window.location.href);
+  const ui = u.searchParams.get("ui");
+  const k = u.searchParams.get("k");
+  if (k) {
+    api.saveHandoff(k);
+    u.searchParams.delete("k");
+    window.history.replaceState(null, "", u.toString());
+  }
+  return { pro: ui === "pro" ? true : ui === "simple" ? false : null };
+}
 
 export const useStudio = create<StudioState>((set, get) => {
   const step = (key: StepKey, patch: Partial<Step>) =>
@@ -345,7 +407,9 @@ export const useStudio = create<StudioState>((set, get) => {
       step("posts", { status: "done", n: get().posts.length });
     }
 
-    set({ phase: "ready", tab: "posts", problem: null });
+    // The first moment after a run is "they know my channel": Kanal with real numbers, when we have them.
+    const first = get().mode === "channel" && !!get().audit;
+    set({ phase: "ready", tab: first ? "channel" : "posts", justFinished: first, problem: null });
     if (typeof window !== "undefined") window.scrollTo({ top: 0 });
     // Pictures wait for the style; without one the picture route decides what it can do.
     // The Dizayner is already at work while it studies the channel's photos.
@@ -402,6 +466,7 @@ export const useStudio = create<StudioState>((set, get) => {
       const read = b.data.channelInfo?.postsRead ?? get().postsRead;
       set({ brand: b.data.brand, postsRead: read ?? null });
       rememberBrand(b.data.brand.id);
+      rememberRecent(b.data.brand);
       step("read", { status: "done", n: read ?? undefined });
       step("voice", { status: "done" });
 
@@ -474,9 +539,14 @@ export const useStudio = create<StudioState>((set, get) => {
     writingSlot: {},
     missed: [],
     pro: false,
+    approveDelayMs: 0,
+    pendingApprove: {},
+    justFinished: false,
+    handTick: 0,
 
     setPro: (pro) => {
-      set({ pro });
+      // Bo‘lim exists only in Pro: leaving Pro from there lands on Kanal, never on a dead end.
+      set({ pro, ...(!pro && get().tab === "dept" ? { tab: "channel" as Tab } : {}) });
       try {
         localStorage.setItem("mercat.pro", pro ? "1" : "0");
       } catch {
@@ -484,17 +554,61 @@ export const useStudio = create<StudioState>((set, get) => {
       }
     },
 
-    configure: ({ bot }) => {
+    configure: ({ bot, approveDelayMs = 0 }) => {
       const p = new URLSearchParams(window.location.search);
+      const forced = readPageParams().pro;
       // Desktop is the pro tool: Professional rejim is the default there; phones start simple.
       let pro = window.matchMedia("(min-width: 1024px)").matches;
       try {
         const saved = localStorage.getItem("mercat.pro");
         if (saved != null) pro = saved === "1";
+        if (forced != null) localStorage.setItem("mercat.pro", forced ? "1" : "0");
       } catch {
         /* ignore */
       }
-      set({ bot, pro, sample: api.sampleMode(), entry: { view: p.get("mode") === "fresh" ? "fresh" : "link", channel: "" } });
+      if (forced != null) pro = forced;
+      set({ bot, pro, approveDelayMs, sample: api.sampleMode(), entry: { view: p.get("mode") === "fresh" ? "fresh" : "link", channel: "" } });
+    },
+
+    newChannel: () => {
+      if (get().sample) {
+        window.location.assign(window.location.pathname);
+        return;
+      }
+      get().reset();
+    },
+
+    refreshPosts: async () => {
+      const brand = get().brand;
+      if (!brand || get().sample || get().phase !== "ready" || Date.now() - lastRefresh < 10_000) return;
+      lastRefresh = Date.now();
+      const my = runId;
+      const r = await api.listPosts(brand.id, lang());
+      if (my !== runId || !r.ok) return;
+      const server = new Map(r.data.posts.map((p) => [p.id, p]));
+      const local = new Set(get().posts.map((p) => p.id));
+      const pending = get().pendingApprove;
+      const merged = get().posts.map((p) => {
+        const s = server.get(p.id);
+        if (!s) return p;
+        // Server facts win (status, link, picture); the owner's unsaved edits and waiting approvals stay.
+        const status = pending[p.id] && s.status === "draft" ? p.status : s.status;
+        return { ...p, status, publishedUrl: s.publishedUrl ?? p.publishedUrl, approvedAt: s.approvedAt ?? p.approvedAt, image: s.image ?? p.image };
+      });
+      set({ posts: [...merged, ...r.data.posts.filter((p) => !local.has(p.id))] });
+    },
+
+    undoApprove: (id) => {
+      const w = waiting.get(id);
+      if (w) w.settle("undo");
+    },
+
+    flushApprovals: () => {
+      for (const [id, w] of waiting) {
+        // Page is going away: send now, with keepalive so the request outlives the page.
+        void api.approvePost(id, lang(), get().edited[id], true);
+        w.settle("flushed");
+      }
     },
 
     setPostScript: (postScript) => set({ postScript }),
@@ -564,10 +678,11 @@ export const useStudio = create<StudioState>((set, get) => {
     },
 
     reset: () => {
+      get().flushApprovals();
       runId++;
       pollRun++;
       visualRun = null;
-      set({ styleLearning: false });
+      set({ styleLearning: false, justFinished: false, pendingApprove: {} });
       rememberBrand(null);
       set({
         phase: "start",
@@ -594,17 +709,41 @@ export const useStudio = create<StudioState>((set, get) => {
     },
 
     reopen: async (brandId) => {
+      // Another channel from "So‘nggi kanallar": waiting approvals of this one leave first.
+      get().flushApprovals();
       const my = ++runId;
-      set({ phase: "reopening", problem: null });
+      pollRun++;
+      visualRun = null;
+      set({
+        phase: "reopening",
+        problem: null,
+        justFinished: false,
+        pendingApprove: {},
+        styleLearning: false,
+        audit: null,
+        auditProblem: null,
+        plan: null,
+        strategy: null,
+        launch: null,
+        sufficiency: null,
+        planProgress: null,
+        edited: {},
+        busy: {},
+        postNote: {},
+        missed: [],
+        writingSlot: {},
+      });
       const L = lang();
       const [b, p] = await Promise.all([api.getBrand(brandId, L), api.listPosts(brandId, L)]);
       if (my !== runId) return;
       if (!b.ok) {
+        // brand_forbidden (a bot brand opened without its link key) keeps its code for the 403 screen.
         set({ phase: "start", problem: problemOf(b) });
         rememberBrand(null);
         return;
       }
       const brand = b.data.brand;
+      rememberRecent(brand);
       const mode: Mode = brand.mode === "fresh" ? "fresh" : "channel";
       const posts = p.ok ? p.data.posts.slice(0, 12) : [];
       set({
@@ -660,7 +799,8 @@ export const useStudio = create<StudioState>((set, get) => {
       else set({ auditProblem: problemOf(a) });
     },
 
-    setTab: (tab) => set({ tab }),
+    // The first-look summary is a moment, not a page: it ends once the owner goes to the posts.
+    setTab: (tab) => set({ tab, ...(tab === "posts" ? { justFinished: false } : {}) }),
 
     editPost: (id, script, text) => {
       const note = get().postNote[id];
@@ -672,21 +812,59 @@ export const useStudio = create<StudioState>((set, get) => {
       });
     },
 
-    approve: async (id) => {
+    approve: async (id, delayMs) => {
       const note = (v: StudioState["postNote"][string]) => set({ postNote: { ...get().postNote, [id]: v } });
       const busy = (v: "approve" | undefined) => set({ busy: { ...get().busy, [id]: v } });
+      const mark = (status: PostDraft["status"]) => set({ posts: get().posts.map((p) => (p.id === id ? { ...p, status } : p)) });
+      const pending = (on: boolean) => {
+        const next = { ...get().pendingApprove };
+        if (on) next[id] = true;
+        else delete next[id];
+        set({ pendingApprove: next });
+      };
+      if (waiting.has(id) || get().busy[id]) return { ok: false, message: "" };
       if (get().sample) {
-        set({ posts: get().posts.map((p) => (p.id === id ? { ...p, status: "approved", approvedAt: new Date().toISOString() } : p)) });
-        return;
+        set({ posts: get().posts.map((p) => (p.id === id ? { ...p, status: "approved", approvedAt: new Date().toISOString() } : p)), handTick: get().handTick + 1 });
+        return { ok: true };
       }
-      busy("approve");
       note(undefined);
+
+      const delay = delayMs ?? get().approveDelayMs;
+      let flushed = false;
+      if (delay > 0) {
+        // Shown approved at once; the request leaves when the undo window closes.
+        mark("approved");
+        pending(true);
+        let settle!: Waiting["settle"];
+        const verdict = new Promise<"go" | "undo" | "flushed">((resolve) => (settle = resolve));
+        const timer = setTimeout(() => settle("go"), delay);
+        const done = (async (): Promise<ApproveResult> => {
+          const v = await verdict;
+          clearTimeout(timer);
+          waiting.delete(id);
+          if (v === "undo") {
+            pending(false);
+            mark("draft");
+            return { ok: false, message: "", undone: true };
+          }
+          flushed = v === "flushed";
+          return { ok: true };
+        })();
+        waiting.set(id, { timer, settle, done });
+        const first = await done;
+        if (!first.ok || flushed) return first;
+      }
+
+      busy("approve");
       const r = await api.approvePost(id, lang(), get().edited[id]);
       busy(undefined);
+      pending(false);
       if (!r.ok) {
+        mark("draft");
         // "Kod: [kod]" still in the text: the server names the fact; the owner adds it in Tahrirlash.
-        note({ text: problemOf(r).message || copy().posts.approveError, tone: r.code === BLANK_LEFT ? "hint" : "bad" });
-        return;
+        const message = problemOf(r).message || copy().posts.approveError;
+        note({ text: message, tone: r.code === BLANK_LEFT ? "hint" : "bad" });
+        return { ok: false, message };
       }
       const server = r.data.post;
       set({
@@ -695,40 +873,66 @@ export const useStudio = create<StudioState>((set, get) => {
             ? { ...p, ...server, variants: { ...server.variants, ...get().edited[id] }, image: server.image ?? p.image, status: server.status === "draft" ? "approved" : server.status }
             : p,
         ),
+        handTick: get().handTick + 1,
       });
+      return { ok: true };
     },
 
     publish: async (id, script) => {
       const busy = (v: "publish" | undefined) => set({ busy: { ...get().busy, [id]: v } });
       const note = (v: StudioState["postNote"][string]) => set({ postNote: { ...get().postNote, [id]: v } });
+      const botUrl = api.botPublishUrl(get().bot, id, script);
+      // An approval still in its undo window goes first; publishing a draft would be refused.
+      const w = waiting.get(id);
+      if (w) {
+        w.settle("go");
+        const a = await w.done;
+        if (!a.ok) return { ok: false, message: a.message };
+        while (get().busy[id] === "approve") await sleep(120);
+        if (get().posts.find((p) => p.id === id)?.status === "draft") return { ok: false, message: get().postNote[id]?.text ?? copy().posts.approveError };
+      }
       const chat = get().brand?.channel ?? (get().input.channel ? `@${get().input.channel}` : "");
       if (!chat) {
         // A brand from a description with no channel yet: the bot asks for the channel and publishes.
-        note({ text: copy().posts.noChannel, href: api.botPublishUrl(get().bot, id), tone: "bad", link: copy().posts.openBot });
-        return;
+        note({ text: copy().posts.noChannel, href: botUrl, tone: "bad", link: copy().posts.openBot });
+        return { ok: false, message: copy().posts.noChannel, botUrl };
       }
       busy("publish");
       note(undefined);
       const r = await api.publishPost(id, script, chat, lang());
       busy(undefined);
       if (r.ok && r.data.ok) {
-        set({ posts: get().posts.map((p) => (p.id === id ? { ...p, status: "published", publishedUrl: r.data.url } : p)) });
+        set({ posts: get().posts.map((p) => (p.id === id ? { ...p, status: "published", publishedUrl: r.data.url } : p)), handTick: get().handTick + 1 });
         note({ text: copy().posts.published, href: r.data.url, tone: "ok" });
-        return;
+        return { ok: true, url: r.data.url };
       }
       const msg = r.ok ? r.data.error ?? copy().error.generic : problemOf(r).message;
       const admin = r.ok ? r.data.addAdminUrl : r.addAdminUrl;
       // A blank still in the text is the owner's fact to add, not a failure.
       const blank = (r.ok ? r.data.code : r.code) === BLANK_LEFT;
       note({ text: msg, href: blank ? undefined : admin, tone: blank ? "hint" : "bad" });
+      return { ok: false, message: msg, adminUrl: blank ? undefined : admin, botUrl };
     },
 
-    imageChanged: (id, image) => {
+    setImage: (id, image) => {
       seen.set(id, Date.now());
       setPostImage(id, image);
       countImages();
       // A new version started from the card keeps the lamp honest even if the owner leaves the tab.
       if (isOpen(image) && !polling) void poll(runId);
+    },
+
+    retryImage: async (id) => {
+      const my = runId;
+      setPostImage(id, { status: "queued", refsUsed: 0 });
+      const r = await api.startPostImage(id, lang());
+      if (my !== runId) return;
+      if (!r.ok) {
+        setPostImage(id, { status: "failed", refsUsed: 0, error: problemOf(r).message });
+        return;
+      }
+      setPostImage(id, r.data.image);
+      void poll(my);
     },
 
     styleLearning: false,

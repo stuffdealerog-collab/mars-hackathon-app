@@ -2,11 +2,12 @@ import type { PostDraft, Script } from "@/lib/uslub/contract";
 import { Check, ExternalLink } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
-import { useId, useState } from "react";
+import { useCallback, useId, useState } from "react";
 import { fmt, keepNumbers, useCopy, useLang } from "../ui/lang";
 import { weekday } from "../ui/format";
 import { PostImage } from "@/components/media";
-import { botPublishUrl, tgInitData } from "./api";
+import { authHeader, botPublishUrl } from "./api";
+import { showPost, useDesk, type ImageHandle } from "./desk";
 import { PictureWaiting } from "./PostPicture";
 import { useStudio } from "./store";
 
@@ -24,13 +25,24 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
   const editPost = useStudio((s) => s.editPost);
   const approve = useStudio((s) => s.approve);
   const publish = useStudio((s) => s.publish);
-  const imageChanged = useStudio((s) => s.imageChanged);
+  const setImage = useStudio((s) => s.setImage);
   const sample = useStudio((s) => s.sample);
   const pro = useStudio((s) => s.pro);
   const channelName = useStudio((s) => s.brand?.dna.name || s.brand?.channel || (s.input.channel ? `@${s.input.channel}` : ""));
   // The run starts every picture itself (so they come even while the owner reads Kanal); until
-  // this post's has started, the slot is reserved with the Dizayner's lamp so the card never jumps.
-  const waiting = useStudio((s) => !s.sample && !post.image && s.steps.some((x) => x.key === "images" && x.status === "run"));
+  // this post's has started, the slot shows the skeleton so the card never jumps.
+  const waiting = useStudio((s) => !s.sample && !post.image && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")));
+  const visual = useStudio((s) => s.brand?.visual);
+  const fresh = useStudio((s) => s.mode === "fresh");
+  // The hub's Asboblar act on the post in focus through its picture's handle.
+  const focused = useDesk((s) => s.focusedPostId === post.id);
+  const registerImage = useCallback((h: ImageHandle | null) => {
+    useDesk.getState().setImageHandle(h);
+  }, []);
+  // "Kanalingizdagi 6 ta rasm asosida": which photos the picture was modelled on, under it.
+  const n = post.image?.refsUsed ?? 0;
+  const owner = visual?.refs.some((r) => r.source === "owner") ?? false;
+  const refs = n > 0 ? { palette: visual?.palette.slice(0, 4), text: fmt(fresh ? c.refs.owner : owner ? c.refs.mixed : c.refs.channel, { n }) } : undefined;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [pulse, setPulse] = useState(false);
@@ -59,8 +71,21 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
   const blankText = blanks.length ? fmt(c.posts.blank, { facts: blanks.join(", ") }) : post.note;
   const hint = blankLeft ? blankText : note?.tone === "hint" ? note.text : null;
 
+  // Approving on the web waits 4 s with "Bekor qilish"; a failure never hides on a post out of view.
+  const onApprove = async () => {
+    const { toast, dismiss } = useDesk.getState();
+    const delay = useStudio.getState().approveDelayMs;
+    const undo = useStudio.getState().undoApprove;
+    const t = delay > 0 && !sample ? toast({ text: c.approve.toast, action: { label: c.approve.undo, run: () => undo(post.id) }, ms: delay }) : null;
+    const r = await approve(post.id);
+    if (t) dismiss(t);
+    if (!r.ok && !r.undone && r.message) {
+      toast({ text: fmt(c.approve.failed, { why: r.message }), tone: "bad", ms: 7000, action: { label: c.approve.show, run: () => showPost(post.id) } });
+    }
+  };
+
   return (
-    <article aria-labelledby={`${id}-h`} className="@container">
+    <article id={`post-${post.id}`} tabIndex={-1} data-post-scope aria-labelledby={`${id}-h`} className="@container outline-none">
       <header className="flex items-center justify-between gap-3 px-1 pb-2">
         <h3 id={`${id}-h`} className="min-w-0 text-[14px] text-ink-2">
           {when}
@@ -88,20 +113,26 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
             />
           )}
         </AnimatePresence>
-        {sample ? null : waiting ? (
-          <PictureWaiting />
+        {sample ? (
+          // The sample draws no pictures; the Dizayner's slot says so instead of pretending.
+          <PictureWaiting caption={c.sample.noImage} dark />
         ) : (
-          // The images session's card: develops the picture, "Boshqa variant", and in Pro the
-          // product photo, refs and prompt. It re-mounts once the run's own start lands.
+          // Develops the picture, "Boshqa variant", and in Pro the product photo, refs and prompt.
+          // The run starts every picture itself; this card follows it and polls while it renders.
           <PostImage
-            key={post.image ? "started" : "none"}
+            key={post.id}
+            ref={focused ? registerImage : undefined}
             postId={post.id}
             initial={post.image ?? null}
             lang={lang}
             pro={pro}
             autoStart={false}
-            initData={tgInitData()}
-            onChange={(img) => imageChanged(post.id, img)}
+            expected={waiting}
+            // A redrawn approved post would fail publishing (the bot checks what the owner saw).
+            locked={post.status !== "draft"}
+            authorization={authHeader()}
+            refs={refs}
+            onChange={(img) => setImage(post.id, img)}
             className="p-1.5 [&>div:first-child]:rounded-[17px] [&>figcaption]:mt-1.5 [&>figcaption]:px-2.5 [&>figcaption~div]:px-2.5 [&>figcaption~div]:pb-1"
           />
         )}
@@ -189,7 +220,7 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
             >
               {c.posts.edit}
             </button>
-            <button type="button" className="btn flex-1 @md:flex-none" disabled={busy === "approve"} onClick={() => void approve(post.id)}>
+            <button type="button" className="btn flex-1 @md:flex-none" disabled={busy === "approve"} onClick={() => void onApprove()}>
               {busy === "approve" ? c.posts.approving : c.posts.approve}
             </button>
           </div>

@@ -11,6 +11,7 @@ import { Hub, HUB_W, RAIL_W, StageLight, useDesktop, useHub, useHubRestore } fro
 import { PostsSplit, PostsTab } from "./Posts";
 import { SpectrumIntro } from "./SpectrumIntro";
 import { Start } from "./Start";
+import { Toasts } from "./Toasts";
 import { POSTS_PER_RUN, useStudio, type Step, type Tab } from "./store";
 
 type Theme = "light" | "dark";
@@ -32,7 +33,8 @@ export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: stri
   useEffect(() => {
     if (booted.current) return;
     booted.current = true;
-    useStudio.getState().configure({ bot });
+    // On the web an approval waits 4 s for "Bekor qilish"; inside Telegram it goes at once.
+    useStudio.getState().configure({ bot, approveDelayMs: inTelegram ? 0 : 4000 });
     const st = useStudio.getState(); // read after configure: it sets `sample`
     // Sample mode shows the made-up bakery straight away: a link form there would only pretend.
     if (st.sample) {
@@ -49,7 +51,30 @@ export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: stri
     const channel = p.get("channel");
     const name = channel ? parseChannel(channel) : null;
     if (name) st.startChannel(name);
-  }, [bot]);
+  }, [bot, inTelegram]);
+
+  // Leaving the page: waiting approvals are sent (keepalive), unsaved edits of drafts ask first.
+  // Coming back to the tab after publishing through the bot: the posts' status is re-read.
+  useEffect(() => {
+    const onHide = () => useStudio.getState().flushApprovals();
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      const s = useStudio.getState();
+      if (s.posts.some((p) => p.status === "draft" && s.edited[p.id] && !s.pendingApprove[p.id])) e.preventDefault();
+    };
+    const onBack = () => {
+      if (document.visibilityState === "visible") void useStudio.getState().refreshPosts();
+    };
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("focus", onBack);
+    document.addEventListener("visibilitychange", onBack);
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("focus", onBack);
+      document.removeEventListener("visibilitychange", onBack);
+    };
+  }, []);
 
   // Desktop web: the pro tool, sections in a glass hub over the lamp stage. Phones and the
   // Mini App keep the one-column Studio below.
@@ -73,6 +98,7 @@ export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: stri
         {phase === "reopening" && <Reopening />}
         {phase === "ready" && <Ready inTelegram={inTelegram} />}
       </main>
+      <Toasts />
     </div>
   );
 }
@@ -103,6 +129,7 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
           {phase === "ready" && <Ready inTelegram={false} desktop />}
         </div>
       </main>
+      <Toasts inset={side === "left" ? gutter : -gutter} />
     </div>
   );
 }

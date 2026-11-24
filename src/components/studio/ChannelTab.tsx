@@ -1,11 +1,12 @@
 import type { ChannelAudit } from "@/lib/uslub/contract";
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Led } from "../lamp/Led";
 import { useCopy, useLang, fmt, num } from "../ui/lang";
 import { isMachineEvidence, ownerText, weekday } from "../ui/format";
 import { copyFor as mediaCopy, StyleRefs } from "@/components/media";
-import { tgInitData, type PlanItemExtra } from "./api";
+import { authHeader, type PlanItemExtra } from "./api";
+import { useDesk, type RefsHandle } from "./desk";
 import { slotKey, useStudio } from "./store";
 
 // Professional rejim only, loaded on demand: simple mode never downloads it.
@@ -260,6 +261,7 @@ function PictureStyle() {
   const pro = useStudio((s) => s.pro);
   const sample = useStudio((s) => s.sample);
   const styleChanged = useStudio((s) => s.styleChanged);
+  const registerRefs = useCallback((h: RefsHandle | null) => useDesk.getState().setRefsHandle(h), []);
   if (!brand || sample) return null;
   const t = mediaCopy(lang);
   return (
@@ -277,7 +279,9 @@ function PictureStyle() {
           lang={lang}
           pro={pro}
           autoLearn={false}
-          initData={tgInitData()}
+          authorization={authHeader()}
+          // The hub's "Rasm qo‘shish" opens this card's file picker.
+          ref={registerRefs}
           onChange={styleChanged}
         />
       )}
