@@ -190,6 +190,14 @@ const uz = {
     pictures: ["rasm", "rasm", "rasm"],
     published: ["joylandi", "joylandi", "joylandi"],
   },
+  hub: {
+    label: "Bo‘limlar",
+    dock: "Panelni boshqa tomonga o‘tkazish",
+    collapse: "Panelni yig‘ish",
+    expand: "Panelni ochish",
+    settings: "Sozlamalar",
+    soonNav: "Avval kanal havolasini qo‘ying",
+  },
   dept: {
     label: "Bo‘lim xodimlari",
     working: "Bo‘lim ishlayapti",
@@ -421,6 +429,14 @@ const ru: Copy = {
     pictures: ["картинка", "картинки", "картинок"],
     published: ["опубликован", "опубликовано", "опубликовано"],
   },
+  hub: {
+    label: "Разделы",
+    dock: "Перенести панель на другую сторону",
+    collapse: "Свернуть панель",
+    expand: "Развернуть панель",
+    settings: "Настройки",
+    soonNav: "Сначала вставьте ссылку на канал",
+  },
   dept: {
     label: "Сотрудники отдела",
     working: "Отдел работает",
@@ -649,6 +665,14 @@ const en: Copy = {
     clean: "text checked",
     pictures: ["picture", "pictures", "pictures"],
     published: ["published", "published", "published"],
+  },
+  hub: {
+    label: "Sections",
+    dock: "Move the panel to the other side",
+    collapse: "Collapse the panel",
+    expand: "Expand the panel",
+    settings: "Settings",
+    soonNav: "Paste a channel link first",
   },
   dept: {
     label: "The department",

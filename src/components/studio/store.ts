@@ -392,9 +392,11 @@ export const useStudio = create<StudioState>((set, get) => {
 
     configure: ({ bot }) => {
       const p = new URLSearchParams(window.location.search);
-      let pro = false;
+      // Desktop is the pro tool: Professional rejim is the default there; phones start simple.
+      let pro = window.matchMedia("(min-width: 1024px)").matches;
       try {
-        pro = localStorage.getItem("mercat.pro") === "1";
+        const saved = localStorage.getItem("mercat.pro");
+        if (saved != null) pro = saved === "1";
       } catch {
         /* ignore */
       }

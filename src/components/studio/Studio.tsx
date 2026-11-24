@@ -8,6 +8,7 @@ import { fmt, useCopy, useInitLang, useLang, type Lang } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel } from "../ui/parts";
 import { ChannelTab } from "./ChannelTab";
 import { Panel, SOON_ROLES, Strip, useLamps } from "./Department";
+import { Hub, HUB_W, RAIL_W, StageLight, useDesktop, useHub, useHubRestore } from "./Hub";
 import { PostCard } from "./PostCard";
 import { SpectrumIntro } from "./SpectrumIntro";
 import { Start } from "./Start";
@@ -51,6 +52,12 @@ export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: stri
     if (name) st.startChannel(name);
   }, [bot]);
 
+  // Desktop web: the pro tool, sections in a glass hub over the lamp stage. Phones and the
+  // Mini App keep the one-column Studio below.
+  const desktop = useDesktop();
+  useHubRestore();
+  if (desktop && !inTelegram) return <DesktopStudio theme={theme} />;
+
   return (
     <div data-theme={theme} className="flex min-h-dvh flex-col bg-paper text-ink">
       <header className="mx-auto flex w-full max-w-[760px] items-center justify-between gap-3 px-4 pb-2 pt-3 sm:px-6 sm:pt-5">
@@ -71,6 +78,32 @@ export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: stri
   );
 }
 
+/** Desktop layout: the hub (sections, department, settings) + the working area beside it. */
+function DesktopStudio({ theme }: { theme?: Theme }) {
+  const phase = useStudio((s) => s.phase);
+  const sample = useStudio((s) => s.sample);
+  const entry = useStudio((s) => s.entry);
+  const lamps = useLamps();
+  const { side, collapsed } = useHub();
+  const gutter = (collapsed ? RAIL_W : HUB_W) + 36;
+  return (
+    <div data-theme={theme} className="relative min-h-dvh bg-stage text-ink">
+      <StageLight lamps={lamps} />
+      <Hub lamps={lamps} />
+      <main
+        className="relative z-10 mx-auto w-full max-w-[1040px] px-8 pb-24 pt-6 transition-[padding] duration-300"
+        style={side === "left" ? { paddingLeft: gutter } : { paddingRight: gutter }}
+      >
+        {sample && <SampleBanner flush />}
+        {phase === "start" && <Start key={`${entry.view}:${entry.channel}`} initialView={entry.view} initialChannel={entry.channel} />}
+        {phase === "working" && <Working />}
+        {phase === "reopening" && <Reopening />}
+        {phase === "ready" && <Ready inTelegram={false} desktop />}
+      </main>
+    </div>
+  );
+}
+
 /** One quiet toggle for marketers: the same screens, denser. Remembered on this device. */
 function ProToggle() {
   const c = useCopy();
@@ -85,10 +118,10 @@ function ProToggle() {
   );
 }
 
-function SampleBanner() {
+function SampleBanner({ flush = false }: { flush?: boolean }) {
   const c = useCopy();
   return (
-    <div className="mx-auto mt-2 w-full max-w-[760px] px-4 sm:px-6">
+    <div className={flush ? "mb-2" : "mx-auto mt-2 w-full max-w-[760px] px-4 sm:px-6"}>
       <p className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl border border-line bg-card px-4 py-2.5 text-[14px] text-ink-2">
         <span>{c.sample.banner}</span>
         <a href="/studio" className="link text-ink">
@@ -251,7 +284,7 @@ function ElapsedLed() {
 
 /* ----------------------------------------------------------------- ready */
 
-function Ready({ inTelegram }: { inTelegram: boolean }) {
+function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?: boolean }) {
   const c = useCopy();
   const tab = useStudio((s) => s.tab);
   const setTab = useStudio((s) => s.setTab);
@@ -291,10 +324,16 @@ function Ready({ inTelegram }: { inTelegram: boolean }) {
         )}
       </div>
 
-      {/* The department stays on screen: ten small lights, or the full panel in Professional rejim. */}
-      <div className="mt-4">{pro ? <Panel lamps={lamps} /> : <Strip lamps={lamps} />}</div>
+      {/* The department stays on screen: ten small lights, or the full panel in Professional rejim.
+          On desktop the hub holds the lights and the sections, so only the pro panel shows here. */}
+      {desktop ? pro && <Panel lamps={lamps} className="mt-6" /> : <div className="mt-4">{pro ? <Panel lamps={lamps} /> : <Strip lamps={lamps} />}</div>}
 
-      <div role="tablist" aria-label="Mercat" onKeyDown={onKey} className="sticky top-0 z-10 -mx-4 mt-5 flex gap-1 border-b border-line bg-paper px-4 sm:mx-0 sm:px-0">
+      <div
+        role="tablist"
+        aria-label="Mercat"
+        onKeyDown={onKey}
+        className={desktop ? "sr-only" : "sticky top-0 z-10 -mx-4 mt-5 flex gap-1 border-b border-line bg-paper px-4 sm:mx-0 sm:px-0"}
+      >
         {tabs.map((t) => (
           <button
             key={t.key}
