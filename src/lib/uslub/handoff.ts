@@ -5,8 +5,9 @@ import { getEnv, getPublicUrl } from "@/lib/env";
 /**
  * Desktop handoff (product spec §5.1): a brand made in the bot or the Mini App belongs to a Telegram user, but the
  * desktop Studio has no Telegram identity. The bot (and the Mini App, via POST /api/uslub/handoff) gives the owner a
- * signed, expiring key in the Studio link (`?k=`); the Studio sends it back as `Authorization: handoff <k>` and is
- * treated as that Telegram user.
+ * signed, expiring key in the Studio link's fragment (`/studio?brand=<id>#k=<key>`: a fragment never reaches the
+ * server, so the key stays out of request logs and Referer headers); the Studio sends it back as
+ * `Authorization: handoff <k>` and is treated as that Telegram user.
  *
  * Format: "<userId>.<exp>.<sig>" — exp in unix seconds, sig = base64url(HMAC-SHA256(key, "<userId>.<exp>")),
  * key = HMAC-SHA256(key = "mercat-handoff", message = TELEGRAM_BOT_TOKEN) (like Telegram's own WebAppData key; no new
@@ -60,8 +61,11 @@ export function verifyHandoff(k: string | null | undefined): number | null {
 /** The desktop Studio (PUBLIC_URL first; the production domain otherwise). */
 export const studioUrl = () => `${getPublicUrl() ?? "https://mercat-ai.vercel.app"}/studio`;
 
-/** Studio link for a brand, carrying the owner's handoff key when the bot can sign one. */
+/**
+ * Studio link for a brand: `/studio?brand=<id>#k=<key>`. The owner's handoff key rides in the fragment (the Studio
+ * reads it from `location.hash`), so it is never sent to the server. No key when the bot cannot sign one.
+ */
 export function studioLink(brandId: string, userId: number | null): string {
   const k = userId != null ? signHandoff(userId) : null;
-  return `${studioUrl()}?brand=${encodeURIComponent(brandId)}${k ? `&k=${encodeURIComponent(k)}` : ""}`;
+  return `${studioUrl()}?brand=${encodeURIComponent(brandId)}${k ? `#k=${encodeURIComponent(k)}` : ""}`;
 }

@@ -26,6 +26,11 @@ import type { BrandDNA } from "../src/lib/uslub/contract";
 const NOW = Date.parse("2026-11-25T08:00:00Z");
 const DAY = 86_400_000;
 const withAuth = (auth?: string) => new Request("http://x/api/uslub/posts", { headers: auth ? { authorization: auth } : {} });
+/** The handoff key of a Studio link: it lives in the fragment (`#k=`), never in the query sent to the server. */
+const keyOf = (url: URL) => {
+  expect(url.searchParams.has("k")).toBe(false);
+  return new URLSearchParams(url.hash.slice(1)).get("k");
+};
 
 describe("handoff key: sign and verify", () => {
   it("round-trips the Telegram user id while it is valid", () => {
@@ -54,12 +59,16 @@ describe("handoff key: sign and verify", () => {
     expect(() => signHandoffWith(BOT_TOKEN, 0)).toThrow();
   });
 
-  it("the bot's Studio link carries a key the server accepts", () => {
-    const url = new URL(studioLink("1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", 777));
+  it("the bot's Studio link carries a key the server accepts, in the fragment only", () => {
+    const link = studioLink("1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", 777);
+    expect(link).toMatch(/^https:\/\/mercat\.test\/studio\?brand=1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed#k=777\.\d+\.[A-Za-z0-9_-]{43}$/);
+    const url = new URL(link);
     expect(url.origin + url.pathname).toBe("https://mercat.test/studio");
     expect(url.searchParams.get("brand")).toBe("1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed");
-    expect(verifyHandoff(url.searchParams.get("k"))).toBe(777);
-    expect(new URL(studioLink("b", null)).searchParams.has("k")).toBe(false);
+    expect(verifyHandoff(keyOf(url))).toBe(777);
+    const anonymous = new URL(studioLink("b", null));
+    expect(keyOf(anonymous)).toBeNull();
+    expect(anonymous.hash).toBe("");
   });
 });
 
@@ -104,7 +113,7 @@ describe("POST /api/uslub/handoff (Mini App: open on computer)", () => {
     expect(res.status).toBe(200);
     const url = new URL(((await res.json()) as { url: string }).url);
     expect(url.searchParams.get("brand")).toBe(b.id);
-    expect(verifyHandoff(url.searchParams.get("k"))).toBe(777);
+    expect(verifyHandoff(keyOf(url))).toBe(777);
   });
 
   it("refuses a handoff key (no self-extension), anonymous callers and other owners", async () => {

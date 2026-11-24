@@ -12,8 +12,9 @@ const Body = z.object({
 });
 
 /**
- * POST { brandId } -> { url }   the Mini App's "Kompyuterda to‘liq studiya": a desktop Studio link carrying this
- * Telegram user's signed handoff key (handoff.ts), valid 7 days.
+ * POST { brandId } -> { url }   the Mini App's "Kompyuterda to‘liq studiya": a desktop Studio link
+ * (`/studio?brand=<id>#k=<key>`) carrying this Telegram user's signed handoff key in the fragment (handoff.ts),
+ * valid 7 days.
  * Only a live Telegram session may ask (`Authorization: tma <initData>` or `initData`): a handoff key cannot mint
  * another one, so a leaked link cannot be extended. The URL is a bearer secret; it is returned, never logged.
  */
