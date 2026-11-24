@@ -18,6 +18,8 @@ const ALLOWED = [
   "PUBLIC_URL",
   "ANTHROPIC_API_KEY",
   "ANTHROPIC_MODEL",
+  "CLAUDE_DAILY_LIMIT",
+  "CLAUDE_ANON_DAILY_LIMIT",
   // Media (post pictures): provider keys and daily limits.
   "FAL_KEY",
   "FAL_IMAGE_MODEL",
