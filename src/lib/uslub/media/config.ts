@@ -17,6 +17,8 @@ import type { MediaProviderId } from "./types";
  *   MEDIA_USER_DAILY_LIMIT  per verified Telegram user, default 5
  *   MEDIA_ANON_DAILY_LIMIT  shared by all anonymous web callers, default 5; 0 = Telegram login required
  *   MEDIA_DEMO              "1" = offline demo provider (pre-rendered, labelled "namuna")
+ *   MEDIA_VISUAL_DAILY_LIMIT        style analyses (Claude vision) per rolling 24 h, whole app, default 60
+ *   MEDIA_VISUAL_BRAND_DAILY_LIMIT  style analyses per brand per rolling 24 h, default 8
  */
 export interface MediaConfig {
   higgsfield?: { keyId: string; keySecret: string; videoModel?: string; imageModel?: string };
@@ -25,6 +27,8 @@ export interface MediaConfig {
   dailyLimit: number;
   userDailyLimit: number;
   anonDailyLimit: number;
+  visualDailyLimit: number;
+  visualBrandDailyLimit: number;
   demo: boolean;
   /** Names of env vars that were present but malformed (never their values). */
   warnings: string[];
@@ -98,6 +102,8 @@ export function readMediaConfig(env: Env): MediaConfig {
     dailyLimit: limit("MEDIA_DAILY_LIMIT", 30),
     userDailyLimit: limit("MEDIA_USER_DAILY_LIMIT", 5),
     anonDailyLimit: limit("MEDIA_ANON_DAILY_LIMIT", 5),
+    visualDailyLimit: limit("MEDIA_VISUAL_DAILY_LIMIT", 60),
+    visualBrandDailyLimit: limit("MEDIA_VISUAL_BRAND_DAILY_LIMIT", 8),
     demo,
     warnings,
   };

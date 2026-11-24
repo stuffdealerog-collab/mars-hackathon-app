@@ -52,10 +52,11 @@ export function StyleRefs({ brandId, initial, lang, autoLearn = true, initData, 
       setLearning(true);
       setError(null);
       try {
+        // An explicit owner list (even an empty one after removing the last photo) always re-learns.
         const res = await fetch("/api/uslub/visual", {
           method: "POST",
           headers: headers(),
-          body: JSON.stringify({ brandId, ...(ownerImages ? { ownerImages } : {}) }),
+          body: JSON.stringify({ brandId, ...(ownerImages ? { ownerImages, refresh: true } : {}) }),
         });
         const data = (await res.json().catch(() => ({}))) as { visual?: VisualStyle; error?: string };
         if (res.ok && data.visual) {

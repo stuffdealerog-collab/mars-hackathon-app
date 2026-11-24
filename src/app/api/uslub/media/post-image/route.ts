@@ -6,6 +6,7 @@ import { readMediaConfig } from "@/lib/uslub/media/config";
 import { PostImageLimitError, pollPostImage, publicPostImage, startPostImage } from "@/lib/uslub/media/post-image";
 import { ensureVisual, postImageDeps } from "@/lib/uslub/media/post-image-service";
 import { getPostForImage } from "@/lib/uslub/media/post-repo";
+import { canChangeBrandPictures, NOT_YOUR_BRAND } from "@/lib/uslub/visual/access";
 import { downloadImage, ImageInputError, parseDataUrl } from "@/lib/uslub/visual/images";
 import { falUpload, isFalMedia, StorageError } from "@/lib/uslub/visual/storage";
 import { mediaCall } from "../errors";
@@ -59,6 +60,7 @@ export const POST = handle(async (req) => {
   const body = await readJson(req, Body);
   const telegramId = telegramUserId(req, body.initData);
   const { post, brand } = await loadPost(body.postId, telegramId);
+  if (!canChangeBrandPictures(brand, telegramId)) throw new HttpError(403, NOT_YOUR_BRAND);
   const productUrl = body.photo ? await hostProductPhoto(body.photo, post.id) : undefined;
   const visual = await ensureVisual(brand);
   try {

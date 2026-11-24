@@ -1,4 +1,5 @@
 import "server-only";
+import { safeLogEvent } from "@/lib/track";
 import { readMediaConfig } from "../media/config";
 import type { VisualStyle } from "../contract";
 import type { StoredBrand } from "../store";
@@ -6,8 +7,15 @@ import { analyzeStyle } from "./analyze";
 import { fetchChannelPhotos, isTelegramCdn } from "./channel";
 import { downloadImage } from "./images";
 import { learnVisualStyle, type LearnDeps } from "./learn";
-import { getBrandVisualInfo, saveBrandVisual } from "./repo";
+import { countVisualAnalyses, getBrandVisualInfo, rememberVisualAnalysis, saveBrandVisual } from "./repo";
 import { falUpload } from "./storage";
+
+export class VisualLimitError extends Error {
+  constructor() {
+    super("Bugun uslubni o‘rganish limiti tugadi. Ertaga urinib ko‘ring. / Лимит на изучение стиля на сегодня исчерпан.");
+    this.name = "VisualLimitError";
+  }
+}
 
 /** Server wiring for the style learner: real network, Claude and fal storage. */
 export function visualDeps(): LearnDeps {
@@ -31,6 +39,16 @@ export async function learnAndSaveVisual(
   const info = await getBrandVisualInfo(brand.id);
   const fresh = info.visual && Date.now() - Date.parse(info.visual.learnedAt) < VISUAL_TTL_MS;
   if (info.visual && fresh && !opts.refresh && !opts.ownerImages?.length) return { visual: info.visual, cached: true };
+
+  // Every analysis is a paid Claude vision call: capped per brand and app-wide, counted before the call.
+  const config = readMediaConfig(process.env);
+  const used = await countVisualAnalyses(brand.id);
+  if (used.brand >= config.visualBrandDailyLimit || used.total >= config.visualDailyLimit) {
+    if (info.visual) return { visual: info.visual, cached: true }; // keep working with the style we have
+    throw new VisualLimitError();
+  }
+  rememberVisualAnalysis(brand.id);
+  await safeLogEvent(null, "visual_analysis", { brand_id: brand.id, owner_images: opts.ownerImages?.length ?? 0 });
 
   const visual = await learnVisualStyle(
     {

@@ -2,10 +2,11 @@ import { connection } from "next/server";
 import { z } from "zod";
 import { safeLogEvent } from "@/lib/track";
 import { handle, HttpError, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
+import { canChangeBrandPictures, NOT_YOUR_BRAND } from "@/lib/uslub/visual/access";
 import { ImageInputError } from "@/lib/uslub/visual/images";
 import { MAX_OWNER_IMAGES } from "@/lib/uslub/visual/learn";
 import { getBrandVisualInfo } from "@/lib/uslub/visual/repo";
-import { learnAndSaveVisual } from "@/lib/uslub/visual/service";
+import { learnAndSaveVisual, VisualLimitError } from "@/lib/uslub/visual/service";
 
 export const maxDuration = 90;
 
@@ -36,6 +37,7 @@ export const POST = handle(async (req) => {
   const body = await readJson(req, Body);
   const telegramId = telegramUserId(req, body.initData);
   const brand = await loadBrandFor(body.brandId, telegramId);
+  if (!canChangeBrandPictures(brand, telegramId)) throw new HttpError(403, NOT_YOUR_BRAND);
   const total = (body.ownerImages ?? []).reduce((n, s) => n + s.length, 0);
   if (total > 4_200_000) throw new HttpError(413, "Rasmlar juda katta. Kichikroq rasm yuboring. / Фото слишком большие.");
   try {
@@ -49,6 +51,7 @@ export const POST = handle(async (req) => {
     }
     return json({ visual, cached });
   } catch (err) {
+    if (err instanceof VisualLimitError) throw new HttpError(429, err.message);
     if (err instanceof ImageInputError) {
       throw new HttpError(400, `Rasmni o‘qib bo‘lmadi (${err.message}). JPG yoki PNG yuboring. / Не удалось прочитать фото — пришлите JPG или PNG.`);
     }
