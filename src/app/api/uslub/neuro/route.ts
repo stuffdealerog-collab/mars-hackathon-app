@@ -12,14 +12,26 @@ const Body = z.object({
   rewrite: z.boolean().optional(),
 });
 
-/** POST { text, script } -> { text, hits, humanScore } (text is the cleaned version). */
+/**
+ * POST { text, script, rewrite? } ->
+ *   { text (cleaned), hits (found in the ORIGINAL), removed, remaining (still in the cleaned text),
+ *     humanScoreBefore, humanScore (after), mode: "unchanged" | "rewrite" | "deletion" }
+ * The editor never adds facts: a rewrite that invents numbers/dates/promos is replaced by a deletion-only edit.
+ */
 export const POST = handle(async (req) => {
   rateLimit(req, "neuro", 30);
   const body = await readJson(req, Body);
   if (body.rewrite === false) {
-    return json({ text: body.text, ...analyzeNeuro(body.text, body.script) });
+    const a = analyzeNeuro(body.text, body.script);
+    return json({
+      text: body.text,
+      hits: a.hits,
+      removed: [],
+      remaining: a.hits,
+      humanScoreBefore: a.humanScore,
+      humanScore: a.humanScore,
+      mode: "unchanged",
+    });
   }
-  const before = analyzeNeuro(body.text, body.script);
-  const result = await cleanText(body.text, body.script);
-  return json({ ...result, before });
+  return json(await cleanText(body.text, body.script));
 });
