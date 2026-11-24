@@ -20,7 +20,8 @@ export type Mode = "channel" | "fresh";
 export type Tab = "channel" | "posts" | "video";
 export type StepKey = "read" | "voice" | "photos" | "plan" | "posts" | "images";
 export type StepStatus = "wait" | "run" | "done" | "fail" | "skip";
-export type Step = { key: StepKey; status: StepStatus; n?: number; m?: number };
+/** t0/t1: when the step started and finished (ms), for "how long it took" in Professional rejim. */
+export type Step = { key: StepKey; status: StepStatus; n?: number; m?: number; t0?: number; t1?: number };
 
 /** How many plan slots become posts in one run (the posts route takes up to 7). */
 export const POSTS_PER_RUN = 5;
@@ -52,6 +53,8 @@ interface StudioState {
   auditProblem: Problem | null;
   strategy: Strategy | null;
   launch: api.Launch | null;
+  /** How much real data stood behind each part of the plan (Brain v2), for Professional rejim. */
+  sufficiency: api.Sufficiency[] | null;
   plan: ContentPlan | null;
   planProgress: { n: number; m: number } | null;
   posts: PostDraft[];
@@ -133,7 +136,15 @@ let pollRun = 0;
 
 export const useStudio = create<StudioState>((set, get) => {
   const step = (key: StepKey, patch: Partial<Step>) =>
-    set({ steps: get().steps.map((s) => (s.key === key ? { ...s, ...patch } : s)) });
+    set({
+      steps: get().steps.map((s) => {
+        if (s.key !== key) return s;
+        const next = { ...s, ...patch };
+        if (patch.status === "run" && s.status !== "run") next.t0 = Date.now();
+        if (patch.status === "done" && s.status !== "done") next.t1 = Date.now();
+        return next;
+      }),
+    });
 
   const fail = (key: StepKey, f: Fail) => {
     step(key, { status: "fail" });
@@ -224,7 +235,12 @@ export const useStudio = create<StudioState>((set, get) => {
       });
       if (my !== runId) return;
       if (!r.ok) return fail("plan", r);
-      set({ plan: r.data.plan, strategy: r.data.strategy, launch: r.data.launch?.tactics?.length ? r.data.launch : null });
+      set({
+        plan: r.data.plan,
+        strategy: r.data.strategy,
+        launch: r.data.launch?.tactics?.length ? r.data.launch : null,
+        sufficiency: Array.isArray(r.data.sufficiency) ? r.data.sufficiency : null,
+      });
       step("plan", { status: "done", n: r.data.plan.items.length });
     }
 
@@ -349,6 +365,7 @@ export const useStudio = create<StudioState>((set, get) => {
     auditProblem: null,
     strategy: null,
     launch: null,
+    sufficiency: null,
     plan: null,
     planProgress: null,
     posts: [],
@@ -415,6 +432,7 @@ export const useStudio = create<StudioState>((set, get) => {
         plan: null,
         strategy: null,
     launch: null,
+    sufficiency: null,
         planProgress: null,
         posts: [],
         postsRead: null,
@@ -438,6 +456,7 @@ export const useStudio = create<StudioState>((set, get) => {
         plan: null,
         strategy: null,
     launch: null,
+    sufficiency: null,
         planProgress: null,
         posts: [],
         postsRead: null,
@@ -472,6 +491,7 @@ export const useStudio = create<StudioState>((set, get) => {
         plan: null,
         strategy: null,
     launch: null,
+    sufficiency: null,
         planProgress: null,
         posts: [],
         postsRead: null,

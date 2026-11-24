@@ -1,5 +1,6 @@
 import type { AgentRole, Script } from "@/lib/uslub/contract";
 import { ChevronDown } from "lucide-react";
+import dynamic from "next/dynamic";
 import { forwardRef, useMemo, useState } from "react";
 import { Led } from "../lamp/Led";
 import { LampTile } from "../lamp/LampTile";
@@ -7,6 +8,9 @@ import { LAMP_ORDER, type LampState } from "../lamp/lamps";
 import { plural } from "../ui/format";
 import { fmt, useCopy, useLang } from "../ui/lang";
 import { useStudio, type StepKey } from "./store";
+
+// Professional rejim only, loaded on demand.
+const LampDrawer = dynamic(() => import("./pro/ProDetails").then((m) => m.LampDrawer), { ssr: false });
 
 /** Roles that do nothing for the owner yet: their lamps stay dark with "tez orada". */
 export const SOON_ROLES: readonly AgentRole[] = ["video", "radar"];
@@ -111,29 +115,38 @@ export const Panel = forwardRef<HTMLUListElement, { lamps: Lamps; size?: "sm" | 
   ref,
 ) {
   const c = useCopy();
+  const pro = useStudio((s) => s.pro);
+  const [open, setOpen] = useState<AgentRole | null>(null);
   return (
-    <ul ref={ref} aria-label={c.dept.label} className={`grid grid-cols-2 gap-2.5 sm:grid-cols-5 ${className}`}>
-      {LAMP_ORDER.map((r) => {
-        const soon = lamps.soon.has(r) && lamps.state[r] === "off";
-        const st = lamps.state[r];
-        return (
-          <LampTile
-            key={r}
-            as="li"
-            role={r}
-            size={size}
-            state={st}
-            name={c.lamps[r].name}
-            job={showJob ? c.lamps[r].job : undefined}
-            // A dark lamp says nothing; only "tez orada" roles explain themselves.
-            stateText={soon ? c.lampState.soon : st === "off" ? undefined : c.lampState[st]}
-            className={soon ? "lamp--soon" : ""}
-          >
-            {st === "off" ? null : lamps.result[r]}
-          </LampTile>
-        );
-      })}
-    </ul>
+    <>
+      <ul ref={ref} aria-label={c.dept.label} className={`grid grid-cols-2 gap-2.5 sm:grid-cols-5 ${className}`}>
+        {LAMP_ORDER.map((r) => {
+          const soon = lamps.soon.has(r) && lamps.state[r] === "off";
+          const st = lamps.state[r];
+          // In Professional rejim a lit lamp opens what that employee did.
+          const tappable = pro && st !== "off";
+          return (
+            <li key={r} className="flex">
+              <LampTile
+                as={tappable ? "button" : "div"}
+                role={r}
+                size={size}
+                state={st}
+                name={c.lamps[r].name}
+                job={showJob ? c.lamps[r].job : undefined}
+                // A dark lamp says nothing; only "tez orada" roles explain themselves.
+                stateText={soon ? c.lampState.soon : st === "off" ? undefined : c.lampState[st]}
+                className={`w-full ${soon ? "lamp--soon" : ""} ${tappable ? "cursor-pointer transition-transform duration-150 active:scale-[0.97]" : ""}`}
+                {...(tappable ? { type: "button", onClick: () => setOpen(r), "aria-haspopup": "dialog" } : {})}
+              >
+                {st === "off" ? null : lamps.result[r]}
+              </LampTile>
+            </li>
+          );
+        })}
+      </ul>
+      {open && <LampDrawer role={open} onClose={() => setOpen(null)} />}
+    </>
   );
 });
 

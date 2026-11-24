@@ -125,7 +125,12 @@ export function analyzeChannel(channel: string, lang: Lang) {
 
 /** Empty-channel brands also get launch tactics (how to get the first subscribers). */
 export type Launch = { weeks?: number; tactics: { title: string; how: string; why?: string }[] };
-export type StrategyResult = { strategy: Strategy; plan: ContentPlan; launch?: Launch };
+/** Brain v2 "sufficiency": for each part of the plan, whether it rests on the channel's data, a benchmark or a prior. */
+export type Sufficiency = { key: string; status: "data" | "benchmark" | "prior" | "insufficient"; n: number; need: number; text: string };
+export type StrategyResult = { strategy: Strategy; plan: ContentPlan; launch?: Launch; sufficiency?: Sufficiency[] };
+
+/** Extra fields the strategist puts on plan items beyond the contract (shown in Professional rejim). */
+export type PlanItemExtra = { forecast?: { low: number; mid: number; high: number }; briefMeta?: string; approvalReasons?: string[] };
 
 export type StrategyEvent =
   | { stage: "skeleton"; slots: unknown[] }

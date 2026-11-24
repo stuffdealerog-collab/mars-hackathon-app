@@ -1,8 +1,15 @@
 import type { ChannelAudit } from "@/lib/uslub/contract";
+import dynamic from "next/dynamic";
 import { Led } from "../lamp/Led";
 import { useCopy, useLang, fmt, num } from "../ui/lang";
 import { isMachineEvidence, ownerText, weekday } from "../ui/format";
+import type { PlanItemExtra } from "./api";
 import { slotKey, useStudio } from "./store";
+
+// Professional rejim only, loaded on demand: simple mode never downloads it.
+const AuditFull = dynamic(() => import("./pro/ProDetails").then((m) => m.AuditFull), { ssr: false });
+const SufficiencyPanel = dynamic(() => import("./pro/ProDetails").then((m) => m.SufficiencyPanel), { ssr: false });
+const PlanRowDetails = dynamic(() => import("./pro/ProDetails").then((m) => m.PlanRowDetails), { ssr: false });
 
 const KIND_ORDER = { problem: 0, opportunity: 1, strength: 2 } as const;
 
@@ -17,6 +24,8 @@ export function ChannelTab() {
       <Voice />
       <Plan />
       {pro && <StrategyDetails />}
+      {pro && mode === "channel" && <AuditFull />}
+      {pro && <SufficiencyPanel />}
     </div>
   );
 }
@@ -268,28 +277,7 @@ function Plan() {
               </div>
               <div className="min-w-0">
                 <p className="text-[15px] leading-snug">{ownerText(it.hook, lang)}</p>
-                {pro && (
-                  <dl className="mt-1.5 grid gap-0.5 text-[13px] leading-snug text-ink-2">
-                    {it.format && (
-                      <div>
-                        <dt className="inline">{c.pro.format}: </dt>
-                        <dd className="inline">{it.format}</dd>
-                      </div>
-                    )}
-                    {it.brief && it.brief !== it.hook && (
-                      <div>
-                        <dt className="inline">{c.pro.brief}: </dt>
-                        <dd className="inline">{ownerText(it.brief, lang)}</dd>
-                      </div>
-                    )}
-                    {it.metric && (
-                      <div>
-                        <dt className="inline">{c.pro.metric}: </dt>
-                        <dd className="inline">{ownerText(it.metric, lang)}</dd>
-                      </div>
-                    )}
-                  </dl>
-                )}
+                {pro && <PlanRowDetails item={it as typeof it & PlanItemExtra} />}
                 <p className="mt-1 text-[13.5px] text-ink-3">
                   {c.channel.goal[it.goal]}
                   {has ? (

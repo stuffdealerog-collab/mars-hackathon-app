@@ -1,12 +1,16 @@
 import type { PostDraft, Script } from "@/lib/uslub/contract";
 import { Check, ExternalLink } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import dynamic from "next/dynamic";
 import { useId, useState } from "react";
 import { fmt, keepNumbers, useCopy, useLang } from "../ui/lang";
 import { weekday } from "../ui/format";
 import { botPublishUrl } from "./api";
 import { PostPicture } from "./PostPicture";
 import { useStudio } from "./store";
+
+// Professional rejim only, loaded on demand.
+const PostDetails = dynamic(() => import("./pro/ProDetails").then((m) => m.PostDetails), { ssr: false });
 
 /** One post: picture, text in the list's chosen script, edit / approve / publish. */
 export function PostCard({ post, script, inTelegram }: { post: PostDraft; script: Script; inTelegram: boolean }) {
@@ -21,6 +25,7 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
   const publish = useStudio((s) => s.publish);
   const retryImage = useStudio((s) => s.retryImage);
   const sample = useStudio((s) => s.sample);
+  const pro = useStudio((s) => s.pro);
   const channelName = useStudio((s) => s.brand?.dna.name || s.brand?.channel || (s.input.channel ? `@${s.input.channel}` : ""));
   // Reserve the picture slot while pictures are on their way (not in sample mode, not when the
   // picture service is unavailable), so the card never jumps when one arrives.
@@ -98,6 +103,7 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
           {slot && <p className="mt-1.5 text-right text-[12px] text-ink-3">{slot.time}</p>}
         </div>
       </div>
+      {pro && <PostDetails post={post} />}
 
       <footer className="flex flex-col gap-3 px-1 pt-3">
         {editing ? (
