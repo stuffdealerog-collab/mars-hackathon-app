@@ -1,16 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { onest } from "@/components/lamp/font";
+import { onest } from "@/components/ui/font";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.PUBLIC_URL ?? "https://mercat-ai.vercel.app"),
-  title: { default: "Mercat — marketing bo‘limi bir havoladan", template: "%s · Mercat" },
+  title: { default: "Mercat — Telegram kanalingiz uchun postlar", template: "%s · Mercat" },
   description:
-    "Telegram kanalingiz havolasini bering: 10 ta AI xodim kanalni o‘qiydi va bir daqiqada brend ovozi, bir haftalik postlar, Reels ssenariysi va mijozlaringiz turgan joylarni tayyorlaydi. Siz faqat tasdiqlaysiz.",
+    "Telegram kanalingiz havolasini qo‘ying: Mercat kanalni o‘qiydi, nimani tuzatish kerakligini raqamlar bilan ko‘rsatadi va bir haftalik postlarni rasmlari bilan tayyorlaydi. Siz faqat tasdiqlaysiz.",
   openGraph: {
-    title: "Mercat — bir havola, butun marketing bo‘limi",
-    description: "Kanal havolasini bering: bir daqiqada brend ovozi, haftalik postlar va mijozlaringiz qayerdaligi.",
-    images: ["/generated/og.png"],
+    title: "Mercat — kanalingizga postlarni Mercat yozadi",
+    description: "Havolani qo‘ying: kanal tahlili, haftalik reja va rasmli postlar. Siz faqat tasdiqlaysiz.",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Mercat" }],
   },
 };
 

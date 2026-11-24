@@ -6,93 +6,68 @@
 
 web
 
-(Mobile web first, plus a Telegram Mini App at `/tg` that runs inside Telegram's in-app browser and follows Telegram's theme.)
+(Mobile web first, 375 px wide inside Telegram's in-app browser, plus a Telegram Mini App at `/tg` that follows Telegram's light or dark theme. Desktop works but is not the first target.)
 
 ## Users
 
-The primary user is the owner of a small business in Uzbekistan who has no marketer: a clothing shop, a bakery, a café, a beauty salon or a home kitchen. They run a Telegram channel and post from their phone between customers. They write in Uzbek (Latin) first, often in Russian too, and sometimes they need Cyrillic Uzbek or English. They live in Telegram all day.
+The owner of a small business in Uzbekistan with no marketer: a bakery, a clothing shop, a café, a beauty salon, a home kitchen. They run (or are about to start) a Telegram channel and post from a phone between customers, in short bursts, often in daylight.
 
-Tomorrow (25 Nov 2026) the main visitor to the landing page is this owner on a phone. They arrive from a Reels/Shorts video, the QR code at the venue booth, or a Telegram link. The jury sees the same mobile experience.
+On 25 Nov 2026 the first 2–3 real clients go through the product live, and the pitch film records the Studio screen.
 
-Their job: "Get marketing done for my business without hiring anyone, and without it sounding like a robot wrote it."
+Their job: "Get posts for my channel that sound like me and sell, without hiring anyone."
 
 ## Product Purpose
 
-Mercat (formerly "Uslub AI") is an AI marketing department. The owner pastes one Telegram channel link. Ten AI employees read the channel and return the following in about 60 seconds:
+Mercat (formerly "Uslub AI"; code paths keep `uslub`) is a small marketing department drawn as a panel of lamps: each employee's lamp lights while it works and holds a real result. The owner's path has three steps:
 
-- Brand DNA: tone, siz/sen, emoji density, post length, CTA style.
-- A real channel audit with numbers.
-- A strategy and a week of posts in four scripts (UZ Latin, UZ Cyrillic, RU, EN), cleaned of AI clichés.
-- A Reels script.
-- About ten places where the business's customers are.
+1. **Paste the channel link.** Or, if the channel is empty ("Kanalim hali bo‘sh"), describe the business in a few sentences and optionally add product photos.
+2. **See what is ready.** The department lights up (Spektr on the first run). Then the *Kanal* tab: measured numbers, three findings with what to fix, how the owner writes (five plain lines), the week plan. The *Postlar* tab: posts written from the first plan slots, each with a picture in the channel's style, one post-language switch (O‘zbek · Ўзбек · Рус · Eng), editing.
+3. **Approve, then publish.** "Tasdiqlash" saves the approval; "Kanalga joylash" opens the bot (web) or publishes directly (Mini App). Nothing is published without the owner; the bot must be an admin of the channel.
 
-The owner only approves. Approved posts are published to their channel through the Telegram bot.
+The *Video* tab is a plain notice: video generation is in development and needs API keys. Mijoz radar stays dark ("tez orada").
 
-Success means the owner understands the offer in 5 seconds, pastes a link, sees their own business reflected back accurately, approves a post, publishes it, and comes back the next day.
+Simple mode is the default. **Professional rejim** (a switch on the ready screen) shows the full lamp panel, the strategy (who and why, offer, post types, targets, risks) and the plan details.
+
+Success: the owner understands the page in 5 seconds, pastes a link, watches the department work, recognises their own business in the findings and posts, approves one, and it appears in their channel.
 
 ## Positioning
 
-"Bir havola — butun marketing bo'limi" (one link, a whole marketing department). Onboarding is a single link, not a 20-field form. The output is grounded in the owner's own channel and real numbers. Local by default: four scripts, the Uzbek market, Uzbek Telegram groups. A dedicated editor (Muharrir) removes "neyro-so'zlar" (AI clichés) so the copy sounds human.
+"Kanalingizga postlarni Mercat yozadi. Siz faqat tasdiqlaysiz." One link instead of a form; output grounded in the owner's own channel and real numbers; Uzbek first. The wrapper matters (the owner's words): a dark stage with lamps that light only from real work, a Spektr wow moment, and nothing that looks like a generic AI tool.
 
 ## Operating Context
 
-- Telegram is the operating system of Uzbek small business. Channels, groups and bots are where customers, posts and orders live.
-- Owners decide on a phone, often in daylight inside a shop, in short bursts.
-- The web Studio (`/studio`) shows the department at work. Its first screen is the "Topshiriq bering" delegate box plus the approval inbox. The node canvas ("Bo'limingiz qanday ishlaydi") is a second layer.
-- Publishing:
-  - Inside the Mini App, the UI sends `Authorization: tma <initData>`.
-  - On the plain web, it deep-links to the bot.
-- Publishing rules: routine posts may run on autopilot (beta; UI only today). Promos, prices, video and the first posts always need approval.
+- Telegram is where Uzbek small business lives: channels, groups, bots, orders.
+- The Studio (`/studio`) runs the whole path on one page. `?brand=<id>` reopens a brand and its posts (the bot links there). `?channel=` starts a run (the landing hands over the link). `?mode=fresh` opens the empty-channel form. `?mock=1` runs a labelled sample bakery.
+- Publishing: inside the Mini App the UI sends `Authorization: tma <initData>`; on the web "Kanalga joylash" deep-links to `t.me/<bot>?start=publish_<postId>`.
+- A full run takes 1–2 minutes (the weekly plan alone is ~45 s). The Studio shows the lamps, one line saying what is happening and an m:ss clock, never a fake progress bar.
 
 ## Capabilities and Constraints
 
-- Ten employees, each with one job:
-  - Brend xotirasi
-  - Analitik
-  - Strateg
-  - Kopirayter
-  - Muharrir
-  - Tarjimon
-  - Dizayner
-  - Videograf
-  - SMM-menejer
-  - Mijoz radar
-- The routes under `/api/uslub/*` are the contract (`src/lib/uslub/contract.ts`). When a route is missing, the UI falls back to mock data. That fallback must be visibly labelled "namuna" (sample).
-- Price hypothesis: 7 days free, then 149 000 so'm per month. It is a hypothesis, not a validated price.
-- UI languages: Uzbek Latin first, then Russian and English.
-- Performance:
-  - Lighthouse at least 90 on mobile for the landing page.
-  - No layout shift.
-  - Respect `prefers-reduced-motion`.
-- Dark stage for the landing page and the signature animation. The Studio and Mini App follow the phone or Telegram theme, light or dark.
+- The routes under `/api/uslub/*` are the contract (`src/lib/uslub/contract.ts`). Errors come back as `{ error, code }` with `error` already in the owner's language.
+- **No silent sample data.** A failed call shows an owner-safe message with "Qayta urinish". Sample data exists only behind `?mock=1` and always sits under a "Namuna" banner.
+- Price, shown as beta: 7 days free, then 149 000 so‘m a month. No billing exists yet.
+- UI languages: Uzbek Latin first, Russian, English, switchable on every page (`uz · ru · en`).
+- Pages: `/` landing, `/studio`, `/tg` Mini App, `/qr` (booth QR codes), `/stats` (counts only, no names, not indexed). `/concept` is gone.
 
 ## Brand Commitments
 
-- Name: Mercat (renamed from "Uslub AI" on 24 Nov; internal code paths keep `uslub`).
-- Copy must not sound machine-written. No "neuro-words" or AI clichés. The Muharrir filter is part of the brand promise, so the product's own copy must pass it too.
-- The founder's references set the craft bar and may lend their material:
-  - "AI OS" by Slava Komilov: luminous mesh-gradient widget cards on black, dot-matrix numerals, stacked card decks, a radial orb menu, a neon-lime pill.
-  - A breathing-test app.
-  - A smart-home app with glowing tiles.
-
-  They are not a look to copy. The founder judged a literal copy of them "neuro-slop".
+- Name: Mercat.
+- Copy must not sound machine-written: no AI clichés, no internal jargon ("Brend DNK", "neyro-so‘z", "inson bali"). The owner reads shop words: kanal, post, narx, rasm, reja, tasdiqlash.
+- The lamp world (DESIGN.md) is the look; the old "AI OS" pieces (mesh-gradient cards, glossy orbs, AI portraits, dot grids, neon pills) are not.
 
 ## Evidence on Hand
 
-- Real quality runs on public channels: `docs/quality/safiabakery.md`, `korzinkauz.md`, `uzum_market.md`.
-- Interview quotes in `docs/marketing/pitch.md`. Ask permission before showing names.
-- Reels scripts in `docs/marketing/reels-scripts.md`.
-- Generated agent avatars and orbs in `public/generated/`.
-- No customers, testimonials or revenue yet. Never invent them. Traction numbers come only from the live `/stats` page.
+- Real quality runs on public channels: `docs/quality/*.md`.
+- No customers, testimonials or revenue yet. Never invent them. The landing's example is a made-up bakery and says so.
 
 ## Product Principles
 
-1. Show the owner's own business, not a demo of AI. Real channel, real posts, real numbers. Anything else is labelled "namuna".
-2. Every screen answers "what do I do next?" with one obvious action.
-3. The department works; the owner decides. Approval is the owner's only required job, and it is never hidden.
-4. Human-sounding copy is the product. Interface copy follows the same rule.
-5. Phone first, Telegram native.
+1. Show the owner's own business. Real channel, real posts, real numbers. Anything else is labelled "namuna".
+2. Every screen answers "what is happening and what do I do next?" with one lime action.
+3. Mercat prepares; the owner decides. Approval is never skipped or hidden.
+4. Light means work: a lamp lights only from a real result.
+5. Phone first, Telegram native, uz / ru / en.
 
 ## Accessibility & Inclusion
 
-Uzbek Latin text uses o‘/g‘ (U+2018) and the apostrophe. Fonts must render these, Cyrillic, and Uzbek Cyrillic letters (ў қ ғ ҳ). Readable in daylight on a phone. Respect reduced motion.
+Uzbek Latin uses ‘ (U+2018) in o‘/g‘ and ’ for the tutuq belgisi. Onest renders Latin, Cyrillic and Uzbek Cyrillic (ў қ ғ ҳ). Body text 16 px, targets at least 44 px, visible focus rings, `prefers-reduced-motion` respected (no flicker, no Spektr, no running line).

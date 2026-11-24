@@ -6,22 +6,23 @@ colors:
   glass: "#0d0d10"
   glass-2: "#17171b"
   glass-3: "#222227"
-  hair: "rgb(255 255 255 / 0.07)"
-  hair-2: "rgb(255 255 255 / 0.13)"
+  hair: "rgb(255 255 255 / 0.08)"
+  hair-2: "rgb(255 255 255 / 0.14)"
   ink: "#f3f1ec"
-  ink-2: "#a39f98"
+  ink-2: "#a8a49c"
   ink-3: "#85817a"
   led: "#ffb547"
   led-off: "rgb(255 181 71 / 0.1)"
   lime: "#d7ff3a"
   lime-ink: "#0b0c02"
+  ok: "#3be08a"
   bad: "#ff5a4e"
   light-stage: "#ffffff"
-  light-glass: "#f1f0ed"
-  light-glass-2: "#e9e8e4"
-  light-glass-3: "#dedcd7"
+  light-glass: "#f3f2ef"
+  light-glass-2: "#eae9e5"
+  light-glass-3: "#dfddd8"
   light-ink: "#0d0d11"
-  light-ink-2: "#5b5852"
+  light-ink-2: "#57544e"
   light-ink-3: "#6e6a63"
   light-led: "#c26a00"
   light-focus: "#5a7000"
@@ -183,6 +184,8 @@ Three other materials sit beside the lamps. An amber 5×7 dot-matrix LED, taken 
 
 The layout is drawn first and never moves. State changes are carried by light, weight and stroke pattern: a lamp warms up with a filament flicker, cools down slowly, and its title goes from 450 to 640 weight when it lights. The world refuses the category default where every card glows, and the SaaS feature grid.
 
+**Simplified on 2026-11-24 (owner's correction).** The lamp world stays; it must be simpler and obvious. One lamp panel on the landing (not two). Every screen says what is happening and what to do next. A lit lamp carries one short honest result ("60 post o‘qildi", "7 post rejada", "2/5 rasm"). Roles that do nothing yet (Videograf, Mijoz radar) stay dark with "tez orada". Spektr is the wow moment of the first run. The old "AI OS" screens (mesh-gradient GlowCards, glossy orbs, AI portraits, dot grids, neon pills) are gone; their content now lives in the lamp system. **Simple mode is the default**: the 3-step path with a ten-light strip; **Professional rejim** (a switch on the ready screen) shows the full panel and the strategy and plan details. Every screen speaks uz / ru / en.
+
 **Key Characteristics:**
 - True black stage (dark) or white stage (Telegram light theme), with glass tiles drawn by a 1px inset hairline instead of borders or shadows.
 - Ten lamp hues, one per employee, in fixed pipeline order. Lime is never a lamp.
@@ -249,7 +252,17 @@ A black stage lit only by work: ten spectral lamp hues, one amber for numbers, o
 
 A single 1180px container with 16px gutters on phones and 32px from 640px. The phone column is the design: the first viewport on a 390px phone stacks an LED strip, the 40px promise, the link field with its lime button at roughly y 300, then the top of the dark lamp panel as the fold teaser. From 1024px the hero column sits left and the full panel right (about 1 : 0.95).
 
-The lamp panel is a 2-column grid with a 10px gap, ten lamps in pipeline order, two per row. Sections are separated by a top hairline and 64px (mobile) or 96px (desktop) of vertical padding. Studio and the Mini App are one phone column: the approval deck first, then the delegate field, the LED strip with a timer, then the panel.
+The lamp panel is a 2-column grid with a 10px gap, ten lamps in pipeline order, two per row (five per row in the Studio from 640px). Sections are separated by 64px (mobile) or 96px (desktop) of vertical padding.
+
+On phones the Studio is one column, max 760px, in three phases. The header holds the mark, a quiet "Pro" toggle and `uz · ru · en`.
+
+1. **Start.** Ten dark lights, "Kanalingiz uchun bir haftalik postlar", one line, the link field with the lime "Boshlash", then "Kanalim hali bo‘sh" as a quiet secondary button that opens the description form (text, optional channel, up to 5 photos). Below, the 3 steps as three words and an icon each.
+2. **Working.** A pill naming what is being read and an m:ss clock on the LED, "Bo‘lim ishlayapti", one line saying what is happening now, then the panel. Spektr plays once on the first run, from the pill. Lamps light only from real results.
+3. **Ready.** The brand name, the ten-light strip with "N xodim ishladi" (tap it for the full panel; Pro shows the full panel), then the tabs Kanal, Postlar and Video. Kanal has the measured numbers on the LED, 3 findings, "Qanday yozasiz" in five lines and the week plan, where each row offers "Post tayyor" or "Postini yozish". Postlar has one "Post tili" switch, then each post as a Telegram bubble with its picture, "Eng yaxshi vaqt: day, time", Tahrirlash and Tasdiqlash, then Kanalga joylash. Video is a plain "in development" notice.
+
+On desktop (1024px and wider) the Studio is the pro tool. A frosted-glass **hub** floats 12px in from the edge over the lamp stage. From the top it holds: the channel chip (letter, name, @channel, jonli / o‘qilmoqda / namuna; its menu has Yangi kanal, So‘nggi kanallar and Telegramda ochish), the sections Postlar · Kanal · Video, the Bo‘lim row with ten mini-lamps, the Asboblar tools for the post or channel in focus, and a pinned footer with Oddiy | Pro and the language. Drag it across the screen, or press its dock button, to move it to the other side; fold it to a 76px icon rail. Both choices are remembered. Each mini-lamp is a button with a tooltip ("Analitik · tayyor · 60 post o‘qildi") beside the glass. Behind every working lamp a spot of its own colour sits exactly under its mini-lamp, so the glass frosts real light; the first open of a session flashes the lamps once in pipeline order, and the SMM-menejer blinks twice whenever the owner approves or publishes. Above the canvas an LED sign prints the channel's measured numbers and runs under the glass to the window's edge. The canvas takes the width beside the hub (max 1280px): Postlar in Pro is queue · preview · inspector, Kanal in Pro is two columns. Desktop starts in Professional rejim.
+
+**The Window Rule.** The hub's glass is never tinted by itself: it only shows the light of the lamps that work behind it, and the LED sign that runs under it. With nothing lit it stays dark and the material lives in its edge and sheen. The occlusion shadow belongs to the hub and to pop-overs (menus, tooltips, toasts) only.
 
 **The Layout Never Moves Rule.** Every state a screen can reach is laid out before it is reached. Lamps, results, chips and counters have reserved space; switching state changes light, weight and opacity, never size or position (CLS 0).
 
@@ -280,8 +293,7 @@ Soft, generous and consistent. Every control is a pill (999px): buttons, the lin
 - **Focus:** 2px lime outline at 3px offset (Deep Olive in light theme).
 
 ### Chips
-- **Namuna:** 22px pill, 1px dashed ink-3 stroke, 12px / 500 ink-2 text, no fill. Sits next to whatever it qualifies.
-- **Templates:** quiet pills in a horizontal scroll row under the Studio field.
+- **Namuna:** 22px pill, 1px dashed ink-3 stroke, 12px / 500 ink-2 text, no fill. Sits next to whatever it qualifies. `?mock=1` runs the made-up bakery under a "Namuna…" banner with "Kanalimni tekshirish"; sample posts cannot be published.
 
 ### Cards / Containers
 - **Corner Style:** 20 to 24px.
@@ -297,7 +309,9 @@ Soft, generous and consistent. Every control is a pill (999px): buttons, the lin
 ### Navigation
 - **Header:** the Mark on the left; text links (14px / 500, ink-2 → ink on hover) and a quiet pill to Telegram on the right, all with 44px minimum targets.
 - **Segmented control:** glass pill track with 3px padding; the active item is glass-3 with ink text, inactive ink-2. Never lime.
-- **Switch:** 52×32 pill on glass-3; lime with a Lime Ink knob when on (an owner setting such as autopilot).
+- **Switch:** 52×32 pill on glass-3; lime with a Lime Ink knob when on (an owner setting: Professional rejim).
+- **Language:** a `uz · ru · en` segmented control in every header; the choice is remembered.
+- **Tabs (Studio):** Kanal · Postlar · Video, a 2px ink underline on the active tab, sticky under the header.
 
 ### Lamp Tile (signature)
 One employee, one lamp. Dark glass, filament hairline, name at the bottom, result in the middle. States: `off` (dark, title 450 ink-2), `warming` (glass pulses 0.34 ↔ 0.70 every 2.4s, filament hot), `on` (full glow with flicker-in, result fades in 260ms later), `you` (lit, with a lime dot and "sizni kutmoqda": waiting for the owner), `error` (glow 16% desaturated, red filament). Results show the lamp's measured number in the LED matrix printed in the lamp's own ink, or a short phrase.
@@ -305,8 +319,10 @@ One employee, one lamp. Dark glass, filament hairline, name at the bottom, resul
 ### LED Readout (signature)
 A 5×7 dot-matrix in amber with a soft dot glow, unlit dots drawn as a 10% amber grid. The full-width strip sits on the stage colour with a 12px radius and hairline, stays dark until a real channel or number exists, and scrolls long text as a shop-sign running line (linear, about 0.55s per character, min 6s).
 
-### Telegram Post and Approval Deck
-The owner's unit of work drawn close to Telegram's bubble: avatar, channel name tinted with the brand tone, 15px body, views and time in tabular figures. Pending posts stack as a deck with two ghost edges (scale 0.95 / 0.90, opacity 0.7 / 0.4). Approving sends the front card up and away (translate 14px, -40px, rotate 3deg, 320ms ease-in). Editor-flagged neuro-words carry a 1.5px wavy Error Red underline.
+Lamp results come from real data only: Brend xotirasi «siz», tone · Analitik N post o‘qildi · Strateg N post rejada (n/m while planning) · Kopirayter N post yozildi · Muharrir robot iboralarsiz · Tarjimon N til · Dizayner n/m rasm · SMM-menejer "sizni kutmoqda" until a post is published. The ready screen shows the panel as a ten-light strip (`lamp--xs`, light only) with "7/8 xodim"; Professional rejim shows the full panel.
+
+### Telegram Post
+The owner's unit of work drawn close to Telegram's bubble: the picture full-bleed on top (while it is drawn, the slot is the Dizayner's lamp, warming), avatar and channel name tinted with the brand tone, 16px body, the time. Above it "Tavsiya: Dushanba, 07:30" (a suggestion, never a schedule) and "Tasdiqlandi" once approved; below it Tahrirlash (quiet) and Tasdiqlash (lime), then Kanalga joylash (lime) with one line about the bot.
 
 ### Motion
 - **Lamp on:** 720ms, a flicker keyframe (0 → 0.75 → 0.18 → 0.9 → 0.5 → 1 by 46%), then steady. Spill fades in on expo-out.
@@ -314,8 +330,8 @@ The owner's unit of work drawn close to Telegram's bubble: avatar, channel name 
 - **Tap 120ms, state 200ms, panel 360ms**, all expo-out (cubic-bezier(0.16, 1, 0.3, 1)).
 - **Pipeline step:** each next lamp lights faster, 420ms down to 170ms.
 - **Numbers** settle on a spring (stiffness 170, damping 18) with a slight overshoot; they never jump.
-- **Spektr** (the signature moment, Studio only): the field squeezes to a white-hot point (380ms), charges, drops onto the panel, splits into ten hue beams 22ms apart; each lamp flashes once as its beam lands (a power-on lamp test), then only working employees stay lit. About 1.9s, on WAAPI.
-- **Reduced motion:** no flicker, no Spektr, no running line, no deck flight; lamps fade over 150ms and the state still reads.
+- **Spektr** (the signature moment, the first run of a page only): the LED sign with the owner's channel squeezes to a white-hot point (380ms), charges, drops onto the panel, splits into ten hue beams 22ms apart; each lamp flashes once as its beam lands (a power-on lamp test), then only working employees stay lit. About 1.9s, on WAAPI. Retries do not replay it.
+- **Reduced motion:** no flicker, no Spektr, no running line; lamps fade over 150ms and the state still reads.
 
 ## Do's and Don'ts
 
@@ -342,5 +358,6 @@ The owner's unit of work drawn close to Telegram's bubble: avatar, channel name 
 
 ## Known gaps
 
-- The legacy Studio sub-views (Tahlil, Strategiya, Brend xotirasi, Mijoz radar, Videograf, Avtopilot, Jamoa) and the post review drawer still use the previous dark component styling (`.uslub-legacy`). In the light Telegram theme they sit on a black sheet. They are not part of this system and should be rebuilt from the lamp primitives.
 - `/studio` on the plain web is always dark; only `/tg` follows a light theme.
+- The landing's example post has no picture yet; add one made by the picture pipeline once it runs on a real channel (with the owner's permission).
+- Video is a notice only (needs API keys); Mijoz radar is dark ("tez orada").

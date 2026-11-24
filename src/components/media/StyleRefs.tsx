@@ -2,7 +2,7 @@
 
 import { ImagePlus, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type Ref, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { VisualStyle } from "@/lib/uslub/contract";
 import { copyFor, type Lang } from "./copy";
 import { resizeImageFile } from "./resize";
@@ -19,6 +19,12 @@ import { cx, EASE_OUT, MEDIA_VARS, QUIET_PILL } from "./theme";
  * API: GET  /api/uslub/visual?brandId=&lang= -> { visual | null }
  *      POST /api/uslub/visual { brandId, ownerImages?, refresh?, lang } -> { visual } | { error, code }   (~15-30 s)
  */
+/** For the caller's own "add photos" button. */
+export interface StyleRefsHandle {
+  /** Opens the photo picker. Call it straight from a click handler (no await before it). */
+  addPhotos(): void;
+}
+
 export interface StyleRefsProps {
   brandId: string;
   /** The brand's style if already known (BrandProfile.visual). */
@@ -29,13 +35,27 @@ export interface StyleRefsProps {
   /** Learn the style on mount when the brand has none. Default true. */
   autoLearn?: boolean;
   initData?: string;
+  /** A ready Authorization header value (`tma <initData>`, `handoff <k>`). Wins over initData. */
+  authorization?: string;
   onChange?: (visual: VisualStyle) => void;
   className?: string;
+  ref?: Ref<StyleRefsHandle>;
 }
 
 const MAX_OWNER = 5;
 
-export function StyleRefs({ brandId, initial, lang = "uz", pro = false, autoLearn = true, initData, onChange, className }: StyleRefsProps) {
+export function StyleRefs({
+  brandId,
+  initial,
+  lang = "uz",
+  pro = false,
+  autoLearn = true,
+  initData,
+  authorization,
+  onChange,
+  className,
+  ref,
+}: StyleRefsProps) {
   const t = copyFor(lang);
   const reduce = useReducedMotion() ?? false;
   const [visual, setVisual] = useState<VisualStyle | null>(initial ?? null);
@@ -48,9 +68,10 @@ export function StyleRefs({ brandId, initial, lang = "uz", pro = false, autoLear
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  const auth = authorization || (initData ? `tma ${initData}` : "");
   const headers = useCallback(
-    (): HeadersInit => ({ "Content-Type": "application/json", ...(initData ? { Authorization: `tma ${initData}` } : {}) }),
-    [initData],
+    (): HeadersInit => ({ "Content-Type": "application/json", ...(auth ? { Authorization: auth } : {}) }),
+    [auth],
   );
 
   const learn = useCallback(
@@ -100,6 +121,20 @@ export function StyleRefs({ brandId, initial, lang = "uz", pro = false, autoLear
   }, [autoLearn, brandId, headers, initial, lang, learn]);
 
   const ownerRefs = (visual?.refs ?? []).filter((r) => r.source === "owner").map((r) => r.url);
+  const full = ownerRefs.length >= MAX_OWNER;
+
+  // Same rules as the button: nothing while learning; when full, say so instead of opening the picker.
+  useImperativeHandle(
+    ref,
+    () => ({
+      addPhotos: () => {
+        if (learning) return;
+        if (full) setError(t.tooMany);
+        else fileInput.current?.click();
+      },
+    }),
+    [learning, full, t],
+  );
 
   const onFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = [...(e.target.files ?? [])];
@@ -153,7 +188,7 @@ export function StyleRefs({ brandId, initial, lang = "uz", pro = false, autoLear
                   type="button"
                   onClick={() => remove(r.url)}
                   aria-label={t.remove}
-                  className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-[color-mix(in_srgb,var(--mi-stage)_72%,transparent)] text-[var(--mi-ink)] transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mi-lime)]"
+                  className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-[color-mix(in_srgb,var(--mi-stage)_72%,transparent)] text-[var(--mi-ink)] transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mi-focus)]"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden />
                 </button>
@@ -179,7 +214,7 @@ export function StyleRefs({ brandId, initial, lang = "uz", pro = false, autoLear
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <motion.button
           type="button"
-          disabled={learning || ownerRefs.length >= MAX_OWNER}
+          disabled={learning || full}
           onClick={() => fileInput.current?.click()}
           whileTap={reduce ? undefined : { scale: 0.96 }}
           transition={{ duration: 0.12, ease: EASE_OUT }}

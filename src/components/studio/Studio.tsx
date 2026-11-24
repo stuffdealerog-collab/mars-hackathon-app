@@ -1,489 +1,503 @@
 "use client";
 
-import type { NodeKind } from "@/lib/uslub/contract";
-import { Activity, BookOpen, Clapperboard, Clock3, Compass, Home as HomeIcon, Radar, Send, Settings2, Users, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Mark } from "../lamp/Mark";
-import { AgentAvatar } from "../uslub/AgentAvatar";
-import { AGENT_ORDER, AGENTS, GRAD, TG_BOT_URL } from "../uslub/agents";
-import { GlowCard } from "../uslub/GlowCard";
-import { Orb } from "../uslub/Orb";
-import { AnalysisView } from "./AnalysisView";
-import * as api from "./api";
-import { STATUS_TEXT, StatusIcon } from "./flowParts";
-import { Home } from "./Home";
-import { TEMPLATES } from "./mocks";
-import { DnaCard, LeadList, Storyboard } from "./Panels";
-import { PostReview } from "./PostReview";
-import { StrategyView } from "./StrategyView";
-import { RULES, useStudio, type RuleKey, type View } from "./store";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Led } from "../lamp/Led";
+import { fmt, useCopy, useInitLang } from "../ui/lang";
+import { LangSwitch, Logo, parseChannel } from "../ui/parts";
+import { ChannelSign } from "./ChannelSign";
+import { ChannelTab } from "./ChannelTab";
+import { Panel, SOON_ROLES, Strip, useLamps } from "./Department";
+import { Hub, HUB_W, RAIL_W, StageLight, useDesktop, useHub, useHubRestore } from "./Hub";
+import { PostsSplit, PostsTab } from "./Posts";
+import { SpectrumIntro } from "./SpectrumIntro";
+import { Start } from "./Start";
+import { Toasts } from "./Toasts";
+import { POSTS_PER_RUN, useStudio, type Step, type Tab } from "./store";
 
-const NAV: { key: View; name: string; icon: typeof HomeIcon }[] = [
-  { key: "delegate", name: "Bo‘lim", icon: HomeIcon },
-  { key: "analysis", name: "Tahlil", icon: Activity },
-  { key: "strategy", name: "Strategiya", icon: Compass },
-  { key: "brand", name: "Brend xotirasi", icon: BookOpen },
-  { key: "radar", name: "Mijoz radar", icon: Radar },
-  { key: "video", name: "Videograf", icon: Clapperboard },
-  { key: "rules", name: "Avtopilot", icon: Settings2 },
-  { key: "team", name: "Jamoa", icon: Users },
-];
+type Theme = "light" | "dark";
 
-const noSubscribe = () => () => {};
+/** Exponential ease-out, the system's one curve (DESIGN.md, Motion). */
+const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
-const RULE_NAME: Record<RuleKey, string> = Object.fromEntries(RULES.map((r) => [r.key, r.name.toLowerCase()])) as Record<RuleKey, string>;
+/**
+ * The Studio: one screen that answers "what is this and what do I do", a calm checklist
+ * while it works, then three tabs: Kanal · Postlar · Video.
+ */
+export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: string; inTelegram?: boolean; theme?: Theme; langHint?: string | null }) {
+  useInitLang(langHint);
+  const phase = useStudio((s) => s.phase);
+  const sample = useStudio((s) => s.sample);
+  const entry = useStudio((s) => s.entry);
+  const booted = useRef(false);
 
-function SampleBadge({ className = "" }: { className?: string }) {
-  return (
-    <span className={`rounded-full bg-white/8 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-mute ${className}`} title="Namuna ma'lumot — haqiqiy kanal ma'lumoti emas">
-      namuna
-    </span>
-  );
-}
-
-function ReviewDrawer() {
-  const reviewing = useStudio((s) => s.reviewing);
-  const review = useStudio((s) => s.review);
-  const posts = useStudio((s) => s.posts);
-  const inbox = useStudio((s) => s.inbox);
-  const setItem = useStudio((s) => s.setItem);
-  const updatePost = useStudio((s) => s.updatePost);
-  const brand = useStudio((s) => s.brand);
-  const [note, setNote] = useState<{ text: string; href?: string } | null>(null);
-  const post = posts.find((p) => p.id === reviewing);
-  const item = inbox.find((i) => i.postId === reviewing);
-  const inTelegram = typeof window !== "undefined" && !!api.tgInitData();
   useEffect(() => {
-    const on = (e: KeyboardEvent) => e.key === "Escape" && review(null);
-    window.addEventListener("keydown", on);
-    return () => window.removeEventListener("keydown", on);
-  }, [review]);
-  return (
-    <AnimatePresence>
-      {post && item && (
-        <motion.div
-          className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          onClick={() => {
-            review(null);
-            setNote(null);
-          }}
-        >
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Postni ko'rib chiqish"
-            initial={{ x: 60 }}
-            animate={{ x: 0 }}
-            exit={{ x: 60 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            onClick={(e) => e.stopPropagation()}
-            className="uslub flex h-full w-full max-w-[660px] flex-col overflow-y-auto p-4 shadow-[-30px_0_80px_-20px_rgba(0,0,0,.9)] sm:p-7"
-          >
-            <div className="mb-5 flex items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-1.5">
-                  {(["copywriter", "editor", "translator"] as NodeKind[]).map((k) => (
-                    <Orb key={k} kind={k} size={22} icon={false} />
-                  ))}
-                  <span className="mono-label ml-1">Kopirayter → Muharrir → Tarjimon</span>
-                </div>
-                <h2 className="mt-2 text-[24px] font-bold tracking-[-0.02em]">{post.brief}</h2>
-              </div>
-              <button type="button" aria-label="Yopish" onClick={() => review(null)} className="pill-ghost h-10 w-10">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <PostReview
-              post={post}
-              state={item.state}
-              reasons={item.reasons.map((r) => RULE_NAME[r])}
-              publishLabel={inTelegram ? "Kanalga joylash" : "Telegram orqali joylash"}
-              onChange={(s, t, score) => updatePost(post.id, s, t, score)}
-              onApprove={() => setItem(item.id, { state: "approved" })}
-              onPublish={async (script) => {
-                const r = await api.publishPost(post.id, script, brand.channel ?? "");
-                if (r.ok) {
-                  setItem(item.id, { state: "published", url: r.url });
-                  setNote({ text: "Kanalga joylandi.", href: r.url });
-                } else if (r.needsTelegram) {
-                  window.open(api.BOT_PUBLISH_URL(post.id), "_blank", "noopener");
-                  setNote({ text: "Xavfsizlik uchun joylash Telegram bot orqali tasdiqlanadi. Botda «E'lon qilish» ni bosing.", href: api.BOT_PUBLISH_URL(post.id) });
-                } else {
-                  setNote({ text: r.error ?? "Joylab bo'lmadi. Bot kanalingizda admin ekanini tekshiring.", href: "addAdminUrl" in r ? r.addAdminUrl : undefined });
-                }
-              }}
-            />
-            {note && (
-              <motion.p initial={{ y: 6 }} animate={{ y: 0 }} className="mt-4 rounded-2xl bg-surface-2 px-4 py-3 text-[13px] text-fog shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
-                {note.text}{" "}
-                {note.href && (
-                  <a href={note.href} target="_blank" rel="noreferrer" className="font-semibold text-lime underline underline-offset-4">
-                    Ochish
-                  </a>
-                )}
-              </motion.p>
-            )}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
+    if (booted.current) return;
+    booted.current = true;
+    // On the web an approval waits 4 s for "Bekor qilish"; inside Telegram it goes at once.
+    useStudio.getState().configure({ bot, approveDelayMs: inTelegram ? 0 : 4000 });
+    const st = useStudio.getState(); // read after configure: it sets `sample`
+    // Sample mode shows the made-up bakery straight away: a link form there would only pretend.
+    if (st.sample) {
+      st.startChannel("namuna");
+      return;
+    }
+    const p = new URLSearchParams(window.location.search);
+    const brand = p.get("brand");
+    if (brand) {
+      void st.reopen(brand);
+      return;
+    }
+    // The landing's "Boshlash" hands over the channel: the owner already pressed start.
+    const channel = p.get("channel");
+    const name = channel ? parseChannel(channel) : null;
+    if (name) st.startChannel(name);
+  }, [bot, inTelegram]);
 
-/* ------------------------------------------------------------ views */
+  // Leaving the page: waiting approvals are sent (keepalive), unsaved edits of drafts ask first.
+  // Coming back to the tab after publishing through the bot: the posts' status is re-read.
+  useEffect(() => {
+    const onHide = () => useStudio.getState().flushApprovals();
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      const s = useStudio.getState();
+      if (s.posts.some((p) => p.status === "draft" && s.edited[p.id] && !s.pendingApprove[p.id])) e.preventDefault();
+    };
+    const onBack = () => {
+      if (document.visibilityState === "visible") void useStudio.getState().refreshPosts();
+    };
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("focus", onBack);
+    document.addEventListener("visibilitychange", onBack);
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("focus", onBack);
+      document.removeEventListener("visibilitychange", onBack);
+    };
+  }, []);
 
-function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={() => onChange(!on)}
-      className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${on ? "bg-lime" : "bg-surface-3"}`}
-    >
-      <motion.span layout transition={{ type: "spring", stiffness: 500, damping: 32 }} className={`absolute top-1 h-6 w-6 rounded-full shadow ${on ? "right-1 bg-void" : "left-1 bg-fog"}`} />
-    </button>
-  );
-}
+  // Desktop web: the pro tool, sections in a glass hub over the lamp stage. Phones and the
+  // Mini App keep the one-column Studio below.
+  const desktop = useDesktop();
+  useHubRestore();
+  // Before the browser says how wide it is, draw the hub's silhouette (or the column's header):
+  // no blank frame, no jump from a phone column to the studio.
+  if (desktop === null && !inTelegram) return <StudioSkeleton theme={theme} />;
+  if (desktop && !inTelegram) return <DesktopStudio theme={theme} />;
 
-function Header({ title, sub, sample, children }: { title: string; sub?: string; sample?: boolean; children?: React.ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="flex items-center gap-3 text-[30px] font-bold tracking-[-0.03em] sm:text-[40px]">
-          {title}
-          {sample && <SampleBadge className="!text-[10px]" />}
-        </h1>
-        {sub && <p className="mt-1 max-w-2xl text-[14px] text-mute">{sub}</p>}
-      </div>
-      {children}
+    <div data-theme={theme} className="flex min-h-dvh flex-col bg-paper text-ink">
+      <header className="mx-auto flex w-full max-w-[760px] items-center justify-between gap-3 px-4 pb-2 pt-3 sm:px-6 sm:pt-5">
+        <Logo href={inTelegram ? null : "/"} />
+        <span className="flex items-center gap-2">
+          <ProToggle />
+          <LangSwitch />
+        </span>
+      </header>
+      {sample && <SampleBanner />}
+      <main className="mx-auto w-full max-w-[760px] flex-1 px-4 pb-20 sm:px-6">
+        {phase === "start" && <Start key={`${entry.view}:${entry.channel}`} initialView={entry.view} initialChannel={entry.channel} />}
+        {phase === "working" && <Working />}
+        {phase === "reopening" && <Reopening />}
+        {phase === "ready" && <Ready inTelegram={inTelegram} />}
+      </main>
+      {!inTelegram && <DeviceKeyLine />}
+      <Toasts />
     </div>
   );
 }
 
-function RulesView() {
-  const autopilot = useStudio((s) => s.autopilot);
-  const setRule = useStudio((s) => s.setRule);
+/** Phones in a browser: whose Telegram key is on this device, and the way to forget it. */
+function DeviceKeyLine() {
+  const c = useCopy();
+  const deviceKey = useStudio((s) => s.deviceKey);
+  const signOutDevice = useStudio((s) => s.signOutDevice);
+  if (!deviceKey) return null;
   return (
-    <div className="max-w-2xl">
-      <Header title="Avtopilot qoidalari" sub="Qaysi ishlar o'zi joylanadi, qaysilari sizning tasdig'ingizni kutadi." />
-      <ul className="flex flex-col gap-2">
-        {RULES.map((r) => (
-          <li key={r.key} className="flex items-center gap-4 rounded-[24px] bg-surface px-5 py-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,.07)]">
-            <div className="min-w-0 flex-1">
-              <div className="font-bold">{r.name}</div>
-              <div className="text-[13px] text-mute">{r.hint}</div>
-            </div>
-            <span className={`hidden font-mono text-[10px] uppercase tracking-[0.08em] sm:inline ${autopilot[r.key] ? "text-lime" : "text-wait"}`}>
-              {autopilot[r.key] ? "Avtopilot" : "Tasdiq bilan"}
-            </span>
-            <Toggle on={autopilot[r.key]} onChange={(v) => setRule(r.key, v)} label={`${r.name}: avtopilot`} />
-          </li>
-        ))}
-      </ul>
-      <p className="mt-4 flex items-start gap-2 text-[13px] text-mute">
-        <Clock3 className="mt-0.5 h-4 w-4 shrink-0" />
-        Jadval bo&apos;yicha joylash — beta. Hozir qoidalar shu sahifada saqlanadi; avtomatik jadval hackathondan keyin ulanadi.
+    <p className="mx-auto flex w-full max-w-[760px] flex-wrap items-center gap-x-3 gap-y-1 px-4 pb-6 text-[13px] text-ink-3 sm:px-6">
+      {fmt(c.hub.keyOwner, { id: deviceKey })}
+      <button type="button" className="link text-ink-2" onClick={signOutDevice}>
+        {c.hub.signOut}
+      </button>
+    </p>
+  );
+}
+
+/** Desktop layout: the hub (sections, department, settings) + the working area beside it. */
+function DesktopStudio({ theme }: { theme?: Theme }) {
+  const phase = useStudio((s) => s.phase);
+  const sample = useStudio((s) => s.sample);
+  const entry = useStudio((s) => s.entry);
+  const lamps = useLamps();
+  const { side, collapsed } = useHub();
+  const gutter = (collapsed ? RAIL_W : HUB_W) + 36;
+  return (
+    <div data-theme={theme} className="relative min-h-dvh bg-stage text-ink">
+      <StageLight lamps={lamps} />
+      <Hub lamps={lamps} />
+      {/* The canvas takes the width beside the hub: a pro tool, not a phone column. Reading
+          screens (start, the run) keep a reading measure; the ready workspace spreads out. */}
+      <main
+        className="relative z-10 w-full px-10 pb-24 pt-6 transition-[padding] duration-300"
+        style={side === "left" ? { paddingLeft: gutter + 8 } : { paddingRight: gutter + 8 }}
+      >
+        {/* The channel's numbers on an LED sign that runs under the glass to the window's edge. */}
+        {phase === "ready" && <ChannelSign bleed={gutter + 8} side={side} />}
+        <div className={phase === "ready" ? "mx-auto max-w-[1280px]" : "mx-auto max-w-[720px]"}>
+          {sample && <SampleBanner flush />}
+          {phase === "start" && <Start key={`${entry.view}:${entry.channel}`} initialView={entry.view} initialChannel={entry.channel} />}
+          {phase === "working" && <Working />}
+          {phase === "reopening" && <Reopening />}
+          {phase === "ready" && <Ready inTelegram={false} desktop />}
+        </div>
+      </main>
+      <Toasts inset={side === "left" ? gutter : -gutter} />
+    </div>
+  );
+}
+
+/** One quiet toggle for marketers: the same screens, denser. Remembered on this device. */
+function ProToggle() {
+  const c = useCopy();
+  const pro = useStudio((s) => s.pro);
+  const setPro = useStudio((s) => s.setPro);
+  return (
+    <span className="seg">
+      <button type="button" aria-pressed={pro} title={c.pro.label} aria-label={c.pro.label} onClick={() => setPro(!pro)} className="!px-3.5">
+        Pro
+      </button>
+    </span>
+  );
+}
+
+function SampleBanner({ flush = false }: { flush?: boolean }) {
+  const c = useCopy();
+  return (
+    <div className={flush ? "mb-2" : "mx-auto mt-2 w-full max-w-[760px] px-4 sm:px-6"}>
+      <p className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl border border-line bg-card px-4 py-2.5 text-[14px] text-ink-2">
+        <span>{c.sample.banner}</span>
+        <a href="/studio" className="link text-ink">
+          {c.sample.cta}
+        </a>
       </p>
     </div>
   );
 }
 
-function TeamView() {
-  const flow = useStudio((s) => s.flow);
-  const status = useStudio((s) => s.status);
-  const statusOf = (role: string) => {
-    const n = flow?.nodes.find((x) => x.kind === role);
-    return n ? status[n.id] : undefined;
-  };
+function Reopening() {
+  const c = useCopy();
   return (
-    <div>
-      <Header title="Jamoa" sub="Har bir xodimning bitta vazifasi bor. Bugun nima qilganini shu yerda ko'rasiz." />
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {AGENT_ORDER.map((r, i) => {
-          const a = AGENTS[r];
-          const st = statusOf(r);
-          const [g1, g2] = GRAD[r];
-          return (
-            <motion.li key={r} initial={{ y: 16 }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 240, damping: 22, delay: i * 0.04 }}>
-              <GlowCard from={g1} to={g2} strength={0.7} className="h-full p-5">
-                <div className="flex items-start gap-3">
-                  <AgentAvatar kind={r} size={64} photo />
-                  <div className="min-w-0">
-                    <div className="text-[18px] font-bold tracking-tight">{a.name}</div>
-                    <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-white/70">{a.ru} · {a.en}</div>
-                    {st && (
-                      <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-0.5 font-mono text-[10px] uppercase text-white">
-                        <StatusIcon status={st} className="h-3 w-3" /> {STATUS_TEXT[st]}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <p className="mt-3 text-[13px] text-white/85">{a.does}</p>
-                <p className="mt-3 rounded-2xl bg-black/40 px-3 py-2 text-[12px] text-white/85 backdrop-blur"><span className="mono-label !text-lime">Bugun</span> {a.today}</p>
-              </GlowCard>
-            </motion.li>
-          );
-        })}
-      </ul>
-    </div>
+    <p className="breathe pt-12 text-[16px] text-ink-2" role="status">
+      {c.reopen.loading}
+    </p>
   );
 }
 
-function BrandView() {
-  const brand = useStudio((s) => s.brand);
-  const setKnowledge = useStudio((s) => s.setKnowledge);
-  const [channel, setChannel] = useState(brand.channel ?? "");
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState("");
+/* --------------------------------------------------------------- working */
+
+function stepLabel(step: Step, mode: "channel" | "fresh", c: ReturnType<typeof useCopy>): string | null {
+  const w = c.work;
+  if (step.status === "skip") return null;
+  // A failed step reads as the plain noun next to its cross, not as "…in progress".
+  const wait = step.status === "wait" || step.status === "fail";
+  const run = step.status === "run";
+  switch (step.key) {
+    case "read": {
+      const t = mode === "fresh" ? w.readDesc : w.readChannel;
+      if (wait) return t.wait;
+      if (run) return t.run;
+      return mode === "channel" && step.n != null ? fmt(w.readChannel.done, { n: step.n }) : t.done.split(" · ")[0];
+    }
+    case "voice":
+      return wait ? w.voice.wait : run ? w.voice.run : w.voice.done;
+    case "photos":
+      return wait ? w.photos.wait : run ? w.photos.run : w.photos.done;
+    case "plan":
+      if (wait) return w.plan.wait;
+      if (run) return step.m ? fmt(w.plan.count, { n: step.n ?? 0, m: step.m }) : w.plan.run;
+      return fmt(w.plan.done, { n: step.n ?? 0 });
+    case "posts":
+      if (wait) return fmt(w.posts.wait, { n: POSTS_PER_RUN });
+      return run ? fmt(w.posts.run, { n: step.n ?? POSTS_PER_RUN }) : fmt(w.posts.done, { n: step.n ?? 0 });
+    case "images":
+      if (wait) return w.images.wait;
+      return run ? fmt(w.images.run, { n: step.n ?? 0, m: step.m ?? POSTS_PER_RUN }) : fmt(w.images.done, { n: step.n ?? 0, m: step.m ?? 0 });
+  }
+}
+
+/** Spektr plays once per page: the first run's wow, not every retry. */
+let spektrPlayed = false;
+
+function Working() {
+  const c = useCopy();
+  const steps = useStudio((s) => s.steps);
+  const mode = useStudio((s) => s.mode);
+  const problem = useStudio((s) => s.problem);
+  const retry = useStudio((s) => s.retry);
+  const reset = useStudio((s) => s.reset);
+  const input = useStudio((s) => s.input);
+  const sample = useStudio((s) => s.sample);
+  const head = useRef<HTMLHeadingElement>(null);
+  const ledRef = useRef<HTMLSpanElement>(null);
+  const panelRef = useRef<HTMLUListElement>(null);
+  // A wrong or private link will fail the same way again: the way forward is another link.
+  const fixLink = !!problem && ["channel_invalid", "not_found", "invalid_input", "channel_mismatch"].includes(problem.code);
+
+  // The first run opens with Spektr: the channel's light drops onto the panel and splits into
+  // ten beams; the lamps stay dark until the beams land. Never under reduced motion.
+  const [intro, setIntro] = useState<{ gate: boolean } | null>(() => {
+    if (spektrPlayed || typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
+    spektrPlayed = true;
+    return { gate: true };
+  });
+  const onBloom = useCallback(() => setIntro((i) => (i ? { gate: false } : i)), []);
+  const onDone = useCallback(() => setIntro(null), []);
+  // Safety net: if the intro cannot animate (hidden tab, no rAF), never keep the lamps dark.
+  useEffect(() => {
+    if (!intro?.gate) return;
+    const id = window.setTimeout(() => setIntro((i) => (i ? { gate: false } : i)), 2500);
+    return () => clearTimeout(id);
+  }, [intro?.gate]);
+  const lamps = useLamps(!!intro?.gate);
+
+  useEffect(() => {
+    head.current?.focus({ preventScroll: true });
+  }, []);
+
+  const running = steps.find((s) => s.status === "run");
+  const failed = steps.find((s) => s.status === "fail");
+  const lastDone = [...steps].reverse().find((s) => s.status === "done");
+  const now = running ?? failed ?? lastDone;
+  const nowLabel = now ? stepLabel(now, mode, c) : null;
+  // What is being read: the owner's channel, or the sample, said plainly.
+  const source = sample ? c.sample.chip : input.channel ? `@${input.channel}` : c.work.readDesc.wait;
+
   return (
-    <div>
-      <Header title="Brend xotirasi" sub="Biznesingiz haqida bir marta yozing — barcha xodimlar shundan foydalanadi." sample={useStudio.getState().sources.brand !== "live"} />
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_440px]">
-        <div className="flex flex-col gap-4">
-          <label className="block">
-            <span className="mono-label mb-2 block">Bilimlar bazasi</span>
-            <textarea
-              value={brand.knowledge}
-              onChange={(e) => setKnowledge(e.target.value)}
-              rows={8}
-              placeholder="Mahsulotlar, narxlar, manzil, ish vaqti, tarixingiz"
-              className="w-full rounded-[24px] bg-surface p-4 text-[14px] leading-relaxed text-fog shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)] outline-none focus:shadow-[inset_0_0_0_1px_rgba(215,255,58,.5)]"
-            />
-          </label>
-          <div>
-            <div className="mono-label mb-2">Manbalar</div>
-            <ul className="flex flex-col gap-2 text-[14px]">
-              <li className="flex flex-wrap items-center gap-3 rounded-[22px] bg-surface px-4 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
-                <Orb kind="publisher" size={28} />
-                <span className="font-semibold">Telegram kanal</span>
-                <input value={channel} onChange={(e) => setChannel(e.target.value)} aria-label="Telegram kanal" className="min-w-0 flex-1 rounded-full bg-surface-2 px-3.5 py-1.5 text-fog outline-none focus:shadow-[inset_0_0_0_1px_rgba(215,255,58,.5)]" />
-                <span className="rounded-full bg-ok/15 px-2 py-0.5 font-mono text-[10px] uppercase text-ok">Ulangan</span>
-              </li>
-              {["Instagram", "YouTube"].map((s) => (
-                <li key={s} className="flex items-center gap-3 rounded-[22px] bg-surface/50 px-4 py-3 text-mute shadow-[inset_0_0_0_1px_rgba(255,255,255,.05)]">
-                  <span className="h-7 w-7 rounded-full border border-dashed border-white/20" />
-                  <span className="flex-1 font-semibold">{s}</span>
-                  <span className="rounded-full bg-white/5 px-2 py-0.5 font-mono text-[10px] uppercase">Tez kunda</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                const r = await api.createBrand({ channel, knowledge: brand.knowledge });
-                useStudio.setState({ brand: r.data, sources: { ...useStudio.getState().sources, brand: r.source } });
-                setNote(r.source === "live" ? "Brend DNK yangilandi." : "Namuna rejimi: DNK namunadan olindi.");
-                setBusy(false);
-              }}
-              className="pill-lime px-5 py-2.5 text-[14px]"
-            >
-              {busy ? "Kanal o'qilmoqda…" : "Brend DNK ni yangilash"}
-            </button>
-            {note && <span className="text-[13px] text-mute">{note}</span>}
-          </div>
-        </div>
-        <DnaCard dna={brand.dna} />
+    <div className="pt-4 sm:pt-8">
+      {/* Spektr's light starts from this pill: the thing Mercat is reading. */}
+      <div className="flex items-center justify-between gap-3">
+        <span ref={ledRef} className="inline-flex min-h-10 min-w-0 items-center truncate rounded-full bg-glass-2 px-4 text-[15px] font-medium shadow-[inset_0_0_0_1px_var(--hair-2)]">
+          {source}
+        </span>
+        <span className="shrink-0 rounded-[12px] bg-stage px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
+          <ElapsedLed />
+        </span>
       </div>
-    </div>
-  );
-}
 
-function RadarView() {
-  const leads = useStudio((s) => s.leads);
-  const brand = useStudio((s) => s.brand);
-  const [busy, setBusy] = useState(false);
-  return (
-    <div>
-      <Header title="Mijoz radar" sub="Mijozlaringiz qayerda — va u yerda nima qilish kerak." sample={leads.length > 0 && useStudio.getState().sources.radar !== "live"}>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true);
-            const r = await api.findLeads(brand.id);
-            useStudio.setState({ leads: r.data, sources: { ...useStudio.getState().sources, radar: r.source } });
-            setBusy(false);
-          }}
-          className="pill-lime px-5 py-2.5 text-[14px]"
-        >
-          {busy ? "Internetdan qidirilmoqda…" : leads.length ? "Qayta qidirish" : "Mijozlarni topish"}
-        </button>
-      </Header>
-      {leads.length ? (
-        <LeadList leads={leads} />
-      ) : (
-        <p className="rounded-[24px] border border-dashed border-white/15 p-6 text-[14px] text-mute">Hali qidirilmagan. «Mijozlarni topish» ni bosing yoki «Mijoz qidirish» topshirig&apos;ini bering.</p>
-      )}
-    </div>
-  );
-}
+      <h1 ref={head} tabIndex={-1} className="mt-6 text-[28px] font-semibold leading-tight tracking-[-0.03em] outline-none sm:text-[34px]">
+        {problem ? c.error.title : c.dept.working}
+      </h1>
+      <p className="mt-1.5 min-h-6 text-[16px] text-ink-2" aria-live="polite">
+        {nowLabel}
+        {!problem && <span className="text-ink-3"> · {c.work.note}</span>}
+      </p>
 
-function VideoView() {
-  const video = useStudio((s) => s.video);
-  const brand = useStudio((s) => s.brand);
-  const [busy, setBusy] = useState(false);
-  return (
-    <div>
-      <Header title="Videograf" sub="Reels va TikTok: birinchi 2 soniya, kadrlar, ovoz va subtitrlar." sample={!!video && useStudio.getState().sources.video !== "live"}>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true);
-            const r = await api.planVideo(brand.id, "Yangi mahsulot uchun 15 soniyalik Reels");
-            useStudio.setState({ video: r.data, sources: { ...useStudio.getState().sources, video: r.source } });
-            setBusy(false);
-          }}
-          className="pill-lime px-5 py-2.5 text-[14px]"
-        >
-          {busy ? "Yozilmoqda…" : video ? "Yangi ssenariy" : "Ssenariy yozish"}
-        </button>
-      </Header>
-      {video ? (
-        <Storyboard plan={video} />
-      ) : (
-        <p className="rounded-[24px] border border-dashed border-white/15 p-6 text-[14px] text-mute">Hali ssenariy yo&apos;q. «Ssenariy yozish» ni bosing yoki «Reels» topshirig&apos;ini bering.</p>
-      )}
-    </div>
-  );
-}
+      <div className="relative mt-5">
+        <Panel ref={panelRef} lamps={lamps} />
+        {intro && <SpectrumIntro fieldRef={ledRef} panelRef={panelRef} onBloom={onBloom} onDone={onDone} dark={SOON_ROLES} />}
+      </div>
 
-/* ------------------------------------------------------------ shell */
-
-export function Studio({ inTelegram = false, theme = "dark" }: { inTelegram?: boolean; theme?: "light" | "dark" }) {
-  const view = useStudio((s) => s.view);
-  const setView = useStudio((s) => s.setView);
-  const run = useStudio((s) => s.run);
-  const sources = useStudio((s) => s.sources);
-  const brand = useStudio((s) => s.brand);
-  const inbox = useStudio((s) => s.inbox);
-  const flow = useStudio((s) => s.flow);
-  const status = useStudio((s) => s.status);
-  const started = useRef(false);
-
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    const sp = new URLSearchParams(window.location.search);
-    const demo = sp.get("demo");
-    const channel = sp.get("channel")?.slice(0, 64);
-    const t = TEMPLATES.find((x) => x.key === demo);
-    if (!t) return;
-    const task = demo === "bir-havola" && channel ? `${channel} — butun marketingni yo'lga qo'ying` : t.task;
-    // No cleanup on purpose: the started-ref guard already makes this run once,
-    // and a cleanup would cancel it under React's double-invoked dev effects.
-    window.setTimeout(() => void run(task), 350);
-  }, [run]);
-
-  // Approval and publisher nodes follow the owner's decisions in the inbox.
-  useEffect(() => {
-    if (!flow || inbox.length === 0) return;
-    const ok = flow.nodes.find((n) => n.kind === "approval");
-    const pub = flow.nodes.find((n) => n.kind === "publisher");
-    const waiting = inbox.some((i) => i.state === "waiting");
-    const published = inbox.some((i) => i.state === "published");
-    const next = { ...status };
-    if (ok && status[ok.id] === "needs_approval" && !waiting) next[ok.id] = "done";
-    if (pub && published && status[pub.id] !== "done") next[pub.id] = "done";
-    if (JSON.stringify(next) !== JSON.stringify(status)) useStudio.setState({ status: next });
-  }, [inbox, flow, status]);
-
-  const live = sources.brand === "live";
-  // Hydration-safe read of ?channel= (the page is prerendered without a query).
-  const search = useSyncExternalStore(noSubscribe, () => window.location.search, () => "");
-  const urlChannel = useMemo(() => {
-    const m = new URLSearchParams(search).get("channel")?.match(/(?:t\.me\/|@)?([A-Za-z][A-Za-z0-9_]{3,31})/);
-    return m ? `@${m[1]}` : null;
-  }, [search]);
-  const reading = !sources.brand && (!!urlChannel || !!flow);
-  const shownChannel = reading ? (urlChannel ?? brand.channel) : brand.channel;
-  const waiting = useMemo(() => inbox.filter((i) => i.state === "waiting").length, [inbox]);
-
-  return (
-    <div className="lw flex min-h-dvh flex-col" data-theme={theme === "light" ? "light" : undefined}>
-      <header className="sticky top-0 z-30 border-b border-[var(--hair)] bg-[color-mix(in_oklab,var(--stage)_86%,transparent)] backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between gap-3 px-4 pt-3 sm:px-8">
-          <Mark href={inTelegram ? null : "/"} />
-          <div className="flex min-w-0 items-center gap-2">
-            {shownChannel && <span className="truncate text-[13.5px] text-[var(--ink-2)]">{shownChannel}</span>}
-            {reading ? (
-              <span className="rounded-full px-2.5 py-1 text-[12px] text-[var(--ink-2)]" style={{ boxShadow: "inset 0 0 0 1px var(--hair-2)" }}>
-                o‘qilmoqda
-              </span>
-            ) : live ? (
-              <span className="rounded-full px-2.5 py-1 text-[12px] font-medium text-[var(--ink)]" style={{ boxShadow: "inset 0 0 0 1px var(--hair-2)" }}>
-                jonli
-              </span>
+      {problem && (
+        <div role="alert" className="mt-8 rounded-2xl border border-line bg-card p-4 sm:p-5">
+          <p className="text-[16px] leading-relaxed">{problem.message}</p>
+          <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
+            {fixLink ? (
+              <button type="button" className="btn" onClick={reset}>
+                {c.error.startOver}
+              </button>
             ) : (
-              <span className="namuna">namuna</span>
-            )}
-            {!inTelegram && (
-              <a href={TG_BOT_URL} target="_blank" rel="noreferrer" aria-label="Telegram bot" className="btn-quiet !min-h-9 !px-3">
-                <Send className="h-4 w-4" aria-hidden />
-              </a>
+              <>
+                <button type="button" className="btn" onClick={retry}>
+                  {c.error.retry}
+                </button>
+                <button type="button" className="btn-2" onClick={reset}>
+                  {c.error.startOver}
+                </button>
+              </>
             )}
           </div>
         </div>
-        {inTelegram ? (
-          <div className="h-3" />
-        ) : (
-        <nav aria-label="Studiya" className="mx-auto flex w-full max-w-[1180px] gap-1 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] sm:px-7">
-          {NAV.map((n) => {
-            const Icon = n.icon;
-            const on = view === n.key;
-            return (
-              <button
-                key={n.key}
-                type="button"
-                onClick={() => setView(n.key)}
-                aria-current={on ? "page" : undefined}
-                className={`flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2 text-[14px] font-medium transition-colors duration-200 ${
-                  on ? "bg-[var(--glass-3)] text-[var(--ink)]" : "text-[var(--ink-2)] hover:text-[var(--ink)]"
-                }`}
-              >
-                <Icon className="h-4 w-4" aria-hidden />
-                <span className="whitespace-nowrap">{n.name}</span>
-                {n.key === "delegate" && waiting > 0 && (
-                  <span className="tnum rounded-full bg-[var(--lime)] px-1.5 text-[11.5px] font-semibold text-[var(--lime-ink)]">{waiting}</span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
+      )}
+    </div>
+  );
+}
+
+/** The run's clock on the LED: m:ss, a measured number like the rest of the sign. */
+function ElapsedLed() {
+  const startedAt = useStudio((s) => s.startedAt);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const s = Math.max(0, Math.round((now - startedAt) / 1000));
+  return <Led text={`${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`} dot={3} gap={1.3} grid={false} label={`${s} s`} />;
+}
+
+/* ----------------------------------------------------------------- ready */
+
+function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?: boolean }) {
+  const c = useCopy();
+  const tab = useStudio((s) => s.tab);
+  const setTab = useStudio((s) => s.setTab);
+  const brand = useStudio((s) => s.brand);
+  const posts = useStudio((s) => s.posts);
+  const newChannel = useStudio((s) => s.newChannel);
+  const sample = useStudio((s) => s.sample);
+  const pro = useStudio((s) => s.pro);
+  const lamps = useLamps();
+  const reduce = useReducedMotion() ?? false;
+  const tabs: { key: Tab; name: string }[] = [
+    { key: "channel", name: c.tabs.channel },
+    { key: "posts", name: c.tabs.posts },
+    { key: "video", name: c.tabs.video },
+  ];
+  const name = brand?.dna.name || brand?.channel;
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    const i = tabs.findIndex((t) => t.key === tab);
+    const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+    setTab(next.key);
+    document.getElementById(`tab-${next.key}`)?.focus();
+  };
+
+  return (
+    <div className="pt-4 sm:pt-8">
+      <ReadyProblem />
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="truncate text-[26px] font-semibold leading-tight tracking-[-0.02em] sm:text-[32px]">{name}</h1>
+          {brand?.channel && brand.channel !== name && <p className="mt-0.5 text-[15px] text-ink-2">{brand.channel}</p>}
+        </div>
+        {!sample && (
+          <button type="button" onClick={newChannel} className="link mt-1.5 shrink-0 text-[15px] text-ink-2">
+            {c.channel.newChannel}
+          </button>
         )}
-      </header>
-      <main className="mx-auto w-full min-w-0 max-w-[1180px] flex-1 px-4 py-6 sm:px-8 lg:py-10">
-        {view === "delegate" || (inTelegram && view !== "video") ? (
-          <Home inTelegram={inTelegram} />
-        ) : (
-          <div className="uslub-legacy">
-            {inTelegram && (
-              <button type="button" onClick={() => setView("delegate")} className="btn-quiet mb-5 !min-h-11 !px-4 !text-[14px]">
-                Bo‘limga qaytish
-              </button>
-            )}
-            {view === "analysis" && <AnalysisView />}
-            {view === "strategy" && <StrategyView />}
-            {view === "team" && <TeamView />}
-            {view === "brand" && <BrandView />}
-            {view === "radar" && <RadarView />}
-            {view === "video" && <VideoView />}
-            {view === "rules" && <RulesView />}
-          </div>
-        )}
-      </main>
-      <ReviewDrawer />
+      </div>
+
+      {/* The department stays on screen: ten small lights, or the full panel in Professional rejim.
+          On desktop the hub holds the lights; the full panel lives in Bo‘lim. */}
+      {desktop ? null : <div className="mt-4">{pro ? <Panel lamps={lamps} /> : <Strip lamps={lamps} />}</div>}
+
+      <div
+        role="tablist"
+        aria-label="Mercat"
+        onKeyDown={onKey}
+        className={desktop ? "sr-only" : "sticky top-0 z-10 -mx-4 mt-5 flex gap-1 border-b border-line bg-paper px-4 sm:mx-0 sm:px-0"}
+      >
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            id={`tab-${t.key}`}
+            role="tab"
+            type="button"
+            aria-selected={tab === t.key}
+            aria-controls={`panel-${t.key}`}
+            tabIndex={tab === t.key ? 0 : -1}
+            onClick={() => setTab(t.key)}
+            className={`-mb-px min-h-12 border-b-2 px-3 text-[16px] transition-colors ${tab === t.key ? "border-ink font-semibold text-ink" : "border-transparent text-ink-2 hover:text-ink"}`}
+          >
+            {t.name}
+            {t.key === "posts" && posts.length > 0 && <span className="tnum ml-1.5 text-ink-3">{posts.length}</span>}
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={tab}
+          id={`panel-${tab}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${tab}`}
+          className="@container pt-7"
+          initial={reduce ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduce ? undefined : { opacity: 0, y: -4 }}
+          transition={{ duration: 0.22, ease: EASE_OUT }}
+        >
+          {tab === "channel" && <ChannelTab wide={desktop} />}
+          {tab === "posts" && (desktop && pro ? <PostsSplit lamps={lamps} /> : <PostsTab inTelegram={inTelegram} column={desktop} />)}
+          {tab === "dept" && <DeptTab />}
+          {tab === "video" && <VideoTab />}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** A failed "Postini yozish" or plan in ready: said above the work, dismissed by the owner. */
+function ReadyProblem() {
+  const c = useCopy();
+  const problem = useStudio((s) => s.problem);
+  if (!problem) return null;
+  return (
+    <div role="alert" className="mb-6 flex flex-wrap items-center gap-3 rounded-[16px] bg-[var(--bad-soft)] px-4 py-3 text-[15px] shadow-[inset_0_0_0_1px_var(--hair)]">
+      <p className="mr-auto leading-relaxed">{problem.message}</p>
+      <button type="button" className="btn-2 !min-h-9 !px-4 !text-[14px]" onClick={() => useStudio.setState({ problem: null })}>
+        {c.problem.dismiss}
+      </button>
+    </div>
+  );
+}
+
+/** CSS only, until the first client frame knows the width: the hub at 1024+, the header below. */
+function StudioSkeleton({ theme }: { theme?: Theme }) {
+  return (
+    <div data-theme={theme} className="min-h-dvh bg-paper text-ink lg:bg-stage" aria-busy="true">
+      <div aria-hidden className="hub fixed bottom-3 left-3 top-3 z-30 hidden w-[292px] lg:block" />
+      <div aria-hidden className="mx-auto h-[60px] w-full max-w-[760px] px-4 sm:px-6 lg:hidden" />
+    </div>
+  );
+}
+
+/**
+ * Bo‘lim (Pro): the whole department, each lamp opening what it did, and the work log: every
+ * step of the run, its state and how long it took.
+ */
+function DeptTab() {
+  const c = useCopy();
+  const lamps = useLamps();
+  const steps = useStudio((s) => s.steps);
+  const mode = useStudio((s) => s.mode);
+  const newChannel = useStudio((s) => s.newChannel);
+  const sample = useStudio((s) => s.sample);
+  const rows = steps.map((s) => ({ s, label: stepLabel(s, mode, c) })).filter((r) => r.label);
+  return (
+    <div className="flex flex-col gap-10">
+      <Panel lamps={lamps} size="md" showJob />
+      {rows.length > 0 && (
+        <section aria-labelledby="log-h">
+          <h2 id="log-h" className="mb-4 text-[20px] font-semibold tracking-[-0.01em]">
+            {c.dept.log}
+          </h2>
+          <ol className="card divide-y divide-line">
+            {rows.map(({ s, label }) => (
+              <li key={s.key} className="flex items-baseline justify-between gap-4 px-4 py-3 text-[15px] @md:px-5">
+                <span className={s.status === "fail" ? "text-bad" : s.status === "done" ? "text-ink" : "text-ink-2"}>{label}</span>
+                <span className="tnum shrink-0 text-[13px] text-ink-3">{s.t0 && s.t1 ? fmt(c.pro.took, { s: Math.max(1, Math.round((s.t1 - s.t0) / 1000)) }) : ""}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {!sample && (
+        <button type="button" className="btn-2 self-start" onClick={newChannel}>
+          {c.hub.newChannel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function VideoTab() {
+  const c = useCopy();
+  return (
+    <div className="card p-5">
+      <h2 className="text-[18px] font-semibold">{c.video.title}</h2>
+      <p className="mt-2 text-[16px] leading-relaxed text-ink-2">{c.video.text}</p>
     </div>
   );
 }
