@@ -1,9 +1,8 @@
-import type { PostDraft, PostImage as PostImageData, Script } from "@/lib/uslub/contract";
+import type { PostDraft, Script } from "@/lib/uslub/contract";
 import { Check, ChevronRight, Send } from "lucide-react";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { PostImage } from "../../media";
 import * as api from "../../studio/api";
-import { PostPicture } from "../../studio/PostPicture";
 import { useStudio } from "../../studio/store";
 import { fmt, keepNumbers, useCopy, useLang } from "../../ui/lang";
 import { blankNote, blankTokens, useBlank } from "../blank";
@@ -17,10 +16,6 @@ import { scriptOf, usePostScript, useWhen } from "./Posts";
 type Status = "draft" | "approved" | "published";
 const statusOf = (p: PostDraft): Status => (p.status === "published" ? "published" : p.status === "approved" ? "approved" : "draft");
 const picturePending = (p: PostDraft) => !!p.image && (p.image.status === "queued" || p.image.status === "running");
-
-/** Keeps the store's copy of a post's picture in step with what PostImage shows (thumbnails, publish gate). */
-const setPostImage = (id: string, image: PostImageData) =>
-  useStudio.setState({ posts: useStudio.getState().posts.map((p) => (p.id === id ? { ...p, image } : p)) });
 
 /** Approve, then publish, from inside Telegram (no bot detour). Outcomes answer with haptics, a toast or a native popup. */
 export function usePostActions() {
@@ -37,18 +32,17 @@ export function usePostActions() {
 
   const approve = async (id: string) => {
     haptic.press();
-    await useStudio.getState().approve(id);
-    const st = useStudio.getState();
-    const p = st.posts.find((x) => x.id === id);
-    if (p?.status === "approved") {
+    // The MainButton is a deliberate tap: no undo delay on the phone.
+    const r = await useStudio.getState().approve(id, 0);
+    if (r.ok) {
       haptic.success();
       say(m.post.approvedToast, "ok");
       return;
     }
-    const note = st.postNote[id];
+    if (!r.message && !useStudio.getState().postNote[id]) return; // already in flight
     // A blank left in the text is the owner's to fill, never an error: the hint shows on the post.
-    if (note?.tone === "hint") haptic.warn();
-    else refuse(note?.text ?? c.posts.approveError);
+    if (useStudio.getState().postNote[id]?.tone === "hint") haptic.warn();
+    else refuse(r.message || c.posts.approveError);
   };
 
   const publish = async (id: string, script: Script) => {
@@ -66,17 +60,14 @@ export function usePostActions() {
       return;
     }
     haptic.press();
-    await st.publish(id, script);
-    const after = useStudio.getState();
-    const p = after.posts.find((x) => x.id === id);
-    if (p?.status === "published") {
+    const r = await st.publish(id, script);
+    if (r.ok) {
       haptic.success();
       say(m.post.publishedToast, "ok");
       return;
     }
-    const note = after.postNote[id];
-    if (note?.tone === "hint") haptic.warn();
-    else refuse(note?.text ?? c.error.generic, note?.href);
+    if (useStudio.getState().postNote[id]?.tone === "hint") haptic.warn();
+    else refuse(r.message || c.error.generic, r.adminUrl);
   };
 
   return { approve, publish };
@@ -217,30 +208,6 @@ function TextWithBlanks({ text, tokens }: { text: string; tokens: string[] }) {
   );
 }
 
-/** "Kanalingizdagi 4 ta rasm asosida": which pictures the style came from, with the channel's palette. */
-function RefsLine({ post }: { post: PostDraft }) {
-  const m = useMiniCopy();
-  const visual = useStudio((s) => s.brand?.visual);
-  const fresh = useStudio((s) => s.mode === "fresh");
-  const img = post.image;
-  if (img?.status !== "ready" || !img.url || !img.refsUsed) return null;
-  const owner = visual?.refs.some((r) => r.source === "owner");
-  const channel = visual?.refs.some((r) => r.source === "channel");
-  const text = fresh ? m.refs.owner : owner && channel ? m.refs.mixed : owner ? m.refs.owner : m.refs.channel;
-  return (
-    <p className="mt-2.5 flex items-center gap-2 px-1 text-[13px] text-ink-2">
-      {visual?.palette?.length ? (
-        <span aria-hidden className="flex shrink-0 gap-1">
-          {visual.palette.slice(0, 4).map((col) => (
-            <span key={col} className="h-3 w-3 rounded-full shadow-[inset_0_0_0_1px_var(--hair-2)]" style={{ background: col }} />
-          ))}
-        </span>
-      ) : null}
-      <span className="min-w-0">{fmt(text, { n: img.refsUsed })}</span>
-    </p>
-  );
-}
-
 function PostPage({ post, script, current, pro, label }: { post: PostDraft; script: Script; current: boolean; pro: boolean; label: string }) {
   const c = useCopy();
   const m = useMiniCopy();
@@ -248,6 +215,9 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
   const when = useWhen()(post);
   const channelName = useStudio((s) => s.brand?.dna.name || s.brand?.channel || (s.input.channel ? `@${s.input.channel}` : "Kanal"));
   const sample = useStudio((s) => s.sample);
+  const setImage = useStudio((s) => s.setImage);
+  const visual = useStudio((s) => s.brand?.visual);
+  const fresh = useStudio((s) => s.mode === "fresh");
   const edited = useStudio((s) => !!s.edited[post.id]?.[script]);
   const note = useStudio((s) => s.postNote[post.id]);
   const blank = useBlank(post);
@@ -256,8 +226,10 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
   const openSheet = useNav((s) => s.openSheet);
   const status = statusOf(post);
   const text = post.variants[script] ?? "";
-  // Only a draft's picture can change: redrawing an approved post would no longer match what the bot previewed.
-  const live = status === "draft" && !sample && (!!post.image || !picturesExpected);
+  // Which pictures the style came from, under a ready picture: "Kanalingizdagi 4 ta rasm asosida".
+  const n = post.image?.refsUsed ?? 0;
+  const owner = visual?.refs.some((r) => r.source === "owner") ?? false;
+  const refs = n > 0 ? { palette: visual?.palette.slice(0, 4), text: fmt(fresh ? c.refs.owner : owner ? c.refs.mixed : c.refs.channel, { n }) } : undefined;
   const hint = blankNote(post) || (note?.tone === "hint" ? note.text : null) || (blank ? m.post.blank : null);
   // Approving answers with one lime ring around the post (state derived during render).
   const [seen, setSeen] = useState(status);
@@ -288,20 +260,23 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
               {status === "published" ? m.posts.published : m.posts.approved}
             </span>
           )}
-          {live ? (
+          {/* The sample bakery has no pictures: no empty frame for it. */}
+          {(!sample || post.image) && (
             <PostImage
-              key={`${post.id}:${post.image ? "i" : "n"}`}
+              key={post.id}
               postId={post.id}
               initial={post.image ?? null}
               autoStart={false}
+              expected={picturesExpected}
+              // Only a draft's picture can change: a redrawn approved post would no longer match the bot's preview.
+              locked={status !== "draft" || sample}
               pro={pro}
               lang={lang}
-              initData={api.tgInitData()}
-              onChange={(img) => setPostImage(post.id, img)}
+              authorization={api.authHeader()}
+              refs={refs}
+              onChange={(img) => setImage(post.id, img)}
               className="ma-postimage"
             />
-          ) : (
-            <PostPicture image={post.image} alt={c.posts.image.alt} expected={picturesExpected} />
           )}
           <div className="px-4 pb-2.5 pt-3">
             <div className={`mb-2 flex items-center gap-2.5 ${status !== "draft" && !post.image ? "pr-32" : ""}`}>
@@ -321,7 +296,6 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
             </p>
           </div>
         </div>
-        <RefsLine post={post} />
 
         {note?.tone === "bad" && (
           <p role="alert" className="mt-3 px-1 text-[14px] leading-snug text-bad">

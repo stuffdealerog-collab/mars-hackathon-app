@@ -100,19 +100,14 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
     if (booted && brandId && !useStudio.getState().sample) cloud.set("brand", brandId);
   }, [booted, brandId]);
 
-  // A flow change (start → run → ready) replaces whatever was pushed. Right after a run the
-  // owner first sees what was read (Kanal), with one step on to the posts.
+  // A flow change (start → run → ready) replaces whatever was pushed; a finished run is felt once.
   const lastPhase = useRef(phase);
   useEffect(() => {
     if (lastPhase.current !== phase) {
       const fromRun = lastPhase.current === "working";
       lastPhase.current = phase;
       useNav.getState().clear();
-      if (phase === "ready" && fromRun) {
-        haptic.success();
-        useStudio.getState().setTab("channel");
-        useNav.setState({ firstLook: true });
-      } else useNav.setState({ firstLook: false });
+      if (phase === "ready" && fromRun) haptic.success();
     }
   }, [phase]);
 
@@ -181,24 +176,26 @@ function Pushed({ route, active }: { route: Route; active: boolean }) {
 
 /* -------------------------------------------------------------------- tabs */
 
-const TAB_ICONS: Record<Tab, typeof BarChart3> = { channel: BarChart3, posts: Newspaper, video: Clapperboard };
-const TABS: Tab[] = ["channel", "posts", "video"];
+/** The phone has three tabs; the desktop's "Bo‘lim" lives in the Strip and Panel here. */
+type PhoneTab = Exclude<Tab, "dept">;
+const TAB_ICONS: Record<PhoneTab, typeof BarChart3> = { channel: BarChart3, posts: Newspaper, video: Clapperboard };
+const TABS: PhoneTab[] = ["channel", "posts", "video"];
 
 function Tabs({ active }: { active: boolean }) {
   const m = useMiniCopy();
-  const tab = useStudio((s) => s.tab);
+  const tab: PhoneTab = useStudio((s) => (s.tab === "dept" ? "channel" : s.tab));
   const setTab = useStudio((s) => s.setTab);
   // The badge counts what waits for the owner: drafts to approve.
   const count = useStudio((s) => s.posts.filter((p) => p.status === "draft").length);
   const push = useNav((s) => s.push);
-  const firstLook = useNav((s) => s.firstLook);
+  // Right after a run the store opens Kanal (the channel was read) with one step on to the posts.
+  const firstLook = useStudio((s) => s.justFinished);
   const openPost = useCallback((id: string) => push({ name: "post", id }), [push]);
   // On Postlar, one step: open the first post that still waits for the owner.
   const next = useStudio((s) => (s.posts.find((p) => p.status === "draft") ?? s.posts.find((p) => p.status === "approved"))?.id ?? null);
   const total = useStudio((s) => s.posts.length);
   const toPosts = () => {
     haptic.tap();
-    useNav.setState({ firstLook: false });
     setTab("posts");
   };
   const main =
@@ -209,10 +206,9 @@ function Tabs({ active }: { active: boolean }) {
         : null;
   useBottomButtons("tabs", PRIORITY.base, active && !!main, main);
 
-  const pick = (t: Tab) => {
+  const pick = (t: PhoneTab) => {
     if (t === tab) return;
     haptic.select();
-    if (t === "posts") useNav.setState({ firstLook: false });
     setTab(t);
   };
 
