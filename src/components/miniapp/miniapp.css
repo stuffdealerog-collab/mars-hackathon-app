@@ -17,6 +17,10 @@ html.ma-html body {
   --ma-content-top: 0px;
   --ma-bottom: 0px;
   --ma-top: calc(var(--ma-safe-top) + var(--ma-content-top));
+  /* The shared intro (../onboarding) sits under Telegram's chrome like every screen. */
+  --ob-top: var(--ma-top);
+  --ob-bottom: var(--ma-bottom);
+  --ob-position: absolute;
   --ma-sheet: var(--glass-2);
   --ma-row-press: var(--glass-2);
   --ma-filament: #fff7ea;

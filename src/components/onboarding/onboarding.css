@@ -1,0 +1,653 @@
+/*
+ * The first-run intro (shared: Mini App "phone", Studio "desktop"). Colours come from the
+ * page's tokens (--stage, --glass, --ink…), so Telegram's light theme and the Studio's dark
+ * stage both work; the LED signs stay dark in every theme, like a real shop sign.
+ * Host knobs: --ob-z (stacking), --ob-top / --ob-bottom (safe areas on the phone).
+ */
+
+.ob {
+  position: var(--ob-position, fixed);
+  inset: 0;
+  z-index: var(--ob-z, 70);
+  display: flex;
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+.ob[data-state="closing"] {
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- phone */
+
+.ob--phone {
+  flex-direction: column;
+  background: var(--stage);
+  padding: var(--ob-top, env(safe-area-inset-top, 0px)) 0 var(--ob-bottom, env(safe-area-inset-bottom, 0px));
+  animation: ob-fade-in 280ms var(--ease-out) both;
+}
+.ob--phone[data-state="closing"] {
+  animation: ob-fade-out 240ms var(--ease-in) both;
+}
+.ob--phone .ob__sheet {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  outline: none;
+}
+
+/* -------------------------------------------------------------- desktop */
+
+.ob--desktop {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.ob__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: ob-fade-in 260ms var(--ease-out) both;
+}
+[data-theme="light"] .ob__scrim {
+  background: rgb(10 10 15 / 0.32);
+}
+.ob--desktop[data-state="closing"] .ob__scrim {
+  animation: ob-fade-out 220ms var(--ease-in) both;
+}
+.ob--desktop .ob__sheet {
+  position: relative;
+  display: flex;
+  width: min(560px, 100%);
+  max-height: min(720px, calc(100dvh - 48px));
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 28px;
+  background: var(--glass);
+  box-shadow:
+    inset 0 0 0 1px var(--hair-2),
+    0 32px 80px -24px rgb(0 0 0 / 0.75),
+    0 10px 28px -10px rgb(0 0 0 / 0.5);
+  outline: none;
+  animation: ob-sheet-in 440ms var(--ease-out) both;
+}
+[data-theme="light"] .ob--desktop .ob__sheet {
+  background: var(--stage);
+  box-shadow:
+    inset 0 0 0 1px var(--hair),
+    0 32px 80px -24px rgb(10 10 15 / 0.35),
+    0 10px 28px -10px rgb(10 10 15 / 0.2);
+}
+.ob--desktop[data-state="closing"] .ob__sheet {
+  animation: ob-sheet-out 220ms var(--ease-in) both;
+}
+
+/* ------------------------------------------------------------ the frame */
+
+.ob__top {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 8px 0 20px;
+}
+.ob--desktop .ob__top {
+  padding: 10px 12px 0 28px;
+}
+.ob__skip,
+.ob__close {
+  display: inline-flex;
+  min-height: 44px;
+  min-width: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-2);
+  transition:
+    color var(--t-state) var(--ease-out),
+    background var(--t-state) var(--ease-out),
+    opacity var(--t-state) var(--ease-out);
+}
+.ob__close {
+  padding: 0;
+}
+.ob__skip:active,
+.ob__close:active {
+  background: var(--glass-2);
+}
+@media (hover: hover) {
+  .ob__skip:hover,
+  .ob__close:hover {
+    color: var(--ink);
+    background: var(--glass-2);
+  }
+}
+.ob__skip[data-hidden] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ob__viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.ob__track {
+  display: flex;
+  height: 100%;
+  transition: transform 460ms var(--ease-out);
+  will-change: transform;
+}
+.ob__pane {
+  display: flex;
+  flex: 0 0 100%;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 20px;
+  /* Vertical scroll stays the browser's; horizontal movement is the swipe between steps. */
+  touch-action: pan-y;
+}
+.ob--desktop .ob__pane {
+  padding: 0 32px;
+}
+/* The neighbour peeks in under the finger, quieter. */
+.ob__pane:not([data-active]) {
+  opacity: 0.4;
+}
+.ob__pane {
+  transition: opacity 360ms var(--ease-out);
+}
+
+/* The demo and its words stay together, centred in the room the phone has. */
+.ob__stage {
+  display: grid;
+  flex: 0 1 auto;
+  min-height: 276px;
+  place-items: center;
+  padding: 8px 0 28px;
+}
+/* Every pane is as tall as the tallest one (the track stretches them), so the sheet never jumps. */
+.ob--desktop .ob__stage {
+  flex: 0 0 auto;
+  min-height: 316px;
+  padding: 12px 0 24px;
+}
+.ob--desktop .ob-lamps,
+.ob--desktop .ob-link,
+.ob--desktop .ob-result {
+  max-width: 440px;
+}
+
+.ob__text {
+  padding: 0 2px 8px;
+}
+.ob__title {
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.ob--desktop .ob__title {
+  font-size: 30px;
+}
+.ob__line {
+  margin-top: 10px;
+  max-width: 36ch;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+.ob__admin {
+  margin-top: 14px;
+  max-width: 40ch;
+  font-size: 14.5px;
+  line-height: 1.4;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+.ob__pro {
+  margin-top: 8px;
+  max-width: 44ch;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--ink-3);
+  text-wrap: pretty;
+}
+
+.ob__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px 16px;
+}
+.ob--phone .ob__foot {
+  flex-direction: column;
+  align-items: stretch;
+}
+.ob--phone .ob__dots {
+  align-self: center;
+}
+.ob--desktop .ob__foot {
+  padding: 18px 28px 26px;
+}
+.ob__dots {
+  display: flex;
+  gap: 8px;
+}
+.ob__dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--hair-2);
+  transition:
+    width 360ms var(--ease-out),
+    background var(--t-state) var(--ease-out);
+}
+/* 44 px to touch, 8 px to see. */
+.ob__dot::after {
+  content: "";
+  position: absolute;
+  inset: -18px -6px;
+}
+.ob__dot[aria-current="step"] {
+  width: 24px;
+  background: var(--ink);
+}
+.ob__btns {
+  display: flex;
+  gap: 10px;
+}
+.ob--phone .ob__btn--main {
+  flex: 1;
+}
+.ob--desktop .ob__btn {
+  min-height: 48px;
+}
+.ob__skip:focus-visible,
+.ob__close:focus-visible,
+.ob__dot:focus-visible,
+.ob__btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* ----------------------------------------------------------- 1 · lamps */
+
+.ob-lamps {
+  width: 100%;
+  max-width: 380px;
+}
+.ob-lamps__grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+.ob-lamp.lamp--xs {
+  min-height: 58px;
+  border-radius: 14px;
+}
+.ob--desktop .ob-lamp.lamp--xs {
+  min-height: 72px;
+  border-radius: 16px;
+}
+.ob-lamp--soon {
+  opacity: 0.55;
+}
+.ob-lamps__now {
+  display: flex;
+  min-height: 46px;
+  margin-top: 18px;
+  flex-direction: column;
+  gap: 3px;
+  text-align: center;
+}
+.ob-lamps__name {
+  font-size: 15px;
+  font-weight: 600;
+}
+.ob-lamps__job {
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+
+/* ------------------------------------------------------- the dark signs */
+
+.ob-sign {
+  --led: #ffb547;
+  --led-off: rgb(255 181 71 / 0.1);
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0b0b0e;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  color: #f3f1ec;
+}
+[data-theme="light"] .ob-sign {
+  box-shadow: 0 1px 2px rgb(10 10 15 / 0.14);
+}
+.ob-sign--strip {
+  height: 51.5px;
+}
+.ob-sign__grid {
+  position: absolute;
+  inset: 13px 14px;
+  background-image: radial-gradient(circle at 1.35px 1.35px, var(--led-off) 1.2px, transparent 1.35px);
+  background-size: 3.8px 3.8px;
+}
+.ob-sign__text {
+  position: absolute;
+  left: 14px;
+  top: 13px;
+  animation: ob-fade-in 240ms var(--ease-out) both;
+}
+
+/* ------------------------------------------------------------ 2 · link */
+
+.ob-link {
+  width: 100%;
+  max-width: 380px;
+}
+.ob-field {
+  display: flex;
+  min-height: 54px;
+  margin-top: 14px;
+  align-items: center;
+  gap: 10px;
+  border-radius: 16px;
+  background: var(--glass-2);
+  box-shadow: inset 0 0 0 1px var(--hair-2);
+  padding: 0 16px;
+  font-size: 16px;
+}
+[data-theme="light"] .ma .ob-field,
+.ma[data-theme="light"] .ob-field {
+  background: var(--glass);
+}
+.ob-field__value {
+  min-width: 0;
+  white-space: nowrap;
+}
+.ob-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.15em;
+  margin-left: 1px;
+  vertical-align: -0.2em;
+  background: var(--focus);
+  animation: ob-blink 1s steps(1) infinite;
+}
+.ob-row {
+  display: flex;
+  min-height: 52px;
+  margin-top: 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 16px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  padding: 0 14px 0 16px;
+  font-size: 15.5px;
+  font-weight: 500;
+  transition:
+    box-shadow 400ms var(--ease-out),
+    transform 400ms var(--ease-out);
+}
+.ob-row[data-lit] {
+  box-shadow: inset 0 0 0 1px var(--hair-2);
+  transform: translateY(-1px);
+}
+
+/* ---------------------------------------------------------- 3 · result */
+
+.ob-result {
+  display: flex;
+  width: 100%;
+  max-width: 380px;
+  flex-direction: column;
+  gap: 12px;
+}
+.ob-sign--numbers {
+  display: flex;
+  gap: 26px;
+  padding: 14px 16px 13px;
+}
+.ob-num {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ob-num__label {
+  font-size: 12.5px;
+  line-height: 1;
+  color: #a8a49c;
+}
+.ob-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.ob-week__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  border-radius: 12px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  padding: 9px 0 10px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.ob-week__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--hair-2);
+}
+/* The strategist's hue: the week plan is the strategist's work. */
+.ob-week__day[data-post] .ob-week__dot {
+  background: #ff8a3d;
+  box-shadow: 0 0 8px #ff8a3d;
+  animation: ob-pop 440ms var(--ease-out) var(--d, 0ms) both;
+}
+.ob-posts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.ob-post {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  animation: ob-rise 560ms var(--ease-out) var(--d, 0ms) both;
+}
+.ob-post .ob-pic {
+  aspect-ratio: 1;
+}
+/* Margin, not padding: the clamp cuts at the content edge, so no third line peeks out. */
+.ob-post__text {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 7px 8px 9px;
+  font-size: 11.5px;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.ob-pic {
+  display: grid;
+  place-items: center;
+}
+.ob-pic__icon {
+  width: 40%;
+  height: 40%;
+  color: rgb(255 247 234 / 0.92);
+  filter: drop-shadow(0 6px 12px rgb(42 18 10 / 0.35));
+}
+
+/* --------------------------------------------------------- 4 · approve */
+
+.ob-approve {
+  display: flex;
+  width: 100%;
+  max-width: 330px;
+  flex-direction: column;
+  gap: 12px;
+}
+.ob-tgpost {
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+.ob-tgpost .ob-pic {
+  height: 136px;
+}
+.ob-tgpost__text {
+  padding: 10px 14px 0;
+  font-size: 15px;
+  line-height: 1.4;
+}
+.ob-tgpost__when {
+  display: block;
+  padding: 3px 14px 10px;
+  text-align: right;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+.ob-approve__row {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ob-approve__btn {
+  display: inline-flex;
+  min-height: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: var(--lime);
+  padding: 0 18px;
+  font-size: 15px;
+  font-weight: 620;
+  color: var(--lime-ink);
+  transition: transform 160ms var(--ease-out);
+}
+[data-theme="light"] .ob-approve__btn {
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
+}
+.ob-approve__btn[data-phase="1"] {
+  transform: scale(0.96);
+}
+.ob-approve__posted {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.25;
+  color: var(--ink-2);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    opacity 480ms var(--ease-out),
+    transform 480ms var(--ease-out);
+}
+.ob-approve__posted[data-on] {
+  color: var(--ink);
+  opacity: 1;
+  transform: none;
+}
+.ob-approve__lamp.lamp--xs {
+  width: 28px;
+  min-height: 20px;
+  flex-shrink: 0;
+  border-radius: 7px;
+}
+
+/* ------------------------------------------------------------- motion */
+
+@keyframes ob-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ob-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes ob-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+    filter: blur(4px);
+  }
+}
+@keyframes ob-sheet-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+}
+@keyframes ob-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes ob-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+@keyframes ob-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: no slide, no rising cards, no blinking; steps cross-fade and demos stand finished. */
+.ob[data-still] .ob__track {
+  transition: none;
+}
+.ob[data-still] .ob__pane:not([data-active]) {
+  opacity: 0;
+}
+.ob[data-still] .ob__pane {
+  transition: opacity 160ms linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ob--desktop .ob__sheet,
+  .ob-post,
+  .ob-week__day[data-post] .ob-week__dot,
+  .ob-sign__text {
+    animation: none;
+  }
+  .ob-caret {
+    display: none;
+  }
+}
