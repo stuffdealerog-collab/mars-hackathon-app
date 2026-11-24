@@ -61,7 +61,7 @@ The same woman sits down on a stool behind the counter, takes a slow sip of tea 
 | 2.0-6.0 | **Clip A**: the Muharrir avatar (`agent-editor.png`) raises the red pencil and winks | Muharrir / Редактор | Bizda Muharrir bor. Bunaqa so'zni ko'rsa — o'chiradi. | У нас есть Редактор. Видит такие слова — вычёркивает. |
 | 6.0-12.0 | Screen rec: a before/after split. Left: the cliché version. Right: the version in the owner's voice (see below), with the words appearing as if typed | Oldin → Keyin / Было → Стало | Endi post sizning ovozingizda. Xuddi o'zingiz yozgandek. | Теперь пост звучит как вы. Будто сами написали. |
 | 12.0-16.0 | **Clip B**: a baker pulls bread from the tandoor, with steam. The "after" text sits on top as a caption | (the post text, see below) | Ertalab yettida tandirdan chiqqan non. To'qqizgacha kelsangiz — hali issiq. | Хлеб из тандыра в семь утра. Придёте до девяти — ещё горячий. |
-| 16.0-18.0 | End card: Paper, logo, red pencil | **Neyro-so'zsiz marketing.** / **Маркетинг без нейрослов.** | Uslub AI. Neyro-so'zsiz. | Uslub AI. Без нейрослов. |
+| 16.0-18.0 | End card: Paper, logo, red pencil | **Neyro-so'zsiz marketing.** / **Маркетинг без нейрослов.** | Mercat. Neyro-so'zsiz. | Mercat. Без нейрослов. |
 
 **"Before" text (on screen):**
 - UZ: *"Sifat va ishonch kafolati! Innovatsion yondashuv bilan tayyorlangan mahsulotlarimiz sizni befarq qoldirmaydi. Eng yaxshi tanlov — biz bilan!"*
@@ -94,7 +94,7 @@ Vertical 9:16, early morning in a small bakery courtyard in Samarkand, a baker i
 | 0.0-2.0 | **HOOK.** **Clip A**: the owner looks into the camera with a sly smile, arms crossed | **9 ta xodim yolladim. Oylik bermayman.** / **Наняла 9 сотрудников. Зарплату не плачу.** | To'qqizta xodim yolladim. Hech biriga oylik bermayman. | Наняла девять сотрудников. Ни одному не плачу зарплату. |
 | 2.0-14.0 | Fast cuts of the 9 avatars at about 1.3 s each, each with a micro-action (**clips B1-B9**). Lower third: role + what they do | (see the table below) | Biri kanalimni eslab qoladi. Biri reja tuzadi. Biri yozadi, biri tahrir qiladi, biri tarjima. Dizayner, videograf, SMM. Oxirgisi — mijozlarim qayerdaligini topadi. | Одна помнит мой канал. Один строит план. Пишет, редактирует, переводит. Дизайнер, видеограф, SMM. А последний ищет, где мои клиенты. |
 | 14.0-19.0 | Screen rec: the link gets pasted and all 9 nodes on the canvas light up in a chain, with the avatars inside the nodes | Ishga tushirish — 1 havola / Запуск — 1 ссылка | Ishga tushirish uchun Telegram kanal havolasini berdim, xolos. | Чтобы запустить, я просто дала ссылку на Telegram-канал. |
-| 19.0-22.0 | **Clip C**: the owner shrugs and smiles. End card | **Oyligi — bitta obuna. Uslub AI** / **Их зарплата — одна подписка. Uslub AI** | Ularning oyligi — bitta obuna. | Их зарплата — одна подписка. |
+| 19.0-22.0 | **Clip C**: the owner shrugs and smiles. End card | **Oyligi — bitta obuna. Mercat** / **Их зарплата — одна подписка. Mercat** | Ularning oyligi — bitta obuna. | Их зарплата — одна подписка. |
 
 Lower thirds for the avatars:
 

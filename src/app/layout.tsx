@@ -15,11 +15,11 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Uslub AI — AI marketing bo'limi", template: "%s · Uslub AI" },
+  title: { default: "Mercat — AI marketing bo'limi", template: "%s · Mercat" },
   description:
     "Kichik biznes uchun AI marketing bo'limi: brend ovozi, 4 yozuvda postlar, Reels ssenariysi va mijozlar qayerdaligi. Siz faqat tasdiqlaysiz.",
   openGraph: {
-    title: "Uslub AI — butun marketing bo'limi bir havolada",
+    title: "Mercat — butun marketing bo'limi bir havolada",
     description: "Telegram kanalingiz havolasini bering: 60 soniyada brend DNK, haftalik postlar va mijozlar ro'yxati.",
     images: ["/generated/og.png"],
   },

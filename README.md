@@ -40,7 +40,7 @@ See [`.env.example`](.env.example) for every name with comments. Summary:
 | `TELEGRAM_BOT_TOKEN` | for the bot | From @BotFather |
 | `BOT_USERNAME` | for links/QR | Without `@` |
 | `TELEGRAM_WEBHOOK_SECRET` | for the bot | 16-256 chars `A-Z a-z 0-9 _ -` |
-| `PUBLIC_URL` | for the bot | Production origin, e.g. `https://mars-hackathon-app.vercel.app` |
+| `PUBLIC_URL` | for the bot | Production origin, e.g. `https://mercat-ai.vercel.app` |
 | `ANTHROPIC_API_KEY` | no | Without it the bot replies with a friendly fallback |
 | `ANTHROPIC_MODEL` | no | Default `claude-sonnet-5-5` |
 

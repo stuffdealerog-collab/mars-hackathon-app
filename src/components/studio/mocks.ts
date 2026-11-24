@@ -297,7 +297,7 @@ export const TEMPLATES: { key: string; name: string; hint: string; task: string;
     flow: {
       id: "f-reels",
       title: "Reels",
-      nodes: [n("in", "input", "Reels"), n("brand", "brand", "Uslub"), n("video", "video", "Ssenariy"), n("edit", "editor", "Matn"), n("tr", "translator", "Subtitrlar"), n("ok", "approval", "Tasdiqlash"), n("pub", "publisher", "Telegram")],
+      nodes: [n("in", "input", "Reels"), n("brand", "brand", "Brend"), n("video", "video", "Ssenariy"), n("edit", "editor", "Matn"), n("tr", "translator", "Subtitrlar"), n("ok", "approval", "Tasdiqlash"), n("pub", "publisher", "Telegram")],
       edges: [e("in", "brand"), e("brand", "video"), e("video", "edit"), e("edit", "tr"), e("tr", "ok"), e("ok", "pub")],
     },
   },
@@ -313,6 +313,12 @@ export function mockPlan(task: string): Flow {
   else if (/aksiya|chegirma|black friday|скидк|sale/.test(t)) flow = pick("aksiya");
   else if (/reels|tiktok|video|видео/.test(t)) flow = pick("reels");
   else flow = pick("haftalik");
+  // The input node must show the channel the owner actually pasted, never the sample one.
+  const channel = task.match(/(?:https?:\/\/)?t\.me\/[A-Za-z0-9_]{4,}|@[A-Za-z0-9_]{4,}/)?.[0];
+  if (channel) {
+    const label = channel.replace(/^https?:\/\//, "");
+    flow = { ...flow, nodes: flow.nodes.map((node) => (node.kind === "input" ? { ...node, label } : node)) };
+  }
   return { ...flow, title: task.trim() ? task.trim().slice(0, 80) : flow.title };
 }
 
