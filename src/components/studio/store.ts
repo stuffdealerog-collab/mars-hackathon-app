@@ -1,11 +1,11 @@
 
-import type { BrandProfile, Flow, NodeStatus, PostDraft, RadarLead, Script, VideoPlan } from "@/lib/uslub/contract";
+import type { BrandProfile, ChannelAudit, ContentPlan, Flow, NodeStatus, PostDraft, RadarLead, Script, Strategy, VideoPlan } from "@/lib/uslub/contract";
 import { create } from "zustand";
 import * as api from "./api";
 import type { Source } from "./api";
 import { MOCK_BRAND } from "./mocks";
 
-export type View = "delegate" | "team" | "brand" | "radar" | "video" | "rules";
+export type View = "delegate" | "analysis" | "strategy" | "team" | "brand" | "radar" | "video" | "rules";
 
 export type RuleKey = "routine" | "promo" | "prices" | "video" | "first";
 export const RULES: { key: RuleKey; name: string; hint: string }[] = [
@@ -28,7 +28,15 @@ export interface InboxItem {
   url?: string;
 }
 
+type Sens = { sensitivity?: { sensitive: boolean; reasons: string[] } };
+const SENS_MAP: Record<string, RuleKey> = { promo: "promo", price: "prices", video: "video", first_posts: "first" };
+
 export function classify(post: PostDraft): RuleKey[] {
+  const sens = (post as PostDraft & Sens).sensitivity;
+  if (sens) {
+    const r = sens.reasons.map((x) => SENS_MAP[x]).filter(Boolean).filter((x) => x !== "first");
+    return r.length ? r : ["routine"];
+  }
   const t = post.variants.uz_latn + " " + post.brief;
   const r: RuleKey[] = [];
   if (/%|chegirma|black friday|aksiya/i.test(t)) r.push("promo");
@@ -45,12 +53,15 @@ interface StudioState {
   posts: PostDraft[];
   leads: RadarLead[];
   video: VideoPlan | null;
+  audit: ChannelAudit | null;
+  strategy: Strategy | null;
+  plan: ContentPlan | null;
   flow: Flow | null;
   status: Status;
   selected: string | null;
   running: boolean;
   elapsed: number;
-  sources: Partial<Record<"brand" | "posts" | "radar" | "video" | "plan", Source>>;
+  sources: Partial<Record<"brand" | "posts" | "radar" | "video" | "plan" | "audit" | "strategy", Source>>;
   inbox: InboxItem[];
   reviewing: string | null; // post id
   autopilot: Record<RuleKey, boolean>; // true = may publish without approval
@@ -120,6 +131,9 @@ export const useStudio = create<StudioState>((set, get) => ({
   posts: [],
   leads: [],
   video: null,
+  audit: null,
+  strategy: null,
+  plan: null,
   flow: null,
   status: {},
   selected: null,
@@ -190,11 +204,15 @@ export const useStudio = create<StudioState>((set, get) => ({
     const brand = await brandP;
     const brandId = brand.data.id;
     set({ brand: brand.data, sources: { ...get().sources, brand: brand.source } });
-    const postsP = kinds.has("copywriter") ? api.generatePosts(brandId, task, 4) : Promise.resolve(null);
+    const postsP = kinds.has("copywriter") ? api.generatePosts(brandId, task, 2) : Promise.resolve(null);
     const radarP = kinds.has("radar") ? api.findLeads(brandId, task) : Promise.resolve(null);
     const videoP = kinds.has("video") ? api.planVideo(brandId, task) : Promise.resolve(null);
+    const auditP = kinds.has("analyst") ? api.analyzeChannel(brand.data.channel ?? "") : Promise.resolve(null);
+    const strategyP = kinds.has("strategist")
+      ? auditP.then((a) => api.buildStrategy(brandId, a?.data, task))
+      : Promise.resolve(null);
 
-    const wait: Partial<Record<string, Promise<unknown>>> = { copywriter: postsP, radar: radarP, video: videoP };
+    const wait: Partial<Record<string, Promise<unknown>>> = { copywriter: postsP, radar: radarP, video: videoP, analyst: auditP, strategist: strategyP };
     const order = layers(flow);
     for (const layer of order) {
       if (!alive()) break;
@@ -206,10 +224,18 @@ export const useStudio = create<StudioState>((set, get) => ({
       await Promise.all(
         ids.map(async (id, i) => {
           const node = flow.nodes.find((n) => n.id === id)!;
-          await sleep(node.kind === "input" ? 500 : 1100 + i * 260 + Math.random() * 500);
+          await sleep(node.kind === "input" ? 600 : 1500 + i * 350 + Math.random() * 600);
           const pending = wait[node.kind];
           if (pending) await pending;
           if (!alive()) return;
+          if (node.kind === "analyst") {
+            const r = await auditP;
+            if (r) set({ audit: r.data, sources: { ...get().sources, audit: r.source } });
+          }
+          if (node.kind === "strategist") {
+            const r = await strategyP;
+            if (r) set({ strategy: r.data.strategy, plan: r.data.plan, sources: { ...get().sources, strategy: r.source } });
+          }
           if (node.kind === "copywriter") {
             const r = await postsP;
             if (r) set({ posts: r.data, sources: { ...get().sources, posts: r.source } });

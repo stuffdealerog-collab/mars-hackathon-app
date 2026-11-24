@@ -17,10 +17,16 @@ export function GirihStar({ className = "", stroke = "currentColor" }: { classNa
 export function Logo({ className = "", light = false }: { className?: string; light?: boolean }) {
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
-      <GirihStar className={`h-6 w-6 ${light ? "text-saffron" : "text-lapis"}`} />
-      <span className={`font-display text-[15px] font-semibold tracking-tight ${light ? "text-white" : "text-ink"}`}>
-        Uslub AI
-      </span>
+      <span
+        aria-hidden
+        className="h-6 w-6 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle at 32% 28%, #fff 0 6%, transparent 30%), radial-gradient(circle at 50% 55%, #D7FF3A 0%, #16B364 60%, #0b0b0e 100%)",
+          boxShadow: "0 0 18px -2px rgba(215,255,58,.6)",
+        }}
+      />
+      <span className={`text-[16px] font-bold tracking-[-0.02em] ${light ? "text-white" : "text-fog"}`}>Uslub AI</span>
     </span>
   );
 }

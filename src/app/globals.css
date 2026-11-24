@@ -42,25 +42,46 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     sans-serif;
   --font-ui: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-unbounded), var(--font-manrope), ui-sans-serif, sans-serif;
+  --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jbmono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Uslub AI — modern Samarkand tile palette */
-  --color-paper: #faf7f2;
-  --color-shell: #f3eee5;
-  --color-sand: #e6dfd3;
-  --color-ink: #13151c;
-  --color-stone: #5d616e;
-  --color-lapis: #2747c8;
-  --color-lapis-deep: #1b2f8a;
-  --color-lapis-soft: #e7ebfb;
-  --color-turq: #16a394;
-  --color-turq-soft: #ddf3ef;
-  --color-saffron: #f2a93b;
-  --color-saffron-soft: #fdf0d9;
-  --color-clay: #c8553d;
-  --color-clay-soft: #f8e3dc;
-  --color-night: #0e1430;
-  --color-night-2: #172048;
+  /* Uslub AI — "AI OS" dark widget language */
+  --color-void: #050506;
+  --color-surface: #0e0e11;
+  --color-surface-2: #16161b;
+  --color-surface-3: #1f1f26;
+  --color-edge: rgb(255 255 255 / 0.08);
+  --color-edge-2: rgb(255 255 255 / 0.14);
+  --color-fog: #f3f3f5;
+  --color-mute: #8d8d97;
+  --color-dim: #5b5b64;
+  --color-lime: #d7ff3a;
+  --color-ok: #3be08a;
+  --color-wait: #ffb547;
+  --color-bad-2: #ff4d5e;
+  --color-cobalt: #3b5bff;
+  --color-violet: #8b5cf6;
+  --color-magenta: #e0359b;
+  --color-coral: #ff6b5b;
+  --color-cream: #fbe8cc;
+
+  /* legacy light tokens (kept so older pieces still compile) */
+  --color-paper: #050506;
+  --color-shell: #16161b;
+  --color-sand: rgb(255 255 255 / 0.1);
+  --color-ink: #f3f3f5;
+  --color-stone: #8d8d97;
+  --color-lapis: #3b5bff;
+  --color-lapis-deep: #2a44d6;
+  --color-lapis-soft: rgb(59 91 255 / 0.16);
+  --color-turq: #3be08a;
+  --color-turq-soft: rgb(59 224 138 / 0.14);
+  --color-saffron: #ffb547;
+  --color-saffron-soft: rgb(255 181 71 / 0.15);
+  --color-clay: #ff6b5b;
+  --color-clay-soft: rgb(255 107 91 / 0.16);
+  --color-night: #050506;
+  --color-night-2: #121216;
 }
 
 body {
@@ -92,27 +113,78 @@ body {
 
 /* ---------------------------------------------------------------- Uslub AI */
 .uslub {
-  background: var(--color-paper);
-  color: var(--color-ink);
+  background-color: var(--color-void);
+  background-image: radial-gradient(rgb(255 255 255 / 0.065) 1px, transparent 1.3px);
+  background-size: 18px 18px;
+  color: var(--color-fog);
   font-family: var(--font-ui);
-  font-feature-settings: "ss01", "cv11";
+  color-scheme: dark;
 }
 .uslub ::selection {
-  background: var(--color-saffron);
-  color: var(--color-ink);
+  background: var(--color-lime);
+  color: #050506;
 }
 .uslub :focus-visible {
-  outline: 2px solid var(--color-lapis);
-  outline-offset: 2px;
-  border-radius: 6px;
+  outline: 2px solid var(--color-lime);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-mute);
+}
+.dot-grid {
+  background-image: radial-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1.3px);
+  background-size: 16px 16px;
+}
+/* legacy helpers mapped to the dark language */
+.girih,
+.girih-night {
+  background-image: radial-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1.3px);
+  background-size: 16px 16px;
 }
 
-/* Girih accent: an 8-point star lattice drawn as an SVG tile. */
-.girih {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%232747C8' stroke-opacity='.14' stroke-width='1'%3E%3Cpath d='M28 6l6 16 16 6-16 6-6 16-6-16-16-6 16-6z'/%3E%3Cpath d='M12.4 12.4L28 19l15.6-6.6L37 28l6.6 15.6L28 37l-15.6 6.6L19 28z'/%3E%3C/g%3E%3C/svg%3E");
+/* Lime pill: the single primary action. */
+.pill-lime {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-lime);
+  color: #0a0a0b;
+  font-weight: 800;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.25) inset, 0 10px 40px -10px rgb(215 255 58 / 0.55);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
-.girih-night {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.06' stroke-width='1'%3E%3Cpath d='M28 6l6 16 16 6-16 6-6 16-6-16-16-6 16-6z'/%3E%3Cpath d='M12.4 12.4L28 19l15.6-6.6L37 28l6.6 15.6L28 37l-15.6 6.6L19 28z'/%3E%3C/g%3E%3C/svg%3E");
+.pill-lime:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.3) inset, 0 14px 50px -8px rgb(215 255 58 / 0.7);
+}
+.pill-lime:active {
+  transform: scale(0.97);
+}
+.pill-lime:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+}
+.pill-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.06);
+  color: var(--color-fog);
+  font-weight: 700;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.1) inset;
+  transition: background 0.2s ease;
+}
+.pill-ghost:hover {
+  background: rgb(255 255 255 / 0.11);
 }
 
 /* React Flow: quiet chrome so the employee cards carry the canvas. */
@@ -120,38 +192,54 @@ body {
   display: none;
 }
 .uslub-flow .react-flow__handle {
-  width: 8px;
-  height: 8px;
-  border: 2px solid var(--color-night);
-  background: #8ea2f0;
+  width: 6px;
+  height: 6px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: rgb(255 255 255 / 0.35);
 }
 .uslub-flow .react-flow__controls {
   box-shadow: none;
-  border-radius: 10px;
+  border-radius: 14px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgb(255 255 255 / 0.1);
 }
 .uslub-flow .react-flow__controls-button {
-  background: var(--color-night-2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  fill: #c9d2f5;
+  background: #121216;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  fill: #c9c9d1;
 }
 .uslub-flow .react-flow__controls-button:hover {
-  background: #22306a;
+  background: #1f1f26;
 }
 
 @keyframes uslub-dash {
   to {
-    stroke-dashoffset: -24;
+    stroke-dashoffset: -16;
   }
 }
 .uslub-edge-live {
-  stroke-dasharray: 6 6;
-  animation: uslub-dash 0.6s linear infinite;
+  animation: uslub-dash 0.5s linear infinite;
+}
+@keyframes uslub-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+.uslub-breathe {
+  animation: uslub-breathe 1.6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .uslub-edge-live {
+  .uslub-edge-live,
+  .uslub-breathe {
     animation: none;
   }
   .uslub *,

@@ -61,26 +61,24 @@ export function LiveCanvas() {
               setRound((r) => r + 1);
             }}
             aria-pressed={tpl === i}
-            className={`rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-              tpl === i ? "border-ink bg-ink text-white" : "border-sand bg-white text-ink hover:border-ink/40"
+            className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
+              tpl === i
+                ? "bg-fog text-void"
+                : "bg-white/6 text-fog/80 shadow-[inset_0_0_0_1px_rgba(255,255,255,.1)] hover:bg-white/10"
             }`}
           >
             {t.name}
           </button>
         ))}
-        <button
-          type="button"
-          onClick={() => setRound((r) => r + 1)}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold text-lapis hover:bg-lapis-soft"
-        >
+        <button type="button" onClick={() => setRound((r) => r + 1)} className="pill-ghost ml-auto px-3.5 py-1.5 text-[13px]">
           <RotateCcw className="h-3.5 w-3.5" /> Qayta ishga tushirish
         </button>
       </div>
-      <p className="text-[14px] text-stone">
-        <b className="text-ink">{TEMPLATES[tpl].name}:</b> {TEMPLATES[tpl].hint}. Topshiriq: «{TEMPLATES[tpl].task}»
+      <p className="text-[14px] text-mute">
+        <b className="text-fog">{TEMPLATES[tpl].name}:</b> {TEMPLATES[tpl].hint}. Topshiriq: «{TEMPLATES[tpl].task}»
       </p>
       <div className="hidden md:block">
-        <FlowCanvas flow={flow} status={status} interactive={false} className="h-[420px] rounded-3xl" />
+        <FlowCanvas flow={flow} status={status} interactive={false} className="h-[440px] rounded-[36px]" />
       </div>
       <div className="md:hidden">
         <StepList flow={flow} status={status} />

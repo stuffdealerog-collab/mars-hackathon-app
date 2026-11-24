@@ -162,3 +162,19 @@ export const TONE: Record<AgentMeta["tone"], { bg: string; fg: string; soft: str
 };
 
 export const TG_BOT_URL = "https://t.me/hackathonproj1_bot";
+
+/** Signature gradient per employee: [glow, deep]. Glow fades into black on cards. */
+export const GRAD: Record<NodeKind, [string, string]> = {
+  brand: ["#FBE3C2", "#E98A5E"],
+  analyst: ["#D7FF3A", "#16B364"],
+  strategist: ["#5B7CFF", "#7C3AED"],
+  copywriter: ["#FF7A5C", "#FFB98A"],
+  editor: ["#FF2D55", "#C026D3"],
+  translator: ["#38E1FF", "#2F6BFF"],
+  designer: ["#FF7AC6", "#9D4EDD"],
+  video: ["#FF9F1C", "#FF2D55"],
+  publisher: ["#3B82F6", "#22D3EE"],
+  radar: ["#B4F43A", "#0FB5A6"],
+  input: ["#E9E9EE", "#7B7B86"],
+  approval: ["#D7FF3A", "#9BCB00"],
+};

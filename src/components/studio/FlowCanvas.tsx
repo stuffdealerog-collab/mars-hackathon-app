@@ -18,8 +18,9 @@ import {
 import { Check, Hourglass, Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo } from "react";
-import { AgentAvatar } from "../uslub/AgentAvatar";
-import { kindMeta } from "../uslub/agents";
+import { GRAD, kindMeta } from "../uslub/agents";
+import { glowBg } from "../uslub/GlowCard";
+import { Orb } from "../uslub/Orb";
 import { layers } from "./store";
 
 export type AgentNodeData = { kind: NodeKind; label: string; status: NodeStatus; preview?: string };
@@ -33,56 +34,74 @@ export const STATUS_TEXT: Record<NodeStatus, string> = {
   needs_approval: "Tasdiq kutmoqda",
 };
 
-const STATUS_RING: Record<NodeStatus, string> = {
-  idle: "border-white/10",
-  running: "border-[#8ea2f0] shadow-[0_0_0_4px_rgba(39,71,200,.35),0_0_32px_rgba(39,71,200,.55)]",
-  done: "border-turq shadow-[0_0_0_3px_rgba(22,163,148,.25)]",
-  error: "border-clay",
-  needs_approval: "border-saffron shadow-[0_0_0_4px_rgba(242,169,59,.3),0_0_28px_rgba(242,169,59,.4)]",
+export const RUNNING_HINT: Partial<Record<NodeKind, string>> = {
+  brand: "Kanal postlarini o'qiyapti…",
+  analyst: "Raqamlarni sanayapti…",
+  strategist: "Reja tuzyapti…",
+  copywriter: "Yozyapti…",
+  editor: "Neyro-so'zlarni qidiryapti…",
+  translator: "4 yozuvga o'giryapti…",
+  designer: "Muqova chizyapti…",
+  video: "Ssenariy yozyapti…",
+  radar: "Internetdan qidiryapti…",
+  publisher: "Joylayapti…",
+  approval: "Sizni kutyapti",
 };
 
+function statusColor(s: NodeStatus) {
+  return s === "done" ? "#3BE08A" : s === "needs_approval" ? "#FFB547" : s === "running" ? "#D7FF3A" : s === "error" ? "#FF4D5E" : "#5B5B64";
+}
+
 export function StatusIcon({ status, className = "h-3.5 w-3.5" }: { status: NodeStatus; className?: string }) {
-  if (status === "running") return <Loader2 className={`${className} animate-spin text-[#a9b8f5]`} />;
-  if (status === "done") return <Check className={`${className} text-turq`} strokeWidth={3} />;
-  if (status === "needs_approval") return <Hourglass className={`${className} text-saffron`} />;
+  if (status === "running") return <Loader2 className={`${className} animate-spin text-lime`} />;
+  if (status === "done") return <Check className={`${className} text-ok`} strokeWidth={3} />;
+  if (status === "needs_approval") return <Hourglass className={`${className} text-wait`} />;
   return <span className="inline-block h-1.5 w-1.5 rounded-full bg-white/30" />;
 }
 
 function AgentNode({ data, selected }: NodeProps<AgentNodeT>) {
   const meta = kindMeta(data.kind);
-  const dim = data.status === "idle";
+  const [a, b] = GRAD[data.kind];
+  const st = data.status;
+  const strength = st === "idle" ? 0.22 : st === "running" ? 1 : st === "needs_approval" ? 0.75 : 0.55;
+  const glowFrom = st === "needs_approval" ? "#FFB547" : a;
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: dim ? 0.62 : 1, scale: data.status === "running" ? 1.04 : 1 }}
-      transition={{ type: "spring", stiffness: 260, damping: 22 }}
-      className={`w-[210px] cursor-pointer rounded-2xl border-2 bg-night-2 px-3 py-2.5 text-white transition-[border-color,box-shadow] duration-500 ${
-        STATUS_RING[data.status]
-      } ${selected ? "outline outline-2 outline-offset-4 outline-white/40" : ""}`}
+      initial={{ scale: 0.92 }}
+      animate={{ scale: st === "running" ? 1.05 : 1 }}
+      transition={{ type: "spring", stiffness: 260, damping: 20 }}
+      className={`relative w-[220px] cursor-pointer rounded-[24px] px-3 pb-3 pt-3 text-white transition-[opacity,box-shadow] duration-500 ${st === "idle" ? "opacity-70" : "opacity-100"} ${
+        selected ? "ring-2 ring-lime/70 ring-offset-4 ring-offset-void" : ""
+      }`}
+      style={{
+        background: glowBg(glowFrom, b, strength, "50% -10%"),
+        boxShadow:
+          st === "running"
+            ? `inset 0 0 0 1px rgba(255,255,255,.22), 0 0 0 1px ${a}55, 0 18px 60px -10px ${a}aa, 0 0 90px -20px ${b}`
+            : `inset 0 0 0 1px rgba(255,255,255,${st === "idle" ? 0.07 : 0.14})`,
+      }}
     >
       {data.kind !== "input" && <Handle type="target" position={Position.Left} />}
       <div className="flex items-center gap-2.5">
-        <AgentAvatar kind={data.kind} size={36} />
+        <Orb kind={data.kind} size={34} glow={st === "running"} />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] font-bold leading-tight">{meta.name}</div>
-          <div className="flex items-center gap-1.5 text-[11px] text-white/60">
-            <StatusIcon status={data.status} className="h-3 w-3" />
-            <span>{STATUS_TEXT[data.status]}</span>
+          <div className="truncate text-[14px] font-bold leading-tight tracking-tight">{meta.name}</div>
+          <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em]" style={{ color: statusColor(st) }}>
+            <span className={`inline-block h-1.5 w-1.5 rounded-full ${st === "running" ? "uslub-breathe" : ""}`} style={{ background: statusColor(st) }} />
+            {STATUS_TEXT[st]}
           </div>
         </div>
       </div>
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" initial={false}>
         <motion.div
-          key={data.status === "done" || data.status === "needs_approval" ? "out" : "label"}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          transition={{ duration: 0.25 }}
-          className={`mt-2 truncate rounded-lg px-2 py-1 text-[12px] ${
-            data.status === "done" ? "bg-turq/15 text-[#9be6dc]" : data.status === "needs_approval" ? "bg-saffron/15 text-[#ffd38f]" : "bg-white/5 text-white/70"
-          }`}
+          key={st}
+          initial={{ y: 4 }}
+          animate={{ y: 0 }}
+          exit={{ y: -4 }}
+          transition={{ duration: 0.2 }}
+          className="mt-2.5 truncate rounded-xl bg-black/35 px-2.5 py-1.5 text-[12px] text-white/85 backdrop-blur"
         >
-          {data.label}
+          {st === "running" ? RUNNING_HINT[data.kind] ?? data.label : data.label}
         </motion.div>
       </AnimatePresence>
       {data.kind !== "publisher" && <Handle type="source" position={Position.Right} />}
@@ -101,7 +120,7 @@ export function layoutFlow(flow: Flow, status: Record<string, NodeStatus>, selec
       nodes.push({
         id,
         type: "agent",
-        position: { x: x * 270, y: (y - (col.length - 1) / 2) * 118 },
+        position: { x: x * 280, y: (y - (col.length - 1) / 2) * 124 },
         data: { kind: n.kind, label: n.label, status: status[id] ?? "idle" },
         selected: selected === id,
       });
@@ -119,8 +138,11 @@ export function layoutFlow(flow: Flow, status: Record<string, NodeStatus>, selec
       type: "default",
       className: live ? "uslub-edge-live" : "",
       style: {
-        stroke: done ? "#16A394" : live ? "#8ea2f0" : "rgba(255,255,255,.18)",
-        strokeWidth: done || live ? 2.2 : 1.5,
+        stroke: live ? "#D7FF3A" : done ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.18)",
+        strokeWidth: live ? 2 : 1.6,
+        strokeDasharray: "2 6",
+        strokeLinecap: "round",
+        filter: live ? "drop-shadow(0 0 6px rgba(215,255,58,.9))" : undefined,
       },
     };
   });
@@ -133,12 +155,14 @@ function Inner({
   selected,
   onSelect,
   interactive,
+  follow,
 }: {
   flow: Flow;
   status: Record<string, NodeStatus>;
   selected?: string | null;
   onSelect?: (id: string | null) => void;
   interactive: boolean;
+  follow?: boolean;
 }) {
   const { nodes, edges } = useMemo(() => layoutFlow(flow, status, selected), [flow, status, selected]);
   const rf = useReactFlow();
@@ -146,6 +170,29 @@ function Inner({
     const t = setTimeout(() => rf.fitView({ padding: 0.18, duration: 500 }), 60);
     return () => clearTimeout(t);
   }, [flow.id, flow.nodes.length, rf]);
+
+  // Camera follows the employees who are working right now (cinematic, legible at any width).
+  const runningKey = flow.nodes.filter((n) => status[n.id] === "running").map((n) => n.id).join(",");
+  const anyStarted = flow.nodes.some((n) => status[n.id] && status[n.id] !== "idle");
+  const allSettled = anyStarted && !flow.nodes.some((n) => status[n.id] === "running");
+  useEffect(() => {
+    if (!follow) return;
+    if (runningKey) {
+      const ids = new Set(runningKey.split(","));
+      flow.edges.forEach((e) => {
+        if (ids.has(e.to)) ids.add(e.from);
+      });
+      const t = setTimeout(
+        () => rf.fitView({ nodes: [...ids].map((id) => ({ id })), padding: 0.35, duration: 800, maxZoom: 1.05, minZoom: 0.45 }),
+        40,
+      );
+      return () => clearTimeout(t);
+    }
+    if (allSettled) {
+      const t = setTimeout(() => rf.fitView({ padding: 0.12, duration: 900 }), 300);
+      return () => clearTimeout(t);
+    }
+  }, [runningKey, allSettled, follow, flow.edges, rf]);
   return (
     <ReactFlow
       nodes={nodes}
@@ -167,7 +214,7 @@ function Inner({
       proOptions={{ hideAttribution: true }}
       style={{ background: "transparent" }}
     >
-      <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="rgba(255,255,255,.12)" />
+      <Background variant={BackgroundVariant.Dots} gap={18} size={1.1} color="rgba(255,255,255,.1)" />
       {interactive && <Controls showInteractive={false} position="bottom-right" />}
     </ReactFlow>
   );
@@ -179,10 +226,11 @@ export function FlowCanvas(props: {
   selected?: string | null;
   onSelect?: (id: string | null) => void;
   interactive?: boolean;
+  follow?: boolean;
   className?: string;
 }) {
   return (
-    <div className={`uslub-flow girih-night relative overflow-hidden bg-night ${props.className ?? "h-[460px]"}`}>
+    <div className={`uslub-flow relative overflow-hidden bg-[#08080a] shadow-[inset_0_0_0_1px_rgba(255,255,255,.07)] ${props.className ?? "h-[460px] rounded-[32px]"}`}>
       <ReactFlowProvider>
         <Inner {...props} interactive={props.interactive ?? true} />
       </ReactFlowProvider>
@@ -202,27 +250,31 @@ export function StepList({
 }) {
   const order = layers(flow).flat();
   return (
-    <ol className="girih-night flex flex-col gap-2 rounded-2xl bg-night p-3">
+    <ol className="flex flex-col gap-2">
       {order.map((id) => {
         const n = flow.nodes.find((x) => x.id === id)!;
         const s = status[id] ?? "idle";
         const meta = kindMeta(n.kind);
+        const [a, b] = GRAD[n.kind];
+        const strength = s === "idle" ? 0.18 : s === "running" ? 0.95 : s === "needs_approval" ? 0.7 : 0.5;
         return (
           <motion.li key={id} layout>
             <button
               type="button"
               onClick={() => onSelect?.(id)}
-              className={`flex w-full items-center gap-3 rounded-xl border-2 bg-night-2 px-3 py-2 text-left text-white transition-[border-color,box-shadow,opacity] duration-500 ${STATUS_RING[s]} ${
-                s === "idle" ? "opacity-60" : ""
-              }`}
+              className={`flex w-full items-center gap-3 rounded-[22px] px-3 py-2.5 text-left text-white transition-[opacity,box-shadow] duration-500 ${s === "idle" ? "opacity-60" : ""}`}
+              style={{
+                background: glowBg(s === "needs_approval" ? "#FFB547" : a, b, strength, "0% 50%"),
+                boxShadow: s === "running" ? `inset 0 0 0 1px rgba(255,255,255,.2), 0 10px 40px -12px ${a}` : "inset 0 0 0 1px rgba(255,255,255,.08)",
+              }}
             >
-              <AgentAvatar kind={n.kind} size={32} />
+              <Orb kind={n.kind} size={34} glow={s === "running"} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-bold">{meta.name}</span>
-                <span className="block truncate text-[12px] text-white/60">{n.label}</span>
+                <span className="block truncate text-[14px] font-bold">{meta.name}</span>
+                <span className="block truncate text-[12px] text-white/70">{s === "running" ? RUNNING_HINT[n.kind] ?? n.label : n.label}</span>
               </span>
-              <span className="flex items-center gap-1 text-[11px] text-white/70">
-                <StatusIcon status={s} />
+              <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.08em]" style={{ color: statusColor(s) }}>
+                <StatusIcon status={s} className="h-3 w-3" />
                 {STATUS_TEXT[s]}
               </span>
             </button>

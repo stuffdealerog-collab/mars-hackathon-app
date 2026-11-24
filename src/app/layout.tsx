@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope, Unbounded } from "next/font/google";
+import { JetBrains_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -8,9 +8,9 @@ const manrope = Manrope({
   display: "swap",
 });
 
-const unbounded = Unbounded({
+const mono = JetBrains_Mono({
   subsets: ["latin", "cyrillic"],
-  variable: "--font-unbounded",
+  variable: "--font-jbmono",
   display: "swap",
 });
 
@@ -26,12 +26,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#faf7f2",
+  themeColor: "#050506",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="uz" className={`h-full antialiased ${manrope.variable} ${unbounded.variable}`}>
+    <html lang="uz" className={`h-full antialiased ${manrope.variable} ${mono.variable}`}>
       <body className="flex min-h-full flex-col font-sans">{children}</body>
     </html>
   );

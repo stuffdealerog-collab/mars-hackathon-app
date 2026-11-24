@@ -1,13 +1,15 @@
-import { ReviewDemo } from "@/components/concept/ReviewDemo";
+import { AuditWidget, StrategyWidget } from "@/components/concept/BrainWidgets";
 import { LiveCanvas } from "@/components/concept/LiveCanvas";
-import { StatusIcon, STATUS_TEXT } from "@/components/studio/FlowCanvas";
+import { ReviewDemo } from "@/components/concept/ReviewDemo";
 import { MOCK_BRAND, MOCK_LEADS, MOCK_VIDEO } from "@/components/studio/mocks";
 import { RULES } from "@/components/studio/store";
-import { AgentAvatar } from "@/components/uslub/AgentAvatar";
-import { AGENT_ORDER, AGENTS, TG_BOT_URL } from "@/components/uslub/agents";
-import { GirihStar, Logo } from "@/components/uslub/Girih";
-import type { NodeStatus } from "@/lib/uslub/contract";
-import { Check, Send } from "lucide-react";
+import { AGENT_ORDER, AGENTS, GRAD, TG_BOT_URL } from "@/components/uslub/agents";
+import { DotMatrix } from "@/components/uslub/DotMatrix";
+import { GlowCard } from "@/components/uslub/GlowCard";
+import { Logo } from "@/components/uslub/Girih";
+import { Orb } from "@/components/uslub/Orb";
+import type { AgentRole } from "@/lib/uslub/contract";
+import { ArrowUp, Check, Hourglass, Loader2, Send, Smartphone } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -19,541 +21,604 @@ function Section({
   title,
   lead,
   children,
-  className = "",
 }: {
   n: number;
   id: string;
   title: string;
   lead?: string;
   children: React.ReactNode;
-  className?: string;
 }) {
   return (
-    <section id={id} className={`scroll-mt-20 border-t border-sand py-14 sm:py-20 ${className}`}>
-      <div className="mb-8 grid gap-3 sm:grid-cols-[72px_1fr] sm:gap-6">
-        <span className="font-display text-[13px] font-medium tabular-nums text-stone">{String(n).padStart(2, "0")}</span>
-        <div className="max-w-2xl">
-          <h2 className="font-display text-[26px] font-semibold leading-[1.15] tracking-tight sm:text-[34px]">{title}</h2>
-          {lead && <p className="mt-3 text-[16px] leading-relaxed text-stone">{lead}</p>}
-        </div>
+    <section id={id} className="scroll-mt-20 py-14 sm:py-20">
+      <div className="mb-8 max-w-3xl">
+        <span className="font-mono text-[12px] tabular-nums text-dim">{String(n).padStart(2, "0")}</span>
+        <h2 className="mt-2 text-[28px] font-bold leading-[1.1] tracking-[-0.02em] sm:text-[40px]">{title}</h2>
+        {lead && <p className="mt-3 max-w-2xl text-[16px] leading-relaxed text-mute">{lead}</p>}
       </div>
-      <div className="sm:pl-[96px]">{children}</div>
+      {children}
     </section>
   );
 }
 
-const QUOTES = [
+const QUOTES: { who: string; text: string; grad: [string, string] }[] = [
   {
-    who: "Marketing direktori (tashkilotchi kompaniya)",
-    text: "Menga bitta servis kerak: qanday o'ylashimni o'rgansin va «yozish → tarjima → joylash» ishini o'zi qilsin, men esa topshiriq beray.",
-    tone: "border-lapis",
-    big: true,
+    who: "Marketing direktori, tashkilotchi kompaniya",
+    text: "Bitta servis kerak: qanday o'ylashimni o'rgansin va «yozish → tarjima → joylash» ishini o'zi qilsin, men faqat topshiriq beray.",
+    grad: GRAD.strategist,
   },
-  {
-    who: "SMM mutaxassisi",
-    text: "Mahsulot videolari kerak, lekin AI'ning sun'iy, bir xil ko'rinishisiz.",
-    tone: "border-saffron",
-  },
+  { who: "SMM mutaxassisi", text: "Mahsulot videolari kerak, lekin AI'ning sun'iy, bir xil ko'rinishisiz.", grad: GRAD.video },
   {
     who: "Marketolog",
-    text: "Mahalliy bozor bo'yicha ma'lumot yo'q: qaysi kanal, qaysi guruh, qaysi blogger ishlaydi — taxmin qilamiz.",
-    tone: "border-turq",
+    text: "Mahalliy bozor bo'yicha ma'lumot yo'q: qaysi kanal, guruh yoki blogger ishlaydi — taxmin qilamiz.",
+    grad: GRAD.analyst,
   },
-  {
-    who: "Startap asoschilari",
-    text: "Eng qiyini — mijoz topish. Kontentni-ku bir amallab yozamiz.",
-    tone: "border-clay",
-  },
-];
-
-const PALETTE = [
-  { name: "Paper", hex: "#FAF7F2", role: "Fon", cls: "bg-paper border border-sand", dark: false },
-  { name: "Ink", hex: "#13151C", role: "Matn, asosiy tugma", cls: "bg-ink", dark: true },
-  { name: "Lapis", hex: "#2747C8", role: "Asosiy rang, havolalar", cls: "bg-lapis", dark: true },
-  { name: "Turquoise", hex: "#16A394", role: "Ishlayapti / tayyor", cls: "bg-turq", dark: true },
-  { name: "Saffron", hex: "#F2A93B", role: "Tasdiq kutmoqda, aksent", cls: "bg-saffron", dark: false },
-  { name: "Clay", hex: "#C8553D", role: "Neyro-so'zlar, xatolar", cls: "bg-clay", dark: true },
+  { who: "Startap asoschilari", text: "Eng qiyini — mijoz topish. Kontentni bir amallab yozamiz.", grad: GRAD.copywriter },
 ];
 
 const PRINCIPLES = [
   { t: "Bosqichma-bosqich ochilish", d: "Avval bitta maydon: «Topshiriq bering». Kanvas — ikkinchi qatlam, kim nima qilayotganini ko'rmoqchi bo'lganlar uchun." },
-  { t: "Inson nazoratida", d: "Aksiya, narx, video va yangi brendning birinchi postlari faqat sizning tasdig'ingizdan keyin chiqadi." },
-  { t: "AI-shablonlarsiz", d: "Muharrir «neyro-so'zlar»ni belgilaydi va o'rniga oddiy ibora taklif qiladi. Inson bali har postda ko'rinadi." },
-  { t: "Telefondan boshqariladi", d: "Telegram Mini App auditoriyasi telefonda. Kanvas kichik ekranda qadamlar ro'yxatiga aylanadi." },
-  { t: "To'rt yozuv, bitta ohang", d: "O'zbek lotin, o'zbek kirill, rus va ingliz — har biri alohida tekshiriladi." },
+  { t: "Inson nazoratida", d: "Aksiya, narx, video va yangi brendning birinchi 5 posti faqat sizning tasdig'ingizdan keyin chiqadi." },
+  { t: "Raqamlar — faqat haqiqiy", d: "Har bir xulosa, KPI va dalil kanal statistikasidan, bilimlar bazasidan yoki manbali qidiruvdan olinadi. To'qima raqam yo'q." },
+  { t: "AI-shlakka qarshi", d: "Muharrir neyro-so'zlarni belgilaydi va almashtiradi; har post yonida inson bali turadi." },
+  { t: "Telefon birinchi", d: "Mijozlar Telegram Mini App'da: kanvas kichik ekranda vertikal qadamlar ro'yxatiga aylanadi." },
+  { t: "4 yozuv, bitta ohang", d: "O'zbek lotin, o'zbek kirill, rus va ingliz — bir xil brend ovozida, alohida tekshiruv bilan." },
 ];
 
-const statuses: NodeStatus[] = ["idle", "running", "done", "needs_approval"];
+const STACK = [
+  ["Next.js 16 App Router", "Sahifalar, API route'lar, Vercel fra1"],
+  ["React 19 + Tailwind 4", "Interfeys va dizayn tokenlari"],
+  ["@xyflow/react", "Bo'lim kanvasi (node graf)"],
+  ["motion", "Prujinali animatsiyalar, kartalar to'plami"],
+  ["zustand", "Studiya holati, avtopilot qoidalari"],
+  ["Neon Postgres", "Brend profillari, postlar, statistika"],
+  ["grammY + Mini App", "Telegram bot, Telegram orqali joylash"],
+  ["Claude (Anthropic)", "Xodimlar: yozish, tahrir, tarjima, reja"],
+  ["Miya agenti", "/api/uslub/analyze va /api/uslub/strategy"],
+] as const;
+
+const GOAL_DOT: Record<string, string> = { done: "#3be08a", running: "#D7FF3A", wait: "#ffb547", idle: "rgba(255,255,255,.3)" };
 
 export default function ConceptPage() {
-  const dna = MOCK_BRAND.dna;
   return (
     <main className="uslub min-h-dvh">
-      <header className="sticky top-0 z-30 border-b border-sand/70 bg-paper/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-8">
-          <Link href="/" aria-label="Uslub AI bosh sahifa">
-            <Logo />
+      <header className="sticky top-0 z-40 border-b border-edge bg-void/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <Link href="/" aria-label="Bosh sahifa">
+            <Logo light />
           </Link>
-          <nav className="flex items-center gap-1 text-[14px] font-semibold">
-            <Link href="/" className="rounded-lg px-3 py-2 text-stone hover:text-ink">
+          <nav className="flex items-center gap-2 text-[14px]">
+            <Link href="/" className="hidden px-3 py-2 text-mute hover:text-fog sm:inline">
               Bosh sahifa
             </Link>
-            <Link href="/studio" className="rounded-lg bg-ink px-3.5 py-2 text-white hover:bg-lapis">
+            <Link href="/studio" className="pill-lime px-4 py-2 text-[14px]">
               Studiyani ochish
             </Link>
           </nav>
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 sm:px-8">
-        {/* Intro */}
-        <div className="grid gap-10 py-14 sm:py-20 lg:grid-cols-[1.3fr_1fr] lg:items-end">
-          <div>
-            <p className="text-[14px] font-semibold text-lapis">Konsepsiya taxtasi · 24-noyabr, MARS AI Hackathon</p>
-            <h1 className="mt-4 font-display text-[36px] font-semibold leading-[1.05] tracking-tight sm:text-[56px]">
-              Sizning marketing bo&apos;limingiz. Siz faqat tasdiqlaysiz.
-            </h1>
-            <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-stone">
-              Uslub AI — marketologi yo&apos;q kichik biznes va startaplar uchun AI marketing bo&apos;limi. Egasi topshiriq beradi, AI
-              xodimlar reja tuzadi, yozadi, tozalaydi, tarjima qiladi va tasdiqdan keyin Telegramga joylaydi.
-            </p>
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        {/* ------------------------------------------------------------ hero */}
+        <section className="pb-6 pt-12 sm:pt-20">
+          <p className="mono-label">Konsepsiya · yo&apos;nalishni tasdiqlash uchun</p>
+          <h1 className="mt-4 max-w-4xl text-[40px] font-bold leading-[1.02] tracking-[-0.035em] sm:text-[72px]">
+            Uslub AI — sizning marketing bo&apos;limingiz
+          </h1>
+          <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-mute">
+            Marketologi yo&apos;q kichik biznes egasi uchun. Topshiriq berasiz — 10 ta AI xodim tahlil qiladi, reja tuzadi, yozadi,
+            tarjima qiladi va siz tasdiqlagan narsani Telegramga joylaydi.
+          </p>
+          <div className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {[
+              { v: "10", l: "AI xodim", g: GRAD.strategist },
+              { v: "4", l: "yozuv: UZ lotin, kirill, RU, EN", g: GRAD.translator },
+              { v: "60", l: "soniyada butun bo'lim ishga tushadi", g: GRAD.analyst },
+            ].map((k) => (
+              <GlowCard key={k.l} from={k.g[0]} to={k.g[1]} strength={0.55} className="flex min-h-[170px] flex-col justify-between p-6">
+                <DotMatrix value={k.v} dot={6} gap={2.5} />
+                <span className="text-[14px] font-semibold text-fog/90">{k.l}</span>
+              </GlowCard>
+            ))}
           </div>
-          <div className="rounded-3xl bg-ink p-6 text-white">
-            <div className="flex items-center gap-2 text-[14px] font-semibold text-saffron">
-              <GirihStar className="h-4 w-4" /> Tasdiqlangan qarorlar
-            </div>
-            <dl className="mt-4 grid gap-3 text-[14px]">
-              {[
-                ["Kim uchun", "Marketologi yo'q biznes egasi yoki asoschi"],
-                ["Birinchi ekran", "«Topshiriq bering» + tasdiqlash qutisi"],
-                ["Asosiy funksiya", "Bir havola — butun marketing bo'limi"],
-                ["Nashr", "Oddiy postlar avtopilotda, nozik narsalar tasdiq bilan"],
-                ["Narx", "7 kun bepul, keyin oyiga 149 000 so'm"],
-              ].map(([k, v]) => (
-                <div key={k} className="grid grid-cols-[110px_1fr] gap-3 border-t border-white/10 pt-3">
-                  <dt className="text-white/55">{k}</dt>
-                  <dd className="font-semibold">{v}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        </div>
+        </section>
 
+        {/* ------------------------------------------------------------ 1 problem */}
         <Section
           n={1}
           id="muammo"
           title="Muammo: marketing besh xil vositada tarqalib ketgan"
-          lead="Bugun egasi ChatGPT, Gemini, tarjimon, Google Docs va Telegram orasida yuradi. Saytdagi intervyulardan:"
+          lead="ChatGPT, Gemini, tarjimon, Google Docs va Telegram orasida ko'chirib-qo'yish. Hackathon joyida o'tkazgan suhbatlarimizdan:"
         >
-          <div className="grid gap-4 md:grid-cols-3">
-            {QUOTES.map((q) => (
-              <figure
+          <div className="grid gap-3 md:grid-cols-2">
+            {QUOTES.map((q, i) => (
+              <GlowCard
                 key={q.who}
-                className={`border-l-4 ${q.tone} bg-white py-4 pl-5 pr-4 ${q.big ? "md:col-span-3 md:py-6" : ""}`}
+                from={q.grad[0]}
+                to={q.grad[1]}
+                strength={i === 0 ? 0.6 : 0.38}
+                at="0% 0%"
+                className={`flex flex-col justify-between p-6 ${i === 0 ? "md:row-span-2 md:min-h-[360px]" : "min-h-[170px]"}`}
               >
-                <blockquote className={q.big ? "font-display text-[20px] leading-snug sm:text-[24px]" : "text-[16px] leading-relaxed"}>
+                <p className={`${i === 0 ? "text-[24px] sm:text-[30px]" : "text-[18px]"} font-semibold leading-snug tracking-tight`}>
                   «{q.text}»
-                </blockquote>
-                <figcaption className="mt-3 text-[13px] text-stone">{q.who}</figcaption>
-              </figure>
+                </p>
+                <span className="mono-label mt-6 text-fog/70">{q.who}</span>
+              </GlowCard>
             ))}
           </div>
-          <p className="mt-4 text-[13px] text-stone">Iqtiboslar mazmunan berilgan (paraphrase), so&apos;zma-so&apos;z emas.</p>
         </Section>
 
+        {/* ------------------------------------------------------------ 2 idea */}
         <Section
           n={2}
           id="goya"
           title="G'oya: topshiriq bering, bo'lim bajaradi"
-          lead="Asosiy foydalanuvchi — marketologi yo'q biznes egasi yoki startap asoschisi. U vositalarni emas, xodimlarni boshqaradi."
+          lead="Asosiy foydalanuvchi — marketologi yo'q kichik biznes egasi yoki startap asoschisi. Agentliklar emas. U vositalar bilan emas, xodimlar bilan gaplashadi."
         >
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-sand bg-shell p-5">
-              <div className="text-[14px] font-bold text-stone">Hozir</div>
-              <ol className="mt-3 grid gap-2 text-[15px]">
-                {["ChatGPT'da post yozish", "Gemini'da qayta yozish", "Tarjimonda ruschaga o'girish", "Google Docs'da yig'ish", "Telegramga qo'lda joylash"].map(
-                  (s, i) => (
-                    <li key={s} className="flex gap-3">
-                      <span className="w-5 text-stone tabular-nums">{i + 1}.</span>
-                      {s}
-                    </li>
-                  ),
-                )}
-              </ol>
-            </div>
-            <div className="rounded-2xl bg-lapis p-5 text-white">
-              <div className="text-[14px] font-bold text-white/70">Uslub AI bilan</div>
-              <ol className="mt-3 grid gap-2 text-[15px]">
-                {["«Black Friday uchun 1 haftalik kontent va Reels» deb yozasiz", "Strateg vazifani xodimlarga bo'ladi", "Natija tasdiqlash qutisiga tushadi", "Bir bosish — Telegramda"].map(
-                  (s, i) => (
-                    <li key={s} className="flex gap-3">
-                      <span className="w-5 text-white/60 tabular-nums">{i + 1}.</span>
-                      {s}
-                    </li>
-                  ),
-                )}
-              </ol>
-            </div>
-          </div>
-        </Section>
-
-        <Section n={3} id="jamoa" title="Jamoa: 9 ta AI xodim" lead="Har bir rol — bitta xodim. Egasi ularni ismi bilan taniydi va natijasini ko'radi.">
-          <ul className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
-            {AGENT_ORDER.map((r) => {
-              const a = AGENTS[r];
-              return (
-                <li key={r} className="flex gap-3 border-b border-sand py-4">
-                  <AgentAvatar kind={r} size={44} />
-                  <div className="min-w-0">
-                    <div className="text-[15px] font-bold">{a.name}</div>
-                    <div className="text-[12px] text-stone">
-                      {a.ru} · {a.en}
-                    </div>
-                    <p className="mt-1.5 text-[14px] leading-snug text-ink/80">{a.does}</p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </Section>
-
-        <Section
-          n={4}
-          id="kanvas"
-          title="Node tizimi: bo'limingiz qanday ishlaydi"
-          lead="Har bir tugun — xodim kartasi, chiziqlar — ish uzatilishi. Statuslar jonli o'zgaradi: navbatda, ishlayapti, tayyor, tasdiq kutmoqda."
-        >
-          <LiveCanvas />
-          <div className="mt-6 grid gap-4 text-[14px] md:grid-cols-3">
-            {[
-              ["1-qatlam", "«Topshiriq bering» maydoni va tasdiqlash qutisi. Ko'pchilik shu yerda qoladi."],
-              ["2-qatlam", "«Bo'limingiz qanday ishlaydi» — kanvas. Tugunni bosing, natijasi yon panelda ochiladi."],
-              ["3-qatlam", "Tahrirlash: shablon tanlash, xodim qo'shish yoki o'chirish (hackathondan keyin)."],
-            ].map(([k, v]) => (
-              <div key={k} className="border-t-2 border-ink pt-3">
-                <div className="font-bold">{k}</div>
-                <p className="mt-1 text-stone">{v}</p>
+          <div className="grid items-start gap-6 lg:grid-cols-[1.2fr_1fr]">
+            <div className="rounded-[36px] bg-surface p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)] sm:p-7">
+              <div className="mono-label">Studiyaning birinchi ekrani</div>
+              <div className="mt-4 flex items-end gap-2 rounded-[24px] bg-surface-2 p-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+                <p className="flex-1 px-3 py-2.5 text-[15px] text-mute">Black Friday uchun 1 haftalik kontent va Reels</p>
+                <span className="pill-lime h-11 w-11 shrink-0" aria-hidden>
+                  <ArrowUp className="h-5 w-5" />
+                </span>
               </div>
-            ))}
-          </div>
-        </Section>
-
-        <Section
-          n={5}
-          id="ekranlar"
-          title="Asosiy ekranlar"
-          lead="Bular rasm emas — prototipdagi jonli komponentlar. Qizil to'lqinli chiziqli iborani bosing: Muharrir uni almashtiradi."
-        >
-          <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-            <div className="rounded-3xl border border-sand bg-paper p-4 sm:p-6">
-              <div className="mb-4 text-[15px] font-bold">Post ko&apos;rib chiqish</div>
-              <ReviewDemo />
-            </div>
-            <div className="rounded-3xl bg-white p-5 shadow-[0_1px_0_#E6DFD3,0_20px_40px_-28px_rgba(19,21,28,.35)] sm:p-6">
-              <div className="flex items-center gap-3">
-                <AgentAvatar kind="brand" size={40} />
-                <div>
-                  <div className="text-[15px] font-bold">Brend DNK · {dna.name}</div>
-                  <div className="text-[13px] text-stone">{dna.oneLiner}</div>
-                </div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {["Bir havola", "Haftalik kontent", "Aksiya", "Mijoz qidirish", "Reels"].map((t) => (
+                  <span key={t} className="rounded-full bg-white/6 px-3 py-1 text-[13px] text-fog/80 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+                    {t}
+                  </span>
+                ))}
               </div>
-              <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
-                <div className="col-span-2">
-                  <dt className="text-stone">Ohang</dt>
-                  <dd className="font-semibold">{dna.tone}</dd>
+              <div className="mt-5 rounded-[24px] bg-surface-2 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,.06)]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[14px] font-bold">Tasdiqlash qutisi</span>
+                  <span className="rounded-full bg-wait px-2 text-[12px] font-extrabold text-black">3</span>
                 </div>
-                <div>
-                  <dt className="text-stone">Murojaat</dt>
-                  <dd className="font-semibold">«{dna.address}»</dd>
-                </div>
-                <div>
-                  <dt className="text-stone">Emoji</dt>
-                  <dd className="font-semibold">Kam</dd>
-                </div>
-                <div>
-                  <dt className="text-stone">Post uzunligi</dt>
-                  <dd className="font-semibold tabular-nums">~{dna.avgPostLength} belgi</dd>
-                </div>
-                <div>
-                  <dt className="text-stone">CTA uslubi</dt>
-                  <dd className="font-semibold">{dna.ctaStyle}</dd>
-                </div>
-                <div className="col-span-2">
-                  <dt className="text-stone">Takrorlanuvchi formatlar</dt>
-                  <dd className="mt-1 flex flex-wrap gap-1.5">
-                    {dna.recurringFormats.map((f) => (
-                      <span key={f} className="rounded-full bg-lapis-soft px-2.5 py-0.5 font-semibold text-lapis">
-                        {f}
+                <ul className="mt-3 space-y-2 text-[13px]">
+                  {[
+                    ["Black Friday e'loni", "Tasdiq kutmoqda", "wait"],
+                    ["Reels: bitta palto — uch obraz", "Tasdiq kutmoqda", "wait"],
+                    ["Razmer bo'yicha maslahat", "Avtopilot · jadvalda (beta)", "done"],
+                  ].map(([t, s, k]) => (
+                    <li key={t} className="flex items-center justify-between gap-3">
+                      <span className="truncate">{t}</span>
+                      <span className="shrink-0 font-mono text-[11px]" style={{ color: GOAL_DOT[k] }}>
+                        {s}
                       </span>
-                    ))}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="font-semibold text-turq">Qiling</dt>
-                  <dd>
-                    <ul className="mt-1 grid gap-1">
-                      {dna.doList.map((d) => (
-                        <li key={d}>{d}</li>
-                      ))}
-                    </ul>
-                  </dd>
-                </div>
-                <div>
-                  <dt className="font-semibold text-clay">Qilmang</dt>
-                  <dd>
-                    <ul className="mt-1 grid gap-1">
-                      {dna.dontList.map((d) => (
-                        <li key={d}>{d}</li>
-                      ))}
-                    </ul>
-                  </dd>
-                </div>
-                <div className="col-span-2 text-stone">{dna.hashtags.join(" ")}</div>
-              </dl>
-            </div>
-
-            <div className="rounded-3xl border border-sand bg-white p-5 sm:p-6">
-              <div className="flex items-center gap-3">
-                <AgentAvatar kind="radar" size={40} />
-                <div>
-                  <div className="text-[15px] font-bold">Mijoz radar</div>
-                  <div className="text-[13px] text-stone">Mijozlaringiz qayerda va nima qilish kerak</div>
-                </div>
-              </div>
-              <ul className="mt-4 grid">
-                {MOCK_LEADS.slice(0, 4).map((l) => (
-                  <li key={l.name} className="border-t border-sand py-3">
-                    <div className="text-[14px] font-bold">{l.name}</div>
-                    <p className="mt-0.5 text-[13px] text-stone">{l.why}</p>
-                    <p className="mt-1.5 text-[13px] font-semibold text-lapis">{l.action}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="girih-night rounded-3xl bg-night p-5 text-white sm:p-6">
-              <div className="flex items-center gap-3">
-                <AgentAvatar kind="video" size={40} />
-                <div>
-                  <div className="text-[15px] font-bold">Videograf · Reels ssenariysi</div>
-                  <div className="text-[13px] text-white/60">Hook: {MOCK_VIDEO.hook}</div>
-                </div>
-              </div>
-              <div className="mt-5 flex h-2 overflow-hidden rounded-full">
-                {MOCK_VIDEO.scenes.map((s, i) => (
-                  <span
-                    key={i}
-                    style={{ flexGrow: s.seconds }}
-                    className={["bg-lapis", "bg-turq", "bg-saffron", "bg-clay", "bg-white/70"][i % 5]}
-                  />
-                ))}
-              </div>
-              <ol className="mt-4 grid gap-3">
-                {MOCK_VIDEO.scenes.map((s, i) => (
-                  <li key={i} className="grid grid-cols-[44px_1fr] gap-3 text-[13px]">
-                    <span className="font-display tabular-nums text-white/60">{s.seconds}s</span>
-                    <div>
-                      <div className="font-semibold">{s.visual}</div>
-                      <div className="text-white/65">«{s.voiceover}»</div>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              <div className="mt-4 rounded-xl border border-dashed border-white/20 px-3 py-2 text-[12px] text-white/60">
-                Tayyor video joyi: render provayderi ulanganda shu yerda chiqadi. Musiqa: {MOCK_VIDEO.musicMood}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
-          </div>
-          <Link href="/studio" className="mt-6 inline-flex rounded-xl bg-ink px-4 py-2.5 text-[14px] font-bold text-white hover:bg-lapis">
-            To&apos;liq prototipni ochish: /studio
-          </Link>
-        </Section>
-
-        <Section
-          n={6}
-          id="killer"
-          title="Asosiy funksiya: bir havola — butun marketing bo'limi"
-          lead="Telegram kanal havolasini qo'yasiz. Taxminan 60 soniyada butun bo'lim kanvasda ishlaydi. Bu ketma-ketlik Reels/TikTok uchun ekrandan yozib olinadi."
-        >
-          <div className="girih-night overflow-hidden rounded-3xl bg-night p-5 text-white sm:p-8">
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-white/5 p-2 pl-4">
-              <Send className="h-4 w-4 text-saffron" />
-              <span className="flex-1 font-semibold text-white/80">t.me/sizning_kanal</span>
-              <span className="rounded-xl bg-saffron px-4 py-2 text-[14px] font-bold text-ink">Bo&apos;limni ishga tushirish</span>
-            </div>
-            <ol className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <ol className="space-y-4">
               {[
-                ["0–10 s", "Brend DNK", "Ohang, siz/sen, emoji, CTA, heshteglar — kanaldagi postlardan."],
-                ["10–35 s", "1 haftalik postlar", "7 ta post, neyro-so'zlarsiz, 4 yozuvda."],
-                ["25–45 s", "10 ta joy", "Mijozlaringiz bor kanallar, guruhlar, blogerlar, tadbirlar."],
-                ["35–60 s", "Reels ssenariysi", "Hook, kadrlar, ovoz va subtitrlar."],
-              ].map(([t, h, d]) => (
-                <li key={h} className="border-t border-white/15 pt-3">
-                  <div className="font-display text-[13px] tabular-nums text-saffron">{t}</div>
-                  <div className="mt-1 text-[16px] font-bold">{h}</div>
-                  <p className="mt-1 text-[13px] text-white/65">{d}</p>
+                ["Topshiriq", "Egasi oddiy so'zlar bilan yozadi yoki kanal havolasini tashlaydi."],
+                ["Bo'lim ishlaydi", "Strateg ishni xodimlarga bo'ladi; kanvasda har bir xodim ishlayotgani ko'rinadi."],
+                ["Tasdiqlash", "Tayyor ishlar qutiga tushadi. Bir bosishda tasdiqlash yoki tahrirlash."],
+                ["Joylash", "SMM-menejer Telegramga joylaydi. Oddiy postlar — avtopilotda (beta)."],
+              ].map(([t, d], i) => (
+                <li key={t} className="flex gap-4">
+                  <span className="font-mono text-[12px] text-dim">{String(i + 1).padStart(2, "0")}</span>
+                  <div>
+                    <div className="text-[17px] font-bold">{t}</div>
+                    <p className="mt-0.5 text-[14.5px] leading-relaxed text-mute">{d}</p>
+                  </div>
                 </li>
               ))}
             </ol>
           </div>
         </Section>
 
+        {/* ------------------------------------------------------------ 3 team */}
+        <Section n={3} id="jamoa" title="Jamoa: 10 ta AI xodim" lead="Har bir rol — bitta xodim va o'z gradienti. Egasi ularni ismi bilan taniydi va natijasini ko'radi.">
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {AGENT_ORDER.map((r: AgentRole) => {
+              const a = AGENTS[r];
+              const [g1, g2] = GRAD[r];
+              return (
+                <li key={r}>
+                  <GlowCard from={g1} to={g2} strength={0.32} className="flex h-full flex-col p-5">
+                    <Orb kind={r} size={52} />
+                    <div className="mt-4 text-[16px] font-bold">{a.name}</div>
+                    <div className="font-mono text-[11px] text-mute">
+                      {a.ru} · {a.en}
+                    </div>
+                    <p className="mt-2 text-[13.5px] leading-relaxed text-fog/80">{a.does}</p>
+                  </GlowCard>
+                </li>
+              );
+            })}
+          </ul>
+        </Section>
+
+        {/* ------------------------------------------------------------ 4 canvas */}
+        <Section
+          n={4}
+          id="kanvas"
+          title="Node tizimi: bo'limingiz qanday ishlaydi"
+          lead="Kanvas — ikkinchi qatlam. Har bir tugun — xodim: orb, rol, holat va natijaning qisqa ko'rinishi. Ish boshlanganda tugun gradient bilan yonadi, ma'lumot o'tganda chiziq bo'ylab nur yuguradi."
+        >
+          <LiveCanvas />
+          <div className="mt-5 flex flex-wrap gap-2 text-[13px]">
+            {[
+              ["Navbatda", "idle"],
+              ["Ishlayapti", "running"],
+              ["Tayyor", "done"],
+              ["Tasdiq kutmoqda", "wait"],
+            ].map(([t, k]) => (
+              <span key={t} className="inline-flex items-center gap-2 rounded-full bg-white/6 px-3 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+                <span className="h-2 w-2 rounded-full" style={{ background: GOAL_DOT[k], boxShadow: k === "running" ? "0 0 10px #D7FF3A" : undefined }} />
+                {t}
+              </span>
+            ))}
+          </div>
+        </Section>
+
+        {/* ------------------------------------------------------------ 5 brain */}
+        <Section
+          n={5}
+          id="miya"
+          title="Miya: Tahlil va Strategiya"
+          lead="Analitik kanalingizning haqiqiy raqamlarini va raqobatchilarni o'qiydi; Strateg shu asosda pozitsiya, ustunlar va haftalik reja tuzadi. Qoida: har bir raqam haqiqiy ma'lumotdan — hech qachon to'qilmaydi."
+        >
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <AuditWidget />
+            <StrategyWidget />
+          </div>
+          <p className="mt-3 font-mono text-[11px] text-dim">Namuna: o&apos;ylab topilgan «Nafis» do&apos;koni. Jonli rejimda raqamlar kanalning o&apos;zidan olinadi.</p>
+        </Section>
+
+        {/* ------------------------------------------------------------ 6 screens */}
+        <Section n={6} id="ekranlar" title="Asosiy ekranlar" lead="Bular — ishlaydigan komponentlar, rasm emas. Neyro-so'z ustiga bosing.">
+          <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
+            <div className="rounded-[36px] bg-surface p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)] sm:p-6">
+              <div className="mb-4 flex items-baseline justify-between gap-2">
+                <h3 className="text-[18px] font-bold">Postni ko&apos;rib chiqish</h3>
+                <span className="mono-label">4 yozuv · inson bali</span>
+              </div>
+              <ReviewDemo />
+            </div>
+            <GlowCard from={GRAD.brand[0]} to={GRAD.brand[1]} strength={0.4} className="p-5 sm:p-6">
+              <div className="flex items-baseline justify-between gap-2">
+                <h3 className="text-[18px] font-bold">Brend DNK</h3>
+                <span className="mono-label text-fog/70">{MOCK_BRAND.channel}</span>
+              </div>
+              <p className="mt-1 text-[14px] text-fog/80">{MOCK_BRAND.dna.oneLiner}</p>
+              <dl className="mt-4 divide-y divide-white/8 text-[13.5px]">
+                {[
+                  ["Ohang", MOCK_BRAND.dna.tone],
+                  ["Murojaat", "«Siz»"],
+                  ["Emoji", "Kam (1–2)"],
+                  ["Uzunlik", `~${MOCK_BRAND.dna.avgPostLength} belgi`],
+                  ["CTA", MOCK_BRAND.dna.ctaStyle],
+                ].map(([k, v]) => (
+                  <div key={k} className="grid grid-cols-[92px_1fr] gap-3 py-2">
+                    <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-mute">{k}</dt>
+                    <dd>{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="mt-3 grid grid-cols-2 gap-3 text-[13px]">
+                <div>
+                  <div className="font-bold text-ok">Qiling</div>
+                  <ul className="mt-1 space-y-0.5 text-fog/80">
+                    {MOCK_BRAND.dna.doList.map((d) => (
+                      <li key={d}>{d}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <div className="font-bold text-coral">Qilmang</div>
+                  <ul className="mt-1 space-y-0.5 text-fog/80">
+                    {MOCK_BRAND.dna.dontList.map((d) => (
+                      <li key={d}>{d}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </GlowCard>
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-[36px] bg-surface p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)] sm:p-6">
+              <div className="flex items-center gap-3">
+                <Orb kind="radar" size={36} />
+                <h3 className="text-[18px] font-bold">Mijoz radar</h3>
+              </div>
+              <ul className="mt-4 space-y-2">
+                {MOCK_LEADS.slice(0, 4).map((l) => (
+                  <li key={l.name} className="rounded-[20px] bg-surface-2 p-3.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.06)]">
+                    <div className="text-[14.5px] font-bold">{l.name}</div>
+                    <p className="mt-0.5 text-[13px] text-mute">{l.why}</p>
+                    <p className="mt-2 text-[13px]">
+                      <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-lime">Qadam</span> {l.action}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-[36px] bg-surface p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)] sm:p-6">
+              <div className="flex items-center gap-3">
+                <Orb kind="video" size={36} />
+                <h3 className="text-[18px] font-bold">Videograf: Reels ssenariysi</h3>
+              </div>
+              <GlowCard from={GRAD.video[0]} to={GRAD.video[1]} strength={0.45} className="mt-4 p-4">
+                <span className="mono-label text-fog/70">Hook · birinchi 2 soniya</span>
+                <p className="mt-1 text-[18px] font-bold leading-snug">«{MOCK_VIDEO.hook}»</p>
+              </GlowCard>
+              <ol className="mt-3 space-y-1.5">
+                {MOCK_VIDEO.scenes.map((s, i) => {
+                  const from = MOCK_VIDEO.scenes.slice(0, i).reduce((a, x) => a + x.seconds, 0);
+                  return (
+                    <li key={i} className="grid grid-cols-[58px_1fr] gap-3 rounded-[16px] bg-surface-2 px-3 py-2 text-[13px]">
+                      <span className="font-mono text-[11.5px] tabular-nums text-lime">
+                        {from}–{from + s.seconds}s
+                      </span>
+                      <span>
+                        {s.visual} <span className="text-mute">· «{s.voiceover}»</span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          </div>
+          <Link href="/studio" className="pill-ghost mt-5 px-5 py-2.5 text-[14px]">
+            To&apos;liq prototip: /studio
+          </Link>
+        </Section>
+
+        {/* ------------------------------------------------------------ 7 killer */}
         <Section
           n={7}
+          id="bir-havola"
+          title="Asosiy funksiya: bir havola — butun marketing bo'limi"
+          lead="Telegram kanal havolasini tashlaysiz — taxminan 60 soniyada butun bo'lim kanvasda ishlaydi. Reels va TikTok reklamasi uchun ekrandan yozib olinadigan qilib qurilgan."
+        >
+          <GlowCard from="#D7FF3A" to="#16B364" strength={0.28} at="50% 100%" className="p-5 sm:p-8">
+            <div className="flex items-center gap-2 rounded-full bg-black/50 px-4 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,.1)]">
+              <Send className="h-4 w-4 text-mute" />
+              <span className="flex-1 truncate font-mono text-[14px]">t.me/sizning_kanal</span>
+              <span className="pill-lime px-4 py-1.5 text-[13px]">Ishga tushirish</span>
+            </div>
+            <ol className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+              {(
+                [
+                  ["brand", "0–18 s", "Brend DNK"],
+                  ["analyst", "18 s", "60 post tahlili"],
+                  ["strategist", "25 s", "Strategiya"],
+                  ["copywriter", "30 s", "Haftalik postlar"],
+                  ["editor", "38 s", "Neyro-so'zlarsiz"],
+                  ["translator", "42 s", "4 yozuv"],
+                  ["radar", "50 s", "10 ta joy"],
+                  ["video", "55 s", "Reels ssenariy"],
+                ] as [AgentRole, string, string][]
+              ).map(([r, t, out]) => (
+                <li key={r} className="flex flex-col items-start gap-2 rounded-[22px] bg-black/45 p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,.07)]">
+                  <Orb kind={r} size={34} />
+                  <span className="font-mono text-[11px] text-lime">{t}</span>
+                  <span className="text-[13px] font-semibold leading-tight">{out}</span>
+                </li>
+              ))}
+            </ol>
+            <div className="mt-5 flex flex-wrap items-center gap-3 text-[14px] text-fog/85">
+              <Hourglass className="h-4 w-4 text-wait" /> Hammasi Tasdiqlash qutisiga tushadi — hech narsa sizsiz joylanmaydi.
+            </div>
+          </GlowCard>
+        </Section>
+
+        {/* ------------------------------------------------------------ 8 publishing */}
+        <Section
+          n={8}
           id="nashr"
           title="Nashr: avtopilot va tasdiq aralash"
-          lead="Oddiy postlar jadval bo'yicha avtopilotda chiqishi mumkin. Nozik narsalar har doim tasdiqlash qutisidan o'tadi. Har bir elementda qaysi yo'ldan ketgani ko'rinadi."
+          lead="Oddiy postlar jadval bo'yicha o'zi chiqishi mumkin. Nozik narsalar har doim Tasdiqlash qutisi orqali o'tadi."
         >
-          <div className="overflow-hidden rounded-2xl border border-sand bg-white">
-            <table className="w-full text-left text-[14px]">
-              <thead className="bg-shell text-[13px] text-stone">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Kontent turi</th>
-                  <th className="hidden px-4 py-3 font-semibold sm:table-cell">Qachon qo&apos;llanadi</th>
-                  <th className="px-4 py-3 font-semibold">Standart holat</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="grid items-start gap-4 lg:grid-cols-[1.2fr_1fr]">
+            <div className="overflow-hidden rounded-[32px] bg-surface shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+              <div className="flex items-center justify-between px-5 py-4">
+                <span className="text-[16px] font-bold">Avtopilot qoidalari</span>
+                <span className="rounded-full bg-white/8 px-2 py-0.5 font-mono text-[10.5px] text-mute">beta</span>
+              </div>
+              <ul className="divide-y divide-white/6">
                 {RULES.map((r) => {
                   const auto = r.key === "routine";
                   return (
-                    <tr key={r.key} className="border-t border-sand">
-                      <td className="px-4 py-3 font-semibold">{r.name}</td>
-                      <td className="hidden px-4 py-3 text-stone sm:table-cell">{r.hint}</td>
-                      <td className="px-4 py-3">
-                        {auto ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-turq-soft px-2.5 py-0.5 text-[12px] font-bold text-turq">
-                            Avtopilot · beta
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-saffron-soft px-2.5 py-0.5 text-[12px] font-bold text-[#8a5a10]">
-                            Tasdiq kerak
-                          </span>
-                        )}
-                      </td>
-                    </tr>
+                    <li key={r.key} className="flex items-center gap-4 px-5 py-3.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[14.5px] font-semibold">{r.name}</div>
+                        <div className="text-[12.5px] text-mute">{r.hint}</div>
+                      </div>
+                      <span className={`font-mono text-[11px] ${auto ? "text-ok" : "text-wait"}`}>{auto ? "Avtopilot" : "Tasdiq bilan"}</span>
+                      <span aria-hidden className={`relative h-6 w-10 shrink-0 rounded-full ${auto ? "bg-ok" : "bg-white/12"}`}>
+                        <span className={`absolute top-1 h-4 w-4 rounded-full bg-white ${auto ? "right-1" : "left-1"}`} />
+                      </span>
+                    </li>
                   );
                 })}
-              </tbody>
-            </table>
+              </ul>
+            </div>
+            <div className="space-y-3">
+              <div className="rounded-[28px] bg-surface p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+                <div className="flex items-center gap-2 text-[15px] font-bold">
+                  <Send className="h-4 w-4 text-lime" /> Veb-studiyadan
+                </div>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-mute">
+                  «Telegramga joylash» botga olib o&apos;tadi:{" "}
+                  <span className="break-all font-mono text-[12px] text-fog/85">t.me/hackathonproj1_bot?start=publish_&lt;id&gt;</span>. Bot sizni Telegram
+                  orqali tasdiqlaydi va kanalga joylaydi.
+                </p>
+              </div>
+              <div className="rounded-[28px] bg-surface p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+                <div className="flex items-center gap-2 text-[15px] font-bold">
+                  <Smartphone className="h-4 w-4 text-lime" /> Mini App ichida
+                </div>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-mute">Telegram ichida ochilgan ilova to&apos;g&apos;ridan-to&apos;g&apos;ri joylaydi — kirish Telegram ma&apos;lumotlari bilan tekshiriladi.</p>
+              </div>
+              <p className="px-1 text-[13px] text-dim">Jadval bo&apos;yicha avtomatik joylash hackathondan keyin ulanadi; hozircha qoidalar Studiyada saqlanadi.</p>
+            </div>
           </div>
-          <p className="mt-3 text-[13px] text-stone">
-            MVP&apos;da qoidalar Studiyadagi sozlama sifatida ishlaydi. Jadval bo&apos;yicha avtomatik joylash hackathondan keyin ulanadi —
-            shuning uchun «beta» deb belgilangan.
-          </p>
         </Section>
 
-        <Section n={8} id="vizual" title="Vizual til: zamonaviy Samarqand koshinlari" lead="Rang — vazifa uchun, bezak uchun emas. Girih naqshi faqat urg'u sifatida.">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {PALETTE.map((p) => (
-              <div key={p.name}>
-                <div className={`h-20 rounded-2xl ${p.cls}`} />
-                <div className="mt-2 text-[14px] font-bold">{p.name}</div>
-                <div className="text-[12px] tabular-nums text-stone">{p.hex}</div>
-                <div className="text-[12px] text-stone">{p.role}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-10 grid gap-6 lg:grid-cols-2">
-            <div className="rounded-3xl border border-sand bg-white p-6">
-              <div className="text-[13px] text-stone">Unbounded — sarlavhalar</div>
-              <div className="mt-2 font-display text-[40px] font-semibold leading-none tracking-tight">Uslub — Услуб</div>
-              <div className="mt-6 text-[13px] text-stone">Manrope — interfeys va matn</div>
-              <p className="mt-2 text-[17px] leading-relaxed">
-                Topshiriq bering — bo&apos;lim bajaradi. Поручите задачу — отдел сделает. Топшириқ беринг.
-              </p>
+        {/* ------------------------------------------------------------ 9 visual */}
+        <Section
+          n={9}
+          id="vizual"
+          title="Vizual til: AI OS"
+          lead="Qora kanvas, nuqtali to'r va yonib turgan vidjet-kartalar. Har bir xodimning o'z gradienti bor; bitta asosiy harakat — laym tugma."
+        >
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="rounded-[32px] bg-void p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.1)] dot-grid">
+              <div className="mono-label">Asos</div>
+              <ul className="mt-4 space-y-3 text-[13.5px]">
+                {[
+                  ["#050506", "Kanvas, nuqtali to'r bilan", "bg-void shadow-[inset_0_0_0_1px_rgba(255,255,255,.2)]"],
+                  ["#0E0E11", "Yuzalar, kartalar", "bg-surface shadow-[inset_0_0_0_1px_rgba(255,255,255,.15)]"],
+                  ["#F3F3F5", "Matn", "bg-fog"],
+                  ["#D7FF3A", "Yagona asosiy harakat", "bg-lime"],
+                  ["#3BE08A", "Tayyor", "bg-ok"],
+                  ["#FFB547", "Tasdiq kutmoqda", "bg-wait"],
+                ].map(([hex, role, cls]) => (
+                  <li key={hex} className="flex items-center gap-3">
+                    <span className={`h-9 w-9 shrink-0 rounded-[12px] ${cls}`} />
+                    <span className="font-mono text-[12px] text-fog/85">{hex}</span>
+                    <span className="text-mute">{role}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div className="grid gap-4 rounded-3xl border border-sand bg-white p-6">
-              <div>
-                <div className="text-[13px] text-stone">Xodim statuslari</div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {statuses.map((s) => (
-                    <span key={s} className="inline-flex items-center gap-1.5 rounded-full bg-night-2 px-3 py-1 text-[12px] font-semibold text-white">
-                      <StatusIcon status={s} /> {STATUS_TEXT[s]}
+            <div className="rounded-[32px] bg-surface p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+              <div className="mono-label">Xodimlar gradientlari</div>
+              <ul className="mt-4 grid grid-cols-5 gap-3">
+                {AGENT_ORDER.map((r) => (
+                  <li key={r} className="flex flex-col items-center gap-1.5">
+                    <Orb kind={r} size={40} icon={false} />
+                    <span className="max-w-full truncate text-center text-[10.5px] text-mute">{AGENTS[r].name.split(" ")[0]}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                {(["editor", "translator"] as AgentRole[]).map((r) => (
+                  <GlowCard key={r} from={GRAD[r][0]} to={GRAD[r][1]} className="h-24 p-3">
+                    <span className="text-[12px] font-semibold">{AGENTS[r].name}</span>
+                  </GlowCard>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-[32px] bg-surface p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+              <div className="mono-label">Shrift va raqamlar</div>
+              <p className="mt-4 text-[44px] font-bold leading-none tracking-[-0.03em]">Uslub — Услуб</p>
+              <p className="mt-2 text-[13px] text-mute">Manrope — sarlavha va matn, lotin va kirill</p>
+              <p className="mt-4 font-mono text-[13px] uppercase tracking-[0.08em] text-fog/85">JetBrains Mono · 19:00 · 27%</p>
+              <p className="mt-1 text-[13px] text-mute">Kichik yorliqlar, vaqt va dalillar uchun</p>
+              <div className="mt-5 flex items-end gap-4">
+                <DotMatrix value="96" dot={5} gap={2} color="#D7FF3A" />
+                <span className="pb-1 text-[13px] text-mute">Nuqtali raqamlar: inson bali, KPI, hisoblagich</span>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-[32px] bg-surface p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+              <div className="mono-label">Komponentlar</div>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span className="pill-lime px-5 py-2.5 text-[14px]">Tasdiqlash</span>
+                <span className="pill-ghost px-5 py-2.5 text-[14px]">Tahrirlash</span>
+                {[
+                  ["Ishlayapti", "running", Loader2],
+                  ["Tayyor", "done", Check],
+                  ["Tasdiq kutmoqda", "wait", Hourglass],
+                ].map(([t, k, I]) => {
+                  const Icon = I as typeof Check;
+                  return (
+                    <span key={t as string} className="inline-flex items-center gap-1.5 rounded-full bg-white/6 px-3 py-1.5 text-[12.5px] shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+                      <Icon className="h-3.5 w-3.5" style={{ color: GOAL_DOT[k as string] }} /> {t as string}
                     </span>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-              <div>
-                <div className="text-[13px] text-stone">Tugmalar</div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <span className="rounded-xl bg-ink px-4 py-2 text-[14px] font-bold text-white">Topshiriq berish</span>
-                  <span className="inline-flex items-center gap-1.5 rounded-xl bg-turq px-4 py-2 text-[14px] font-bold text-white">
-                    <Check className="h-4 w-4" strokeWidth={3} /> Tasdiqlash
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-xl bg-lapis px-4 py-2 text-[14px] font-bold text-white">
-                    <Send className="h-4 w-4" /> Telegramga joylash
-                  </span>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="girih h-20 rounded-2xl border border-sand bg-paper" />
-                <div className="girih-night h-20 rounded-2xl bg-night" />
-              </div>
+            </div>
+            <div className="rounded-[32px] bg-surface p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+              <div className="mono-label">Harakat</div>
+              <ul className="mt-3 space-y-1.5 text-[14px] text-fog/85">
+                <li>Kartalar to&apos;plami prujina bilan yig&apos;iladi va suriladi.</li>
+                <li>Xodim ishni boshlaganda tugun gradient bilan «gullaydi».</li>
+                <li>Nuqtali hisoblagichlar raqamga qadar sanaydi.</li>
+                <li>«Kamroq harakat» sozlamasi yoqilganda — faqat yakuniy holat.</li>
+              </ul>
             </div>
           </div>
         </Section>
 
-        <Section n={9} id="ux" title="UX tamoyillari">
-          <ul className="grid gap-x-10 md:grid-cols-2">
+        {/* ------------------------------------------------------------ 10 UX */}
+        <Section n={10} id="ux" title="UX tamoyillari">
+          <ul className="grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
             {PRINCIPLES.map((p) => (
-              <li key={p.t} className="border-t border-sand py-4">
-                <div className="text-[16px] font-bold">{p.t}</div>
-                <p className="mt-1 text-[14px] leading-relaxed text-stone">{p.d}</p>
+              <li key={p.t} className="border-t border-edge pt-4">
+                <div className="text-[17px] font-bold">{p.t}</div>
+                <p className="mt-1.5 text-[14.5px] leading-relaxed text-mute">{p.d}</p>
               </li>
             ))}
           </ul>
         </Section>
 
-        <Section n={10} id="narx" title="Narx" lead="MVP uchun bitta tarif. Bu erta narx — hackathondan keyin qayta ko'riladi.">
-          <div className="flex flex-col gap-6 rounded-3xl bg-saffron-soft p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+        {/* ------------------------------------------------------------ 11 price */}
+        <Section n={11} id="narx" title="Narx" lead="MVP uchun bitta tarif. Bu erta narx — hackathondan keyin qayta ko'riladi.">
+          <GlowCard from={GRAD.analyst[0]} to={GRAD.analyst[1]} strength={0.45} className="grid gap-6 p-6 sm:p-8 md:grid-cols-[1fr_auto] md:items-end">
             <div>
-              <div className="font-display text-[26px] font-semibold leading-tight sm:text-[32px]">7 kun bepul, keyin oyiga 149 000 so&apos;m</div>
-              <div className="mt-2 text-[14px] text-stone">7 дней бесплатно, затем 149 000 сум/мес · 7 days free, then 149,000 UZS/month</div>
-              <div className="mt-3 text-[14px]">9 ta AI xodim, 4 yozuvda postlar, Telegramga joylash.</div>
+              <span className="mono-label text-fog/75">Erta narx · 1 tarif</span>
+              <p className="mt-3 text-[28px] font-bold leading-tight tracking-tight sm:text-[40px]">7 kun bepul, keyin oyiga 149 000 so&apos;m</p>
+              <p className="mt-2 text-[14px] text-fog/75">7 дней бесплатно, затем 149 000 сум/мес · 7 days free, then 149,000 UZS/month</p>
+              <p className="mt-3 text-[14px] text-fog/85">10 ta AI xodim, 4 yozuvda postlar, Telegramga joylash.</p>
             </div>
-            <a href={TG_BOT_URL} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-ink px-5 py-3 text-[15px] font-bold text-white hover:bg-lapis">
-              <Send className="h-4 w-4" /> 7 kun bepul boshlash
-            </a>
-          </div>
+            <div className="flex flex-col items-start gap-3 md:items-end">
+              <DotMatrix value="149 000" dot={4.5} gap={1.8} />
+              <a href={TG_BOT_URL} target="_blank" rel="noreferrer" className="pill-lime px-5 py-2.5 text-[14px]">
+                7 kun bepul boshlash
+              </a>
+            </div>
+          </GlowCard>
         </Section>
 
-        <Section n={11} id="roadmap" title="Yo'l xaritasi">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-2xl border-2 border-turq bg-white p-5">
-              <div className="text-[15px] font-bold text-turq">MVP — bugun</div>
-              <ul className="mt-3 grid gap-2 text-[14px]">
+        {/* ------------------------------------------------------------ 12 roadmap */}
+        <Section n={12} id="roadmap" title="Yo'l xaritasi">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-[32px] bg-surface p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-lime shadow-[0_0_10px_#D7FF3A]" />
+                <span className="text-[17px] font-bold">MVP — bugun</span>
+              </div>
+              <ul className="mt-4 space-y-2 text-[14.5px] text-fog/85">
                 {[
-                  "Telegram kanalga joylash (tasdiqdan keyin)",
-                  "Brend DNK — kanal yoki matndan",
-                  "Postlar 4 yozuvda",
-                  "Neyro-so'z filtri va inson bali",
-                  "Mijoz radar",
-                  "Reels ssenariysi",
-                  "Jonli kanvas va 5 shablon",
-                  "Avtopilot qoidalari (sozlama sifatida)",
-                ].map((s) => (
-                  <li key={s} className="flex gap-2">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-turq" strokeWidth={3} />
-                    {s}
+                  "Telegram kanalga joylash (bot orqali)",
+                  "Brend DNK va bilimlar bazasi",
+                  "Tahlil va strategiya (miya agenti)",
+                  "Postlar 4 yozuvda + neyro-so'z filtri",
+                  "Mijoz radar, Reels ssenariysi",
+                  "Bo'lim kanvasi va tasdiqlash qutisi",
+                ].map((t) => (
+                  <li key={t} className="flex gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-ok" /> {t}
                   </li>
                 ))}
               </ul>
             </div>
-            <div className="rounded-2xl border border-sand bg-shell p-5">
-              <div className="text-[15px] font-bold text-stone">Hackathondan keyin</div>
-              <ul className="mt-3 grid gap-2 text-[14px]">
+            <div className="rounded-[32px] bg-surface p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-white/40" />
+                <span className="text-[17px] font-bold">Hackathondan keyin</span>
+              </div>
+              <ul className="mt-4 space-y-2 text-[14.5px] text-mute">
                 {[
                   "Instagram va YouTube'ga joylash",
                   "Jadval bo'yicha avtopilot",
                   "Jamoa a'zolari uchun o'rinlar",
                   "Videoni render qilish",
                   "Natijalar analitikasi",
-                ].map((s) => (
-                  <li key={s} className="flex gap-2">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-stone" />
-                    {s}
+                ].map((t) => (
+                  <li key={t} className="flex gap-2">
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-white/30" /> {t}
                   </li>
                 ))}
               </ul>
@@ -561,34 +626,30 @@ export default function ConceptPage() {
           </div>
         </Section>
 
-        <Section n={12} id="stack" title="Texnologiyalar">
-          <ul className="flex flex-wrap gap-2 text-[14px]">
-            {[
-              "Next.js 16 App Router",
-              "React 19",
-              "Tailwind 4",
-              "@xyflow/react — kanvas",
-              "motion — animatsiya",
-              "zustand — holat",
-              "Neon Postgres",
-              "grammY — Telegram bot + Mini App",
-              "Claude (Anthropic) — AI xodimlar",
-              "Vercel, fra1",
-            ].map((s) => (
-              <li key={s} className="rounded-full border border-sand bg-white px-3.5 py-1.5 font-semibold">
-                {s}
-              </li>
+        {/* ------------------------------------------------------------ 13 stack */}
+        <Section n={13} id="stack" title="Texnologiyalar">
+          <dl className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
+            {STACK.map(([k, v]) => (
+              <div key={k} className="border-t border-edge py-3">
+                <dt className="text-[15px] font-bold">{k}</dt>
+                <dd className="text-[13.5px] text-mute">{v}</dd>
+              </div>
             ))}
-          </ul>
+          </dl>
         </Section>
-      </div>
 
-      <footer className="border-t border-sand">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-8 text-[13px] text-stone sm:px-8">
-          <Logo />
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-edge py-8 text-[13px] text-dim">
           <span>MARS AI Hackathon · Toshkent, 2026</span>
-        </div>
-      </footer>
+          <div className="flex gap-2">
+            <Link href="/studio" className="pill-lime px-4 py-2 text-[13px]">
+              Studiyani ochish
+            </Link>
+            <a href={TG_BOT_URL} target="_blank" rel="noreferrer" className="pill-ghost px-4 py-2 text-[13px]">
+              <Send className="h-3.5 w-3.5" /> Telegram bot
+            </a>
+          </div>
+        </footer>
+      </div>
     </main>
   );
 }
