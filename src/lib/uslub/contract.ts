@@ -126,6 +126,13 @@ export interface PostDraft {
   /** The post's picture in the brand's style; missing = no picture requested yet. */
   image?: PostImage;
   approvedAt?: string; // ISO, set when the owner approves (persisted, survives reload)
+  /**
+   * Set when the text still has a blank the writer could not fill (e.g. an unknown price or code).
+   * Approve/publish refuse such a post with code "placeholder_left" until the owner fills it.
+   */
+  needsApproval?: boolean;
+  placeholders?: { script: Script; tokens: string[] }[];
+  note?: string; // owner-readable, in the request's language: which fact to add
   createdAt: string;
 }
 
