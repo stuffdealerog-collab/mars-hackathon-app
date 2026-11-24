@@ -72,6 +72,10 @@ export interface TgApp {
   openTelegramLink?(url: string): void;
   openLink?(url: string): void;
   showConfirm?(message: string, cb: (ok: boolean) => void): void;
+  showPopup?(
+    params: { title?: string; message: string; buttons?: { id?: string; type?: "default" | "ok" | "close" | "cancel" | "destructive"; text?: string }[] },
+    cb?: (buttonId: string) => void,
+  ): void;
   onEvent?(e: TgEvent, cb: () => void): void;
   offEvent?(e: TgEvent, cb: () => void): void;
   MainButton?: TgBottomButton;
@@ -161,6 +165,26 @@ export function confirmNative(message: string): Promise<boolean> {
     });
   }
   return Promise.resolve(window.confirm(message));
+}
+
+/**
+ * A native popup for an outcome the owner must read (a refused approve or publish). Telegram caps
+ * the message at 256 and a button at 64 characters, so the text is cut with «…»; the full text
+ * stays on the screen. Returns false when the client cannot show one (the caller falls back).
+ */
+export function popup(message: string, action?: { text: string; onPress: () => void }): boolean {
+  const app = tg();
+  if (!app?.showPopup || !atLeast("6.2")) return false;
+  const text = message.length > 240 ? `${message.slice(0, 239).trimEnd()}…` : message;
+  const buttons = action ? [{ id: "act", type: "default" as const, text: action.text.slice(0, 64) }, { type: "close" as const }] : [{ type: "close" as const }];
+  try {
+    app.showPopup({ message: text, buttons }, (id) => {
+      if (id === "act") action?.onPress();
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** CloudStorage (Bot API 6.9): the owner's settings follow them across devices. */

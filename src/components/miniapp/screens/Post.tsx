@@ -1,27 +1,39 @@
-import type { PostDraft, Script } from "@/lib/uslub/contract";
+import type { PostDraft, PostImage as PostImageData, Script } from "@/lib/uslub/contract";
 import { Check, ChevronRight, Send } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { PostImage } from "../../media";
+import * as api from "../../studio/api";
 import { PostPicture } from "../../studio/PostPicture";
 import { useStudio } from "../../studio/store";
-import { fmt, keepNumbers, useCopy } from "../../ui/lang";
-import { blankNote, hasBlank } from "../blank";
+import { fmt, keepNumbers, useCopy, useLang } from "../../ui/lang";
+import { blankNote, blankTokens, useBlank } from "../blank";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons, useLatest, useNav, type BtnSpec } from "../nav";
 import { hasNativeSecondary } from "../native";
 import { TopBar } from "../Shell";
-import { haptic, openLink } from "../tg";
+import { haptic, openLink, popup } from "../tg";
 import { scriptOf, usePostScript, useWhen } from "./Posts";
 
 type Status = "draft" | "approved" | "published";
 const statusOf = (p: PostDraft): Status => (p.status === "published" ? "published" : p.status === "approved" ? "approved" : "draft");
 const picturePending = (p: PostDraft) => !!p.image && (p.image.status === "queued" || p.image.status === "running");
 
-/** Approve, then publish, from inside Telegram (no bot detour). Returns the outcome for haptics. */
+/** Keeps the store's copy of a post's picture in step with what PostImage shows (thumbnails, publish gate). */
+const setPostImage = (id: string, image: PostImageData) =>
+  useStudio.setState({ posts: useStudio.getState().posts.map((p) => (p.id === id ? { ...p, image } : p)) });
+
+/** Approve, then publish, from inside Telegram (no bot detour). Outcomes answer with haptics, a toast or a native popup. */
 export function usePostActions() {
   const c = useCopy();
   const m = useMiniCopy();
   const say = useNav((s) => s.say);
   const openSheet = useNav((s) => s.openSheet);
+
+  /** A refusal the owner must read: a native popup (the full text stays on the post), a toast where there is none. */
+  const refuse = (text: string, adminUrl?: string) => {
+    haptic.error();
+    if (!popup(text, adminUrl ? { text: m.admin.open, onPress: () => openLink(adminUrl) } : undefined)) say(text, "bad");
+  };
 
   const approve = async (id: string) => {
     haptic.press();
@@ -31,10 +43,12 @@ export function usePostActions() {
     if (p?.status === "approved") {
       haptic.success();
       say(m.post.approvedToast, "ok");
-    } else {
-      haptic.error();
-      say(st.postNote[id]?.text ?? c.posts.approveError, "bad");
+      return;
     }
+    const note = st.postNote[id];
+    // A blank left in the text is the owner's to fill, never an error: the hint shows on the post.
+    if (note?.tone === "hint") haptic.warn();
+    else refuse(note?.text ?? c.posts.approveError);
   };
 
   const publish = async (id: string, script: Script) => {
@@ -61,13 +75,8 @@ export function usePostActions() {
       return;
     }
     const note = after.postNote[id];
-    if (note?.href) {
-      haptic.warn();
-      openSheet({ name: "admin", postId: id });
-      return;
-    }
-    haptic.error();
-    say(note?.text ?? c.error.generic, "bad");
+    if (note?.tone === "hint") haptic.warn();
+    else refuse(note?.text ?? c.error.generic, note?.href);
   };
 
   return { approve, publish };
@@ -138,17 +147,22 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
   const status = post ? statusOf(post) : "draft";
   const busy = post ? busyMap[post.id] : undefined;
   const nextOpen = posts.findIndex((p, i) => i !== index && statusOf(p) !== "published");
-  // A blank the writer could not fill (a price, a code): the owner fills it before approving.
-  const blank = useStudio((st) => !!post && hasBlank(post) && !st.edited[post.id]);
+  // A blank the writer could not fill (a price, a code): the owner fills it before it can go out.
+  const blank = useBlank(post);
+  const edit = () => {
+    if (!post) return;
+    haptic.tap();
+    openSheet({ name: "edit", postId: post.id });
+  };
 
   let main: BtnSpec | null = null;
   let secondary: BtnSpec | null = null;
   if (post) {
-    if (status === "draft" && blank) {
-      main = { text: m.post.fill, onClick: () => (haptic.tap(), openSheet({ name: "edit", postId: post.id })) };
+    if (status !== "published" && blank) {
+      main = { text: m.post.fill, onClick: edit };
     } else if (status === "draft") {
       main = { text: busy === "approve" ? c.posts.approving : c.posts.approve, onClick: () => void approve(post.id), progress: busy === "approve" };
-      secondary = { text: c.posts.edit, onClick: () => (haptic.tap(), openSheet({ name: "edit", postId: post.id })) };
+      secondary = { text: c.posts.edit, onClick: edit };
     } else if (status === "approved") {
       main = picturePending(post)
         ? { text: m.post.waitPicture, onClick: () => undefined, active: false }
@@ -191,21 +205,60 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
   );
 }
 
+/** The post text with each unfilled blank ("[kod]") underlined in amber. */
+function TextWithBlanks({ text, tokens }: { text: string; tokens: string[] }) {
+  if (!tokens.length) return <>{keepNumbers(text)}</>;
+  const esc = tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const parts = keepNumbers(text).split(new RegExp(`(${esc.join("|")})`, "g"));
+  return (
+    <>
+      {parts.map((part, i) => (tokens.includes(part) ? <mark key={i} className="ma-blank">{part}</mark> : <Fragment key={i}>{part}</Fragment>))}
+    </>
+  );
+}
+
+/** "Kanalingizdagi 4 ta rasm asosida": which pictures the style came from, with the channel's palette. */
+function RefsLine({ post }: { post: PostDraft }) {
+  const m = useMiniCopy();
+  const visual = useStudio((s) => s.brand?.visual);
+  const fresh = useStudio((s) => s.mode === "fresh");
+  const img = post.image;
+  if (img?.status !== "ready" || !img.url || !img.refsUsed) return null;
+  const owner = visual?.refs.some((r) => r.source === "owner");
+  const channel = visual?.refs.some((r) => r.source === "channel");
+  const text = fresh ? m.refs.owner : owner && channel ? m.refs.mixed : owner ? m.refs.owner : m.refs.channel;
+  return (
+    <p className="mt-2.5 flex items-center gap-2 px-1 text-[13px] text-ink-2">
+      {visual?.palette?.length ? (
+        <span aria-hidden className="flex shrink-0 gap-1">
+          {visual.palette.slice(0, 4).map((col) => (
+            <span key={col} className="h-3 w-3 rounded-full shadow-[inset_0_0_0_1px_var(--hair-2)]" style={{ background: col }} />
+          ))}
+        </span>
+      ) : null}
+      <span className="min-w-0">{fmt(text, { n: img.refsUsed })}</span>
+    </p>
+  );
+}
+
 function PostPage({ post, script, current, pro, label }: { post: PostDraft; script: Script; current: boolean; pro: boolean; label: string }) {
   const c = useCopy();
   const m = useMiniCopy();
+  const lang = useLang((s) => s.lang);
   const when = useWhen()(post);
   const channelName = useStudio((s) => s.brand?.dna.name || s.brand?.channel || (s.input.channel ? `@${s.input.channel}` : "Kanal"));
-  const retryImage = useStudio((s) => s.retryImage);
   const sample = useStudio((s) => s.sample);
   const edited = useStudio((s) => !!s.edited[post.id]?.[script]);
   const note = useStudio((s) => s.postNote[post.id]);
-  const blank = useStudio((s) => hasBlank(post) && !s.edited[post.id]);
-  // Reserve the 4:5 slot while pictures are on their way, so the post never jumps when one lands.
+  const blank = useBlank(post);
+  // Reserve the picture slot while pictures are on their way, so the post never jumps when one lands.
   const picturesExpected = useStudio((s) => !s.sample && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")));
   const openSheet = useNav((s) => s.openSheet);
   const status = statusOf(post);
   const text = post.variants[script] ?? "";
+  // Only a draft's picture can change: redrawing an approved post would no longer match what the bot previewed.
+  const live = status === "draft" && !sample && (!!post.image || !picturesExpected);
+  const hint = blankNote(post) || (note?.tone === "hint" ? note.text : null) || (blank ? m.post.blank : null);
   // Approving answers with one lime ring around the post (state derived during render).
   const [seen, setSeen] = useState(status);
   const [pulse, setPulse] = useState(0);
@@ -219,9 +272,9 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
       <div className="px-4 pb-8 pt-1">
         <p className="ma-inline-when min-h-9 truncate px-1 pb-2.5 pt-1.5 text-[14px] text-ink-2">{when ? fmt(c.posts.when, { when }) : null}</p>
 
-        {blank && status === "draft" && (
-          <p role="note" className="mb-3 rounded-2xl bg-[color-mix(in_oklab,var(--led)_14%,transparent)] px-4 py-3 text-[14.5px] leading-snug">
-            {blankNote(post) || m.post.blank}
+        {blank && hint && status !== "published" && (
+          <p role="note" className="ma-hint mb-3">
+            {hint}
           </p>
         )}
 
@@ -235,7 +288,21 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
               {status === "published" ? m.posts.published : m.posts.approved}
             </span>
           )}
-          <PostPicture image={post.image} alt={c.posts.image.alt} expected={picturesExpected} onRetry={sample ? undefined : () => void retryImage(post.id)} />
+          {live ? (
+            <PostImage
+              key={`${post.id}:${post.image ? "i" : "n"}`}
+              postId={post.id}
+              initial={post.image ?? null}
+              autoStart={false}
+              pro={pro}
+              lang={lang}
+              initData={api.tgInitData()}
+              onChange={(img) => setPostImage(post.id, img)}
+              className="ma-postimage"
+            />
+          ) : (
+            <PostPicture image={post.image} alt={c.posts.image.alt} expected={picturesExpected} />
+          )}
           <div className="px-4 pb-2.5 pt-3">
             <div className={`mb-2 flex items-center gap-2.5 ${status !== "draft" && !post.image ? "pr-32" : ""}`}>
               <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[14px] font-semibold text-white" style={{ background: "linear-gradient(160deg, #C86B3C, #6b3115)" }}>
@@ -246,7 +313,7 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
               </span>
             </div>
             <p lang={script === "ru" ? "ru" : script === "en" ? "en" : "uz"} className="post-text select-text">
-              {keepNumbers(text)}
+              <TextWithBlanks text={text} tokens={blank ? blankTokens(post, script) : []} />
             </p>
             <p className="mt-1.5 text-right text-[12px] text-ink-3">
               {edited && <span className="mr-2">{m.post.edited}</span>}
@@ -254,8 +321,9 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
             </p>
           </div>
         </div>
+        <RefsLine post={post} />
 
-        {note?.tone === "bad" && !note.href && (
+        {note?.tone === "bad" && (
           <p role="alert" className="mt-3 px-1 text-[14px] leading-snug text-bad">
             {note.text}
           </p>

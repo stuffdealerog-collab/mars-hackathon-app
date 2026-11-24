@@ -1,19 +1,18 @@
-import type { PostImage, Script } from "@/lib/uslub/contract";
-import { Check, Copy, Link2, RefreshCw } from "lucide-react";
+import type { Script } from "@/lib/uslub/contract";
+import { Check, Copy, Laptop, Link2 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import * as api from "../../studio/api";
 import { problemOf, useStudio } from "../../studio/store";
 import { ownerText } from "../../ui/format";
 import { fmt, LANGS, useCopy, useLang } from "../../ui/lang";
 import { parseChannel } from "../../ui/parts";
-import { blankNote, hasBlank } from "../blank";
+import { blankNote, blankTokens } from "../blank";
 import { useMiniCopy } from "../copy";
 import { PRIORITY, useBottomButtons, useNav, type Sheet as SheetT } from "../nav";
 import { useClosingConfirmation } from "../native";
-import { usePostActions } from "../screens/Post";
 import { scriptOf, usePostScript, useWhen } from "../screens/Posts";
 import { Sheet } from "../Shell";
-import { cloud, confirmNative, haptic, openLink } from "../tg";
+import { cloud, confirmNative, haptic, openLink, popup } from "../tg";
 
 /** Renders the open sheet (one at a time). */
 export function SheetHost({ onRestart }: { onRestart: () => void }) {
@@ -33,10 +32,10 @@ function SheetBody({ sheet, leaving, onRestart }: { sheet: SheetT; leaving: bool
       return <EditSheet leaving={leaving} postId={sheet.postId!} />;
     case "details":
       return <DetailsSheet leaving={leaving} postId={sheet.postId!} />;
-    case "admin":
-      return <AdminSheet leaving={leaving} postId={sheet.postId!} />;
     case "channel":
       return <ChannelSheet leaving={leaving} postId={sheet.postId!} />;
+    default:
+      return null;
   }
 }
 
@@ -51,7 +50,36 @@ function SettingsSheet({ leaving, onRestart }: { leaving: boolean; onRestart: ()
   const setPro = useStudio((s) => s.setPro);
   const phase = useStudio((s) => s.phase);
   const sample = useStudio((s) => s.sample);
+  const brandId = useStudio((s) => s.brand?.id);
+  const say = useNav((s) => s.say);
+  const [handing, setHanding] = useState(false);
   useBottomButtons("sheet", PRIORITY.sheet, !leaving, null);
+
+  /** A signed link to the desktop Studio for this brand (the server only mints it for a live Telegram session). */
+  const toDesktop = async () => {
+    if (!brandId || handing) return;
+    haptic.tap();
+    setHanding(true);
+    const init = api.tgInitData();
+    try {
+      const res = await fetch("/api/uslub/handoff", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(init ? { authorization: `tma ${init}` } : {}) },
+        body: JSON.stringify({ brandId, lang }),
+      });
+      const j = (await res.json().catch(() => null)) as { url?: string; error?: string; code?: string } | null;
+      if (res.ok && j?.url) openLink(j.url);
+      else {
+        haptic.error();
+        say(problemOf({ ok: false, status: res.status, code: j?.code ?? "http", error: j?.error }).message, "bad");
+      }
+    } catch {
+      haptic.error();
+      say(c.error.network, "bad");
+    } finally {
+      setHanding(false);
+    }
+  };
 
   return (
     <Sheet title={m.settings.title} leaving={leaving}>
@@ -104,6 +132,15 @@ function SettingsSheet({ leaving, onRestart }: { leaving: boolean; onRestart: ()
 
       {phase !== "start" && !sample && (
         <div className="ma-group mt-6">
+          {brandId && !!api.tgInitData() && (
+            <button type="button" className="ma-row ma-press" disabled={handing} onClick={() => void toDesktop()}>
+              <Laptop className="h-5 w-5 shrink-0 text-ink-2" strokeWidth={1.8} aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className={`block text-[16px] font-medium ${handing ? "breathe" : ""}`}>{m.settings.desktop}</span>
+                <span className="mt-0.5 block text-[13px] leading-snug text-ink-2">{m.settings.desktopHint}</span>
+              </span>
+            </button>
+          )}
           <button
             type="button"
             className="ma-row ma-press justify-center text-[16px] font-medium text-bad"
@@ -161,6 +198,7 @@ function EditSheet({ leaving, postId }: { leaving: boolean; postId: string }) {
   const m = useMiniCopy();
   const id = useId();
   const post = useStudio((s) => s.posts.find((p) => p.id === postId));
+  const note = useStudio((s) => s.postNote[postId]);
   const editPost = useStudio((s) => s.editPost);
   const close = useNav((s) => s.closeSheet);
   const say = useNav((s) => s.say);
@@ -168,12 +206,34 @@ function EditSheet({ leaving, postId }: { leaving: boolean; postId: string }) {
   const s = post ? scriptOf(post, script) : script;
   const original = post?.variants[s] ?? "";
   const [draft, setDraft] = useState(original);
+  const area = useRef<HTMLTextAreaElement>(null);
   const dirty = draft.trim() !== original.trim();
+  const tokens = post ? blankTokens(post, s) : [];
+  const hint = (post && blankNote(post)) || (note?.tone === "hint" ? note.text : null);
   useClosingConfirmation(dirty && !leaving);
+
+  // A post with a blank opens on the blank: the cursor selects it, ready to be typed over.
+  useEffect(() => {
+    const el = area.current;
+    if (!el) return;
+    const t = setTimeout(() => {
+      const at = tokens.map((tok) => el.value.indexOf(tok)).filter((i) => i >= 0).sort((a, b) => a - b)[0];
+      el.focus({ preventScroll: true });
+      if (at != null) {
+        const tok = tokens.find((x) => el.value.indexOf(x) === at)!;
+        el.setSelectionRange(at, at + tok.length);
+      }
+    }, 420);
+    return () => clearTimeout(t);
+    // only when the sheet opens
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const save = () => {
     if (!post || !draft.trim()) return;
     editPost(post.id, s, draft.trim());
+    // Changed text needs the owner's approval again before it can go out.
+    if (post.status === "approved") useStudio.setState({ posts: useStudio.getState().posts.map((p) => (p.id === post.id ? { ...p, status: "draft" } : p)) });
     haptic.success();
     say(m.post.savedToast, "ok");
     close();
@@ -182,11 +242,12 @@ function EditSheet({ leaving, postId }: { leaving: boolean; postId: string }) {
 
   return (
     <Sheet title={m.edit.title} leaving={leaving}>
-      {post && hasBlank(post) && blankNote(post) && <p className="mb-1 mt-1 px-1 text-[14px] leading-snug text-led">{blankNote(post)}</p>}
+      {hint && <p className="ma-hint mb-2 mt-1">{hint}</p>}
       <label htmlFor={`${id}-t`} className="sr-only">
         {c.posts.textLabel}
       </label>
       <textarea
+        ref={area}
         id={`${id}-t`}
         lang={s === "ru" ? "ru" : s === "en" ? "en" : "uz"}
         className="input mt-2 min-h-[46dvh] !rounded-2xl !text-[16px]"
@@ -202,49 +263,17 @@ function EditSheet({ leaving, postId }: { leaving: boolean; postId: string }) {
 
 /* ----------------------------------------------------------------- details */
 
-/** Starts a fresh picture (regenerate) and follows it until it is ready. */
-async function regenerate(postId: string, lang: "uz" | "ru" | "en") {
-  const set = (image: PostImage) => useStudio.setState({ posts: useStudio.getState().posts.map((p) => (p.id === postId ? { ...p, image } : p)) });
-  set({ status: "queued", refsUsed: 0 });
-  try {
-    const init = api.tgInitData();
-    const res = await fetch("/api/uslub/media/post-image", {
-      method: "POST",
-      headers: { "content-type": "application/json", ...(init ? { authorization: `tma ${init}` } : {}) },
-      body: JSON.stringify({ postId, regenerate: true, lang }),
-    });
-    const j = (await res.json().catch(() => null)) as { image?: PostImage; error?: string; code?: string } | null;
-    if (!res.ok || !j?.image) {
-      set({ status: "failed", refsUsed: 0, error: problemOf({ ok: false, status: res.status, code: j?.code ?? "http", error: j?.error }).message });
-      return false;
-    }
-    set(j.image);
-    const until = Date.now() + 4 * 60_000;
-    while (Date.now() < until) {
-      await new Promise((r) => setTimeout(r, 4000));
-      const g = await api.getPostImage(postId, lang);
-      if (!g.ok) continue;
-      set(g.data.image);
-      if (g.data.image.status === "ready" || g.data.image.status === "failed") return g.data.image.status === "ready";
-    }
-  } catch {
-    set({ status: "failed", refsUsed: 0, error: undefined });
-  }
-  return false;
-}
-
+/** Professional rejim: what the post was made from, how natural it reads, every script to copy. */
 function DetailsSheet({ leaving, postId }: { leaving: boolean; postId: string }) {
   const c = useCopy();
   const m = useMiniCopy();
   const lang = useLang((s) => s.lang);
   const post = useStudio((s) => s.posts.find((p) => p.id === postId));
-  const sample = useStudio((s) => s.sample);
   const when = useWhen();
   const [copied, setCopied] = useState<Script | null>(null);
   useBottomButtons("sheet", PRIORITY.sheet, !leaving, null);
   if (!post) return null;
   const slot = post.slot;
-  const img = post.image;
   const scripts = (["uz_latn", "uz_cyrl", "ru", "en"] as Script[]).filter((s) => post.variants[s]?.trim());
   const rows: [string, string][] = [];
   if (slot) {
@@ -255,7 +284,6 @@ function DetailsSheet({ leaving, postId }: { leaving: boolean; postId: string })
     if (slot.cta) rows.push([m.details.cta, ownerText(slot.cta, lang)]);
   }
   if (post.brief && post.brief !== slot?.hook) rows.push([m.details.brief, ownerText(post.brief, lang)]);
-  const busy = img?.status === "queued" || img?.status === "running";
   const flagged = [...new Set(scripts.flatMap((s) => (post.neuroHits[s] ?? []).map((h) => h.phrase)))];
 
   return (
@@ -310,87 +338,6 @@ function DetailsSheet({ leaving, postId }: { leaving: boolean; postId: string })
           </div>
         ))}
       </div>
-
-      {img && (
-        <>
-          <p className="mb-2 mt-6 px-1 text-[13px] font-medium text-ink-2">{m.details.picture}</p>
-          <div className="ma-group">
-            {img.prompt && (
-              <div className="ma-row !block">
-                <p className="text-[13px] text-ink-2">{m.details.prompt}</p>
-                <p className="mt-1 line-clamp-6 text-[14px] leading-snug select-text">{img.prompt}</p>
-                {img.refsUsed > 0 && <p className="mt-1.5 text-[13px] text-ink-3">{fmt(m.details.refs, { n: img.refsUsed })}</p>}
-              </div>
-            )}
-            {!sample && (
-              <button
-                type="button"
-                className="ma-row ma-press"
-                disabled={busy}
-                onClick={() => {
-                  haptic.press();
-                  void regenerate(post.id, lang).then((ok) => (ok ? haptic.success() : undefined));
-                }}
-              >
-                <RefreshCw className={`h-5 w-5 shrink-0 text-ink-2 ${busy ? "animate-spin [animation-duration:1.6s]" : ""}`} aria-hidden />
-                <span className="min-w-0 flex-1 text-[16px] font-medium">{busy ? c.posts.image.running : m.details.again}</span>
-              </button>
-            )}
-          </div>
-        </>
-      )}
-    </Sheet>
-  );
-}
-
-/* ------------------------------------------------------------- admin fix */
-
-/** The bot is not an admin of the channel yet: one tap opens Telegram's own admin picker. */
-function AdminSheet({ leaving, postId }: { leaving: boolean; postId: string }) {
-  const m = useMiniCopy();
-  const href = useStudio((s) => s.postNote[postId]?.href);
-  const close = useNav((s) => s.closeSheet);
-  const { script } = usePostScript();
-  const post = useStudio((s) => s.posts.find((p) => p.id === postId));
-  const { publish } = usePostActions();
-  // Two steps: open Telegram's admin picker, then publish again (the picker stays one tap away).
-  const [step, setStep] = useState<"open" | "retry">("open");
-  useBottomButtons(
-    "sheet",
-    PRIORITY.sheet,
-    !leaving,
-    step === "open"
-      ? {
-          text: m.admin.open,
-          onClick: () => {
-            if (!href) return;
-            haptic.tap();
-            openLink(href);
-            setStep("retry");
-          },
-        }
-      : {
-          text: m.admin.retry,
-          onClick: () => {
-            if (!post) return;
-            close();
-            void publish(post.id, scriptOf(post, script));
-          },
-        },
-    step === "retry" ? { text: m.admin.open, onClick: () => href && openLink(href) } : null,
-  );
-
-  return (
-    <Sheet title={m.admin.title} leaving={leaving}>
-      <div className="flex flex-col items-center px-2 pb-2 pt-3 text-center">
-        <span className="lamp lamp--sm mb-5 w-[88px] !min-h-[64px]" data-state="you" style={{ ["--hue" as string]: "#25D0C2", ["--core" as string]: "#BDFFF7", ["--deep" as string]: "#0A6B74" }} aria-hidden>
-          <span className="lamp__spill" />
-          <span className="lamp__glow" />
-          <span className="lamp__filament" />
-        </span>
-        <p className="max-w-[34ch] text-[16px] leading-relaxed">{m.admin.text}</p>
-        <p className="mt-3 max-w-[34ch] text-[14px] leading-relaxed text-ink-2">{m.admin.step}</p>
-      </div>
     </Sheet>
   );
 }
@@ -407,7 +354,6 @@ function ChannelSheet({ leaving, postId }: { leaving: boolean; postId: string })
   const [busy, setBusy] = useState(false);
   const close = useNav((s) => s.closeSheet);
   const say = useNav((s) => s.say);
-  const openSheet = useNav((s) => s.openSheet);
   const lang = useLang((s) => s.lang);
   const post = useStudio((s) => s.posts.find((p) => p.id === postId));
   const { script } = usePostScript();
@@ -441,13 +387,9 @@ function ChannelSheet({ leaving, postId }: { leaving: boolean; postId: string })
     const admin = r.ok ? r.data.addAdminUrl : r.addAdminUrl;
     const text = r.ok ? (r.data.error ?? c.error.generic) : problemOf(r).message;
     useStudio.setState({ postNote: { ...useStudio.getState().postNote, [post.id]: { text, href: admin, tone: "bad" } } });
-    if (admin) {
-      haptic.warn();
-      openSheet({ name: "admin", postId: post.id });
-      return;
-    }
     haptic.error();
-    say(text, "bad");
+    close();
+    if (!popup(text, admin ? { text: m.admin.open, onPress: () => openLink(admin) } : undefined)) say(text, "bad");
   };
 
   useBottomButtons("sheet", PRIORITY.sheet, !leaving, { text: m.channel.go, onClick: () => void go(), active: value.trim().length > 0, progress: busy });

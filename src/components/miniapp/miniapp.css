@@ -804,6 +804,39 @@ html.ma-html body {
   animation: lamp-on 720ms linear both;
 }
 
+/* A blank only the owner can fill (a price, a code): quiet amber, never a red error. */
+.ma-hint {
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--led) 13%, transparent);
+  padding: 12px 16px;
+  font-size: 14.5px;
+  line-height: 1.4;
+}
+mark.ma-blank {
+  background: color-mix(in oklab, var(--led) 18%, transparent);
+  color: inherit;
+  border-radius: 4px;
+  padding: 0 2px;
+  text-decoration: underline 2px var(--led);
+  text-underline-offset: 3px;
+}
+
+/* The images session's PostImage inside the post bubble: the picture is the bubble's top edge. */
+.ma-postimage > div:first-child {
+  border-radius: 0;
+  box-shadow: none;
+}
+.ma-postimage > figcaption {
+  margin-top: 0;
+  padding: 8px 12px 0;
+}
+.ma-postimage > figcaption:has(> span:empty:only-child) {
+  display: none;
+}
+.ma-postimage > div:last-child:not(:first-child) {
+  padding: 0 16px;
+}
+
 /* The owner's hand, confirmed: one lime ring that fades outward when a post is approved. */
 .ma-pulse {
   position: absolute;

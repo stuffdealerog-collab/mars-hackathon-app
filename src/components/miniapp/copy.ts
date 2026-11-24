@@ -33,7 +33,7 @@ const uz = {
     publishedToast: "Kanalga joylandi",
     savedToast: "Matn saqlandi",
     edited: "tahrirlangan",
-    fill: "Bo‘sh joyni to‘ldirish",
+    fill: "To‘ldirish",
     blank: "Matnda siz to‘ldiradigan joy qoldi.",
   },
   edit: {
@@ -64,6 +64,8 @@ const uz = {
     proHint: "Hamma xodimlar, strategiya, har post tafsilotlari.",
     restart: "Boshqa kanal bilan boshlash",
     restartAsk: "Joriy ish yopiladi. Boshqa kanal bilan boshlaysizmi?",
+    desktop: "Kompyuterda to‘liq studiya",
+    desktopHint: "Shu kanal kompyuter brauzerida ochiladi. Havola 7 kun ishlaydi.",
   },
   admin: {
     title: "Botni kanalga admin qiling",
@@ -81,6 +83,11 @@ const uz = {
   sample: "Namuna",
   settingsLabel: "Sozlamalar",
   clear: "Tozalash",
+  refs: {
+    channel: "Kanalingizdagi {n} ta rasm asosida",
+    owner: "Siz yuborgan rasmlar asosida ({n} ta)",
+    mixed: "Kanal va sizning rasmlaringiz asosida ({n} ta)",
+  },
   review: "Postlarni ko‘rib chiqish",
   seePosts: "Postlarni ko‘rish · {n}",
   more: "Batafsil",
@@ -117,7 +124,7 @@ const ru: MiniCopy = {
     publishedToast: "Опубликовано в канал",
     savedToast: "Текст сохранён",
     edited: "изменён",
-    fill: "Заполнить пропуск",
+    fill: "Заполнить",
     blank: "В тексте осталось место, которое заполните вы.",
   },
   edit: {
@@ -148,6 +155,8 @@ const ru: MiniCopy = {
     proHint: "Все сотрудники, стратегия, подробности каждого поста.",
     restart: "Начать с другим каналом",
     restartAsk: "Текущая работа закроется. Начать с другим каналом?",
+    desktop: "Полная студия на компьютере",
+    desktopHint: "Этот канал откроется в браузере на компьютере. Ссылка работает 7 дней.",
   },
   admin: {
     title: "Сделайте бота админом канала",
@@ -165,6 +174,11 @@ const ru: MiniCopy = {
   sample: "Пример",
   settingsLabel: "Настройки",
   clear: "Очистить",
+  refs: {
+    channel: "По фото вашего канала ({n})",
+    owner: "По вашим фото ({n})",
+    mixed: "По фото канала и вашим ({n})",
+  },
   review: "Проверить посты",
   seePosts: "Посмотреть посты · {n}",
   more: "Подробнее",
@@ -199,7 +213,7 @@ const en: MiniCopy = {
     publishedToast: "Published to the channel",
     savedToast: "Text saved",
     edited: "edited",
-    fill: "Fill in the blank",
+    fill: "Fill in",
     blank: "The text has a blank only you can fill.",
   },
   edit: {
@@ -230,6 +244,8 @@ const en: MiniCopy = {
     proHint: "Every employee, the strategy, details for each post.",
     restart: "Start with another channel",
     restartAsk: "The current work will close. Start with another channel?",
+    desktop: "Full studio on a computer",
+    desktopHint: "Opens this channel in a computer browser. The link works for 7 days.",
   },
   admin: {
     title: "Make the bot a channel admin",
@@ -247,6 +263,11 @@ const en: MiniCopy = {
   sample: "Sample",
   settingsLabel: "Settings",
   clear: "Clear",
+  refs: {
+    channel: "Based on your channel’s photos ({n})",
+    owner: "Based on your photos ({n})",
+    mixed: "Based on your channel’s and your photos ({n})",
+  },
   review: "Review the posts",
   seePosts: "See the posts · {n}",
   more: "More",
