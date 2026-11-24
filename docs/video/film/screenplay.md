@@ -271,7 +271,7 @@ MARS AI School — флаг рядом с вашим не случайно. Да
 **TYPE** (тёплый белый фон): логотип Mercat — актуальную версию после редизайна взять у lead.
 «**Bir havola — butun marketing bo‘limi.**»
 «Одна ссылка — весь отдел маркетинга.»
-QR на бота `@hackathonproj1_bot` · `mercat-ai.vercel.app`
+QR на бота `@mercatai` (`t.me/mercatai`) · `mercat-ai.vercel.app`
 «MARS AI Hackathon · Techstars Startup Week Tashkent 2026»
 Ниже, мельче: «Homiy: PromptX» / «При поддержке PromptX» + их логотип.
 Музыка заканчивается финальным ударом точно на логотипе. Держим 4 секунды.

@@ -99,6 +99,8 @@
 
 ## Шаг 1. Твои фото и таблица 3D-черновиков
 
+**24.11 фото уже загружены из Claude Code.** Готовое сообщение со всеми id — в [`chat-start.md`](chat-start.md), сообщение 2. Его и вставляй вместо блока ниже.
+
 Прикрепи в чат файлы FACE-1…FACE-6, BODY-1…BODY-3, WARD-1, HAND-1, HAND-2, SHOES-1, STAIR-1…STAIR-4 (`filming-checklist.md`, §2) и вставь сообщение ниже. **Проще:** положи их в `footage/refs` — Claude Code загрузит их в Higgsfield сам и даст таблицу media_id; тогда в пункте 1) вместо «Прикрепил» вставь эту таблицу.
 
 ```
@@ -527,7 +529,9 @@ physics: the bread and the poles do not move; the flags are blank fabric
 
 ## Шаг 8. Замена фона у живых кадров, снятых дома
 
-Живые кадры с лицом — 1.2 и 1.3 (подъезд), 3.6 и 3.8 (кабина) — ты снимаешь дома, а фон за тобой меняем. Крупные глаза 1.4 генерируем из твоего же кадра 1.3 (8.4).
+Живые кадры с лицом — 1.2 и 1.3 (подъезд), 3.6 и 3.8 (кабина), сцена 6 (белое) — ты снимаешь дома, а фон за тобой меняем. Крупные глаза 1.4 генерируем из твоего же кадра 1.3 (8.4).
+
+**Сцена 6 снята 24.11 у белой простыни, вокруг видна комната** (кондиционер, тумбочка, цветок, кровать). Для белого пространства нужен фон BG-WHITE (ниже). Надёжнее путь B: вырезать тебя в монтаже и поставить на BG-WHITE — чёрная одежда на белом вырезается чисто.
 
 **Риск:** у говорящих крупных планов Seedance может перерисовать лицо. Тогда пропадает сходство, а губы расходятся со звуком. Поэтому **сначала тест на одном дубле**, и только если лицо и губы целы — делаем остальные.
 
@@ -540,6 +544,9 @@ physics: the bread and the poles do not move; the flags are blank fabric
 
 BG-STAIR:
 "Output: one photoreal film still, 16:9. Scene: what is behind a person taking a selfie in the stairwell of an old Soviet-era panel apartment block in Tashkent at night, seen from 30 cm in front of the lens: a corner by the garbage chute, peeling grey-green paint, the edge of a stair railing, a dim bare bulb on the floor above, deep shadow. Nobody in frame. Slightly out of focus, as behind a face close to the lens. {LOOK-NIGHT}. Constraints: {NO-TEXT}."
+
+BG-WHITE:
+"Output: one photoreal film still, 16:9. Scene: an empty seamless white photo studio: a white cyclorama wall that curves smoothly into a white floor with no visible corner, soft even daylight from large diffusers, a very faint soft shadow area on the floor in the centre where a person will stand. Nobody in frame. Slightly warm paper-white, not pure digital white; natural, not CGI. Constraints: {NO-TEXT}."
 
 BG-CABIN:
 "Output: one photoreal film still, 16:9. Scene: the cramped dark interior of the small hand-built spacecraft cockpit from the ship sheet, as seen behind the pilot's headrest: graphite panels, a few small warm indicator lights, the curved frame of the glass canopy, darkness beyond. Nobody in frame. Soft focus. {LOOK-NIGHT}. Constraints: {NO-TEXT}."
