@@ -163,7 +163,24 @@ export type Sufficiency = { key: string; status: "data" | "benchmark" | "prior" 
 export type StrategyResult = { strategy: Strategy; plan: ContentPlan; launch?: Launch; sufficiency?: Sufficiency[] };
 
 /** Extra fields the strategist puts on plan items beyond the contract (shown in Professional rejim). */
-export type PlanItemExtra = { forecast?: { low: number; mid: number; high: number }; briefMeta?: string; approvalReasons?: string[] };
+/**
+ * Brain v2's forecast for a slot (lib/uslub/brain/forecast.ts): a views range when the data
+ * allows one, and an owner-readable `display` either way. Older plans sent the range flat.
+ */
+export type SlotForecast = {
+  status?: "ok" | "insufficient";
+  views?: { low: number; mid: number; high: number };
+  display?: string;
+  low?: number;
+  high?: number;
+};
+export type PlanItemExtra = { forecast?: SlotForecast; briefMeta?: string; approvalReasons?: string[] };
+
+/** The views range of a forecast, whichever shape it came in; null when there is none. */
+export function forecastRange(f?: SlotForecast): { low: number; high: number } | null {
+  const r = f?.views ?? f;
+  return r && Number.isFinite(r.low) && Number.isFinite(r.high) ? { low: r.low as number, high: r.high as number } : null;
+}
 
 export type StrategyEvent =
   | { stage: "skeleton"; slots: unknown[] }

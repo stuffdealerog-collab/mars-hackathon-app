@@ -14,7 +14,7 @@ import { Led } from "../../lamp/Led";
 import { lampVars } from "../../lamp/lamps";
 import { isMachineEvidence, ownerText, plural } from "../../ui/format";
 import { fmt, num, useCopy, useLang } from "../../ui/lang";
-import type { PlanItemExtra, Sufficiency } from "../api";
+import { forecastRange, type PlanItemExtra, type Sufficiency } from "../api";
 import { useStudio, type Step } from "../store";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
@@ -143,11 +143,14 @@ export function PlanRowDetails({ item }: { item: PlanItemExtra & { format?: stri
   const c = useCopy();
   const lang = useLang((s) => s.lang);
   const fName = (k: string) => (c.pro.formats as Record<string, string>)[k] ?? k;
+  const range = forecastRange(item.forecast);
+  // A range when the channel's data allows one; otherwise the strategist's own sentence, if any.
+  const said = range ? fmt(c.pro.forecast, { low: num(range.low, lang), high: num(range.high, lang) }) : item.forecast?.display ? ownerText(item.forecast.display, lang) : null;
   return (
     <dl className="mt-1.5 grid gap-0.5 text-[13px] leading-snug text-ink-2">
-      {item.forecast && (
+      {said && (
         <div>
-          <dd className="tnum inline text-ink">{fmt(c.pro.forecast, { low: num(item.forecast.low, lang), high: num(item.forecast.high, lang) })}</dd>
+          <dd className="tnum inline text-ink">{said}</dd>
         </div>
       )}
       {item.format && (

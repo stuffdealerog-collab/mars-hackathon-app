@@ -764,7 +764,10 @@ export const useStudio = create<StudioState>((set, get) => {
           else set({ auditProblem: problemOf(a) });
         });
       }
-      if (posts.some((x) => x.image && (x.image.status === "queued" || x.image.status === "running"))) void poll(my);
+      // A run cut short (tab closed mid-way) leaves posts without a picture: finish them now,
+      // so no slot waits for a picture nobody is drawing.
+      if (posts.some((x) => !x.image)) void pictures(my);
+      else if (posts.some((x) => isOpen(x.image))) void poll(my);
     },
 
     rebuildPlan: async () => {
