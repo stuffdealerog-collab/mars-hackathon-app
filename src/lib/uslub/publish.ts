@@ -8,7 +8,7 @@ import { publishImageUrl } from "./media/post-image-service";
 import { changedSincePreview, planPostMessages, type PlannedMessage } from "./media/telegram-post";
 import { getBrand, getPost, linkBrandChannel, markPublished } from "./store";
 
-const BOT_USERNAME_FALLBACK = "hackathonproj1_bot";
+const BOT_USERNAME_FALLBACK = "mercatai";
 
 export function addBotAsAdminLink(): string {
   const bot = getEnv().BOT_USERNAME ?? BOT_USERNAME_FALLBACK;

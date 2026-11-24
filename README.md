@@ -7,7 +7,7 @@
 *Telegram kanalingiz havolasini qo‘ying: Mercat bir haftalik postlarni rasmlari bilan tayyorlaydi, siz faqat tasdiqlaysiz.*<br>
 *Вставьте ссылку на Telegram-канал: Mercat подготовит посты на неделю с картинками, а вы только утверждаете.*
 
-[**Open Mercat**](https://mercat-ai.vercel.app) · [**Telegram bot**](https://t.me/hackathonproj1_bot) · [Sample bakery, no sign-up](https://mercat-ai.vercel.app/studio?mock=1)
+[**Open Mercat**](https://mercat-ai.vercel.app) · [**Telegram bot**](https://t.me/mercatai) · [Sample bakery, no sign-up](https://mercat-ai.vercel.app/studio?mock=1)
 
 [![CI](https://github.com/stuffdealerog-collab/mercat/actions/workflows/ci.yml/badge.svg)](https://github.com/stuffdealerog-collab/mercat/actions/workflows/ci.yml)
 

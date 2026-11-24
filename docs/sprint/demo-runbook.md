@@ -6,7 +6,7 @@
 
 ## 0. Перед первым клиентом (lead)
 
-- На Vercel (Production) заданы `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `BOT_USERNAME` (без `@`), `PUBLIC_URL` (https; без него берётся production-домен проекта на Vercel), `ANTHROPIC_API_KEY`, `DATABASE_URL`. Без `BOT_USERNAME` кнопка «Добавить бота в канал» ведёт на запасной `hackathonproj1_bot`.
+- На Vercel (Production) заданы `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `BOT_USERNAME` (без `@`), `PUBLIC_URL` (https; без него берётся production-домен проекта на Vercel), `ANTHROPIC_API_KEY`, `DATABASE_URL`. Без `BOT_USERNAME` кнопка «Добавить бота в канал» ведёт на запасной `mercatai`.
 - После деплоя: `pnpm set-webhook`.
 - Проверка без трат на ИИ: `/start` со своего аккаунта. Должны прийти приветствие и просьба прислать канал. Каждый разбор канала или описания тратит деньги на Claude, поэтому заранее их не прогоняем.
 

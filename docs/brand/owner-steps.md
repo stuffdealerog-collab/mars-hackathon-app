@@ -7,7 +7,7 @@
 ## 1. Telegram: аватар бота
 
 1. Откройте [@BotFather](https://t.me/BotFather), отправьте `/setuserpic`.
-2. Выберите `@hackathonproj1_bot`.
+2. Выберите `@mercatai`.
 3. Отправьте **как фото** (не файлом) картинку [`bot-avatar.png`](https://mercat-ai.vercel.app/brand/bot-avatar.png), 640×640. Лампа стоит по центру, Telegram обрежет её в круг, ничего не потеряется.
 
 Имя, описание, «about», команды и кнопку меню выставляет код (сессия engine). Здесь их не трогайте, иначе следующий деплой перезапишет.
@@ -17,12 +17,12 @@
 Это картинка, которую человек видит над «Что умеет этот бот?», когда впервые открывает бота.
 
 1. В @BotFather отправьте `/setdescriptionpic`.
-2. Выберите `@hackathonproj1_bot`.
+2. Выберите `@mercatai`.
 3. Отправьте **как фото** [`bot-description-640x360.png`](https://mercat-ai.vercel.app/brand/bot-description-640x360.png) (узбекский) или [`bot-description-ru-640x360.png`](https://mercat-ai.vercel.app/brand/bot-description-ru-640x360.png) (русский), 640×360.
 
 ## 2. Telegram: главное Mini App и экран загрузки
 
-1. В @BotFather: `/mybots` → `@hackathonproj1_bot` → **Bot Settings** → **Configure Mini App**.
+1. В @BotFather: `/mybots` → `@mercatai` → **Bot Settings** → **Configure Mini App**.
 2. Если Mini App ещё не включено: **Enable Mini App** и адрес `https://mercat-ai.vercel.app/tg`. Если адрес уже стоит, не меняйте его.
 3. Найдите настройки экрана загрузки (**Loading screen**; в разных версиях BotFather кнопки называются чуть по-разному, ищите слова icon / color):
    - **Иконка:** отправьте файлом [`miniapp-loading.svg`](https://mercat-ai.vercel.app/brand/miniapp-loading.svg). Это одноцветный контур лампы одним путём: Telegram сам красит его в цвет темы и пускает по нему блик, пока приложение грузится.
