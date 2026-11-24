@@ -93,7 +93,12 @@ export interface PlanSlot {
 /** A picture for a post, made in the brand's visual style. */
 export interface PostImage {
   status: "queued" | "running" | "ready" | "failed";
-  url?: string; // https, set when ready
+  /**
+   * https: the newest FINISHED picture. It stays while a new variant renders or after that
+   * attempt fails (status describes the latest attempt). This is exactly what the Studio shows,
+   * what the bot previews and what publishing sends.
+   */
+  url?: string;
   jobId?: string; // media job id while queued/running
   prompt?: string;
   refsUsed: number; // how many reference images the model saw
