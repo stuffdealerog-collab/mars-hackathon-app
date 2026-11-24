@@ -110,12 +110,24 @@ export default function MiniApp() {
   const started = useRef(false);
   const [status, setStatus] = useState<Status>("loading");
   const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
-  const theme = useTelegramTheme(status === "ready");
+  const [previewTheme, setPreviewTheme] = useState<Theme | null>(null);
+  const tgTheme = useTelegramTheme(status === "ready");
+  const theme = previewTheme ?? tgTheme;
   useMainButton(status === "ready");
 
   const init = useCallback(async () => {
     if (started.current) return;
     started.current = true;
+
+    // Dev-only design preview of the in-Telegram screen (no auth, sample data). Compiled out of production.
+    if (process.env.NODE_ENV !== "production") {
+      const preview = new URLSearchParams(window.location.search).get("preview");
+      if (preview === "light" || preview === "dark") {
+        setPreviewTheme(preview);
+        setStatus("ready");
+        return;
+      }
+    }
 
     const tg = webApp();
     if (!tg?.initData) {

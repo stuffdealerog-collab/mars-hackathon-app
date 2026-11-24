@@ -379,7 +379,7 @@ export function Home({ inTelegram = false }: { inTelegram?: boolean }) {
           <div className="flex items-baseline justify-between gap-3">
             <h1 className="text-[22px] font-semibold tracking-[-0.02em]">{running ? "Bo‘lim ishlayapti" : "Bo‘lim tayyor"}</h1>
             <span className="tnum text-[13px] text-[var(--ink-2)]" aria-live="polite">
-              {done}/{staff.length} xodim{staff.length < LAMP_ORDER.length ? ` (${LAMP_ORDER.length} tadan)` : ""}
+              {done}/{staff.length} xodim
             </span>
           </div>
         )}

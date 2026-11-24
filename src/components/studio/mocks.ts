@@ -72,17 +72,22 @@ function draft(
 
 export const MOCK_POSTS: PostDraft[] = [
   draft(
+    "p-bf-3",
+    "Mijoz obrazi: karamel palto",
+    "Dilnoza opa karamel paltoni sut rang sviter bilan oldi. Bo‘yi 165, razmeri M — yelkasi bemalol, uzunligi tizzadan sal pastda.\n\nShu obraz Black Friday kuni 980 000 o‘rniga 690 000 so‘m.\n\nSizga qaysi razmer kerak? @nafis_admin",
+    "Дилноза-опа взяла карамельное пальто с молочным свитером. Рост 165, размер M — в плечах свободно, длина чуть ниже колена.\n\nВ Black Friday этот образ стоит 690 000 сум вместо 980 000.\n\nКакой размер нужен вам? @nafis_admin",
+    "Dilnoza chose the caramel coat with a milk-coloured sweater. Height 165, size M: room in the shoulders, length just below the knee.\n\nOn Black Friday this look is 690,000 sum instead of 980,000.\n\nWhich size do you need? @nafis_admin",
+    { uz: [], ru: [], en: [] },
+    94,
+  ),
+  draft(
     "p-bf-1",
     "Black Friday e’loni",
-    "Black Friday Nafis’da 27-noyabrdan boshlanadi 🛍\n\nKuzgi paltolar, trikotaj va sharflarga 30% dan 50% gacha chegirma. Bu ajoyib imkoniyatni qo‘ldan boy bermang! Chegirma do‘konda ham, kanal orqali buyurtmada ham amal qiladi.\n\nOlmazor, Chorsu yonida, 10:00–21:00.\nRazmeringizni @nafis_admin ga yozing.\n\n#nafis #palto",
-    "Black Friday в Nafis начинается 27 ноября 🛍\n\nОсенние пальто, трикотаж и шарфы со скидкой от 30% до 50%. Не упустите уникальную возможность! Скидка действует в магазине и при заказе через канал.\n\nОлмазор, рядом с Чорсу, 10:00–21:00.\nНапишите свой размер @nafis_admin.\n\n#nafis #palto",
-    "Black Friday at Nafis starts on November 27 🛍\n\nAutumn coats, knitwear and scarves are 30–50% off. Don’t miss this unique opportunity! The discount works in store and for orders through the channel.\n\nOlmazor, next to Chorsu, 10:00–21:00.\nSend your size to @nafis_admin.\n\n#nafis #palto",
-    {
-      uz: [["Bu ajoyib imkoniyatni qo‘ldan boy bermang!", "Ommabop razmerlar birinchi kuniyoq tugaydi."]],
-      ru: [["Не упустите уникальную возможность!", "Ходовые размеры разбирают в первый же день."]],
-      en: [["Don’t miss this unique opportunity!", "Popular sizes usually sell out on day one."]],
-    },
-    78,
+    "Black Friday Nafis’da 27-noyabrdan boshlanadi 🛍\n\nKuzgi paltolar, trikotaj va sharflarga 30% dan 50% gacha chegirma. Ommabop razmerlar birinchi kuniyoq tugaydi. Chegirma do‘konda ham, kanal orqali buyurtmada ham amal qiladi.\n\nOlmazor, Chorsu yonida, 10:00–21:00.\nRazmeringizni @nafis_admin ga yozing.\n\n#nafis #palto",
+    "Black Friday в Nafis начинается 27 ноября 🛍\n\nОсенние пальто, трикотаж и шарфы со скидкой от 30% до 50%. Ходовые размеры разбирают в первый же день. Скидка действует в магазине и при заказе через канал.\n\nОлмазор, рядом с Чорсу, 10:00–21:00.\nНапишите свой размер @nafis_admin.\n\n#nafis #palto",
+    "Black Friday at Nafis starts on November 27 🛍\n\nAutumn coats, knitwear and scarves are 30–50% off. Popular sizes usually sell out on day one. The discount works in store and for orders through the channel.\n\nOlmazor, next to Chorsu, 10:00–21:00.\nSend your size to @nafis_admin.\n\n#nafis #palto",
+    { uz: [], ru: [], en: [] },
+    91,
   ),
   draft(
     "p-bf-2",
@@ -96,15 +101,6 @@ export const MOCK_POSTS: PostDraft[] = [
       en: [["It is a modern and high-quality solution for cold days.", "Warm, and it doesn’t itch."]],
     },
     84,
-  ),
-  draft(
-    "p-bf-3",
-    "Mijoz obrazi: karamel palto",
-    "Dilnoza opa karamel paltoni sut rang sviter bilan oldi. Bo‘yi 165, razmeri M — yelkasi bemalol, uzunligi tizzadan sal pastda.\n\nShu obraz Black Friday kuni 980 000 o‘rniga 690 000 so‘m.\n\nSizga qaysi razmer kerak? @nafis_admin",
-    "Дилноза-опа взяла карамельное пальто с молочным свитером. Рост 165, размер M — в плечах свободно, длина чуть ниже колена.\n\nВ Black Friday этот образ стоит 690 000 сум вместо 980 000.\n\nКакой размер нужен вам? @nafis_admin",
-    "Dilnoza chose the caramel coat with a milk-coloured sweater. Height 165, size M: room in the shoulders, length just below the knee.\n\nOn Black Friday this look is 690,000 sum instead of 980,000.\n\nWhich size do you need? @nafis_admin",
-    { uz: [], ru: [], en: [] },
-    94,
   ),
   draft(
     "p-tip-4",
