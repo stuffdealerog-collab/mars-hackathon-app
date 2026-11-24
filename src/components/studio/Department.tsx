@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { forwardRef, useMemo, useState } from "react";
 import { Led } from "../lamp/Led";
 import { LampTile } from "../lamp/LampTile";
-import { LAMP_ORDER, lampVars, type LampState } from "../lamp/lamps";
+import { LAMP_ORDER, roomLight, type LampState } from "../lamp/lamps";
 import { plural } from "../ui/format";
 import { fmt, useCopy, useLang, type Lang } from "../ui/lang";
 import { sampleAudit, sampleBrand, samplePlan, samplePosts } from "./sample";
@@ -260,7 +260,7 @@ export const Panel = forwardRef<HTMLUListElement, PanelProps>(function Panel(
                 data-row={i < 5 ? "top" : "bottom"}
                 data-on={st === "warming" ? "warm" : st === "on" || st === "you" ? "on" : undefined}
                 data-soon={lamps.soon.has(r) || undefined}
-                style={{ ...lampVars(r), ["--k" as string]: i % 5, background: "var(--room)" }}
+                style={{ ["--k" as string]: i % 5, background: roomLight(r) }}
               />
             );
           })}

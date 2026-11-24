@@ -605,7 +605,7 @@ export const useStudio = create<StudioState>((set, get) => {
     mode: "channel",
     sample: false,
     introGate: false,
-    bot: "hackathonproj1_bot",
+    bot: "mercatai",
     entry: { view: "link", channel: "" },
     input: {},
     brand: null,

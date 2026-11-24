@@ -6,7 +6,8 @@
  * Phones never render this: they keep the one-column Studio and the Mini App.
  */
 import type { AgentRole } from "@/lib/uslub/contract";
-import { BarChart3, Check, ChevronRight, ChevronsLeft, ChevronsRight, Clapperboard, ExternalLink, GripVertical, LogOut, Newspaper, PanelLeft, PanelRight, Plus } from "lucide-react";
+import { INTRO_COPY } from "@/components/onboarding";
+import { BarChart3, Check, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, Clapperboard, ExternalLink, GripVertical, LogOut, Newspaper, PanelLeft, PanelRight, Plus } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -38,6 +39,8 @@ export const useHub = create<{
   setCollapsed: (c: boolean) => void;
   spots: Partial<Record<AgentRole, Spot>>;
   checking: boolean;
+  /** The first-run intro is open (DesktopStudio shows it; the hub reopens it). */
+  intro: boolean;
   blink: boolean;
 }>((set, get) => {
   const save = () => {
@@ -60,6 +63,7 @@ export const useHub = create<{
     },
     spots: {},
     checking: false,
+    intro: false,
     blink: false,
   };
 });
@@ -75,7 +79,8 @@ export function useHubRestore() {
   }, []);
 }
 
-const wide = () => window.matchMedia("(min-width: 1024px)");
+// 64rem: Tailwind's lg and the .desk guard in globals.css use the same unit.
+const wide = () => window.matchMedia("(min-width: 64rem)");
 /**
  * True on screens wide enough for the hub (Tailwind's lg); null before the browser has said
  * (server render and the first client frame), when the Studio draws its CSS-only skeleton.
@@ -180,14 +185,18 @@ export function Hub({ lamps }: { lamps: Lamps }) {
     if (grid.current) ro.observe(grid.current);
     window.addEventListener("resize", soon);
     const el = aside.current;
-    el?.addEventListener("transitionend", soon);
+    // Only the hub's own width animation moves the lamps; its children's transitions do not.
+    const onEnd = (e: TransitionEvent) => {
+      if (e.target === el) soon();
+    };
+    el?.addEventListener("transitionend", onEnd);
     el?.addEventListener("scroll", soon, { passive: true });
     return () => {
       cancelAnimationFrame(raf.current);
       raf.current = 0;
       ro.disconnect();
       window.removeEventListener("resize", soon);
-      el?.removeEventListener("transitionend", soon);
+      el?.removeEventListener("transitionend", onEnd);
       el?.removeEventListener("scroll", soon);
     };
   }, [measure, side, collapsed]);
@@ -314,6 +323,8 @@ export function Hub({ lamps }: { lamps: Lamps }) {
                 {/* The only lime in the hub, and it is not a button: posts are waiting for the owner. */}
                 {waiting && (
                   <span
+                    // A new count of waiting posts breathes again (a few times, then still).
+                    key={drafts}
                     aria-label={c.lampState.you}
                     role="img"
                     className={`hub-wait h-1.5 w-1.5 rounded-full bg-lime ${collapsed ? "absolute right-2 top-2" : ""}`}
@@ -388,6 +399,9 @@ export function Hub({ lamps }: { lamps: Lamps }) {
               >
                 {pro ? c.mode.pro : c.mode.simpleShort}
               </button>
+              <button type="button" className="hub-icon mx-auto" aria-label={INTRO_COPY[lang].again} title={INTRO_COPY[lang].again} onClick={() => useHub.setState({ intro: true })}>
+                <CircleHelp className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
+              </button>
               {deviceKey && (
                 <button type="button" className="hub-icon mx-auto" aria-label={c.hub.signOut} title={`${fmt(c.hub.keyOwner, { id: deviceKey })} · ${c.hub.signOut}`} onClick={signOutDevice}>
                   <LogOut className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
@@ -405,6 +419,10 @@ export function Hub({ lamps }: { lamps: Lamps }) {
             </>
           ) : (
             <>
+            <button type="button" className="hub-nav !min-h-9 !gap-2.5 !px-1.5 !text-[13.5px]" onClick={() => useHub.setState({ intro: true })}>
+              <CircleHelp className="h-[17px] w-[17px] shrink-0" strokeWidth={1.75} aria-hidden />
+              {INTRO_COPY[lang].again}
+            </button>
             {deviceKey && (
               <div className="flex items-center justify-between gap-2 px-1 text-[12.5px]">
                 <span className="truncate text-ink-3">{fmt(c.hub.keyOwner, { id: deviceKey })}</span>

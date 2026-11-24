@@ -4,7 +4,8 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Led } from "../lamp/Led";
 import { WORK_LIGHT } from "../lamp/lamps";
-import { fmt, useCopy, useInitLang } from "../ui/lang";
+import { decideIntro, forcedByUrl, localIntro, Onboarding } from "@/components/onboarding";
+import { fmt, useCopy, useInitLang, useLang } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel, useStageVariant } from "../ui/parts";
 import { ChannelSign } from "./ChannelSign";
 import { CommandPalette } from "./CommandPalette";
@@ -15,7 +16,7 @@ import { PostsSplit, PostsTab } from "./Posts";
 import { SpectrumIntro } from "./SpectrumIntro";
 import { Start } from "./Start";
 import { Toasts } from "./Toasts";
-import { POSTS_PER_RUN, useStudio, type Step, type Tab } from "./store";
+import { POSTS_PER_RUN, recentBrands, useStudio, type Step, type Tab } from "./store";
 
 type Theme = "light" | "dark";
 
@@ -136,6 +137,16 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
   useStageVariant();
   const side = useHub((s) => s.side);
   const collapsed = useHub((s) => s.collapsed);
+  const intro = useHub((s) => s.intro);
+  const lang = useLang((s) => s.lang);
+  // The first-run intro: once for a newcomer; never for an owner with saved channels; not over a
+  // link that already says what to do (?brand=, ?channel=); always with ?intro=1. Remembered here.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const d = decideIntro({ seen: localIntro.seen(), returning: recentBrands().length > 0, withIntent: !!(p.get("brand") || p.get("channel")), force: forcedByUrl(window.location.search) });
+    if (d.mark) localIntro.mark();
+    if (d.show) useHub.setState({ intro: true });
+  }, []);
   const gutter = (collapsed ? RAIL_W : HUB_W) + 36;
   return (
     <div data-theme={theme} className="desk relative min-h-dvh bg-stage text-ink">
@@ -161,6 +172,17 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
       </main>
       <Toasts inset={side === "left" ? gutter : -gutter} />
       <CommandPalette />
+      <Onboarding
+        open={intro}
+        lang={lang}
+        variant="desktop"
+        onClose={(how) => {
+          localIntro.mark();
+          useHub.setState({ intro: false });
+          // "Boshlash" at the end of the intro puts the owner in the link field.
+          if (how === "done") document.querySelector<HTMLInputElement>("main input")?.focus();
+        }}
+      />
     </div>
   );
 }
@@ -311,7 +333,7 @@ function Working() {
       <h1
         ref={head}
         tabIndex={-1}
-        className="mt-6 text-[28px] font-semibold leading-tight tracking-[-0.03em] outline-none sm:text-[34px] lg:mt-8 lg:text-[44px] lg:leading-[1.05] lg:tracking-[-0.035em] [@media(min-width:1024px)_and_(max-height:819px)]:text-[34px]"
+        className="mt-6 text-[28px] font-semibold leading-tight tracking-[-0.03em] outline-none sm:text-[34px] lg:mt-8 lg:text-[44px] lg:leading-[1.05] lg:tracking-[-0.035em] [@media(min-width:64rem)_and_(max-height:819px)]:text-[34px]"
       >
         {problem ? c.error.title : c.dept.working}
       </h1>
@@ -327,7 +349,7 @@ function Working() {
       </div>
 
       {problem && (
-        <div role="alert" className="mt-8 rounded-2xl border border-line bg-card p-4 sm:p-5 lg:mt-[140px]">
+        <div role="alert" className="relative mt-8 rounded-2xl border border-line bg-card p-4 sm:p-5 lg:mt-[140px]">
           <p className="text-[16px] leading-relaxed">{problem.message}</p>
           <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
             {fixLink ? (
@@ -497,7 +519,7 @@ function DeptTab() {
     <div className="flex flex-col gap-10">
       <Panel lamps={lamps} size="md" showJob housing />
       {rows.length > 0 && (
-        <section aria-labelledby="log-h">
+        <section aria-labelledby="log-h" className="relative">
           <h2 id="log-h" className="mb-4 text-[20px] font-semibold tracking-[-0.01em]">
             {c.dept.log}
           </h2>

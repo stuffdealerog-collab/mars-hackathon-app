@@ -108,11 +108,14 @@ const varsOf = (role: AgentRole) => {
     "--x-deep-a": miniDim(rgb(l.deep), 0.55),
     "--ember": rgba(l.hue, 0.6),
     "--ember-glow": rgba(l.hue, 0.45),
-    "--room": light(l.hue, 0.5),
   } as React.CSSProperties;
 };
 const VARS = Object.fromEntries(LAMP_ORDER.map((r) => [r, varsOf(r)])) as Record<AgentRole, React.CSSProperties>;
 export const lampVars = (role: AgentRole) => VARS[role];
+
+/** Computer screens: each lamp's light on the room (wall or floor), computed once. */
+const ROOM = Object.fromEntries(LAMP_ORDER.map((r) => [r, light(LAMPS[r].hue, 0.5)])) as Record<AgentRole, string>;
+export const roomLight = (role: AgentRole) => ROOM[role];
 
 /**
  * Computer screens: the one work light over the headline and the department, a warm cone with

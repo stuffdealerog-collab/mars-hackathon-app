@@ -9,6 +9,7 @@ import { keepNumbers, useCopy, fmt } from "../ui/lang";
 import { parseChannel, Steps, StepsLine } from "../ui/parts";
 import { handoffState } from "./api";
 import { Panel, useLamps } from "./Department";
+import { useDesktop } from "./Hub";
 import { useStudio } from "./store";
 
 const MAX_PHOTOS = 5;
@@ -46,7 +47,7 @@ export function Start({ initialView = "link", initialChannel = "" }: { initialVi
   const reopenId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("brand") : null;
   if (problem?.code === "brand_forbidden") return <Forbidden />;
   return (
-    <div className="pt-6 sm:pt-12 lg:pt-8 [@media(min-width:1024px)_and_(max-height:819px)]:pt-2">
+    <div className="pt-6 sm:pt-12 lg:pt-8 [@media(min-width:64rem)_and_(max-height:819px)]:pt-2">
       {view === "link" ? (
         <LinkForm initialChannel={initialChannel} onEmpty={() => setView("fresh")} onTyped={setArmed} />
       ) : (
@@ -115,7 +116,7 @@ function HowItWorks() {
         <Steps />
       </div>
       {/* Short windows drop this line: the housing must fit the first screen (1366×660). */}
-      <StepsLine className="mt-8 hidden lg:flex [@media(min-width:1024px)_and_(max-height:819px)]:hidden" />
+      <StepsLine className="mt-8 hidden lg:flex [@media(min-width:64rem)_and_(max-height:819px)]:hidden" />
     </section>
   );
 }
@@ -127,8 +128,10 @@ function HowItWorks() {
  */
 function Standby({ armed }: { armed: boolean }) {
   const lamps = useLamps();
+  // Mounted on computers only: phones never see it (Start renders after the width is known).
+  if (!useDesktop()) return null;
   return (
-    <div className="mt-12 hidden lg:block [@media(min-width:1024px)_and_(max-height:819px)]:mt-8">
+    <div className="mt-12 hidden lg:block [@media(min-width:64rem)_and_(max-height:819px)]:mt-8">
       <Panel lamps={lamps} housing compact armed={armed} />
     </div>
   );
@@ -163,7 +166,7 @@ function LinkForm({ initialChannel, onEmpty, onTyped }: { initialChannel: string
           <LampTile key={r} as="li" role={r} size="xs" state={typed ? "warming" : "off"} />
         ))}
       </ul>
-      <h1 className="max-w-[18ch] text-balance text-[32px] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-[48px] lg:max-w-[16ch] lg:text-[56px] lg:leading-[1] [@media(min-width:1024px)_and_(max-height:819px)]:text-[44px]">
+      <h1 className="max-w-[18ch] text-balance text-[32px] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-[48px] lg:max-w-[16ch] lg:text-[56px] lg:leading-[1] [@media(min-width:64rem)_and_(max-height:819px)]:text-[44px]">
         {c.start.title}
       </h1>
       <p className="mt-3 max-w-[46ch] text-[16px] leading-relaxed text-ink-2 lg:mt-4 lg:text-[17px]">{c.start.sub}</p>

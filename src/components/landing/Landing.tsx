@@ -49,7 +49,7 @@ export function Landing({ bot }: { bot: string }) {
           <SampleDepartment armed={armed} />
         </section>
 
-        <section aria-labelledby="how-h" className="mx-auto w-full max-w-[1180px] px-4 pt-16 sm:px-8 sm:pt-24">
+        <section aria-labelledby="how-h" className="relative mx-auto w-full max-w-[1180px] px-4 pt-16 sm:px-8 sm:pt-24">
           <h2 id="how-h" className="text-[26px] font-semibold tracking-[-0.025em] sm:text-[34px]">
             {c.landing.howTitle}
           </h2>
@@ -138,11 +138,11 @@ function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
         </div>
       </div>
 
-      <h1 className="max-w-[18ch] text-balance text-[34px] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-[56px] sm:leading-[1] lg:col-span-7 lg:row-span-2 lg:row-start-1 lg:max-w-[16ch] lg:self-end lg:text-[60px] lg:leading-[0.98] lg:tracking-[-0.038em] [@media(min-width:1024px)_and_(max-height:819px)]:text-[48px]">
+      <h1 className="max-w-[18ch] text-balance text-[34px] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-[56px] sm:leading-[1] lg:col-span-7 lg:row-span-2 lg:row-start-1 lg:max-w-[16ch] lg:self-end lg:text-[60px] lg:leading-[0.98] lg:tracking-[-0.038em] [@media(min-width:64rem)_and_(max-height:819px)]:text-[48px]">
         {c.landing.h1}
       </h1>
       <div className="lg:col-span-5 lg:col-start-8 lg:row-span-2 lg:row-start-2">
-      <p className="mt-4 max-w-[48ch] text-[16px] leading-relaxed text-ink-2 sm:text-[17px] lg:mt-0 [@media(min-width:1024px)_and_(max-height:819px)]:text-[16px]">{c.landing.sub}</p>
+      <p className="mt-4 max-w-[48ch] text-[16px] leading-relaxed text-ink-2 sm:text-[17px] lg:mt-0 [@media(min-width:64rem)_and_(max-height:819px)]:text-[16px]">{c.landing.sub}</p>
 
       <form onSubmit={submit} noValidate className="mt-7 max-w-[560px] lg:mt-6">
         <ChannelField
@@ -209,7 +209,7 @@ function Example() {
   const c = useCopy();
   const l = c.landing;
   return (
-    <section aria-labelledby="ex-h" className="mx-auto w-full max-w-[1180px] px-4 pt-16 sm:px-8 sm:pt-24">
+    <section aria-labelledby="ex-h" className="relative mx-auto w-full max-w-[1180px] px-4 pt-16 sm:px-8 sm:pt-24">
       <h2 id="ex-h" className="text-[26px] font-semibold tracking-[-0.025em] sm:text-[34px]">
         {l.exampleTitle}
       </h2>

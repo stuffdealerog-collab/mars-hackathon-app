@@ -10,13 +10,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Mercat — kanalingizga postlarni Mercat yozadi",
     description: "Havolani qo‘ying: kanal tahlili, haftalik reja va rasmli postlar. Siz faqat tasdiqlaysiz.",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Mercat" }],
+    // The image is src/app/opengraph-image.png (brand kit): Next adds it to every page.
   },
 };
 
+// The browser's own chrome matches what the page shows: the warm graphite room on a computer
+// (.desk, from 64rem: the same unit as Tailwind's lg), the black stage on phones and in Telegram.
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(min-width: 1024px)", color: "#171513" },
+    { media: "(min-width: 64rem)", color: "#171513" },
     { color: "#000000" },
   ],
   colorScheme: "dark",
