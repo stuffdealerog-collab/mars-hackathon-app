@@ -401,15 +401,16 @@
     inset 0 1px 0 rgb(255 255 255 / 0.4),
     inset 0 0 0 1px rgb(255 255 255 / 0.1);
 }
+/* The light a lit lamp throws below itself. A radial gradient, not filter: blur(): ten blurred
+   layers animating at once stutter in Telegram's webview on a mid-range Android. */
 .lamp__spill {
-  inset: 22% 8% -12% 8%;
+  inset: 8% -10% -34% -10%;
   z-index: -1;
-  border-radius: 40%;
-  background: var(--hue);
-  filter: blur(26px);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--hue) 80%, transparent) 0%, color-mix(in oklab, var(--hue) 30%, transparent) 55%, transparent 100%);
 }
 .lamp--xs .lamp__spill {
-  filter: blur(10px);
+  inset: 0 -30% -70% -30%;
 }
 .lamp__filament {
   position: absolute;
@@ -535,9 +536,6 @@
 [data-theme="light"] .lamp__result {
   color: color-mix(in oklab, var(--deep) 70%, #000);
   text-shadow: none;
-}
-[data-theme="light"] .lamp__spill {
-  filter: blur(22px);
 }
 [data-theme="light"] .lamp:is([data-state="on"], [data-state="you"]) .lamp__spill {
   opacity: 0.3;
