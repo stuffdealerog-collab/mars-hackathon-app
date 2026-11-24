@@ -11,7 +11,7 @@
 | `constellation-push-in.mp4` | 5 s push-in from wide to the lime core | the film's "turn" beat (storyboard beat 11) |
 | `clay-push-in.mp4` | the same move as an untextured clay pass | Seedance 2.5 **@Clay Render** reference (camera path and timing) for AI-A1 |
 | `orbs/orb-<role>.png` | 11 transparent 1024² orbs (10 employees + core) | compositing in the edit, UI avatars, Higgsfield references |
-| `uslub-constellation.glb` | 1.1 MB, vertex-coloured, animated (rotation, bob, pulses) | web 3D. The repo has no three.js yet, so it needs `three` or `@react-three/fiber` (a lead decision) |
+| `mercat-constellation.glb` | 1.1 MB, vertex-coloured, animated (rotation, bob, pulses) | web 3D. The repo has no three.js yet, so it needs `three` or `@react-three/fiber` (a lead decision) |
 
 ## Re-render
 ```bash

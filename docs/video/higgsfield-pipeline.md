@@ -1,4 +1,4 @@
-# Uslub AI video: Higgsfield production plan (scouting only, nothing spent)
+# Mercat video: Higgsfield production plan (scouting only, nothing spent)
 
 > **Update 24 Nov evening.** For the pitch film, use `docs/video/higgsfield-runbook.md` (shots, exact prompts, cost check) and `docs/video/pitch-storyboard.md`. This file is kept for the trial findings below. Note: the 16:55 schedule in §7 was for today's MVP deadline and is obsolete. Also, Higgsfield's help center says MCP generations always cost credits, which conflicts with the live API message below, so the runbook checks cost before every batch.
 

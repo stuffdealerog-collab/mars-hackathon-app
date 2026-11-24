@@ -561,7 +561,7 @@ describe("captions overlay", () => {
     expect(toSrt(cues)).toContain("00:00:00,000 --> 00:00:01,500");
     const ass = toAss(cues, "9:16");
     expect(ass).toContain("PlayResX: 1080");
-    expect(ass).toContain("Dialogue: 0,0:00:00.00,0:00:01.50,Uslub");
+    expect(ass).toContain("Dialogue: 0,0:00:00.00,0:00:01.50,Mercat");
     expect(ass).not.toContain("{\\b1}");
   });
 });

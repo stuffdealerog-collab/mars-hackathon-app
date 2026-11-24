@@ -1,6 +1,6 @@
-# Uslub AI video rulebook (from Artlist sources, for a 60–90 s AI + screen-recording pitch film)
+# Mercat video rulebook (from Artlist sources, for a 60–90 s AI + screen-recording pitch film)
 
-How this was researched: I read the channel's RSS feed (channel id UCXNK0IHTX0BoktdtKjqIWoA) and the channel page HTML, and took the full descriptions and chapter lists of the most relevant recent videos. artlist.io/blog is behind a Cloudflare challenge (403/522), so I could not open the articles. The blog takeaways below come from search-result excerpts only. Everything else is standard practice from professional commercial work, adapted to Uslub AI.
+How this was researched: I read the channel's RSS feed (channel id UCXNK0IHTX0BoktdtKjqIWoA) and the channel page HTML, and took the full descriptions and chapter lists of the most relevant recent videos. artlist.io/blog is behind a Cloudflare challenge (403/522), so I could not open the articles. The blog takeaways below come from search-result excerpts only. Everything else is standard practice from professional commercial work, adapted to Mercat.
 
 ---
 

@@ -1,4 +1,4 @@
-# Uslub AI creative playbook: how professionals make AI video that doesn't look like AI
+# Mercat creative playbook: how professionals make AI video that doesn't look like AI
 
 Written 24 Nov 2026 for two jobs:
 1. tomorrow's pitch film, which is planned in `docs/video/pitch-storyboard.md` and produced from `docs/video/higgsfield-runbook.md`;

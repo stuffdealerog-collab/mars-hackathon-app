@@ -37,7 +37,7 @@ Sources:
 | 7 | 0:19–0:22 | Problem | Quote card over **AI-H6** (café closing) | «Локальной статистики нет — всё про Россию или США». | «Mahalliy statistika yoʻq — hammasi Rossiya yoki AQSh haqida.» — marketolog | pulse |
 | 8 | 0:22–0:24 | Problem | Quote card over **AI-H3** (embers out) | «Самое сложное — найти клиентов». | «Eng qiyini — mijoz topish.» — asoschilar | riser starts |
 | 9 | 0:24–0:25 | **Turn** | Black. 0.5 s of **silence**. | — | — | silence |
-| 10 | 0:25–0:27 | Turn | Macro: a real `t.me/…` link is pasted into Uslub and Enter is pressed, with a speed ramp (**SR2**) | А если отдать всё это… одной ссылке? | Bularning hammasini… bitta havolaga topshirsak-chi? | click, then **the drop** |
+| 10 | 0:25–0:27 | Turn | Macro: a real `t.me/…` link is pasted into Mercat and Enter is pressed, with a speed ramp (**SR2**) | А если отдать всё это… одной ссылке? | Bularning hammasini… bitta havolaga topshirsak-chi? | click, then **the drop** |
 | 11 | 0:27–0:31 | Turn | The lime core ignites and the camera pushes into the constellation. **3D** `constellation-push-in.mp4`, or **AI-A1** if it beats it. Title: **Bir havola — butun marketing boʻlimi.** | *(music)* | *(the title is the subtitle)* | impact, shimmer |
 | 12 | 0:31–0:36 | **Product** | Analitik orb (3D PNG) flies in → **SR3**: channel audit with real numbers (subscribers, reach, best hours). A dot-matrix timer **00:00** starts in the corner and runs through to beat 17. | Аналитик читает канал: охваты, лучшие часы, что работает. | Analitik kanalni oʻqiydi: qamrov, eng yaxshi soatlar, nima ishlaydi. | UI ticks on every number |
 | 13 | 0:36–0:40 | Product | **SR4**: the Brand DNA card fills in, then the Strateg week plan | Стратег собирает план на неделю. | Strateg bir haftalik reja tuzadi. | ticks |
@@ -47,7 +47,7 @@ Sources:
 | 17 | 0:56–1:02 | Product | **SR8**: Mijoz radar lists 10 places → the approval node → "Eʼlon qilish" → the post appears in the Telegram channel. The timer stops at the **real** elapsed time. | Радар находит, где ваши клиенты. Публикуется — только после вашего «да». | Mijoz radar mijozlaringiz qayerdaligini topadi. Eʼlon — faqat sizning «ha»ingizdan keyin. | confirm chime |
 | 18 | 1:02–1:07 | **Proof** | Morning: the shutter rises, steam comes off fresh non, his hands set the phone down; composite **SR9** (the published post, real). **AI-H7** | Одна ссылка. Около минуты. Неделя маркетинга — готова. | Bir havola. Taxminan bir daqiqa. Bir haftalik marketing tayyor. | morning street ambience |
 | 19 | 1:07–1:12 | Proof | Number cards in TYPE, all real: the **measured** run time; **4** scripts; **10** employees; the editor's before/after human score on a real post. Add live `/stats` sign-ups **only if real on the day**. | *(music)* | *(the cards are the text)* | hits on each number |
-| 20 | 1:12–1:22 | **CTA** | **3D** `constellation-loop.mp4` settles → the logo lockup **Uslub AI** → the bot QR plus `mars-hackathon-app.vercel.app` → "MARS AI Hackathon · Techstars Startup Week Tashkent". Hold for 4 s. | Uslub AI. Свой отдел маркетинга — для каждого малого бизнеса. | Uslub AI. Har bir kichik biznesga — oʻz marketing boʻlimi. | the music resolves on a final hit |
+| 20 | 1:12–1:22 | **CTA** | **3D** `constellation-loop.mp4` settles → the logo lockup **Mercat** → the bot QR (Telegram bot "Mercat", `@hackathonproj1_bot`) plus `mercat-ai.vercel.app` → "MARS AI Hackathon · Techstars Startup Week Tashkent". Hold for 4 s. | Mercat. Свой отдел маркетинга — для каждого малого бизнеса. | Mercat. Har bir kichik biznesga — oʻz marketing boʻlimi. | the music resolves on a final hit |
 
 **Runtime:** 82 s. If anything has to be cut, cut beat 13 first (the Strateg segment), then beat 15.
 
@@ -68,7 +68,7 @@ Settings:
 | # | What to record | Length raw → used |
 |---|---|---|
 | SR1 | A Telegram "new post" field with an empty draft and a blinking cursor, on the phone. Type "Ertaga…", then delete it. | 10 s → 4 s |
-| SR2 | The Uslub input: paste the `t.me/<channel>` link, press Enter. Macro crop. | 5 s → 1.5 s |
+| SR2 | The Mercat input: paste the `t.me/<channel>` link, press Enter. Macro crop. | 5 s → 1.5 s |
 | SR3 | The Analitik panel: subscribers, average views, reach rate, best hours, top posts | 15 s → 4 s |
 | SR4 | The Brand DNA card, then the Strateg week plan | 20 s → 4 s |
 | SR5 | The Kopirayter post, then the Muharrir diff with red strikes and the human score | 20 s → 6 s |
@@ -108,4 +108,5 @@ Use royalty-free music only (YouTube Audio Library, Pixabay, Uppbeat, or Artlist
 
 1. **The demo channel** for SR0–SR9: whose channel is it, and do we have their consent?
 2. **The interview quotes:** show them as "(по смыслу)", or get the exact wording approved?
-3. **The VO voice:** a generated voice (runbook §6) or the founder's own Russian voice. A real voice is warmer and has zero AI risk.
+3. **How "Mercat" is pronounced** in the Russian VO: «Мерка́т» or «Ме́ркат»? TTS reads the Latin word unpredictably, so line V16 has to spell it the way you want it said.
+4. **The VO voice:** a generated voice (runbook §6) or the founder's own Russian voice. A real voice is warmer and has zero AI risk.

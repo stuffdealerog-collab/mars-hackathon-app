@@ -41,7 +41,7 @@ HARD RULES
 
 ## 2. Uploads
 
-Attach these to the chat and upload them with `media_upload` / `media_confirm`, or use `media_import_url` once the app is deployed. The paths are in this repo. After the lead deploys, they are also at `https://mars-hackathon-app.vercel.app/media/3d/…`.
+Attach these to the chat and upload them with `media_upload` / `media_confirm`, or use `media_import_url` once the app is deployed. The paths are in this repo. After the lead deploys, they are also at `https://mercat-ai.vercel.app/media/3d/…`.
 
 | Ref | File | Used for |
 |---|---|---|
@@ -242,7 +242,7 @@ Model and settings:
 | V13 | [confident] Видеограф делает ролик из фото товара. |
 | V14 | [warm] Радар находит, где ваши клиенты. Публикуется — только после вашего «да». |
 | V15 | [warm, unhurried] Одна ссылка. Около минуты. Неделя маркетинга — готова. |
-| V16 | [warm, final] Uslub AI. Свой отдел маркетинга — для каждого малого бизнеса. |
+| V16 | [warm, final] Мерка́т. Свой отдел маркетинга — для каждого малого бизнеса. *(The brand name is written in Cyrillic so the TTS stresses it predictably. Change the stress if the founder says it differently. The on-screen and subtitle spelling stays "Mercat".)* |
 
 **Check the stress in every take.** If the generated voice sounds synthetic in the cut, the founder reads the same lines into a phone in a quiet room (a closet works). A real voice beats a perfect fake.
 

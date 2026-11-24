@@ -1,5 +1,5 @@
 """
-Uslub AI — "AI employee constellation" 3D scene, built from code (reproducible).
+Mercat — "AI employee constellation" 3D scene, built from code (reproducible).
 
 Ten glossy orbs (one signature gradient per AI employee, the same hex pairs as
 GRAD in src/components/uslub/agents.ts) orbit a lime core ("Bir havola" — the
@@ -19,8 +19,8 @@ modes (comma-separated): hero16x9, hero9x16, orbs, loop, glb, blend
   push      5 s push-in from wide to the core (beauty) -> <out>/push_frames/push_####.png
   clay      the same move as an untextured clay pass  -> <out>/clay_frames/clay_####.png
             (Seedance 2.5 "@Clay Render" reference: it carries camera path + timing)
-  glb       web model (vertex colours, animated) -> <out>/uslub-constellation.glb
-  blend     save the .blend           -> <out>/uslub-constellation.blend
+  glb       web model (vertex colours, animated) -> <out>/mercat-constellation.glb
+  blend     save the .blend           -> <out>/mercat-constellation.blend
 
 Tested with Blender 5.3 (EEVEE). The shading uses world-space normals, so the
 gradient stays lit from the top-left like the CSS <Orb/> while orbs move.
@@ -456,7 +456,7 @@ def render_still(sc, path, frame=1):
     sc.render.image_settings.color_mode = "RGBA" if sc.render.film_transparent else "RGB"
     sc.render.filepath = path
     bpy.ops.render.render(write_still=True)
-    print(f"[uslub3d] wrote {path}")
+    print(f"[mercat3d] wrote {path}")
 
 
 def render_orbs(sc, cam, cam_d, orbs, core):
@@ -522,7 +522,7 @@ def export_glb(orbs, core):
     bpy.ops.object.select_all(action="DESELECT")
     for o in bpy.data.collections["Constellation"].all_objects:
         o.select_set(True)
-    path = os.path.join(OUT, "uslub-constellation.glb")
+    path = os.path.join(OUT, "mercat-constellation.glb")
     bpy.ops.export_scene.gltf(
         filepath=path,
         export_format="GLB",
@@ -533,7 +533,7 @@ def export_glb(orbs, core):
         export_cameras=False,
         export_lights=False,
     )
-    print(f"[uslub3d] wrote {path}")
+    print(f"[mercat3d] wrote {path}")
 
 
 PUSH_FRAMES = 120  # 5 s at 24 fps
@@ -608,7 +608,7 @@ def main():
         sc, cam, cam_d, orbs, core, rig = build()
         frame_16x9(sc, cam, cam_d)
         if "blend" in MODES:
-            bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "uslub-constellation.blend"))
+            bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "mercat-constellation.blend"))
         if "glb" in MODES:
             export_glb(orbs, core)
 

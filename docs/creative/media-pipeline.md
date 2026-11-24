@@ -76,7 +76,7 @@ Provider polling URLs and the owner key are never returned.
 
 ### Captions are an overlay, never model pixels
 Video models garble letters, and Uzbek `oʻ`/`gʻ` worst of all. The UI should:
-- draw `job.captions` over the `<video>` (CSS, Uslub style: white bold on an ink pill, lower third), or
+- draw `job.captions` over the `<video>` (CSS, Mercat style: white bold on an ink pill, lower third), or
 - request `format:"vtt"` and attach it as a `<track>`.
 
 For a downloadable MP4 with burned-in captions, use the ASS export with `ffmpeg -i clip.mp4 -vf "subtitles=captions.ass" out.mp4`. That runs as a worker or locally, not on Vercel functions.

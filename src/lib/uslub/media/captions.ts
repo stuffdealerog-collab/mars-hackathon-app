@@ -145,7 +145,7 @@ function assClock(seconds: number): string {
 const escapeAss = (t: string) => t.replace(/[{}\\]/g, "");
 
 /**
- * Advanced SubStation Alpha file in the Uslub style: white bold sans on a
+ * Advanced SubStation Alpha file in the Mercat style: white bold sans on a
  * translucent ink box, lower third, 10% safe margins. Burn in with
  *   ffmpeg -i clip.mp4 -vf "subtitles=captions.ass" -c:a copy out.mp4
  * (needs an ffmpeg built with libass; Inter or Manrope installed, else Arial).
@@ -166,13 +166,13 @@ export function toAss(cues: CaptionCue[], aspect: Aspect = "9:16", font = "Inter
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Uslub,${font},${size},&H00FFFFFF,&H00FFFFFF,&H661C1513,&H661C1513,-1,0,0,0,100,100,0,0,3,${Math.round(size * 0.35)},0,2,${marginH},${marginH},${marginV},1`,
+    `Style: Mercat,${font},${size},&H00FFFFFF,&H00FFFFFF,&H661C1513,&H661C1513,-1,0,0,0,100,100,0,0,3,${Math.round(size * 0.35)},0,2,${marginH},${marginH},${marginV},1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
   ];
   const events = cues.map(
-    (c) => `Dialogue: 0,${assClock(c.start)},${assClock(c.end)},Uslub,,0,0,0,,${wrapCaption(escapeAss(c.text)).join("\\N")}`,
+    (c) => `Dialogue: 0,${assClock(c.start)},${assClock(c.end)},Mercat,,0,0,0,,${wrapCaption(escapeAss(c.text)).join("\\N")}`,
   );
   return [...header, ...events, ""].join("\n");
 }

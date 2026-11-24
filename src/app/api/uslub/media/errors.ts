@@ -1,7 +1,7 @@
 import { HttpError } from "@/lib/uslub/http";
 import { MediaError } from "@/lib/uslub/media/jobs";
 
-/** Maps media-domain errors to the shared `{ error }` HTTP shape used by every Uslub route. */
+/** Maps media-domain errors to the shared `{ error }` HTTP shape used by every Mercat route. */
 export async function mediaCall<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
