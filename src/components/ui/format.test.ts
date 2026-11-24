@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fmt, keepNumbers, num, parseChannel, weekday } from "./format";
+import { fmt, isMachineEvidence, keepNumbers, num, ownerText, parseChannel, weekday } from "./format";
 
 const NBSP = "\u00a0";
 
@@ -51,5 +51,23 @@ describe("weekday", () => {
     expect(weekday("2026-11-30")).toBe(1); // Monday
     expect(weekday("2026-11-29T23:00:00Z")).toBe(0); // the date part decides: Sunday
     expect(weekday("not a date")).toBeNull();
+  });
+});
+
+describe("ownerText", () => {
+  it("drops rule and stat ids and fixes Uzbek apostrophes", () => {
+    const raw = "Postlar o'rtacha 1190 ko'rish oladi. Shu hafta qamrovga e'tibor beramiz. [S.reachRate, S.medianViews, R.LOW_REACH]";
+    expect(ownerText(raw, "uz")).toBe("Postlar o‘rtacha 1190 ko‘rish oladi. Shu hafta qamrovga e’tibor beramiz.");
+  });
+  it("leaves clean text alone and only sets typographic apostrophes elsewhere", () => {
+    expect(ownerText("Narx yozilmagan.", "uz")).toBe("Narx yozilmagan.");
+    expect(ownerText("Don't hide the price.", "en")).toBe("Don’t hide the price.");
+  });
+});
+
+describe("isMachineEvidence", () => {
+  it("spots internal ids", () => {
+    expect(isMachineEvidence("S.reachRate=20% (n=23, 90d) · R.LOW_REACH")).toBe(true);
+    expect(isMachineEvidence("Sotuv postlarining 12 tasidan faqat 1 tasida narx bor.")).toBe(false);
   });
 });

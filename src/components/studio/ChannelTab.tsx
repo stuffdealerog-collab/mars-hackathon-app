@@ -1,6 +1,6 @@
 import type { ChannelAudit } from "@/lib/uslub/contract";
 import { useCopy, useLang, fmt, num } from "../ui/lang";
-import { weekday } from "../ui/format";
+import { isMachineEvidence, ownerText, weekday } from "../ui/format";
 import { useStudio } from "./store";
 
 const KIND_ORDER = { problem: 0, opportunity: 1, strength: 2 } as const;
@@ -79,6 +79,7 @@ function Numbers() {
 
 function Findings({ audit }: { audit: ChannelAudit }) {
   const c = useCopy();
+  const lang = useLang((s) => s.lang);
   const list = [...audit.findings].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]).slice(0, 3);
   if (!list.length) return <p className="text-[15px] text-ink-2">{c.channel.findingsNone}</p>;
   return (
@@ -86,8 +87,8 @@ function Findings({ audit }: { audit: ChannelAudit }) {
       {list.map((f, i) => (
         <li key={i} className="card p-4 sm:p-5">
           <p className={`text-[14px] font-medium ${f.kind === "strength" ? "text-ok" : f.kind === "problem" ? "text-bad" : "text-ink-2"}`}>{c.channel.kind[f.kind]}</p>
-          <p className="mt-1.5 text-[16px] leading-relaxed">{f.text}</p>
-          {f.evidence && <p className="mt-2 text-[14px] leading-relaxed text-ink-2">{f.evidence}</p>}
+          <p className="mt-1.5 text-[16px] leading-relaxed">{ownerText(f.text, lang)}</p>
+          {f.evidence && !isMachineEvidence(f.evidence) && <p className="mt-2 text-[14px] leading-relaxed text-ink-2">{ownerText(f.evidence, lang)}</p>}
         </li>
       ))}
     </ol>

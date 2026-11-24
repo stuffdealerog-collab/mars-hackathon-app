@@ -34,3 +34,21 @@ export function weekday(iso: string): number | null {
   if (!m) return null;
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getDay();
 }
+
+const RULE_IDS = /\s*\[(?:\s*[SRF]\.[\w.]+\s*,?)+\]/g;
+const RULE_TOKEN = /\b[SRF]\.[A-Za-z][\w.]*/;
+
+/**
+ * Owner-safe text from the engine: drops rule/stat ids such as "[S.reachRate, R.LOW_REACH]"
+ * and sets Uzbek apostrophes (o‘, g‘, ’) where the model wrote ASCII '.
+ */
+export function ownerText(text: string, lang: Lang): string {
+  let t = text.replace(RULE_IDS, "").replace(/\s{2,}/g, " ").trim();
+  if (lang === "uz") t = t.replace(/([OoGg])['`ʻ’]/g, "$1‘");
+  return t.replace(/(\p{L})'(\p{L})/gu, "$1’$2");
+}
+
+/** Evidence lines made of internal ids ("S.reachRate=20% (n=23, 90d) · …") are not for the owner. */
+export function isMachineEvidence(text: string): boolean {
+  return RULE_TOKEN.test(text);
+}
