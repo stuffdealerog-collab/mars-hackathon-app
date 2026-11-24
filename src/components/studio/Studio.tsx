@@ -326,7 +326,7 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
   const setTab = useStudio((s) => s.setTab);
   const brand = useStudio((s) => s.brand);
   const posts = useStudio((s) => s.posts);
-  const reset = useStudio((s) => s.reset);
+  const newChannel = useStudio((s) => s.newChannel);
   const sample = useStudio((s) => s.sample);
   const pro = useStudio((s) => s.pro);
   const lamps = useLamps();
@@ -348,13 +348,14 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
 
   return (
     <div className="pt-4 sm:pt-8">
+      <ReadyProblem />
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="truncate text-[26px] font-semibold leading-tight tracking-[-0.02em] sm:text-[32px]">{name}</h1>
           {brand?.channel && brand.channel !== name && <p className="mt-0.5 text-[15px] text-ink-2">{brand.channel}</p>}
         </div>
         {!sample && (
-          <button type="button" onClick={reset} className="link mt-1.5 shrink-0 text-[15px] text-ink-2">
+          <button type="button" onClick={newChannel} className="link mt-1.5 shrink-0 text-[15px] text-ink-2">
             {c.channel.newChannel}
           </button>
         )}
@@ -406,6 +407,21 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
           {tab === "video" && <VideoTab />}
         </motion.div>
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** A failed "Postini yozish" or plan in ready: said above the work, dismissed by the owner. */
+function ReadyProblem() {
+  const c = useCopy();
+  const problem = useStudio((s) => s.problem);
+  if (!problem) return null;
+  return (
+    <div role="alert" className="mb-6 flex flex-wrap items-center gap-3 rounded-[16px] bg-[var(--bad-soft)] px-4 py-3 text-[15px] shadow-[inset_0_0_0_1px_var(--hair)]">
+      <p className="mr-auto leading-relaxed">{problem.message}</p>
+      <button type="button" className="btn-2 !min-h-9 !px-4 !text-[14px]" onClick={() => useStudio.setState({ problem: null })}>
+        {c.problem.dismiss}
+      </button>
     </div>
   );
 }

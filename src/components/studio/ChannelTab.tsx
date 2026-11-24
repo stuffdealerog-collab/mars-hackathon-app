@@ -27,38 +27,69 @@ export function ChannelTab({ wide = false }: { wide?: boolean }) {
   const pro = useStudio((s) => s.pro);
   const audit = useStudio((s) => s.audit);
   const sufficiency = useStudio((s) => s.sufficiency);
-  const about = (
-    <>
-      {mode === "channel" ? <Numbers /> : <p className="text-[15px] leading-relaxed text-ink-2">{c.channel.freshNoStats}</p>}
-      {mode === "fresh" && <Launch />}
-      <Voice />
-      <PictureStyle />
-    </>
-  );
-  const todo = (
-    <>
-      <Plan />
-      {pro && <StrategyDetails />}
-      {pro && <SufficiencyPanel items={sufficiency} />}
-    </>
-  );
-  if (!wide) {
+  const justFinished = useStudio((s) => s.justFinished);
+  // Right after a run: "they know my channel" comes first, with the way to the posts.
+  const first = justFinished && mode === "channel" && !!audit;
+  // On the desktop the LED sign above already prints the numbers; here only what they mean.
+  const findings =
+    mode === "channel" ? first ? <FirstLook /> : <Numbers cells={!wide} /> : <p className="text-[15px] leading-relaxed text-ink-2">{c.channel.freshNoStats}</p>;
+
+  if (!wide || !pro) {
+    // Phone, Mini App and the desktop in Oddiy: one column (640 px on the desktop).
     return (
-      <div className="@container flex flex-col gap-12">
-        {about}
-        {todo}
+      <div className={`@container flex flex-col gap-12 ${wide ? "max-w-[640px]" : ""}`}>
+        {findings}
+        {mode === "fresh" && <Launch />}
+        <PictureStyle />
+        <Voice />
+        <Plan />
+        {pro && <StrategyDetails />}
+        {pro && <SufficiencyPanel items={sufficiency} />}
         {pro && mode === "channel" && <AuditFull audit={audit} />}
       </div>
     );
   }
+  // Desktop Pro: what the channel is on the left, what to do about it on the right.
   return (
-    <div className="@container flex flex-col gap-14">
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-10 xl:gap-14">
-        <div className="@container flex min-w-0 flex-col gap-12">{about}</div>
-        <div className="@container flex min-w-0 flex-col gap-12">{todo}</div>
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-10 xl:gap-14">
+      <div className="@container flex min-w-0 flex-col gap-12">
+        {findings}
+        {mode === "channel" && <AuditFull audit={audit} />}
+        <SufficiencyPanel items={sufficiency} />
       </div>
-      {pro && mode === "channel" && <AuditFull audit={audit} />}
+      <div className="@container flex min-w-0 flex-col gap-12">
+        {mode === "fresh" && <Launch />}
+        <Plan />
+        <StrategyDetails />
+        <PictureStyle />
+        <Voice />
+      </div>
     </div>
+  );
+}
+
+/**
+ * The first look after a run: we read the channel, here are the three things that matter most
+ * (first sentence and the numbers), and the lime way to the posts. Gone once the owner goes there.
+ */
+function FirstLook() {
+  const c = useCopy();
+  const audit = useStudio((s) => s.audit);
+  const posts = useStudio((s) => s.posts.length);
+  const setTab = useStudio((s) => s.setTab);
+  if (!audit) return null;
+  return (
+    <section aria-labelledby="first-h" className="flex flex-col gap-4">
+      <h2 id="first-h" className="text-[24px] font-semibold tracking-[-0.02em]">
+        {c.first.title}
+      </h2>
+      <Findings audit={audit} brief />
+      {posts > 0 && (
+        <button type="button" className="btn self-start" onClick={() => setTab("posts")}>
+          {fmt(c.first.cta, { n: posts })}
+        </button>
+      )}
+    </section>
   );
 }
 
@@ -157,7 +188,8 @@ function Section({ id, title, children }: { id: string; title: string; children:
   );
 }
 
-function Numbers() {
+/** `cells`: the measured numbers as LED cards (off on the desktop, where the sign shows them). */
+function Numbers({ cells: withCells = true }: { cells?: boolean }) {
   const c = useCopy();
   const lang = useLang((s) => s.lang);
   const audit = useStudio((s) => s.audit);
@@ -192,7 +224,7 @@ function Numbers() {
   return (
     <>
       {/* Measured numbers print on the amber LED, like a shop sign; nothing else does. */}
-      <dl className="grid grid-cols-2 gap-2.5 @xl:grid-cols-4">
+      {withCells && <dl className="grid grid-cols-2 gap-2.5 @xl:grid-cols-4">
         {cells.map(([v, k]) => (
           <div key={k} className="card flex flex-col-reverse justify-end gap-2 px-4 pb-3.5 pt-4">
             <dt className="text-[13px] leading-snug text-ink-2">{k}</dt>
@@ -201,7 +233,7 @@ function Numbers() {
             </dd>
           </div>
         ))}
-      </dl>
+      </dl>}
       <Section id="find-h" title={c.channel.findingsTitle}>
         <Findings audit={audit} />
       </Section>
@@ -209,7 +241,8 @@ function Numbers() {
   );
 }
 
-function Findings({ audit }: { audit: ChannelAudit }) {
+/** `brief`: first sentences only, even in Pro (the first look). */
+function Findings({ audit, brief = false }: { audit: ChannelAudit; brief?: boolean }) {
   const c = useCopy();
   const lang = useLang((s) => s.lang);
   const list = [...audit.findings].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]).slice(0, 3);
@@ -217,14 +250,14 @@ function Findings({ audit }: { audit: ChannelAudit }) {
   return (
     <ol className="flex flex-col gap-3">
       {list.map((f, i) => (
-        <Finding key={i} kind={f.kind} text={ownerText(f.text, lang)} evidence={f.evidence && !isMachineEvidence(f.evidence) ? ownerText(f.evidence, lang) : ""} />
+        <Finding key={i} kind={f.kind} text={ownerText(f.text, lang)} evidence={f.evidence && !isMachineEvidence(f.evidence) ? ownerText(f.evidence, lang) : ""} brief={brief} />
       ))}
     </ol>
   );
 }
 
 /** One finding: the first sentence and its numbers; the rest of the explanation on a tap. */
-function Finding({ kind, text, evidence }: { kind: "problem" | "opportunity" | "strength"; text: string; evidence: string }) {
+function Finding({ kind, text, evidence, brief = false }: { kind: "problem" | "opportunity" | "strength"; text: string; evidence: string; brief?: boolean }) {
   const c = useCopy();
   const pro = useStudio((s) => s.pro);
   const [open, setOpen] = useState(false);
@@ -232,7 +265,7 @@ function Finding({ kind, text, evidence }: { kind: "problem" | "opportunity" | "
   const m = text.match(/^([\s\S]+?[.!?])\s+([\s\S]+)$/);
   const head = m ? m[1] : text;
   const rest = m ? m[2] : "";
-  const showAll = pro || open;
+  const showAll = (pro && !brief) || open;
   return (
     <li className="card p-4 @md:p-5">
       <p className={`text-[14px] font-medium ${kind === "strength" ? "text-ok" : kind === "problem" ? "text-bad" : "text-ink-2"}`}>{c.channel.kind[kind]}</p>
@@ -344,9 +377,10 @@ function Plan() {
             </p>
           ) : (
             <>
-              <p className="text-[15px] text-ink-2">{c.channel.planMissing}</p>
-              <button type="button" className="btn-2" onClick={() => void rebuild()}>
-                {c.channel.planRebuild}
+              {/* No plan is kept on the server: after a reopen this device has none, and says so. */}
+              <p className="text-[15px] text-ink-2">{c.reopen.noPlan}</p>
+              <button type="button" className="btn-2" disabled={sample} title={sample ? c.tools.notInSample : undefined} onClick={() => void rebuild()}>
+                {c.reopen.buildPlan}
               </button>
             </>
           )}

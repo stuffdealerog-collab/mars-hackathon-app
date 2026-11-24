@@ -737,12 +737,14 @@ export const useStudio = create<StudioState>((set, get) => {
       const [b, p] = await Promise.all([api.getBrand(brandId, L), api.listPosts(brandId, L)]);
       if (my !== runId) return;
       if (!b.ok) {
-        // brand_forbidden (a bot brand opened without its link key) keeps its code for the 403 screen.
+        // brand_forbidden (a bot brand opened without its link key) keeps its code and ?brand= for
+        // the 403 screen, which sends the owner to the bot with this very brand.
         set({ phase: "start", problem: problemOf(b) });
-        rememberBrand(null);
+        if (b.code !== "brand_forbidden") rememberBrand(null);
         return;
       }
       const brand = b.data.brand;
+      rememberBrand(brand.id);
       rememberRecent(brand);
       const mode: Mode = brand.mode === "fresh" ? "fresh" : "channel";
       const posts = p.ok ? p.data.posts.slice(0, 12) : [];

@@ -39,6 +39,7 @@ export function Start({ initialView = "link", initialChannel = "" }: { initialVi
   const emptyChannel = useStudio((s) => s.emptyChannel);
   const problem = useStudio((s) => s.problem);
   const [view, setView] = useState<"link" | "fresh">(emptyChannel ? "fresh" : initialView);
+  if (problem?.code === "brand_forbidden") return <Forbidden />;
   return (
     <div className="pt-6 sm:pt-12">
       {view === "link" ? (
@@ -53,6 +54,29 @@ export function Start({ initialView = "link", initialChannel = "" }: { initialVi
       )}
       {/* Once the owner chose the description path, the overview is behind them. */}
       {view === "link" && <HowItWorks />}
+    </div>
+  );
+}
+
+/**
+ * A channel made in Telegram opened in a browser without the bot's link key: it belongs to the
+ * owner's Telegram account, so the way in is the bot, which opens the Mini App on it.
+ */
+function Forbidden() {
+  const c = useCopy();
+  const bot = useStudio((s) => s.bot);
+  const brand = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("brand") : null;
+  return (
+    <div className="max-w-[560px] pt-6 sm:pt-12">
+      <p className="text-[20px] font-medium leading-snug">{c.access.forbidden}</p>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <a className="btn" href={`https://t.me/${bot}${brand ? `?startapp=brand_${encodeURIComponent(brand)}` : ""}`} target="_blank" rel="noreferrer">
+          {c.hub.openTg}
+        </a>
+        <a className="btn-2" href="/studio">
+          {c.hub.newChannel}
+        </a>
+      </div>
     </div>
   );
 }
