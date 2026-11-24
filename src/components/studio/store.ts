@@ -1,9 +1,9 @@
 
-import type { BrandProfile, ChannelAudit, ContentPlan, Flow, NodeStatus, PostDraft, RadarLead, Script, Strategy, VideoPlan } from "@/lib/uslub/contract";
+import type { BrandProfile, ChannelAudit, ContentPlan, Flow, NodeKind, NodeStatus, PostDraft, RadarLead, Script, Strategy, VideoPlan } from "@/lib/uslub/contract";
 import { create } from "zustand";
 import * as api from "./api";
 import type { Source } from "./api";
-import { MOCK_BRAND } from "./mocks";
+import { MOCK_BRAND, mockPlan } from "./mocks";
 
 export type View = "delegate" | "analysis" | "strategy" | "team" | "brand" | "radar" | "video" | "rules";
 
@@ -64,6 +64,7 @@ interface StudioState {
   sources: Partial<Record<"brand" | "posts" | "radar" | "video" | "plan" | "audit" | "strategy", Source>>;
   inbox: InboxItem[];
   reviewing: string | null; // post id
+  notice: string | null;
   autopilot: Record<RuleKey, boolean>; // true = may publish without approval
   publishedCount: number;
   setView: (v: View) => void;
@@ -123,6 +124,33 @@ export function buildInbox(posts: PostDraft[], video: VideoPlan | null, auto: Re
   return items;
 }
 
+/** Which data source feeds each employee's output (for the "namuna" badge). */
+export const KIND_SOURCE: Partial<Record<NodeKind, "brand" | "posts" | "radar" | "video" | "audit" | "strategy">> = {
+  brand: "brand",
+  analyst: "audit",
+  strategist: "strategy",
+  copywriter: "posts",
+  editor: "posts",
+  translator: "posts",
+  designer: "posts",
+  video: "video",
+  radar: "radar",
+};
+
+function resultLabel(kind: NodeKind, s: StudioState): string | null {
+  if (kind === "brand") return s.brand.dna.name ? `${s.brand.dna.name}: DNK` : "Brend DNK";
+  if (kind === "analyst" && s.audit) return `${s.audit.postsAnalyzed} ta post tahlili`;
+  if (kind === "strategist" && s.plan) return `${s.plan.items.length} kunlik reja`;
+  if (kind === "copywriter") return `${s.posts.length} ta post`;
+  if (kind === "editor") {
+    const avg = s.posts.length ? Math.round(s.posts.reduce((a, p) => a + p.humanScore, 0) / s.posts.length) : 0;
+    return avg ? `Inson bali ${avg}` : null;
+  }
+  if (kind === "radar") return `${s.leads.length} ta joy`;
+  if (kind === "video" && s.video) return `${s.video.scenes.reduce((a, x) => a + x.seconds, 0)} soniyalik Reels`;
+  return null;
+}
+
 let runId = 0;
 
 export const useStudio = create<StudioState>((set, get) => ({
@@ -142,6 +170,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   sources: {},
   inbox: [],
   reviewing: null,
+  notice: null,
   autopilot: { routine: true, promo: false, prices: false, video: false, first: false },
   publishedCount: 0,
   setView: (view) => set({ view }),
@@ -187,11 +216,17 @@ export const useStudio = create<StudioState>((set, get) => ({
     const my = ++runId;
     const alive = () => my === runId;
     const start = Date.now();
-    set({ running: true, elapsed: 0, flow: null, status: {}, selected: null, inbox: [], view: "delegate" });
+    set({ running: true, elapsed: 0, flow: null, status: {}, selected: null, inbox: [], view: "delegate", notice: null });
     const tick = setInterval(() => alive() && set({ elapsed: (Date.now() - start) / 1000 }), 100);
 
     const channel = task.match(/(?:t\.me\/|@)([A-Za-z0-9_]{4,32})/)?.[1];
-    const planP = api.planFlow(get().brand.id, task);
+    // Channel onboarding uses the fixed "Bir havola" graph so it draws instantly;
+    // free-text tasks ask the strategist (POST /plan) for a graph.
+    const planP = channel
+      ? Promise.resolve({ data: mockPlan(task), source: "mock" as Source })
+      : get().sources.brand === "live"
+        ? api.planFlow(get().brand.id, task)
+        : Promise.resolve({ data: mockPlan(task), source: "mock" as Source });
     const brandP = channel ? api.createBrand({ channel: "@" + channel }) : Promise.resolve({ data: get().brand, source: get().sources.brand ?? ("mock" as Source) });
 
     const plan = await planP;
@@ -204,6 +239,11 @@ export const useStudio = create<StudioState>((set, get) => ({
     const brand = await brandP;
     const brandId = brand.data.id;
     set({ brand: brand.data, sources: { ...get().sources, brand: brand.source } });
+    if (channel && brand.source === "mock") {
+      const err = (brand as { error?: string }).error;
+      const why = err && !/^HTTP|mock mode|abort/i.test(err) ? `${err} ` : "";
+      set({ notice: `${why}Hozircha namuna ma'lumot bilan ko'rsatyapmiz.` });
+    }
     const postsP = kinds.has("copywriter") ? api.generatePosts(brandId, task, 2) : Promise.resolve(null);
     const radarP = kinds.has("radar") ? api.findLeads(brandId, task) : Promise.resolve(null);
     const videoP = kinds.has("video") ? api.planVideo(brandId, task) : Promise.resolve(null);
@@ -248,6 +288,9 @@ export const useStudio = create<StudioState>((set, get) => ({
             const r = await videoP;
             if (r) set({ video: r.data, sources: { ...get().sources, video: r.source } });
           }
+          const label = resultLabel(node.kind, get());
+          const cur = get().flow;
+          if (label && cur) set({ flow: { ...cur, nodes: cur.nodes.map((x) => (x.id === id ? { ...x, label } : x)) } });
           set({ status: { ...get().status, [id]: node.kind === "approval" ? "needs_approval" : "done" } });
         }),
       );

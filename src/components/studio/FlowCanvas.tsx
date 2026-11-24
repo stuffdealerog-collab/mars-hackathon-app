@@ -23,7 +23,7 @@ import { glowBg } from "../uslub/GlowCard";
 import { Orb } from "../uslub/Orb";
 import { layers } from "./store";
 
-export type AgentNodeData = { kind: NodeKind; label: string; status: NodeStatus; preview?: string };
+export type AgentNodeData = { kind: NodeKind; label: string; status: NodeStatus; preview?: string; sample?: boolean };
 type AgentNodeT = Node<AgentNodeData, "agent">;
 
 export const STATUS_TEXT: Record<NodeStatus, string> = {
@@ -104,6 +104,11 @@ function AgentNode({ data, selected }: NodeProps<AgentNodeT>) {
           {st === "running" ? RUNNING_HINT[data.kind] ?? data.label : data.label}
         </motion.div>
       </AnimatePresence>
+      {data.sample && (st === "done" || st === "needs_approval") && (
+        <span className="absolute right-3 top-3 rounded-full bg-black/45 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-white/60">
+          namuna
+        </span>
+      )}
       {data.kind !== "publisher" && <Handle type="source" position={Position.Right} />}
     </motion.div>
   );
@@ -111,7 +116,7 @@ function AgentNode({ data, selected }: NodeProps<AgentNodeT>) {
 
 const nodeTypes = { agent: AgentNode };
 
-export function layoutFlow(flow: Flow, status: Record<string, NodeStatus>, selected?: string | null) {
+export function layoutFlow(flow: Flow, status: Record<string, NodeStatus>, selected?: string | null, sample?: Record<string, boolean>) {
   const cols = layers(flow);
   const nodes: AgentNodeT[] = [];
   cols.forEach((col, x) => {
@@ -121,7 +126,7 @@ export function layoutFlow(flow: Flow, status: Record<string, NodeStatus>, selec
         id,
         type: "agent",
         position: { x: x * 280, y: (y - (col.length - 1) / 2) * 124 },
-        data: { kind: n.kind, label: n.label, status: status[id] ?? "idle" },
+        data: { kind: n.kind, label: n.label, status: status[id] ?? "idle", sample: sample?.[id] },
         selected: selected === id,
       });
     });
@@ -156,6 +161,7 @@ function Inner({
   onSelect,
   interactive,
   follow,
+  sample,
 }: {
   flow: Flow;
   status: Record<string, NodeStatus>;
@@ -163,8 +169,9 @@ function Inner({
   onSelect?: (id: string | null) => void;
   interactive: boolean;
   follow?: boolean;
+  sample?: Record<string, boolean>;
 }) {
-  const { nodes, edges } = useMemo(() => layoutFlow(flow, status, selected), [flow, status, selected]);
+  const { nodes, edges } = useMemo(() => layoutFlow(flow, status, selected, sample), [flow, status, selected, sample]);
   const rf = useReactFlow();
   useEffect(() => {
     const t = setTimeout(() => rf.fitView({ padding: 0.18, duration: 500 }), 60);
@@ -227,6 +234,7 @@ export function FlowCanvas(props: {
   onSelect?: (id: string | null) => void;
   interactive?: boolean;
   follow?: boolean;
+  sample?: Record<string, boolean>;
   className?: string;
 }) {
   return (
@@ -243,10 +251,12 @@ export function StepList({
   flow,
   status,
   onSelect,
+  sample,
 }: {
   flow: Flow;
   status: Record<string, NodeStatus>;
   onSelect?: (id: string) => void;
+  sample?: Record<string, boolean>;
 }) {
   const order = layers(flow).flat();
   return (
@@ -271,7 +281,10 @@ export function StepList({
               <Orb kind={n.kind} size={34} glow={s === "running"} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[14px] font-bold">{meta.name}</span>
-                <span className="block truncate text-[12px] text-white/70">{s === "running" ? RUNNING_HINT[n.kind] ?? n.label : n.label}</span>
+                <span className="block truncate text-[12px] text-white/70">
+                  {s === "running" ? RUNNING_HINT[n.kind] ?? n.label : n.label}
+                  {sample?.[id] && (s === "done" || s === "needs_approval") ? " · namuna" : ""}
+                </span>
               </span>
               <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.08em]" style={{ color: statusColor(s) }}>
                 <StatusIcon status={s} className="h-3 w-3" />

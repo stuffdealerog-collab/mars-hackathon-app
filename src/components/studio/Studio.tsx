@@ -34,7 +34,7 @@ import { TEMPLATES } from "./mocks";
 import { DnaCard, LeadList, Storyboard } from "./Panels";
 import { PostReview } from "./PostReview";
 import { StrategyView } from "./StrategyView";
-import { RULES, useStudio, type InboxItem, type RuleKey, type View } from "./store";
+import { KIND_SOURCE, RULES, useStudio, type InboxItem, type RuleKey, type View } from "./store";
 
 const NAV: { key: View; name: string; icon: typeof Inbox }[] = [
   { key: "delegate", name: "Topshiriq", icon: Sparkles },
@@ -59,6 +59,37 @@ function useIsMobile() {
     return () => q.removeEventListener("change", on);
   }, []);
   return m;
+}
+
+const SOURCE_NAME: Record<string, string> = {
+  brand: "Brend DNK",
+  audit: "Tahlil",
+  strategy: "Strategiya",
+  posts: "Postlar",
+  video: "Reels",
+  radar: "Mijoz radar",
+};
+
+/** Node id -> true when that employee's output is sample data (honesty badge). */
+function useSampleMap() {
+  const flow = useStudio((s) => s.flow);
+  const sources = useStudio((s) => s.sources);
+  return useMemo(() => {
+    const m: Record<string, boolean> = {};
+    flow?.nodes.forEach((n) => {
+      const key = KIND_SOURCE[n.kind];
+      if (key && sources[key] && sources[key] !== "live") m[n.id] = true;
+    });
+    return m;
+  }, [flow, sources]);
+}
+
+function SampleBadge({ className = "" }: { className?: string }) {
+  return (
+    <span className={`rounded-full bg-white/8 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-mute ${className}`} title="Namuna ma'lumot — haqiqiy kanal ma'lumoti emas">
+      namuna
+    </span>
+  );
 }
 
 /* ------------------------------------------------------------ delegate box */
@@ -180,6 +211,7 @@ function RunHeader() {
   const status = useStudio((s) => s.status);
   const running = useStudio((s) => s.running);
   const elapsed = useStudio((s) => s.elapsed);
+  const notice = useStudio((s) => s.notice);
   if (!flow) return null;
   const total = flow.nodes.length;
   const done = Object.values(status).filter((s) => s === "done" || s === "needs_approval").length;
@@ -197,6 +229,7 @@ function RunHeader() {
               ? "Hech narsa sizsiz joylanmaydi."
               : ""}
         </div>
+        {notice && <div className="mt-1 rounded-2xl bg-wait/10 px-3 py-2 text-[13px] text-wait shadow-[inset_0_0_0_1px_rgba(255,181,71,.25)]">{notice}</div>}
       </div>
       <div className="flex gap-2">
         <div className="rounded-[22px] bg-surface px-4 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
@@ -230,6 +263,7 @@ function NodePanel() {
   const audit = useStudio((s) => s.audit);
   const plan = useStudio((s) => s.plan);
   const inbox = useStudio((s) => s.inbox);
+  const sampleMap = useSampleMap();
   const node = flow?.nodes.find((n) => n.id === selected);
   if (!node) return null;
   const st = status[node.id] ?? "idle";
@@ -314,7 +348,10 @@ function NodePanel() {
         <Orb kind={node.kind} size={42} glow={st === "running"} />
         <div className="min-w-0 flex-1">
           <div className="text-[17px] font-bold tracking-tight">{meta.name}</div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-white/75">{STATUS_TEXT[st]}</div>
+          <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-white/75">
+            {STATUS_TEXT[st]}
+            {sampleMap[node.id] && ready && <SampleBadge className="!bg-black/40 !text-white/70" />}
+          </div>
         </div>
         <button type="button" aria-label="Yopish" onClick={() => select(null)} className="rounded-full bg-black/30 p-2 hover:bg-black/50">
           <X className="h-4 w-4" />
@@ -341,6 +378,7 @@ function InboxList() {
   const flow = useStudio((s) => s.flow);
   const review = useStudio((s) => s.review);
   const setView = useStudio((s) => s.setView);
+  const sources = useStudio((s) => s.sources);
   const waiting = inbox.filter((i) => i.state === "waiting").length;
   return (
     <section aria-labelledby="inbox-h" className="flex flex-col overflow-hidden rounded-[28px] bg-surface shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
@@ -372,6 +410,7 @@ function InboxList() {
                   <span className="block truncate text-[14px] font-semibold">{i.title}</span>
                   <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     {itemBadge(i)}
+                    {sources[i.type === "video" ? "video" : "posts"] !== "live" && <SampleBadge />}
                     {i.state === "waiting" && i.reasons.length > 0 && <span className="text-[11px] text-dim">{i.reasons.map((r) => RULE_NAME[r]).join(", ")}</span>}
                   </span>
                 </span>
@@ -485,6 +524,8 @@ function OutputDeck() {
   const video = useStudio((s) => s.video);
   const audit = useStudio((s) => s.audit);
   const setView = useStudio((s) => s.setView);
+  const sources = useStudio((s) => s.sources);
+  const sampled = (["brand", "audit", "strategy", "posts", "radar", "video"] as const).filter((k) => sources[k] && sources[k] !== "live");
   const cards: { k: View; kind: NodeKind; n: string; v: string; big: string }[] = [
     { k: "brand", kind: "brand", n: "Brend DNK", v: "ovoz va qoidalar", big: "DNK" },
     ...(audit ? [{ k: "analysis" as View, kind: "analyst" as NodeKind, n: "Qamrov", v: "kanal tahlili", big: audit.reachRate ? `${Math.round(audit.reachRate * 100)}%` : "OK" }] : []),
@@ -493,6 +534,13 @@ function OutputDeck() {
     ...(video ? [{ k: "video" as View, kind: "video" as NodeKind, n: "Reels", v: "soniya", big: `${video.scenes.reduce((a, s) => a + s.seconds, 0)}` }] : []),
   ];
   return (
+    <div className="flex flex-col gap-2">
+    {sampled.length > 0 && (
+      <p className="flex flex-wrap items-center gap-2 text-[12px] text-mute">
+        <SampleBadge />
+        Bu bo&apos;limlar hozircha namuna ma&apos;lumot ko&apos;rsatmoqda: {sampled.map((k) => SOURCE_NAME[k]).join(", ")}.
+      </p>
+    )}
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
       {cards.map((c, i) => (
         <motion.button
@@ -515,6 +563,7 @@ function OutputDeck() {
         </motion.button>
       ))}
     </div>
+    </div>
   );
 }
 
@@ -526,6 +575,7 @@ function DelegateView() {
   const running = useStudio((s) => s.running);
   const posts = useStudio((s) => s.posts);
   const mobile = useIsMobile();
+  const sampleMap = useSampleMap();
   return (
     <div className="flex flex-col gap-5">
       <DelegateBox compact={!!flow} />
@@ -539,10 +589,10 @@ function DelegateView() {
                 <span className="mono-label hidden sm:inline">Xodimni bosing — natija ochiladi</span>
               </div>
               {mobile ? (
-                <StepList flow={flow} status={status} onSelect={(id) => select(id)} />
+                <StepList flow={flow} status={status} onSelect={(id) => select(id)} sample={sampleMap} />
               ) : (
                 <div className="relative">
-                  <FlowCanvas flow={flow} status={status} selected={selected} onSelect={select} follow className="h-[480px] rounded-[36px]" />
+                  <FlowCanvas flow={flow} status={status} selected={selected} onSelect={select} follow sample={sampleMap} className="h-[480px] rounded-[36px]" />
                   <AnimatePresence>{selected && <NodePanel />}</AnimatePresence>
                 </div>
               )}
@@ -618,11 +668,14 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
   );
 }
 
-function Header({ title, sub, children }: { title: string; sub?: string; children?: React.ReactNode }) {
+function Header({ title, sub, sample, children }: { title: string; sub?: string; sample?: boolean; children?: React.ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-[30px] font-bold tracking-[-0.03em] sm:text-[40px]">{title}</h1>
+        <h1 className="flex items-center gap-3 text-[30px] font-bold tracking-[-0.03em] sm:text-[40px]">
+          {title}
+          {sample && <SampleBadge className="!text-[10px]" />}
+        </h1>
         {sub && <p className="mt-1 max-w-2xl text-[14px] text-mute">{sub}</p>}
       </div>
       {children}
@@ -707,7 +760,7 @@ function BrandView() {
   const [note, setNote] = useState("");
   return (
     <div>
-      <Header title="Brend xotirasi" sub="Biznesingiz haqida bir marta yozing — barcha xodimlar shundan foydalanadi." />
+      <Header title="Brend xotirasi" sub="Biznesingiz haqida bir marta yozing — barcha xodimlar shundan foydalanadi." sample={useStudio.getState().sources.brand !== "live"} />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_440px]">
         <div className="flex flex-col gap-4">
           <label className="block">
@@ -768,7 +821,7 @@ function RadarView() {
   const [busy, setBusy] = useState(false);
   return (
     <div>
-      <Header title="Mijoz radar" sub="Mijozlaringiz qayerda — va u yerda nima qilish kerak.">
+      <Header title="Mijoz radar" sub="Mijozlaringiz qayerda — va u yerda nima qilish kerak." sample={leads.length > 0 && useStudio.getState().sources.radar !== "live"}>
         <button
           type="button"
           disabled={busy}
@@ -798,7 +851,7 @@ function VideoView() {
   const [busy, setBusy] = useState(false);
   return (
     <div>
-      <Header title="Videograf" sub="Reels va TikTok: birinchi 2 soniya, kadrlar, ovoz va subtitrlar.">
+      <Header title="Videograf" sub="Reels va TikTok: birinchi 2 soniya, kadrlar, ovoz va subtitrlar." sample={!!video && useStudio.getState().sources.video !== "live"}>
         <button
           type="button"
           disabled={busy}
@@ -860,7 +913,7 @@ export function Studio() {
     if (JSON.stringify(next) !== JSON.stringify(status)) useStudio.setState({ status: next });
   }, [inbox, flow, status]);
 
-  const live = Object.values(sources).some((s) => s === "live");
+  const live = sources.brand === "live";
   const waiting = useMemo(() => inbox.filter((i) => i.state === "waiting").length, [inbox]);
 
   return (

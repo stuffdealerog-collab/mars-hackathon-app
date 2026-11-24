@@ -76,11 +76,8 @@ const post = (body: unknown): RequestInit => ({ method: "POST", body: JSON.strin
 
 export async function createBrand(input: { channel?: string; knowledge?: string; samplePosts?: string[] }) {
   const r = await call<{ brand: BrandProfile }>("/brand", post(input), () => ({
-    brand: {
-      ...MOCK_BRAND,
-      channel: input.channel || MOCK_BRAND.channel,
-      knowledge: input.knowledge || MOCK_BRAND.knowledge,
-    },
+    // Never dress sample data in the real channel's name.
+    brand: MOCK_BRAND,
   }), 40000);
   return { ...r, data: r.data.brand };
 }
@@ -145,7 +142,7 @@ export async function planFlow(brandId: string, task: string) {
 
 export async function analyzeChannel(channel: string, competitors?: string[]) {
   const r = await call<{ audit: ChannelAudit }>("/analyze", post({ channel, competitors }), () => ({
-    audit: { ...MOCK_AUDIT, channel: channel || MOCK_AUDIT.channel },
+    audit: MOCK_AUDIT,
   }));
   return { ...r, data: r.data.audit };
 }
