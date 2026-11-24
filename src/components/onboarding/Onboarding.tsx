@@ -25,6 +25,8 @@ export type OnboardingProps = {
   hostPrimary?: boolean;
   /** For haptics: a step changed, or a swipe ran past the first or last step. */
   onFeedback?: (kind: "step" | "edge") => void;
+  /** The bot's @username (without @), named in the one-time admin step. */
+  bot?: string;
 };
 
 const OUT_MS = 260;
@@ -40,7 +42,7 @@ const useReducedMotion = () => useSyncExternalStore(onReduce, () => window.match
  * The first-run intro: four short screens in the lamp world, each a small live demo with one
  * headline and one line. Skippable at every step; shown once by the host (see `seen.ts`).
  */
-export function Onboarding({ open, onClose, lang, variant, step: stepProp, onStepChange, hostPrimary = false, onFeedback }: OnboardingProps) {
+export function Onboarding({ open, onClose, lang, variant, step: stepProp, onStepChange, hostPrimary = false, onFeedback, bot = "mercatai" }: OnboardingProps) {
   const t = INTRO_COPY[lang];
   const still = useReducedMotion();
   const titleId = useId();
@@ -200,7 +202,7 @@ export function Onboarding({ open, onClose, lang, variant, step: stepProp, onSte
                     <p className="ob__line">{s.line}</p>
                     {i === INTRO_STEPS - 1 && (
                       <>
-                        <p className="ob__admin">{t.admin}</p>
+                        <p className="ob__admin">{fmt(t.admin, { bot: `@${bot}` })}</p>
                         <p className="ob__pro">{variant === "desktop" ? t.pro.desktop : t.pro.phone}</p>
                       </>
                     )}

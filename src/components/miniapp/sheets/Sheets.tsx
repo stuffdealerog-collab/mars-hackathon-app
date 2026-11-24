@@ -397,6 +397,7 @@ function ChannelSheet({ leaving, postId }: { leaving: boolean; postId: string })
   const close = useNav((s) => s.closeSheet);
   const say = useNav((s) => s.say);
   const post = useStudio((s) => s.posts.find((p) => p.id === postId));
+  const bot = useStudio((s) => s.bot);
   const { script } = usePostScript();
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -464,7 +465,7 @@ function ChannelSheet({ leaving, postId }: { leaving: boolean; postId: string })
           />
         </div>
         <p role={bad ? "alert" : undefined} className={`mt-2.5 px-1 text-[14px] ${bad ? "text-bad" : "text-ink-3"}`}>
-          {bad ? c.start.linkBad : m.channel.text}
+          {bad ? c.start.linkBad : fmt(m.channel.text, { bot: `@${bot}` })}
         </p>
       </form>
     </Sheet>

@@ -17,7 +17,7 @@ export type IntroCopy = {
   steps: { title: string; line: string }[];
   /** «Kanalim hali bo‘sh» row in the link demo */
   empty: string;
-  /** the one-time admin step, said in one line */
+  /** the one-time admin step, said in one line; {bot} is the bot's @username */
   admin: string;
   /** the quiet line for marketers, where the switch lives */
   pro: { phone: string; desktop: string };
@@ -51,10 +51,10 @@ const uz: IntroCopy = {
     { title: "Tasdiqlang — bot joylaydi", line: "Siz tasdiqlamaguncha kanalga hech narsa chiqmaydi." },
   ],
   empty: "Kanalim hali bo‘sh",
-  admin: "Bir marta: botni kanalga «Xabar joylash» huquqi bilan admin qiling.",
+  admin: "Bir marta: {bot} botini kanalga «Xabar joylash» huquqi bilan admin qiling.",
   pro: {
-    phone: "Marketolog bo‘lsangiz: «Professional» rejim Sozlamalarda.",
-    desktop: "Marketolog bo‘lsangiz: «Professional» rejim panel pastidagi almashtirgichda.",
+    phone: "Marketolog bo‘lsangiz: «Pro» rejim Sozlamalarda.",
+    desktop: "Marketolog bo‘lsangiz: «Pro» rejim panel pastidagi almashtirgichda.",
   },
   demo: {
     working: "ishlayapti",
@@ -91,13 +91,13 @@ const ru: IntroCopy = {
     { title: "Mercat — ваш отдел маркетинга", line: "Десять сотрудников. Лампа горит, только пока сотрудник работает." },
     { title: "Пришлите ссылку на канал", line: "Канал пока пустой? Опишите бизнес своими словами." },
     { title: "Посмотрите результат", line: "Цифры канала, план на неделю и посты с картинками в стиле вашего канала." },
-    { title: "Одобрите — бот опубликует", line: "Без вашего одобрения в канал не выходит ничего." },
+    { title: "Утвердите — бот опубликует", line: "Без вашего утверждения в канал не выходит ничего." },
   ],
   empty: "Мой канал пока пустой",
-  admin: "Один раз: сделайте бота админом канала с правом «Публикация сообщений».",
+  admin: "Один раз: сделайте {bot} админом канала с правом «Публикация сообщений».",
   pro: {
-    phone: "Для маркетологов: «Профессиональный» режим — в Настройках.",
-    desktop: "Для маркетологов: «Профессиональный» режим — переключатель внизу панели.",
+    phone: "Для маркетологов: режим «Pro» — в Настройках.",
+    desktop: "Для маркетологов: режим «Pro» — переключатель внизу панели.",
   },
   demo: {
     working: "работает",
@@ -105,8 +105,8 @@ const ru: IntroCopy = {
     views: "просмотров в среднем",
     week: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
     plan: "План на неделю",
-    approve: "Одобрить",
-    approved: "Одобрено",
+    approve: "Утвердить",
+    approved: "Утверждено",
     published: "Опубликовано в канале",
     posts: [
       { text: "Свежий хлеб из тандыра — каждый день в 7:00.", when: "Пн · 09:00" },
@@ -118,7 +118,7 @@ const ru: IntroCopy = {
     "Десять ламп загораются по очереди: каждая — работающий сотрудник.",
     "В поле вводится ссылка на канал, табло сверху показывает имя канала.",
     "На табло число подписчиков, план на неделю и посты с картинками.",
-    "Пост одобряется, затем бот публикует его в канале.",
+    "Пост утверждается, затем бот публикует его в канале.",
   ],
 };
 
@@ -137,10 +137,10 @@ const en: IntroCopy = {
     { title: "Approve, and the bot posts", line: "Nothing goes out without your approval." },
   ],
   empty: "My channel is still empty",
-  admin: "Once: make the bot a channel admin with “Post messages”.",
+  admin: "Once: make {bot} a channel admin with “Post messages”.",
   pro: {
-    phone: "For marketers: Professional mode is in Settings.",
-    desktop: "For marketers: Professional mode is the switch at the bottom of the panel.",
+    phone: "For marketers: Pro mode is in Settings.",
+    desktop: "For marketers: Pro mode is the switch at the bottom of the panel.",
   },
   demo: {
     working: "working",
