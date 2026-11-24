@@ -18,6 +18,7 @@ export function StartScreen({ active }: { active: boolean }) {
   const id = useId();
   const startChannel = useStudio((s) => s.startChannel);
   const problem = useStudio((s) => s.problem);
+  const retryBrand = useNav((s) => s.retryBrand);
   const push = useNav((s) => s.push);
   const [value, setValue] = useState("");
   const [bad, setBad] = useState(false);
@@ -96,11 +97,29 @@ export function StartScreen({ active }: { active: boolean }) {
             </p>
           </form>
 
-          {problem && (
-            <p role="alert" className="mt-4 rounded-2xl bg-bad-soft px-4 py-3 text-[15px] leading-snug text-bad">
-              {problem.message}
+          {problem && problem.code === "brand_forbidden" ? (
+            // With Telegram's own sign-in a 403 means this channel belongs to another account: said calmly.
+            <p role="note" className="ma-hint mt-4">
+              {m.forbidden}
             </p>
-          )}
+          ) : problem ? (
+            <div role="alert" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-bad-soft px-4 py-3 text-[15px] leading-snug text-bad">
+              <p className="mr-auto min-w-0">{problem.message}</p>
+              {retryBrand && (
+                <button
+                  type="button"
+                  className="btn-2 !min-h-11 !px-4 !text-[14px]"
+                  onClick={() => {
+                    haptic.tap();
+                    useNav.setState({ retryBrand: null });
+                    void useStudio.getState().reopen(retryBrand);
+                  }}
+                >
+                  {c.error.retry}
+                </button>
+              )}
+            </div>
+          ) : null}
 
           <div className="ma-group mt-6">
             <button

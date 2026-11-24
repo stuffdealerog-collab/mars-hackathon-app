@@ -32,6 +32,8 @@ interface NavState {
   sheetLeaving: boolean;
   toast: { text: string; tone: "ok" | "bad" | "plain"; id: number } | null;
   regs: Record<string, Reg>;
+  /** A saved brand that did not open for a passing reason (network, server): Start offers to try it again. */
+  retryBrand: string | null;
   push: (r: Route) => void;
   pop: () => void;
   /** Drops every pushed screen at once (flow changes such as "start over"). */
@@ -55,6 +57,7 @@ export const useNav = create<NavState>((set, get) => ({
   sheetLeaving: false,
   toast: null,
   regs: {},
+  retryBrand: null,
 
   push: (r) => set({ stack: [...get().stack.filter((s) => !s.leaving), { ...r, key: ++seq }] }),
 
