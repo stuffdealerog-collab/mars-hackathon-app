@@ -18,7 +18,7 @@ import type {
   Strategy,
   VisualStyle,
 } from "@/lib/uslub/contract";
-import type { Lang } from "../ui/lang";
+import { useLang, type Lang } from "../ui/lang";
 
 /** A blank still in a post's text, per script (approve and publish refuse with placeholder_left). */
 export type Missing = { script: Script; tokens: string[] };
@@ -103,9 +103,11 @@ export function authHeader(): string | undefined {
   return k ? `handoff ${k}` : undefined;
 }
 
+// x-lang: refusals the server writes itself (a 429, a validation message) come back in the
+// language the owner reads the page in.
 function headers(): Record<string, string> {
   const auth = authHeader();
-  return { "content-type": "application/json", ...(auth ? { authorization: auth } : {}) };
+  return { "content-type": "application/json", "x-lang": useLang.getState().lang, ...(auth ? { authorization: auth } : {}) };
 }
 
 async function failFrom(res: Response): Promise<Fail> {

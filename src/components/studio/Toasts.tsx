@@ -8,16 +8,28 @@ const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 /**
  * Short confirmations at the bottom of the canvas: "Tasdiqlandi · Bekor qilish", copy done, a
  * failed approval with "Ko‘rish". Opaque glass, one action, polite live region.
+ * `align` keeps them off the next post's buttons on a computer: under the queue in Pro ("start"),
+ * beside the single post column in Oddiy ("end"); `edge` is the canvas's offset on that side.
  */
-export function Toasts({ inset = 0 }: { inset?: number }) {
+export function Toasts({ inset = 0, align = "center", edge = 0 }: { inset?: number; align?: "center" | "start" | "end"; edge?: number }) {
   const toasts = useDesk((s) => s.toasts);
   const dismiss = useDesk((s) => s.dismiss);
   const reduce = useReducedMotion() ?? false;
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 bottom-[max(16px,env(safe-area-inset-bottom))] z-40 flex flex-col items-center gap-2 px-4"
-      style={inset ? { paddingLeft: inset > 0 ? inset : undefined, paddingRight: inset < 0 ? -inset : undefined } : undefined}
+      className={`pointer-events-none fixed inset-x-0 bottom-[max(16px,env(safe-area-inset-bottom))] z-40 flex flex-col gap-2 px-4 ${
+        align === "start" ? "items-start" : align === "end" ? "items-end" : "items-center"
+      }`}
+      style={
+        align === "start"
+          ? { paddingLeft: edge }
+          : align === "end"
+            ? { paddingRight: edge }
+            : inset
+              ? { paddingLeft: inset > 0 ? inset : undefined, paddingRight: inset < 0 ? -inset : undefined }
+              : undefined
+      }
     >
       <AnimatePresence initial={false}>
         {toasts.map((t) => (

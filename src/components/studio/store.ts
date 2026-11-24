@@ -13,6 +13,7 @@ import { COPY } from "../ui/copy";
 import { useLang, type Lang } from "../ui/lang";
 import * as api from "./api";
 import type { Fail } from "./api";
+import { keepAudit, keepPlan, keptAudit, keptPlan } from "./keep";
 import { sampleAudit, sampleBrand, samplePlan, samplePosts } from "./sample";
 
 export type Phase = "start" | "working" | "ready" | "reopening";
@@ -477,6 +478,7 @@ export const useStudio = create<StudioState>((set, get) => {
         launch: r.data.launch?.tactics?.length ? r.data.launch : null,
         sufficiency: Array.isArray(r.data.sufficiency) ? r.data.sufficiency : null,
       });
+      keepPlan(brand.id, { plan: get().plan!, strategy: get().strategy, launch: get().launch, sufficiency: get().sufficiency });
       step("plan", { status: "done", n: r.data.plan.items.length });
     }
 
@@ -534,6 +536,8 @@ export const useStudio = create<StudioState>((set, get) => {
           if (my !== runId) return;
           if (a.ok) {
             set({ audit: a.data.audit, auditProblem: null });
+            const id = get().brand?.id;
+            if (id) keepAudit(id, a.data.audit);
             if (get().postsRead == null) {
               set({ postsRead: a.data.audit.postsAnalyzed });
               step("read", { status: "done", n: a.data.audit.postsAnalyzed });
@@ -555,6 +559,7 @@ export const useStudio = create<StudioState>((set, get) => {
       }
       const read = b.data.channelInfo?.postsRead ?? get().postsRead;
       set({ brand: b.data.brand, postsRead: read ?? null });
+      if (get().audit) keepAudit(b.data.brand.id, get().audit!);
       rememberBrand(b.data.brand.id);
       rememberRecent(b.data.brand);
       step("read", { status: "done", n: read ?? undefined });
@@ -889,12 +894,22 @@ export const useStudio = create<StudioState>((set, get) => {
           s.key === "read" || s.key === "voice" ? { ...s, status: "done" } : s.key === "posts" && posts.length ? { ...s, status: "done", n: posts.length } : s,
         ),
       });
+      const kept = keptPlan(brand.id);
+      if (kept) {
+        set({ plan: kept.plan, strategy: kept.strategy, launch: kept.launch?.tactics?.length ? kept.launch : null, sufficiency: kept.sufficiency });
+        step("plan", { status: "done", n: kept.plan.items.length });
+      }
       if (mode === "channel" && brand.channel) {
-        void api.analyzeChannel(brand.channel, L).then((a) => {
-          if (my !== runId) return;
-          if (a.ok) set({ audit: a.data.audit, auditProblem: null });
-          else set({ auditProblem: problemOf(a) });
-        });
+        const audit = keptAudit(brand.id);
+        if (audit) set({ audit, auditProblem: null });
+        else
+          void api.analyzeChannel(brand.channel, L).then((a) => {
+            if (my !== runId) return;
+            if (a.ok) {
+              set({ audit: a.data.audit, auditProblem: null });
+              keepAudit(brand.id, a.data.audit);
+            } else set({ auditProblem: problemOf(a) });
+          });
       }
       // A run cut short (tab closed mid-way) leaves drafts without a picture: finish them now,
       // so no slot waits for a picture nobody is drawing.
@@ -931,6 +946,7 @@ export const useStudio = create<StudioState>((set, get) => {
         planProgress: null,
         problem: null,
       });
+      keepPlan(brand.id, { plan: r.data.plan, strategy: get().strategy, launch: get().launch, sufficiency: get().sufficiency });
       step("plan", { status: "done", n: r.data.plan.items.length });
     },
 
@@ -941,8 +957,11 @@ export const useStudio = create<StudioState>((set, get) => {
       set({ auditProblem: null });
       const a = await api.analyzeChannel(channel, lang());
       if (my !== runId) return;
-      if (a.ok) set({ audit: a.data.audit });
-      else set({ auditProblem: problemOf(a) });
+      if (a.ok) {
+        set({ audit: a.data.audit });
+        const id = get().brand?.id;
+        if (id) keepAudit(id, a.data.audit);
+      } else set({ auditProblem: problemOf(a) });
     },
 
     // The first-look summary is a moment, not a page: it ends once the owner goes to the posts.

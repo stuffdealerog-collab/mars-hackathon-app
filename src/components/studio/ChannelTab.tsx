@@ -3,7 +3,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useState } from "react";
 import { Led } from "../lamp/Led";
 import { useCopy, useLang, fmt, num } from "../ui/lang";
-import { isMachineEvidence, ownerText, weekday } from "../ui/format";
+import { isMachineEvidence, ownerText, plural, weekday } from "../ui/format";
 import { copyFor as mediaCopy, StyleRefs } from "@/components/media";
 import { authHeader, type PlanItemExtra } from "./api";
 import { useDesk, type RefsHandle } from "./desk";
@@ -130,7 +130,9 @@ function StrategyDetails() {
             <p className="mt-1.5 text-[15px] leading-relaxed">{t(strategy.positioning)}</p>
           </div>
         )}
-        {strategy.offer && (
+        {/* An offer still blocked on the owner's input ("BLOCKED — price needed") is the engine's
+            note to itself, not something to show the owner. */}
+        {strategy.offer?.trim() && !/^\s*BLOCKED/i.test(strategy.offer) && (
           <div className="card p-4 @md:p-5">
             <p className="text-[13px] text-ink-2">{c.pro.offer}</p>
             <p className="mt-1.5 text-[15px] leading-relaxed">{t(strategy.offer)}</p>
@@ -219,7 +221,9 @@ function Numbers({ cells: withCells = true }: { cells?: boolean }) {
   if (audit.subscribers != null) cells.push([num(audit.subscribers, lang), c.channel.subscribers]);
   if (audit.avgViews != null) cells.push([num(Math.round(audit.avgViews), lang), c.channel.avgViews]);
   if (audit.reachRate != null) cells.push([`${num(audit.reachRate * 100, lang)}%`, c.channel.reach]);
-  cells.push([num(audit.postsPerWeek, lang, 1), c.channel.perWeek]);
+  // The caption agrees with the number it stands under (a fraction like 2,5 has its own form).
+  const perWeek = Math.round(audit.postsPerWeek * 10) / 10;
+  cells.push([num(audit.postsPerWeek, lang, 1), Number.isInteger(perWeek) ? plural(c.channel.perWeekForms, perWeek, lang) : c.channel.perWeekFraction]);
 
   return (
     <>
