@@ -17,7 +17,8 @@ Rules:
 - Replace or delete ONLY the flagged phrases (and the minimum around them so the sentence stays grammatical).
 - Keep the meaning, facts, prices, numbers, links, @handles, hashtags, emoji and line breaks.
 - Never add new facts, prices, promises or superlatives. Prefer concrete, plain words.
-- Keep the same language and script as the input.`;
+- Keep the same language and script as the input.
+- Uzbek: after k / q the dative suffix is -ka / -qa (keshbekka, qishloqqa), not -ga.`;
 
 const RewriteSchema = z.object({ items: z.array(z.object({ id: z.string(), text: z.string() })) });
 
