@@ -5,21 +5,16 @@ import AutoRefresh from "./auto-refresh";
 
 export const metadata: Metadata = {
   title: "Live stats",
-  description: "Real users, live. Updated every few seconds.",
+  description: "How many people use Mercat, live. No names are shown.",
+  robots: { index: false },
 };
 
 export default function StatsPage() {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
       <header className="mb-10 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-widest text-accent">Live traction</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Real users, right now</h1>
-        </div>
-        <p className="flex items-center gap-2 text-sm text-muted">
-          <span className="inline-block size-2 animate-pulse rounded-full bg-good" aria-hidden />
-          Auto-refreshing
-        </p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Mercat users, live</h1>
+        <p className="text-sm text-muted">Updates every 15 seconds</p>
       </header>
       <Suspense fallback={<p className="text-muted">Loading stats…</p>}>
         <StatsContent />
@@ -82,8 +77,7 @@ async function StatsContent() {
       <RecentSignups rows={stats.recent_signups} />
 
       <p className="text-xs text-muted">
-        Updated {timeFormat.format(new Date(result.generatedAt))} (Tashkent time). Only first names
-        are shown.
+        Updated {timeFormat.format(new Date(result.generatedAt))} (Tashkent time). No names are shown.
       </p>
     </div>
   );
@@ -94,7 +88,7 @@ function StatTile({ label, value, highlight = false }: { label: string; value: n
     <div className="rounded-2xl border border-line bg-card p-5 sm:p-6">
       <p className="text-sm font-medium text-muted">{label}</p>
       <p
-        className={`mt-2 font-bold tabular-nums tracking-tight ${
+        className={`mt-2 font-semibold tabular-nums tracking-tight ${
           highlight ? "text-5xl sm:text-6xl" : "text-4xl sm:text-5xl"
         }`}
       >
@@ -134,9 +128,9 @@ function BarList({
                 title={`${row.label}: ${numberFormat.format(row.value)} (${share}%)`}
               >
                 <span className="truncate text-sm font-medium">{row.label}</span>
-                <span className="h-3 rounded-full bg-track" aria-hidden>
+                <span className="h-2.5 rounded-full bg-tint" aria-hidden>
                   <span
-                    className="block h-3 rounded-full bg-bar"
+                    className="block h-2.5 rounded-full bg-ink-2"
                     style={{ width: `${Math.max(2, (row.value / max) * 100)}%` }}
                   />
                 </span>
@@ -162,7 +156,7 @@ function RecentSignups({ rows }: { rows: Stats["recent_signups"] }) {
         <ol className="mt-4 divide-y divide-line">
           {rows.map((row, i) => (
             <li key={`${row.created_at}-${i}`} className="flex items-center justify-between gap-4 py-2.5">
-              <span className="truncate font-medium">{displayName(row.first_name)}</span>
+              <span className="truncate font-medium">New user</span>
               <time dateTime={row.created_at} className="shrink-0 text-sm tabular-nums text-muted">
                 {timeFormat.format(new Date(row.created_at))}
               </time>
@@ -174,8 +168,3 @@ function RecentSignups({ rows }: { rows: Stats["recent_signups"] }) {
   );
 }
 
-function displayName(name: string | null): string {
-  const trimmed = (name ?? "").trim();
-  if (!trimmed) return "Someone";
-  return trimmed.length > 24 ? `${trimmed.slice(0, 24)}…` : trimmed;
-}

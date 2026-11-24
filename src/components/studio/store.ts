@@ -1,318 +1,564 @@
+"use client";
 
-import type { BrandProfile, ChannelAudit, ContentPlan, Flow, NodeKind, NodeStatus, PostDraft, RadarLead, Script, Strategy, VideoPlan } from "@/lib/uslub/contract";
+/**
+ * The owner's path, as one resumable pipeline:
+ *   brand (channel or description) + analysis of the pasted channel
+ *   -> weekly plan (streamed) -> posts written from the first plan slots -> a picture per post.
+ * Each step keeps its result, so "Qayta urinish" resumes from the step that failed.
+ * No sample data unless the page was opened with ?mock=1.
+ */
+import type { BrandProfile, ChannelAudit, ContentPlan, PostDraft, PostImage, Script, Strategy } from "@/lib/uslub/contract";
 import { create } from "zustand";
+import { COPY } from "../ui/copy";
+import { useLang, type Lang } from "../ui/lang";
 import * as api from "./api";
-import type { Source } from "./api";
-import { MOCK_BRAND, mockPlan } from "./mocks";
+import type { Fail } from "./api";
+import { sampleAudit, sampleBrand, samplePlan, samplePosts } from "./sample";
 
-export type View = "delegate" | "analysis" | "strategy" | "team" | "brand" | "radar" | "video" | "rules";
+export type Phase = "start" | "working" | "ready" | "reopening";
+export type Mode = "channel" | "fresh";
+export type Tab = "channel" | "posts" | "video";
+export type StepKey = "read" | "voice" | "photos" | "plan" | "posts" | "images";
+export type StepStatus = "wait" | "run" | "done" | "fail" | "skip";
+export type Step = { key: StepKey; status: StepStatus; n?: number; m?: number };
 
-export type RuleKey = "routine" | "promo" | "prices" | "video" | "first";
-export const RULES: { key: RuleKey; name: string; hint: string }[] = [
-  { key: "routine", name: "Oddiy postlar", hint: "Maslahat, yangi mahsulot, mijoz obrazi" },
-  { key: "promo", name: "Aksiya va chegirmalar", hint: "Foiz, «Black Friday», muddatli takliflar" },
-  { key: "prices", name: "Narxlar", hint: "Matnda so'm yoki narx bor" },
-  { key: "video", name: "Video", hint: "Reels va TikTok" },
-  { key: "first", name: "Birinchi 5 post", hint: "Yangi brend ovozini siz tekshirasiz" },
-];
+/** How many plan slots become posts in one run (the posts route takes up to 7). */
+export const POSTS_PER_RUN = 5;
+const IMAGE_POLL_MS = 4000;
+const IMAGE_POLL_LIMIT_MS = 4 * 60_000;
 
-export type ItemState = "waiting" | "approved" | "published" | "scheduled";
-
-export interface InboxItem {
-  id: string;
-  type: "post" | "video";
-  title: string;
-  postId?: string;
-  reasons: RuleKey[]; // rules that require approval for this item
-  state: ItemState;
-  url?: string;
+export interface Problem {
+  message: string;
+  code: string;
 }
 
-type Sens = { sensitivity?: { sensitive: boolean; reasons: string[] } };
-const SENS_MAP: Record<string, RuleKey> = { promo: "promo", price: "prices", video: "video", first_posts: "first" };
-
-export function classify(post: PostDraft): RuleKey[] {
-  const sens = (post as PostDraft & Sens).sensitivity;
-  if (sens) {
-    const r = sens.reasons.map((x) => SENS_MAP[x]).filter(Boolean).filter((x) => x !== "first");
-    return r.length ? r : ["routine"];
-  }
-  const t = post.variants.uz_latn + " " + post.brief;
-  const r: RuleKey[] = [];
-  if (/%|chegirma|black friday|aksiya/i.test(t)) r.push("promo");
-  if (/so'm|so‘m|\d{3}\s?000/i.test(t)) r.push("prices");
-  if (r.length === 0) r.push("routine");
-  return r;
+interface Input {
+  channel?: string; // bare username
+  knowledge?: string;
+  photos?: string[]; // data: URLs (fresh mode)
 }
-
-type Status = Record<string, NodeStatus>;
 
 interface StudioState {
-  view: View;
-  brand: BrandProfile;
-  posts: PostDraft[];
-  leads: RadarLead[];
-  video: VideoPlan | null;
+  phase: Phase;
+  mode: Mode;
+  sample: boolean;
+  bot: string;
+  /** How the start screen opens: from ?mode=fresh, ?channel= (sample mode) or an empty channel. */
+  entry: { view: "link" | "fresh"; channel: string };
+  input: Input;
+  brand: BrandProfile | null;
+  postsRead: number | null;
   audit: ChannelAudit | null;
+  auditProblem: Problem | null;
   strategy: Strategy | null;
   plan: ContentPlan | null;
-  flow: Flow | null;
-  status: Status;
-  selected: string | null;
-  running: boolean;
-  elapsed: number;
-  sources: Partial<Record<"brand" | "posts" | "radar" | "video" | "plan" | "audit" | "strategy", Source>>;
-  inbox: InboxItem[];
-  reviewing: string | null; // post id
-  notice: string | null;
-  autopilot: Record<RuleKey, boolean>; // true = may publish without approval
-  publishedCount: number;
-  setView: (v: View) => void;
-  select: (id: string | null) => void;
-  review: (postId: string | null) => void;
-  setRule: (k: RuleKey, v: boolean) => void;
-  updatePost: (id: string, script: Script, text: string, humanScore?: number) => void;
-  setItem: (id: string, patch: Partial<InboxItem>) => void;
-  setKnowledge: (k: string) => void;
-  run: (task: string) => Promise<void>;
+  planProgress: { n: number; m: number } | null;
+  posts: PostDraft[];
+  steps: Step[];
+  startedAt: number;
+  problem: Problem | null;
+  /** The pasted channel turned out empty or private: the start screen opens the description form. */
+  emptyChannel: string | null;
+  tab: Tab;
+  edited: Record<string, Partial<Record<Script, string>>>;
+  busy: Record<string, "approve" | "publish" | undefined>;
+  postNote: Record<string, { text: string; href?: string; tone: "ok" | "bad" } | undefined>;
+
+  configure: (o: { bot: string }) => void;
+  startChannel: (channel: string) => void;
+  startFresh: (input: { knowledge: string; channel?: string; photos?: string[] }) => void;
+  retry: () => void;
+  reset: () => void;
+  reopen: (brandId: string) => Promise<void>;
+  rebuildPlan: () => Promise<void>;
+  reloadAudit: () => Promise<void>;
+  setTab: (t: Tab) => void;
+  editPost: (id: string, script: Script, text: string) => void;
+  approve: (id: string) => Promise<void>;
+  publish: (id: string, script: Script) => Promise<void>;
+  retryImage: (id: string) => Promise<void>;
 }
+
+const lang = (): Lang => useLang.getState().lang;
+const copy = () => COPY[lang()];
+
+/** Owner-safe text for a failed call: the server's own sentence when it sent one. */
+export function problemOf(f: Fail): Problem {
+  const c = copy();
+  if (f.code === "network") return { code: f.code, message: c.error.network };
+  if (f.code === "timeout") return { code: f.code, message: c.error.timeout };
+  if (f.error && f.code !== "internal" && !/^(internal error|http \d+)$/i.test(f.error)) return { code: f.code, message: f.error };
+  return { code: f.code, message: c.error.generic };
+}
+
+const isEmptyChannel = (f: Fail) => f.code === "channel_empty";
+/** The route is not deployed yet (images session's endpoints before their merge). */
+const missingRoute = (f: Fail) => f.status === 404 && f.code !== "brand_not_found" && f.code !== "post_not_found";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Longest-path layering, used for both the run order and the canvas layout. */
-export function layers(flow: Flow): string[][] {
-  const depth: Record<string, number> = {};
-  const incoming = (id: string) => flow.edges.filter((e) => e.to === id).map((e) => e.from);
-  const visit = (id: string, seen: Set<string>): number => {
-    if (depth[id] !== undefined) return depth[id];
-    if (seen.has(id)) return 0;
-    seen.add(id);
-    const d = Math.max(-1, ...incoming(id).map((p) => visit(p, seen))) + 1;
-    depth[id] = d;
-    return d;
-  };
-  flow.nodes.forEach((n) => visit(n.id, new Set()));
-  const out: string[][] = [];
-  flow.nodes.forEach((n) => {
-    (out[depth[n.id]] ??= []).push(n.id);
-  });
-  return out.filter(Boolean);
+function stepsFor(mode: Mode, hasPhotos: boolean): Step[] {
+  const keys: StepKey[] = ["read", "voice"];
+  if (mode === "fresh" && hasPhotos) keys.push("photos");
+  keys.push("plan", "posts", "images");
+  return keys.map((key) => ({ key, status: "wait" }));
 }
 
-function needsApproval(reasons: RuleKey[], auto: Record<RuleKey, boolean>, publishedCount: number) {
-  const blocking = reasons.filter((r) => !auto[r]);
-  if (publishedCount < 5 && !auto.first) blocking.push("first");
-  return blocking;
-}
-
-export function buildInbox(posts: PostDraft[], video: VideoPlan | null, auto: Record<RuleKey, boolean>, publishedCount: number): InboxItem[] {
-  const items: InboxItem[] = posts.map((p) => {
-    const blocking = needsApproval(classify(p), auto, publishedCount);
-    return {
-      id: `i-${p.id}`,
-      type: "post",
-      postId: p.id,
-      title: p.brief,
-      reasons: blocking,
-      state: blocking.length ? "waiting" : "scheduled",
-    };
-  });
-  if (video) {
-    const blocking = needsApproval(["video"], auto, publishedCount);
-    items.push({ id: "i-video", type: "video", title: "Reels: " + video.hook, reasons: blocking, state: blocking.length ? "waiting" : "scheduled" });
-  }
-  return items;
-}
-
-/** Which data source feeds each employee's output (for the "namuna" badge). */
-export const KIND_SOURCE: Partial<Record<NodeKind, "brand" | "posts" | "radar" | "video" | "audit" | "strategy">> = {
-  brand: "brand",
-  analyst: "audit",
-  strategist: "strategy",
-  copywriter: "posts",
-  editor: "posts",
-  translator: "posts",
-  designer: "posts",
-  video: "video",
-  radar: "radar",
-};
-
-function resultLabel(kind: NodeKind, s: StudioState): string | null {
-  if (kind === "brand") return s.brand.dna.name ? `${s.brand.dna.name}: DNK` : "Brend DNK";
-  if (kind === "analyst" && s.audit) return `${s.audit.postsAnalyzed} ta post tahlili`;
-  if (kind === "strategist" && s.plan) return `${s.plan.items.length} kunlik reja`;
-  if (kind === "copywriter") return `${s.posts.length} ta post`;
-  if (kind === "editor") {
-    const avg = s.posts.length ? Math.round(s.posts.reduce((a, p) => a + p.humanScore, 0) / s.posts.length) : 0;
-    return avg ? `Inson bali ${avg}` : null;
-  }
-  if (kind === "radar") return `${s.leads.length} ta joy`;
-  if (kind === "video" && s.video) return `${s.video.scenes.reduce((a, x) => a + x.seconds, 0)} soniyalik Reels`;
-  return null;
+/** Keeps ?brand=<id> in the address bar so a reload (or the bot's link) reopens the same work. */
+function rememberBrand(id: string | null) {
+  if (typeof window === "undefined") return;
+  const u = new URL(window.location.href);
+  if (id) u.searchParams.set("brand", id);
+  else u.searchParams.delete("brand");
+  u.searchParams.delete("channel");
+  window.history.replaceState(null, "", u.toString());
 }
 
 let runId = 0;
+let visualRun: Promise<"ok" | "none"> | null = null;
+let pollRun = 0;
 
-export const useStudio = create<StudioState>((set, get) => ({
-  view: "delegate",
-  brand: MOCK_BRAND,
-  posts: [],
-  leads: [],
-  video: null,
-  audit: null,
-  strategy: null,
-  plan: null,
-  flow: null,
-  status: {},
-  selected: null,
-  running: false,
-  elapsed: 0,
-  sources: {},
-  inbox: [],
-  reviewing: null,
-  notice: null,
-  autopilot: { routine: false, promo: false, prices: false, video: false, first: false },
-  publishedCount: 0,
-  setView: (view) => set({ view }),
-  select: (selected) => set({ selected }),
-  review: (reviewing) => set({ reviewing }),
-  setRule: (k, v) => {
-    const autopilot = { ...get().autopilot, [k]: v };
-    const { posts, video, publishedCount, inbox } = get();
-    const fresh = buildInbox(posts, video, autopilot, publishedCount);
-    // keep decisions the owner already made
-    const merged = fresh.map((f) => {
-      const old = inbox.find((o) => o.id === f.id);
-      return old && (old.state === "approved" || old.state === "published") ? { ...f, state: old.state, url: old.url } : f;
-    });
-    set({ autopilot, inbox: merged });
-  },
-  updatePost: (id, script, text, humanScore) =>
-    set({
-      posts: get().posts.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              variants: { ...p.variants, [script]: text },
-              neuroHits: {
-                ...p.neuroHits,
-                [script]: (p.neuroHits[script] ?? [])
-                  .filter((h) => text.includes(h.phrase))
-                  .map((h) => ({ ...h, index: text.indexOf(h.phrase) })),
-              },
-              humanScore: humanScore ?? p.humanScore,
-            }
-          : p,
-      ),
-    }),
-  setItem: (id, patch) => {
-    const inbox = get().inbox.map((i) => (i.id === id ? { ...i, ...patch } : i));
-    const publishedCount = inbox.filter((i) => i.state === "published").length;
-    set({ inbox, publishedCount });
-  },
-  setKnowledge: (knowledge) => set({ brand: { ...get().brand, knowledge } }),
+export const useStudio = create<StudioState>((set, get) => {
+  const step = (key: StepKey, patch: Partial<Step>) =>
+    set({ steps: get().steps.map((s) => (s.key === key ? { ...s, ...patch } : s)) });
 
-  run: async (task) => {
-    const my = ++runId;
-    const alive = () => my === runId;
-    const start = Date.now();
-    set({ running: true, elapsed: 0, flow: null, status: {}, selected: null, inbox: [], view: "delegate", notice: null });
-    const tick = setInterval(() => alive() && set({ elapsed: (Date.now() - start) / 1000 }), 100);
+  const fail = (key: StepKey, f: Fail) => {
+    step(key, { status: "fail" });
+    set({ problem: problemOf(f) });
+  };
 
-    const channel = task.match(/(?:t\.me\/|@)([A-Za-z0-9_]{4,32})/)?.[1];
-    // Never show the sample channel while the owner's own channel is being read.
-    if (channel) set({ brand: { ...get().brand, channel: "@" + channel }, sources: { ...get().sources, brand: undefined } });
-    // Channel onboarding uses the fixed "Bir havola" graph so it draws instantly;
-    // free-text tasks ask the strategist (POST /plan) for a graph.
-    const planP = channel
-      ? Promise.resolve({ data: mockPlan(task), source: "mock" as Source })
-      : get().sources.brand === "live"
-        ? api.planFlow(get().brand.id, task)
-        : Promise.resolve({ data: mockPlan(task), source: "mock" as Source });
-    const brandP = channel ? api.createBrand({ channel: "@" + channel }) : Promise.resolve({ data: get().brand, source: get().sources.brand ?? ("mock" as Source) });
+  const setPostImage = (id: string, image: PostImage) =>
+    set({ posts: get().posts.map((p) => (p.id === id ? { ...p, image } : p)) });
 
-    const plan = await planP;
-    if (!alive()) return clearInterval(tick);
-    const flow = plan.data;
-    const st: Status = Object.fromEntries(flow.nodes.map((n) => [n.id, "idle" as NodeStatus]));
-    set({ flow, status: st, sources: { ...get().sources, plan: plan.source } });
+  const countImages = () => {
+    const ps = get().posts;
+    const ready = ps.filter((p) => p.image?.status === "ready").length;
+    const open = ps.filter((p) => p.image && (p.image.status === "queued" || p.image.status === "running")).length;
+    step("images", { n: ready, m: ps.length, status: open ? "run" : ready ? "done" : get().steps.find((s) => s.key === "images")?.status });
+  };
 
-    const kinds = new Set(flow.nodes.map((n) => n.kind));
-    const brand = await brandP;
-    const brandId = brand.data.id;
-    set({ brand: brand.data, sources: { ...get().sources, brand: brand.source } });
-    if (channel && brand.source === "mock") {
-      const err = (brand as { error?: string }).error;
-      const why = err && !/^HTTP|mock mode|abort/i.test(err) ? `${err} ` : "";
-      set({ notice: `${why}Hozircha namuna ma’lumot bilan ko‘rsatyapmiz.` });
+  /** Learns the picture style once per brand (channel photos and/or the owner's photos). */
+  const learnStyle = (brandId: string, photos?: string[]) => {
+    if (!visualRun) {
+      visualRun = api.learnVisual(brandId, photos, lang()).then((r) => (r.ok ? "ok" : "none"));
     }
-    const postsP = kinds.has("copywriter") ? api.generatePosts(brandId, task, 2) : Promise.resolve(null);
-    const radarP = kinds.has("radar") ? api.findLeads(brandId, task) : Promise.resolve(null);
-    const videoP = kinds.has("video") ? api.planVideo(brandId, task) : Promise.resolve(null);
-    const auditP = kinds.has("analyst") ? api.analyzeChannel(brand.data.channel ?? "") : Promise.resolve(null);
-    const strategyP = kinds.has("strategist")
-      ? auditP.then((a) => api.buildStrategy(brandId, a?.data, task))
-      : Promise.resolve(null);
+    return visualRun;
+  };
 
-    // Each employee starts in graph order (a short stagger per layer) but finishes when ITS OWN answer
-    // arrives, so a lamp lights the moment its result exists instead of waiting for slower siblings.
-    // Editor and translator work on the posts; the approval step waits for posts and video.
-    const wait: Partial<Record<string, Promise<unknown>>> = {
-      copywriter: postsP,
-      editor: postsP,
-      translator: postsP,
-      radar: radarP,
-      video: videoP,
-      analyst: auditP,
-      strategist: strategyP,
-      approval: Promise.all([postsP, videoP]),
-    };
-    const order = layers(flow);
-    await Promise.all(
-      order.flatMap((layer, li) =>
-        layer
-          .filter((id) => flow.nodes.find((n) => n.id === id)!.kind !== "publisher")
-          .map(async (id, i) => {
-            const node = flow.nodes.find((n) => n.id === id)!;
-            await sleep(node.kind === "input" ? 0 : li * 450 + i * 150);
-            if (!alive()) return;
-            set({ status: { ...get().status, [id]: "running" as NodeStatus } });
-            await Promise.all([sleep(node.kind === "input" ? 600 : 1200 + Math.random() * 500), wait[node.kind] ?? Promise.resolve()]);
-            if (!alive()) return;
-          if (node.kind === "analyst") {
-            const r = await auditP;
-            if (r) set({ audit: r.data, sources: { ...get().sources, audit: r.source } });
+  /** Starts a picture for every post that has none, then polls until all are ready or failed. */
+  const pictures = async (my: number) => {
+    const posts = get().posts.filter((p) => !p.image || p.image.status === "failed");
+    if (!posts.length && !get().posts.some((p) => p.image?.status === "queued" || p.image?.status === "running")) {
+      countImages();
+      return;
+    }
+    step("images", { status: "run", n: 0, m: get().posts.length });
+    for (const p of posts) {
+      const r = await api.startPostImage(p.id, lang());
+      if (my !== runId) return;
+      if (!r.ok) {
+        if (missingRoute(r)) {
+          // Pictures are not available on this server yet: say nothing rather than pretend.
+          step("images", { status: "skip" });
+          return;
+        }
+        setPostImage(p.id, { status: "failed", refsUsed: 0, error: problemOf(r).message });
+        continue;
+      }
+      setPostImage(p.id, r.data.image);
+    }
+    countImages();
+    void poll(my);
+  };
+
+  const poll = async (my: number) => {
+    const mine = ++pollRun;
+    const until = Date.now() + IMAGE_POLL_LIMIT_MS;
+    while (Date.now() < until) {
+      await sleep(IMAGE_POLL_MS);
+      if (my !== runId || mine !== pollRun) return;
+      const open = get().posts.filter((p) => p.image && (p.image.status === "queued" || p.image.status === "running"));
+      if (!open.length) break;
+      await Promise.all(
+        open.map(async (p) => {
+          const r = await api.getPostImage(p.id, lang());
+          if (r.ok && my === runId) setPostImage(p.id, r.data.image);
+        }),
+      );
+      countImages();
+    }
+    countImages();
+  };
+
+  /** Plan -> posts -> pictures, resuming from what is already there. */
+  const fromPlan = async (my: number) => {
+    const s = get();
+    const brand = s.brand!;
+    if (!s.plan) {
+      step("plan", { status: "run" });
+      const r = await api.buildStrategy(brand.id, lang(), (e) => {
+        if (my !== runId) return;
+        if (e.stage === "skeleton" && Array.isArray(e.slots)) {
+          set({ planProgress: { n: 0, m: e.slots.length } });
+          step("plan", { n: 0, m: e.slots.length });
+        } else if (e.stage === "item") {
+          const p = get().planProgress;
+          if (p) {
+            set({ planProgress: { ...p, n: Math.min(p.n + 1, p.m) } });
+            step("plan", { n: Math.min(p.n + 1, p.m), m: p.m });
           }
-          if (node.kind === "strategist") {
-            const r = await strategyP;
-            if (r) set({ strategy: r.data.strategy, plan: r.data.plan, sources: { ...get().sources, strategy: r.source } });
-          }
-          if (node.kind === "copywriter") {
-            const r = await postsP;
-            if (r) set({ posts: r.data, sources: { ...get().sources, posts: r.source } });
-          }
-          if (node.kind === "radar") {
-            const r = await radarP;
-            if (r) set({ leads: r.data, sources: { ...get().sources, radar: r.source } });
-          }
-          if (node.kind === "video") {
-            const r = await videoP;
-            if (r) set({ video: r.data, sources: { ...get().sources, video: r.source } });
-          }
-          const label = resultLabel(node.kind, get());
-          const cur = get().flow;
-          if (label && cur) set({ flow: { ...cur, nodes: cur.nodes.map((x) => (x.id === id ? { ...x, label } : x)) } });
-          set({ status: { ...get().status, [id]: node.kind === "approval" ? "needs_approval" : "done" } });
-          }),
-      ),
-    );
-    clearInterval(tick);
-    if (!alive()) return;
-    const { posts, video, autopilot, publishedCount } = get();
+        }
+      });
+      if (my !== runId) return;
+      if (!r.ok) return fail("plan", r);
+      set({ plan: r.data.plan, strategy: r.data.strategy });
+      step("plan", { status: "done", n: r.data.plan.items.length });
+    }
+
+    if (!get().posts.length) {
+      const items = get().plan!.items.slice(0, POSTS_PER_RUN);
+      step("posts", { status: "run", n: items.length });
+      const r = await api.writePosts(brand.id, items.map(api.slotOf), lang());
+      if (my !== runId) return;
+      if (!r.ok) return fail("posts", r);
+      set({ posts: r.data.posts });
+      step("posts", { status: "done", n: r.data.posts.length });
+    }
+
+    set({ phase: "ready", tab: "posts", problem: null });
+    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+    // Pictures wait for the style; without one the picture route decides what it can do.
+    await learnStyle(brand.id, get().input.photos);
+    if (my !== runId) return;
+    void pictures(my);
+  };
+
+  /** The whole run, from whatever step is missing. */
+  const run = async () => {
+    const my = ++runId;
+    const s = get();
+    set({ phase: "working", problem: null });
+
+    if (s.sample) return runSample(my);
+
+    if (!s.brand) {
+      const L = lang();
+      const ch = s.input.channel;
+      step("read", { status: "run" });
+      step("voice", { status: "run" });
+      const brandP =
+        s.mode === "channel"
+          ? api.createBrand({ channel: `@${ch}`, lang: L })
+          : api.createBrand({ mode: "fresh", knowledge: s.input.knowledge, channel: ch ? `@${ch}` : undefined, lang: L });
+      // The analysis needs no brand: it reads the pasted channel directly, in parallel.
+      const auditP = s.mode === "channel" && ch && !s.audit ? api.analyzeChannel(`@${ch}`, L) : null;
+
+      if (auditP) {
+        void auditP.then((a) => {
+          if (my !== runId) return;
+          if (a.ok) {
+            set({ audit: a.data.audit, auditProblem: null });
+            if (get().postsRead == null) {
+              set({ postsRead: a.data.audit.postsAnalyzed });
+              step("read", { status: "done", n: a.data.audit.postsAnalyzed });
+            }
+          } else if (!isEmptyChannel(a)) set({ auditProblem: problemOf(a) });
+        });
+      }
+
+      const b = await brandP;
+      if (my !== runId) return;
+      if (!b.ok) {
+        if (isEmptyChannel(b) && ch) return toEmptyChannel(ch);
+        // The analysis may still tell us the channel is empty.
+        const a = auditP ? await auditP : null;
+        if (my !== runId) return;
+        if (a && !a.ok && isEmptyChannel(a) && ch) return toEmptyChannel(ch);
+        step("read", { status: get().postsRead != null ? "done" : "fail" });
+        return fail("voice", b);
+      }
+      const read = b.data.channelInfo?.postsRead ?? get().postsRead;
+      set({ brand: b.data.brand, postsRead: read ?? null });
+      rememberBrand(b.data.brand.id);
+      step("read", { status: "done", n: read ?? undefined });
+      step("voice", { status: "done" });
+
+      if (s.mode === "fresh" && s.input.photos?.length) {
+        step("photos", { status: "run" });
+        const v = await learnStyle(b.data.brand.id, s.input.photos);
+        if (my !== runId) return;
+        step("photos", { status: v === "ok" ? "done" : "skip" });
+      } else void learnStyle(b.data.brand.id);
+    }
+    await fromPlan(my);
+  };
+
+  const toEmptyChannel = (channel: string) => {
+    set({ phase: "start", emptyChannel: channel, mode: "fresh", steps: [], problem: null, brand: null, audit: null, postsRead: null });
+  };
+
+  const runSample = async (my: number) => {
+    const L = lang();
+    const seq: [StepKey, Partial<Step>][] = [
+      ["read", { status: "done", n: 60 }],
+      ["voice", { status: "done" }],
+      ["plan", { status: "done", n: 7 }],
+      ["posts", { status: "done", n: POSTS_PER_RUN }],
+    ];
+    for (const [k, patch] of seq) {
+      step(k, { status: "run", ...(k === "posts" ? { n: POSTS_PER_RUN } : {}) });
+      await sleep(550);
+      if (my !== runId) return;
+      step(k, patch);
+    }
+    step("images", { status: "skip" });
     set({
-      running: false,
-      elapsed: (Date.now() - start) / 1000,
-      inbox: buildInbox(kinds.has("copywriter") ? posts : [], kinds.has("video") ? video : null, autopilot, publishedCount),
+      brand: sampleBrand(L),
+      audit: sampleAudit(L),
+      plan: samplePlan(L),
+      posts: samplePosts(L),
+      postsRead: 60,
+      phase: "ready",
+      tab: "posts",
     });
-  },
-}));
+  };
+
+  return {
+    phase: "start",
+    mode: "channel",
+    sample: false,
+    bot: "hackathonproj1_bot",
+    entry: { view: "link", channel: "" },
+    input: {},
+    brand: null,
+    postsRead: null,
+    audit: null,
+    auditProblem: null,
+    strategy: null,
+    plan: null,
+    planProgress: null,
+    posts: [],
+    steps: [],
+    startedAt: 0,
+    problem: null,
+    emptyChannel: null,
+    tab: "posts",
+    edited: {},
+    busy: {},
+    postNote: {},
+
+    configure: ({ bot }) => {
+      const p = new URLSearchParams(window.location.search);
+      set({ bot, sample: api.sampleMode(), entry: { view: p.get("mode") === "fresh" ? "fresh" : "link", channel: "" } });
+    },
+
+    startChannel: (channel) => {
+      visualRun = null;
+      set({
+        mode: "channel",
+        input: { channel },
+        brand: null,
+        audit: null,
+        auditProblem: null,
+        plan: null,
+        strategy: null,
+        planProgress: null,
+        posts: [],
+        postsRead: null,
+        emptyChannel: null,
+        edited: {},
+        postNote: {},
+        steps: stepsFor("channel", false),
+        startedAt: Date.now(),
+      });
+      void run();
+    },
+
+    startFresh: ({ knowledge, channel, photos }) => {
+      visualRun = null;
+      set({
+        mode: "fresh",
+        input: { knowledge, channel, photos },
+        brand: null,
+        audit: null,
+        auditProblem: null,
+        plan: null,
+        strategy: null,
+        planProgress: null,
+        posts: [],
+        postsRead: null,
+        edited: {},
+        postNote: {},
+        steps: stepsFor("fresh", !!photos?.length),
+        startedAt: Date.now(),
+      });
+      void run();
+    },
+
+    retry: () => {
+      set({
+        steps: get().steps.map((s) => (s.status === "fail" ? { ...s, status: "wait" } : s)),
+        startedAt: Date.now(),
+      });
+      void run();
+    },
+
+    reset: () => {
+      runId++;
+      pollRun++;
+      visualRun = null;
+      rememberBrand(null);
+      set({
+        phase: "start",
+        mode: "channel",
+        input: {},
+        brand: null,
+        audit: null,
+        auditProblem: null,
+        plan: null,
+        strategy: null,
+        planProgress: null,
+        posts: [],
+        postsRead: null,
+        steps: [],
+        problem: null,
+        emptyChannel: null,
+        edited: {},
+        busy: {},
+        postNote: {},
+      });
+    },
+
+    reopen: async (brandId) => {
+      const my = ++runId;
+      set({ phase: "reopening", problem: null });
+      const L = lang();
+      const [b, p] = await Promise.all([api.getBrand(brandId, L), api.listPosts(brandId, L)]);
+      if (my !== runId) return;
+      if (!b.ok) {
+        set({ phase: "start", problem: problemOf(b) });
+        rememberBrand(null);
+        return;
+      }
+      const brand = b.data.brand;
+      const mode: Mode = brand.mode === "fresh" ? "fresh" : "channel";
+      const posts = p.ok ? p.data.posts.slice(0, 12) : [];
+      set({
+        brand,
+        mode,
+        input: { channel: brand.channel?.replace(/^@/, "") },
+        posts,
+        phase: "ready",
+        tab: posts.length ? "posts" : "channel",
+        steps: stepsFor(mode, false).map((s) => (s.key === "read" || s.key === "voice" || (s.key === "posts" && posts.length) ? { ...s, status: "done" } : s)),
+      });
+      if (mode === "channel" && brand.channel) {
+        void api.analyzeChannel(brand.channel, L).then((a) => {
+          if (my !== runId) return;
+          if (a.ok) set({ audit: a.data.audit, auditProblem: null });
+          else set({ auditProblem: problemOf(a) });
+        });
+      }
+      if (posts.some((x) => x.image && (x.image.status === "queued" || x.image.status === "running"))) void poll(my);
+    },
+
+    rebuildPlan: async () => {
+      const brand = get().brand;
+      if (!brand) return;
+      const my = runId;
+      set({ planProgress: { n: 0, m: 0 }, auditProblem: get().auditProblem });
+      step("plan", { status: "run" });
+      const r = await api.buildStrategy(brand.id, lang(), (e) => {
+        if (e.stage === "skeleton" && Array.isArray(e.slots)) set({ planProgress: { n: 0, m: e.slots.length } });
+        else if (e.stage === "item") {
+          const p = get().planProgress;
+          if (p) set({ planProgress: { ...p, n: Math.min(p.n + 1, p.m || p.n + 1) } });
+        }
+      });
+      if (my !== runId) return;
+      if (!r.ok) {
+        step("plan", { status: "fail" });
+        set({ planProgress: null, problem: problemOf(r) });
+        return;
+      }
+      set({ plan: r.data.plan, strategy: r.data.strategy, planProgress: null, problem: null });
+      step("plan", { status: "done", n: r.data.plan.items.length });
+    },
+
+    reloadAudit: async () => {
+      const channel = get().brand?.channel ?? (get().input.channel ? `@${get().input.channel}` : null);
+      if (!channel) return;
+      const my = runId;
+      set({ auditProblem: null });
+      const a = await api.analyzeChannel(channel, lang());
+      if (my !== runId) return;
+      if (a.ok) set({ audit: a.data.audit });
+      else set({ auditProblem: problemOf(a) });
+    },
+
+    setTab: (tab) => set({ tab }),
+
+    editPost: (id, script, text) => {
+      set({
+        posts: get().posts.map((p) => (p.id === id ? { ...p, variants: { ...p.variants, [script]: text } } : p)),
+        edited: { ...get().edited, [id]: { ...get().edited[id], [script]: text } },
+      });
+    },
+
+    approve: async (id) => {
+      const note = (v: StudioState["postNote"][string]) => set({ postNote: { ...get().postNote, [id]: v } });
+      const busy = (v: "approve" | undefined) => set({ busy: { ...get().busy, [id]: v } });
+      if (get().sample) {
+        set({ posts: get().posts.map((p) => (p.id === id ? { ...p, status: "approved", approvedAt: new Date().toISOString() } : p)) });
+        return;
+      }
+      busy("approve");
+      note(undefined);
+      const r = await api.approvePost(id, lang(), get().edited[id]);
+      busy(undefined);
+      if (!r.ok) {
+        note({ text: problemOf(r).message || copy().posts.approveError, tone: "bad" });
+        return;
+      }
+      const server = r.data.post;
+      set({
+        posts: get().posts.map((p) =>
+          p.id === id
+            ? { ...p, ...server, variants: { ...server.variants, ...get().edited[id] }, image: server.image ?? p.image, status: server.status === "draft" ? "approved" : server.status }
+            : p,
+        ),
+      });
+    },
+
+    publish: async (id, script) => {
+      const busy = (v: "publish" | undefined) => set({ busy: { ...get().busy, [id]: v } });
+      const note = (v: StudioState["postNote"][string]) => set({ postNote: { ...get().postNote, [id]: v } });
+      const chat = get().brand?.channel ?? (get().input.channel ? `@${get().input.channel}` : "");
+      busy("publish");
+      note(undefined);
+      const r = await api.publishPost(id, script, chat, lang());
+      busy(undefined);
+      if (r.ok && r.data.ok) {
+        set({ posts: get().posts.map((p) => (p.id === id ? { ...p, status: "published", publishedUrl: r.data.url } : p)) });
+        note({ text: copy().posts.published, href: r.data.url, tone: "ok" });
+        return;
+      }
+      const msg = r.ok ? r.data.error ?? copy().error.generic : problemOf(r).message;
+      const admin = r.ok ? r.data.addAdminUrl : r.addAdminUrl;
+      note({ text: msg, href: admin, tone: "bad" });
+    },
+
+    retryImage: async (id) => {
+      const my = runId;
+      setPostImage(id, { status: "queued", refsUsed: 0 });
+      const r = await api.startPostImage(id, lang());
+      if (my !== runId) return;
+      if (!r.ok) {
+        setPostImage(id, { status: "failed", refsUsed: 0, error: problemOf(r).message });
+        return;
+      }
+      setPostImage(id, r.data.image);
+      void poll(my);
+    },
+  };
+});
