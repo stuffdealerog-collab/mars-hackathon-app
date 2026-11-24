@@ -2,57 +2,27 @@
 
 import Script from "next/script";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Studio } from "@/components/studio/Studio";
+import { MiniApp } from "@/components/miniapp/MiniApp";
+import { useTelegramTheme, type Theme } from "@/components/miniapp/native";
+import { tg } from "@/components/miniapp/tg";
 import { useCopy, useInitLang } from "@/components/ui/lang";
 import { LangSwitch, Logo } from "@/components/ui/parts";
 
 type Status = "loading" | "ready" | "outside" | "error";
-type Theme = "light" | "dark";
 
 type AuthResponse = { ok: true; user: { first_name: string }; locale: string } | { ok: false; error: string };
 
-/* The parts of telegram-web-app.js this screen uses beyond the shared typings. */
-type TgExtras = {
-  onEvent?(event: "themeChanged", cb: () => void): void;
-  offEvent?(event: "themeChanged", cb: () => void): void;
-  setHeaderColor?(color: string): void;
-  setBackgroundColor?(color: string): void;
-};
-type Tg = TelegramWebApp & TgExtras;
-
-/** The stage colour, painted into Telegram's own chrome so the header matches the page. */
-const PAPER: Record<Theme, string> = { light: "#ffffff", dark: "#000000" };
-
-function webApp(): Tg | undefined {
-  return window.Telegram?.WebApp as Tg | undefined;
-}
-
-/** Follows Telegram's light/dark theme. */
-function useTelegramTheme(active: boolean) {
-  const [theme, setTheme] = useState<Theme>("dark");
-  useEffect(() => {
-    const tg = webApp();
-    if (!active || !tg) return;
-    const apply = () => {
-      const next: Theme = tg.colorScheme === "light" ? "light" : "dark";
-      setTheme(next);
-      tg.setHeaderColor?.(PAPER[next]);
-      tg.setBackgroundColor?.(PAPER[next]);
-    };
-    apply();
-    tg.onEvent?.("themeChanged", apply);
-    return () => tg.offEvent?.("themeChanged", apply);
-  }, [active]);
-  return theme;
-}
-
-export default function MiniApp({ bot }: { bot: string }) {
+export default function MiniAppEntry({ bot }: { bot: string }) {
   const started = useRef(false);
   const [status, setStatus] = useState<Status>("loading");
   const [langHint, setLangHint] = useState<string | null>(null);
-  const [previewTheme, setPreviewTheme] = useState<Theme | null>(null);
-  const tgTheme = useTelegramTheme(status === "ready");
-  const theme = previewTheme ?? tgTheme;
+  const [preview, setPreview] = useState<Theme | null>(null);
+  // Decided on the first client render, so the real telegram-web-app.js never loads over the dev mock.
+  const [mockLoad] = useState(
+    () => process.env.NODE_ENV !== "production" && typeof window !== "undefined" && /[?&]preview=(light|dark)/.test(window.location.search),
+  );
+  const tgTheme = useTelegramTheme(status === "ready", preview);
+  const theme = preview ?? tgTheme;
 
   // The whole document follows the theme, so overscroll and the page edge never flash the other colour.
   useEffect(() => {
@@ -65,49 +35,58 @@ export default function MiniApp({ bot }: { bot: string }) {
   const init = useCallback(async () => {
     if (started.current) return;
     started.current = true;
-
-    // Dev-only design preview of the in-Telegram screen (no auth). Compiled out of production.
-    if (process.env.NODE_ENV !== "production") {
-      const preview = new URLSearchParams(window.location.search).get("preview");
-      if (preview === "light" || preview === "dark") {
-        setPreviewTheme(preview);
-        setStatus("ready");
-        return;
-      }
-    }
-
-    const tg = webApp();
-    if (!tg?.initData) {
+    const app = tg();
+    if (!app?.initData) {
       setStatus("outside");
       return;
     }
-    tg.ready();
-    tg.expand();
-    setLangHint(tg.initDataUnsafe?.user?.language_code ?? null);
-
+    setLangHint(app.initDataUnsafe?.user?.language_code ?? null);
+    // The app shell opens at once (launch moment); the server checks the initData signature in parallel.
+    setStatus("ready");
     try {
-      // The server validates the initData signature; never trust initDataUnsafe for auth.
       const res = await fetch("/api/auth/telegram", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ initData: tg.initData }),
+        body: JSON.stringify({ initData: app.initData }),
       });
       const data = (await res.json().catch(() => null)) as AuthResponse | null;
       if (!res.ok || !data?.ok) {
         setStatus("error");
         return;
       }
-      setLangHint(data.locale);
-      setStatus("ready");
+      if (!app.initDataUnsafe?.user?.language_code) setLangHint(data.locale);
     } catch {
-      setStatus("error");
+      /* offline: the shell still works; each call reports its own network error */
     }
+  }, []);
+
+  // Dev-only preview of the in-Telegram app with a stand-in WebApp object. Compiled out of production.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const p = new URLSearchParams(window.location.search);
+    const scheme = p.get("preview");
+    if (scheme !== "light" && scheme !== "dark") return;
+    void import("@/components/miniapp/mock").then(({ installTelegramMock }) => {
+      installTelegramMock({ scheme, platform: p.get("platform") === "android" ? "android" : "ios", lang: p.get("tglang") ?? "uz" });
+      setPreview(scheme);
+      setLangHint(p.get("tglang") ?? "uz");
+      started.current = true;
+      setStatus("ready");
+    });
   }, []);
 
   return (
     <>
-      <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" onReady={() => void init()} onError={() => setStatus("outside")} />
-      {status === "ready" ? <Studio bot={bot} inTelegram theme={theme} langHint={langHint} /> : <Outside status={status} bot={bot} />}
+      {!mockLoad && (
+        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" onReady={() => void init()} onError={() => setStatus("outside")} />
+      )}
+      {status === "ready" ? (
+        <MiniApp bot={bot} theme={theme} langHint={langHint} />
+      ) : status === "loading" ? (
+        <div className="fixed inset-0 bg-stage" aria-busy="true" />
+      ) : (
+        <Outside status={status} bot={bot} />
+      )}
     </>
   );
 }
@@ -122,11 +101,6 @@ function Outside({ status, bot }: { status: Status; bot: string }) {
         <LangSwitch />
       </header>
       <div className="mt-16 flex max-w-[440px] flex-col gap-4">
-        {status === "loading" && (
-          <p className="breathe text-[17px] text-ink-2" role="status">
-            {c.tg.loading}
-          </p>
-        )}
         {status === "outside" && (
           <>
             <h1 className="text-balance text-[28px] font-semibold leading-tight tracking-[-0.02em]">{c.tg.outsideTitle}</h1>
