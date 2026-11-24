@@ -87,14 +87,27 @@ export const POST = handle(async (req) => {
   // Existing drafts are only handed back to someone allowed to read them (never across owners).
   const mayReuse = !body.regenerate && (await assertDraftAccess(brand, userId).then(() => true, () => false));
   const reused: string[] = [];
+  // The same slot twice in one request is written once (and listed once): no duplicate posts, no duplicate ids.
+  const seen = new Set<string>();
+  const slots = body.slots
+    .map((s, index) => ({ s, index }))
+    .filter(({ s }) => {
+      const key = JSON.stringify([toPlanSlot(s), slotSummary(s)]);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   const settled = await Promise.allSettled(
-    body.slots.map(async (s) => {
-      const existing = mayReuse ? await findRecentSlotPost(brand.id, s.day, s.time, REUSE_MINUTES) : null;
+    slots.map(async ({ s }) => {
+      const planSlot = toPlanSlot(s);
+      const storedBrief = slotSummary(s);
+      // Reuse only the exact same slot (day, time, goal, hook, CTA, brief): a new plan always gets new posts.
+      const existing = mayReuse ? await findRecentSlotPost(brand.id, planSlot, storedBrief, REUSE_MINUTES) : null;
       if (existing) {
         reused.push(existing.id);
         return [existing];
       }
-      const [post] = await generatePosts(brand, slotBrief(s), 1, { slot: toPlanSlot(s), storedBrief: slotSummary(s), deadline });
+      const [post] = await generatePosts(brand, slotBrief(s), 1, { slot: planSlot, storedBrief, deadline });
       if (!post) return [];
       post.createdAt = batchAt;
       await savePosts([post]);
@@ -103,8 +116,8 @@ export const POST = handle(async (req) => {
   );
   const posts: PostDraft[] = [];
   const failed: { index: number; day: string; time: string; error: string; code: string }[] = [];
-  settled.forEach((r, index) => {
-    const s = body.slots[index];
+  settled.forEach((r, i) => {
+    const { s, index } = slots[i]; // index = the slot's position in the request
     if (r.status === "fulfilled" && r.value[0]) posts.push(r.value[0]);
     else {
       const { body: e } = errorBody(r.status === "rejected" ? r.reason : new Error("empty result"));

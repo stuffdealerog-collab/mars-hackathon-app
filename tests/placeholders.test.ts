@@ -19,8 +19,8 @@ vi.mock("@/lib/uslub/store", async () => await import("../src/lib/uslub/store"))
 vi.mock("@/lib/uslub/context", async () => await import("../src/lib/uslub/context"));
 vi.mock("@/lib/uslub/errors", async () => await import("../src/lib/uslub/errors"));
 vi.mock("@/lib/uslub/publish-errors", async () => await import("../src/lib/uslub/publish-errors"));
-const publishPost = vi.fn(async () => ({ ok: true, status: 200, url: "https://t.me/x/1" }));
-vi.mock("@/lib/uslub/publish", () => ({ publishPost }));
+const publishPost = vi.fn(async (): Promise<{ ok: boolean; status: number; url?: string; error?: string; addAdminUrl?: string }> => ({ ok: true, status: 200, url: "https://t.me/x/1" }));
+vi.mock("@/lib/uslub/publish", () => ({ publishPost, addBotAsAdminLink: () => "https://t.me/test_bot?startchannel&admin=post_messages" }));
 
 // The copywriter's model calls, by purpose.
 const llmJson = vi.fn();
@@ -163,5 +163,18 @@ describe("approve and publish refuse a post with a blank (placeholder_left)", ()
     expect(body.code).toBe("placeholder_left");
     expect(body.error).toMatch(/blank to fill/);
     expect(publishPost).not.toHaveBeenCalled();
+  });
+
+  it("publish: bot_not_admin always comes with the add-bot link, even when publishPost gave none", async () => {
+    const post = await postWithBlank(8);
+    await store.approvePost(post.id, 8, { variants: { ...post.variants, uz_latn: "Chegirma kodini adminga yozing." }, neuroHits: {}, humanScore: 80, changed: ["uz_latn"] });
+    // The bot is in the channel but cannot post: publishPost refuses with access.ts's message and no addAdminUrl.
+    publishPost.mockImplementationOnce(async () => ({ ok: false, status: 403, error: "Botni kanalga admin qiling va «Post yozish» huquqini bering: " }));
+    const res = await publishRoute.POST(req("http://x/api/uslub/publish", { postId: post.id, script: "uz_latn", chat: "@lifesmileuz", lang: "ru" }, 8));
+    const body = (await res.json()) as { code: string; error: string; addAdminUrl?: string };
+    expect(res.status).toBe(403);
+    expect(body.code).toBe("bot_not_admin");
+    expect(body.error).toMatch(/Сделайте бота админом/);
+    expect(body.addAdminUrl).toBe("https://t.me/test_bot?startchannel&admin=post_messages");
   });
 });

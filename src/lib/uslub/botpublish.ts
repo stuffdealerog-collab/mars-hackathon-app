@@ -109,10 +109,26 @@ async function sendPreviewOnly(api: Api, chatId: number, locale: Locale, post: P
       if (rest) await api.sendMessage(chatId, rest, { reply_markup: kb, link_preview_options: { is_disabled: true } });
       return;
     } catch (err) {
-      console.warn("[botpublish] photo preview failed, sending text", err instanceof Error ? err.message : err);
+      console.warn("[botpublish] photo preview failed, sending text with the picture as a link", err instanceof Error ? err.message : err);
+      // The button's hash covers this picture and publishPost will send it: show it as a large link preview so the
+      // owner still sees exactly what goes out.
+      await api.sendMessage(chatId, `${text.slice(0, 3900)}\n\n🖼 ${photo}`, {
+        reply_markup: kb,
+        link_preview_options: { url: photo, prefer_large_media: true, show_above_text: true },
+      });
+      return;
     }
   }
   await api.sendMessage(chatId, text.slice(0, 4096), { reply_markup: kb, link_preview_options: { is_disabled: true } });
+}
+
+/**
+ * The "add the bot to the channel" link for a failed publish: publishPost's own when it gave one, else built from
+ * BOT_USERNAME whenever the reason is the bot's rights (the bot is in the channel but cannot post, or left it).
+ */
+export function addAdminUrlFor(status: number, error: string | undefined, given: string | undefined): string | undefined {
+  if (given) return given;
+  return publishErrorCode(status, error, given) === "bot_not_admin" ? addBotAsAdminLink() : undefined;
 }
 
 /**
@@ -229,7 +245,8 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
     if (latest) await sendPreview(api, chatId, locale, latest, script, brand.channel);
     return;
   }
-  const kb = res.addAdminUrl ? new InlineKeyboard().url(t(locale, "pub.add_bot"), res.addAdminUrl).row().text(t(locale, "pub.button", { channel: brand.channel }), publishData(post, script)) : undefined;
+  const addUrl = addAdminUrlFor(res.status, res.error, res.addAdminUrl);
+  const kb = addUrl ? new InlineKeyboard().url(t(locale, "pub.add_bot"), addUrl).row().text(t(locale, "pub.button", { channel: brand.channel }), publishData(post, script)) : undefined;
   await api.sendMessage(chatId, t(locale, "pub.failed", { error: publishError(locale, res.status, res.error, res.addAdminUrl, brand.channel) }), {
     ...(kb ? { reply_markup: kb } : {}),
     link_preview_options: { is_disabled: true },

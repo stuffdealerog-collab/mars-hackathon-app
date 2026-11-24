@@ -71,12 +71,12 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
   });
 
   it("shows the post with its picture and claims an unowned web brand for the channel's creator", async () => {
-    const { brand, post } = await makePost("tortlar_uz", null, { status: "ready", url: "https://cdn.example/p.jpg", refsUsed: 2 });
+    const { brand, post } = await makePost("tortlar_uz", null, { status: "ready", url: "https://v3b.fal.media/files/p.jpg", refsUsed: 2 });
     const { api, sent } = fakeApi({ "@tortlar_uz": { 7: { status: "creator" }, [BOT_ID]: { status: "administrator", can_post_messages: true } } });
 
     expect(await startPublish(api, 7, { id: 7 }, "uz", `publish_${post.id}_ru`)).toBe(true);
     const photo = sent.find((m) => m.method === "sendPhoto");
-    expect(photo?.photo).toBe("https://cdn.example/p.jpg");
+    expect(photo?.photo).toBe("https://v3b.fal.media/files/p.jpg");
     expect(photo?.opts?.caption).toBe("Бенто-торт от 150 000 сум.");
     const pb = buttons(photo?.opts).find((b) => b.callback_data?.startsWith(`pb:${post.id}:r:`));
     expect(pb).toBeDefined();
@@ -93,7 +93,7 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
       userId: 7,
       // publish.ts re-checks exactly what the owner saw right before sending.
       expectedText: "Бенто-торт от 150 000 сум.",
-      expectedImageUrl: "https://cdn.example/p.jpg",
+      expectedImageUrl: "https://v3b.fal.media/files/p.jpg",
     });
     expect(sent.at(-1)?.text).toContain("https://t.me/tortlar_uz/42");
 
@@ -103,13 +103,13 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
   });
 
   it("a new picture after the preview also blocks publishing (the channel gets only what the owner saw)", async () => {
-    const { post } = await makePost("tortlar8_uz", 7, { status: "ready", url: "https://cdn.example/a.jpg", refsUsed: 1 });
+    const { post } = await makePost("tortlar8_uz", 7, { status: "ready", url: "https://v3b.fal.media/files/a.jpg", refsUsed: 1 });
     const seen = shownHash(post, "uz_latn");
-    await store.setPostImage(post.id, { status: "running", url: "https://cdn.example/b.jpg", refsUsed: 1 });
+    await store.setPostImage(post.id, { status: "running", url: "https://v3b.fal.media/files/b.jpg", refsUsed: 1 });
     const { api, sent } = fakeApi({});
     await publishFromButton(api, 7, { id: 7 }, "uz", post.id, "uz_latn", seen);
     expect(publishPost).not.toHaveBeenCalled();
-    expect(sent.find((m) => m.method === "sendPhoto")?.photo).toBe("https://cdn.example/b.jpg");
+    expect(sent.find((m) => m.method === "sendPhoto")?.photo).toBe("https://v3b.fal.media/files/b.jpg");
   });
 
   it("a post with an unfilled slot gets no publish button, only a note; an old button is refused", async () => {
@@ -123,6 +123,22 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
     const fresh = await store.getPost(post.id);
     await publishFromButton(api, 7, { id: 7 }, "ru", post.id, "uz_latn", fresh ? shownHash(fresh, "uz_latn") : undefined);
     expect(publishPost).not.toHaveBeenCalled();
+  });
+
+  it("shows (and binds) only a picture publishPost would send: other https hosts preview as text only", async () => {
+    const { post } = await makePost("tortlar10_uz", 7, { status: "ready", url: "https://example.com/x.jpg", refsUsed: 1 });
+    const { api, sent } = fakeApi({});
+    await startPublish(api, 7, { id: 7 }, "uz", `publish_${post.id}`);
+    expect(sent.some((m) => m.method === "sendPhoto")).toBe(false);
+    expect(shownHash(post, "uz_latn")).toBe(shownHash({ ...post, image: undefined }, "uz_latn"));
+  });
+
+  it("a 409 from publishPost (changed in the last milliseconds) shows the new version and publishes nothing", async () => {
+    const { post } = await makePost("tortlar11_uz", 7);
+    publishPost.mockImplementationOnce(async () => ({ ok: false, status: 409, error: "changed" }) as never);
+    const { api, sent } = fakeApi({});
+    await publishFromButton(api, 7, { id: 7 }, "uz", post.id, "uz_latn", shownHash(post, "uz_latn"));
+    expect(sent.map((m) => m.text)).toEqual(expect.arrayContaining([expect.stringMatching(/o‘zgargan/), post.variants.uz_latn]));
   });
 
   it("keeps a brand created in the bot private to its owner", async () => {

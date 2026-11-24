@@ -29,9 +29,13 @@ describe("retried /posts requests reuse the slot's post (no duplicates, no secon
     });
     const fresh = mk("20:40", 2);
     await store.savePosts([fresh, mk("12:40", 30)]);
-    expect((await store.findRecentSlotPost(brand.id, "2026-11-26", "20:40"))?.id).toBe(fresh.id);
-    expect(await store.findRecentSlotPost(brand.id, "2026-11-26", "12:40")).toBeNull(); // older than 10 min
-    expect(await store.findRecentSlotPost(brand.id, "2026-11-27", "20:40")).toBeNull();
+    const slot = (time: string, hook = "h") => ({ day: "2026-11-26", time, goal: "sale" as const, hook, cta: "c" });
+    expect((await store.findRecentSlotPost(brand.id, slot("20:40"), "b"))?.id).toBe(fresh.id);
+    expect(await store.findRecentSlotPost(brand.id, slot("12:40"), "b")).toBeNull(); // older than 10 min
+    expect(await store.findRecentSlotPost(brand.id, { ...slot("20:40"), day: "2026-11-27" }, "b")).toBeNull();
+    // A NEW plan on the same day and time (other hook or brief) never gets the previous run's post.
+    expect(await store.findRecentSlotPost(brand.id, slot("20:40", "Boshqa hook"), "b")).toBeNull();
+    expect(await store.findRecentSlotPost(brand.id, slot("20:40"), "another brief")).toBeNull();
   });
 });
 
@@ -81,6 +85,17 @@ describe("owner text fixes", () => {
     expect(templateFinding(rule, {} as ChannelStats, "uz", { value: () => 1.5 })).toBeNull();
   });
 
+  it("drops the 'unknown' language at the source: no rule trigger, effect or ledger entry mentions it", async () => {
+    const { loadFixtures } = await import("./brain/eval/fixtures");
+    const { runRules, statsLedger } = await import("../src/lib/uslub/brain/rules");
+    const { computeStats } = await import("../src/lib/uslub/brain/stats");
+    for (const f of loadFixtures()) {
+      const s = computeStats(f.data, Date.parse(f.capturedAt));
+      for (const r of runRules(s, { category: f.niche, competitors: [] })) expect(`${r.trigger} ${r.effects}`, `${f.handle} ${r.id}`).not.toMatch(/lang:unknown|langLift\.unknown|unknown is the primary/);
+      expect(statsLedger(s, []).some((e) => e.id === "S.langLift.unknown")).toBe(false);
+    }
+  });
+
   it("names the real window size in the views-falling finding", () => {
     const rule = { id: "R.DECLINING", kind: "problem", status: "fired", ids: [], data: {} } as unknown as RuleResult;
     const s = { viewTrend: 0.7, maturePosts: 24 } as ChannelStats;
@@ -89,10 +104,34 @@ describe("owner text fixes", () => {
   });
 
   it("does not take years or customer counts for prices", () => {
-    expect(descriptionSignals("2010 yildan beri ishlaymiz, 1000 dan ortiq mijoz, 500 000 obunachi").hasPrice).toBe(false);
-    expect(descriptionSignals("Napoleon torti 180 ming so‘m").hasPrice).toBe(true);
-    expect(descriptionSignals("Диагностика 50 000 сум").hasPrice).toBe(true);
-    expect(descriptionSignals("Narxi 20$ dan").hasPrice).toBe(true);
+    for (const text of [
+      "2010 yildan beri ishlaymiz, 1000 dan ortiq mijoz, 500 000 obunachi",
+      "5 ming obunachi va 300 ta mijoz",
+      "100 sumka bor",
+      "Сумки 100 шт. в наличии",
+      "Работаем с 2015 года, 2000 клиентов",
+    ])
+      expect(descriptionSignals(text).hasPrice, text).toBe(false);
+  });
+
+  it("recognises prices in the forms owners actually write (suffixes, thousands words, currencies)", () => {
+    for (const text of [
+      "Napoleon torti 180 ming so‘m",
+      "Bento-tort 250 000 so'mdan",
+      "Kurs 150 000 so‘mga tushdi",
+      "50 ming so'mlik sovg'a to'plami",
+      "Narxi 120 000 сўмдан",
+      "Диагностика 50 000 сум",
+      "Стоимость 500 тысяч сумов",
+      "Кофе 25 000 сумов",
+      "Napoleon 180 ming",
+      "Narxi 150 000 UZS",
+      "Торт 150 тыс.",
+      "Torti 150k",
+      "Narxi 20$ dan",
+      "Курс 30 долларов",
+    ])
+      expect(descriptionSignals(text).hasPrice, text).toBe(true);
   });
 
   it("the fresh launch plan only points at things that work today", () => {

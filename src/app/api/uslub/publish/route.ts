@@ -3,7 +3,7 @@ import { getEnv } from "@/lib/env";
 import { currentContext } from "@/lib/uslub/context";
 import { errorText } from "@/lib/uslub/errors";
 import { handle, json, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
-import { publishPost } from "@/lib/uslub/publish";
+import { addBotAsAdminLink, publishPost } from "@/lib/uslub/publish";
 import { publishErrorText } from "@/lib/uslub/publish-errors";
 import { findPlaceholders } from "@/lib/uslub/placeholders";
 import { getBrand, getPost } from "@/lib/uslub/store";
@@ -45,5 +45,7 @@ export const POST = handle(async (req) => {
   const { status, ...result } = await publishPost({ postId: body.postId, script: body.script, chat: body.chat, userId });
   if (result.ok) return json(result, status);
   const { code, text } = publishErrorText(lang, status, result.error, result.addAdminUrl);
-  return json({ ok: false, error: text, code, ...(result.addAdminUrl ? { addAdminUrl: result.addAdminUrl } : {}) }, status);
+  // The add-bot link comes with every bot_not_admin (also when the bot is in the channel but cannot post).
+  const addAdminUrl = result.addAdminUrl ?? (code === "bot_not_admin" ? addBotAsAdminLink() : undefined);
+  return json({ ok: false, error: text, code, ...(addAdminUrl ? { addAdminUrl } : {}) }, status);
 });

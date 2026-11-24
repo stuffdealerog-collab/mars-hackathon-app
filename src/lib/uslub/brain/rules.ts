@@ -456,7 +456,8 @@ export function runRules(s: ChannelStats, ctx: RuleCtx): RuleResult[] {
 
 function featureTags(p: import("./types").RawPost): string[] {
   const f = features(p);
-  const t = [`format:${p.media}`, `len:${f.lengthBucket}`, `lang:${f.lang}`];
+  // "unknown" (undetected language) is not a feature anyone can repeat: it never becomes a tag.
+  const t = [`format:${p.media}`, `len:${f.lengthBucket}`, ...(f.lang !== "unknown" ? [`lang:${f.lang}`] : [])];
   if (f.hourBucket) t.push(`hour:${f.hourBucket}`);
   if (f.hasPrice) t.push("hasPrice");
   if (f.hasCTA) t.push("hasCTA");
@@ -525,7 +526,8 @@ export function statsLedger(s: ChannelStats, competitors: ChannelStats[]): Ledge
     ["lengthLift", s.lengthLift],
   ] as const) {
     for (const [k, b] of Object.entries(rec))
-      push({ id: `S.${fam}.${keyId(k)}`, label: `${fam} ${k}`, value: b.value ?? "insufficient", display: b.value != null ? `${b.value.toFixed(2)}×` : `n=${b.n}`, n: b.n, window: w, source: "stats" });
+      if (!(fam === "langLift" && k === "unknown")) // the model never sees an "unknown" language to write about
+        push({ id: `S.${fam}.${keyId(k)}`, label: `${fam} ${k}`, value: b.value ?? "insufficient", display: b.value != null ? `${b.value.toFixed(2)}×` : `n=${b.n}`, n: b.n, window: w, source: "stats" });
   }
   const comps = competitors.filter((c) => !c.suspectBoosted && c.reachRate != null);
   if (comps.length >= 2 && s.reachRate != null) {

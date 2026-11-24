@@ -75,9 +75,17 @@ export const GROWTH_IDEAS = [
   "a reason to join: something only channel subscribers get (first to see new items, a small bonus on the first order)",
 ];
 
-// A price is a number followed by a currency word (not any number: years and customer counts are not prices).
-// Unicode look-arounds instead of \b, which ignores Cyrillic.
-const PRICE_RE = /\d[\d\s.,]*\s*(?:ming\s+)?(?:so['‘’ʻ`]?m|sum|сум|сўм|тыс(?:\.|яч\w*)?\s*сум|usd|долл\w*|\$)(?![\p{L}\d])/iu;
+// A price is a number with a currency word (any suffix: so'mdan, so'mga, so'mlik, сўмдан, сумов, долларов) or with a
+// thousands word that ends the phrase («180 ming», «150 тыс.», «150k»). Years and customer counts are not prices:
+// «2010 yildan», «1000 dan ortiq mijoz», «5 ming obunachi», «100 sumka», «сумки». \p{L} look-arounds, not \b
+// (JavaScript's \b ignores Cyrillic).
+const PRICE_NUM = String.raw`\d(?:[\d\s.,]*\d)?`;
+const PRICE_CUR = String.raw`(?:so['‘’ʻ]m\p{L}*|som(?:dan|ga|lik|ni|da)?(?!\p{L})|sum(?:dan|ga|lik|ni|da)?(?!\p{L})|сўм\p{L}*|сум(?:ов|а|ы|ах|ам|ами)?(?!\p{L})|uzs(?!\p{L})|usd(?!\p{L})|у\.\s?е\.|долл\p{L}*|\$)`;
+const PRICE_MULT = String.raw`(?:ming|минг|тысяч\p{L}*|тыс\.?|млн|mln|k)`;
+const PRICE_RE = new RegExp(
+  `${PRICE_NUM}\\s*(?:${PRICE_MULT}\\s*)?${PRICE_CUR}|${PRICE_NUM}\\s*${PRICE_MULT}(?![\\p{L}\\d])(?!\\s*\\p{L})|\\$\\s?\\d`,
+  "iu",
+);
 const ADDRESS_RE = /(ko['‘’ʻ`]?cha|mahalla|tuman|rayon|улиц|район|массив|mavze|kvartal|orientir|mo['‘’ʻ`]?ljal|chilonzor|yunusobod|sergeli|yakkasaroy|mirobod|olmazor|uchtepa|shayxontohur|bektemir|yashnobod|mirzo|ulug['‘’ʻ`]?bek|chirchiq|samarqand|buxoro|farg['‘’ʻ`]?ona|andijon|namangan|xorazm|toshkent|ташкент|address|street|юнусабад|чиланзар|мирзо|улугбек|сергел|яккасара|мирабад|алмазар|учтеп|шайхантах|бектемир|яшнабад|чирчик|самарканд|бухар|фергана|андижан|наманган|хорезм)/i;
 const CONTACT_RE = /(\+?998[\s-]?\d{2}|\b\d{2}[\s-]\d{3}[\s-]\d{2}[\s-]\d{2}\b|@[A-Za-z][\w]{3,}|t\.me\/|instagram)/i;
 

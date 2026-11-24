@@ -9,7 +9,7 @@ import { currentContext, flushUsage, runWithContext, setContextLang, setContextU
 import { type ApiLang, codeForStatus, type ErrorCode, errorText, isApiLang, pickApiLang } from "./errors";
 import { RateLimiter } from "./limit";
 import { LlmError } from "./llm";
-import { ScrapeError } from "./scrape";
+import { type ChannelEmptyReason, ScrapeError } from "./scrape";
 import { getBrand, type StoredBrand, wasClaimed } from "./store";
 
 /**
@@ -108,7 +108,7 @@ function brainScrapeToHttp(err: BrainScrapeError): HttpError {
 }
 
 /** The channel has no public preview or fewer than MIN_CHANNEL_POSTS posts: the Studio switches to fresh mode. */
-export function channelEmpty(channel: string, reason: "few_posts" | "no_preview", postsFound: number): HttpError {
+export function channelEmpty(channel: string, reason: ChannelEmptyReason, postsFound: number): HttpError {
   const handle = channel ? `@${channel.replace(/^@/, "")}` : "";
   return new HttpError(422, `channel empty: ${handle} ${reason} ${postsFound}`, "channel_empty", { channel: handle }, { reason, postsFound, channel: handle || undefined, mode: "fresh" });
 }

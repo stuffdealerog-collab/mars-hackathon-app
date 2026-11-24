@@ -78,11 +78,21 @@ type Shown = { variants: Partial<Record<Script, string>> & { uz_latn: string }; 
 export const shownText = (post: Shown, script: Script) => post.variants[script]?.trim() || post.variants.uz_latn;
 
 /**
- * The post's visible picture (policy shared with the images session): `image.url` when it is an https URL. While a
- * new variant renders or fails, images keeps `url` = the last ready picture, so this is what the owner sees and
- * what publishPost sends.
+ * The post's visible picture (policy shared with the images session): `image.url`, and only when publishPost would
+ * send it — https on *.fal.media, the same filter as publishableImageUrl in media/telegram-post.ts. While a new
+ * variant renders or fails, images keeps `url` = the last ready picture. Anything else is shown and published as
+ * text only, so preview, hash and channel always agree (no 409 loop).
  */
-export const shownPhoto = (post: Shown) => (post.image?.url?.startsWith("https://") ? post.image.url : null);
+export function shownPhoto(post: Shown): string | null {
+  const url = post.image?.url;
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && /(^|\.)fal\.media$/i.test(u.hostname) ? url : null;
+  } catch {
+    return null;
+  }
+}
 
 /** What the owner saw — the text and the picture. The "Kanalga joylash" button is bound to this hash. */
 export const shownHash = (post: Shown, script: Script) => textHash(`${shownText(post, script)}\n--picture--\n${shownPhoto(post) ?? ""}`);

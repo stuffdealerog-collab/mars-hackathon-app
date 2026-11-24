@@ -28,6 +28,8 @@ export interface BuildBrandResult {
 
 /** An owner's description must say at least what they sell (a sentence or two). */
 export const MIN_DESCRIPTION = 30;
+/** A pictures-only channel's title + description must say at least this much to build a brand from it alone. */
+export const MIN_ABOUT = 80;
 
 const emptyChannel = (username: string, posts: number) =>
   new ScrapeError(`@${username} has ${posts} posts`, 422, "channel_empty", { channel: username, reason: posts ? "few_posts" : "no_preview", postsFound: posts });
@@ -62,6 +64,14 @@ export async function buildBrand(input: BuildBrandInput): Promise<BuildBrandResu
     if (scraped.totalMessages + given.length < MIN_CHANNEL_POSTS) {
       if (knowledge.length >= MIN_DESCRIPTION) return { brand: await buildFresh(scraped.username, knowledge, owner, lang), cached: false, channel: scraped, switchedToFresh: true };
       throw emptyChannel(scraped.username, scraped.totalMessages);
+    }
+    // Pictures only (no captioned post): there is no voice to learn. With the owner's description it is a fresh
+    // brand; with only a short title/description there is nothing to build from, so the owner is asked to describe it.
+    if (!scraped.posts.length && !given.length) {
+      if (knowledge.length >= MIN_DESCRIPTION) return { brand: await buildFresh(scraped.username, knowledge, owner, lang), cached: false, channel: scraped, switchedToFresh: true };
+      const about = `${scraped.title ?? ""} ${scraped.description ?? ""}`.trim();
+      if (about.length < MIN_ABOUT)
+        throw new ScrapeError(`@${scraped.username} has pictures only`, 422, "channel_empty", { channel: scraped.username, reason: "no_text", postsFound: scraped.totalMessages });
     }
     const cached = source === "channel_only" ? await findChannelOnlyBrand(scraped.username) : null;
     const cachedLang = (cached?.dna as { proseLang?: string } | undefined)?.proseLang ?? "uz";

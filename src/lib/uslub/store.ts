@@ -253,23 +253,27 @@ export async function getPost(id: string): Promise<PostDraft | null> {
   return rows[0] ? toPost(rows[0]) : null;
 }
 
+const sameSlot = (a: PlanSlot | undefined, b: PlanSlot) =>
+  Boolean(a) && a!.day === b.day && a!.time === b.time && a!.goal === b.goal && a!.hook === b.hook && a!.cta === b.cta;
+
 /**
- * A post already written for this brand's plan slot (same day and time) in the last `minutes`: a retried
- * /posts request (client timeout, Retry button) returns it instead of writing and billing the slot again.
+ * A post already written for exactly this plan slot (same day, time, goal, hook, CTA and brief) in the last
+ * `minutes`: a retried /posts request (client timeout, Retry button) returns it instead of writing and billing it
+ * again. A NEW plan (other hooks or briefs on the same days) never matches, so it always gets new posts.
  */
-export async function findRecentSlotPost(brandId: string, day: string, time: string, minutes = 10): Promise<PostDraft | null> {
+export async function findRecentSlotPost(brandId: string, slot: PlanSlot, brief: string, minutes = 10): Promise<PostDraft | null> {
   if (!isUuid(brandId)) return null;
   const since = Date.now() - minutes * 60_000;
   if (!isDbConfigured()) {
     const hits = [...mem.posts.values()].filter(
-      (p) => p.brandId === brandId && p.slot?.day === day && p.slot?.time === time && Date.parse(p.createdAt) >= since,
+      (p) => p.brandId === brandId && sameSlot(p.slot, slot) && p.brief === brief && Date.parse(p.createdAt) >= since,
     );
     return hits.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
   }
   const rows = (await getSql()`
     SELECT id, brand_id, brief, variants, neuro_hits, human_score, status, published_url, slot, image, approved_at, created_at
     FROM posts
-    WHERE brand_id = ${brandId} AND slot->>'day' = ${day} AND slot->>'time' = ${time}
+    WHERE brand_id = ${brandId} AND slot = ${JSON.stringify(slot)}::jsonb AND brief = ${brief}
       AND created_at >= ${new Date(since).toISOString()}
     ORDER BY created_at DESC LIMIT 1
   `) as PostRow[];

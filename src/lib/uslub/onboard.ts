@@ -3,7 +3,7 @@ import { InlineKeyboard, type Api } from "grammy";
 import { getPublicUrl } from "@/lib/env";
 import { type Locale, type MessageKey, t } from "@/lib/i18n";
 import { safeLogEvent } from "@/lib/track";
-import { publishError } from "./botpublish";
+import { addAdminUrlFor, publishError } from "./botpublish";
 import { pickScript } from "./botpublish-core";
 import { findPlaceholders, placeholderNote } from "./placeholders";
 import { buildBrand } from "./brand";
@@ -52,7 +52,10 @@ export async function publishFromBot(postId: string, userId: number, locale: Loc
   const res = await publishPost({ postId, script, chat: brand.channel, userId });
   if (res.ok) return { text: t(locale, "pub.done", { url: res.url ?? "" }) };
   // Same localized reasons as the publish link; a missing bot admin comes with the "add the bot" button.
-  return { text: t(locale, "pub.failed", { error: publishError(locale, res.status, res.error, res.addAdminUrl, brand.channel) }), addAdminUrl: res.addAdminUrl };
+  return {
+    text: t(locale, "pub.failed", { error: publishError(locale, res.status, res.error, res.addAdminUrl, brand.channel) }),
+    addAdminUrl: addAdminUrlFor(res.status, res.error, res.addAdminUrl),
+  };
 }
 
 /** Decides whether a private message is a channel link, a business description, or neither. */
@@ -88,7 +91,7 @@ export async function runOnboarding(api: Api, chatId: number, userId: number, in
   try {
     // The DNA's prose follows the user's Telegram language; the posts keep all four variants.
     const { brand, channel } = await buildBrand({ ...input, ownerTelegramId: userId, lang: locale });
-    await api.sendMessage(chatId, dnaSummary(brand, channel?.posts.length ?? brand.samplePosts.length, locale));
+    await api.sendMessage(chatId, dnaSummary(brand, channel?.totalMessages ?? brand.samplePosts.length, locale));
 
     const posts = await generatePosts(brand, "Kanal uchun ikkita yangi post: biri mahsulot yoki xizmat haqida, biri mijozlar bilan suhbat (savol yoki foydali maslahat).", 2);
     await savePosts(posts, userId);
