@@ -9,7 +9,7 @@ import { SAMPLE_RESULT } from "./sample";
 
 
 
-function useInView<T extends Element>(threshold = 0.45) {
+function useInView<T extends Element>(threshold = 0.2) {
   const ref = useRef<T>(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {

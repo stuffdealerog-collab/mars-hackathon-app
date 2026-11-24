@@ -1,239 +1,141 @@
-import type { AgentRole } from "@/lib/uslub/contract";
-import { Check, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import Link from "next/link";
-import { HeroCopy } from "@/components/landing/HeroCopy";
-import { HeroDeck } from "@/components/landing/HeroDeck";
-import { OrbMenu } from "@/components/landing/OrbMenu";
-import { Ticker } from "@/components/landing/Ticker";
-import { GRAD, TG_BOT_URL } from "@/components/uslub/agents";
-import { DotMatrix } from "@/components/uslub/DotMatrix";
-import { Logo } from "@/components/uslub/Girih";
-import { glowBg } from "@/components/uslub/GlowCard";
-import { Orb } from "@/components/uslub/Orb";
+import { PanelDemo } from "@/components/concept/board/Live";
+import { Hero } from "@/components/landing/Hero";
+import { Mark } from "@/components/lamp/Mark";
+import { Deck } from "@/components/lamp/Deck";
+import { DnaCard } from "@/components/lamp/Dna";
+import { LampTile } from "@/components/lamp/LampTile";
+import { LAMP_ORDER } from "@/components/lamp/lamps";
+import { TgPost } from "@/components/lamp/TgPost";
+import { TG_BOT_URL } from "@/components/uslub/agents";
 
-const g = (k: AgentRole, s = 0.9, at?: string) => glowBg(GRAD[k][0], GRAD[k][1], s, at);
+const SAMPLE_DNA: [string, string][] = [
+  ["Murojaat", "«siz»"],
+  ["Ohang", "iliq, do‘stona, qisqa"],
+  ["Emoji", "postga 1–2 ta"],
+  ["Uzunlik", "~740 belgi"],
+  ["Chaqiriq", "«do‘konga keling»"],
+];
 
-const RULES = [
+const RULES: { name: string; hint: string; auto: boolean }[] = [
   { name: "Oddiy postlar", hint: "Maslahat, yangi mahsulot, mijoz obrazi", auto: true },
-  { name: "Aksiya va chegirmalar", hint: "Foiz, muddatli takliflar", auto: false },
-  { name: "Narxlar", hint: "Matnda so'm yoki narx bor", auto: false },
+  { name: "Narx va aksiya", hint: "Matnda so‘m, foiz yoki chegirma bor", auto: false },
   { name: "Video", hint: "Reels va TikTok", auto: false },
-  { name: "Birinchi 5 post", hint: "Yangi brend ovozini siz tekshirasiz", auto: false },
+  { name: "Birinchi 5 post", hint: "Yangi ovozni siz tekshirasiz", auto: false },
 ];
 
 export default function Home() {
   return (
-    <main className="uslub min-h-dvh overflow-x-clip">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
-        <Logo light />
-        <nav aria-label="Asosiy" className="flex items-center gap-1 text-[14px]">
-          <Link href="/studio" className="rounded-full px-3 py-2 font-semibold text-fog hover:bg-white/[.06]">
+    <main className="lw min-h-dvh overflow-x-clip">
+      <header className="mx-auto flex w-full max-w-[1180px] items-center justify-between gap-4 px-4 py-4 sm:px-8 sm:py-6">
+        <Mark />
+        <nav aria-label="Asosiy" className="flex items-center gap-1.5">
+          <Link href="/studio" className="rounded-full px-3.5 py-2 text-[14px] font-medium text-[var(--ink-2)] transition-colors duration-200 hover:text-[var(--ink)]">
             Studiya
           </Link>
-          <Link href="/concept" className="hidden rounded-full px-3 py-2 text-mute hover:text-fog sm:inline-block">
-            Konsepsiya
-          </Link>
-          <a href={TG_BOT_URL} target="_blank" rel="noreferrer" className="pill-ghost ml-1 px-3.5 py-2 text-[13px]">
-            <Send className="h-3.5 w-3.5" aria-hidden />
+          <a href={TG_BOT_URL} target="_blank" rel="noreferrer" aria-label="Telegram bot" className="btn-quiet !min-h-10 !px-3.5 !text-[14px]">
+            <Send className="h-4 w-4" aria-hidden />
             <span className="hidden sm:inline">Telegram</span>
           </a>
         </nav>
       </header>
 
-      {/* Hero: the killer feature */}
-      <section className="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 pb-20 pt-8 sm:px-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:pt-14">
-        <HeroCopy />
-        <HeroDeck />
+      {/* First viewport: the promise, the one field, and the department still dark. */}
+      <section className="mx-auto grid w-full grid-cols-1 max-w-[1180px] gap-10 px-4 pb-16 pt-2 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)] lg:items-start lg:gap-16 lg:pb-24 lg:pt-8">
+        <Hero />
+        <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 lg:mt-14" aria-label="Bo‘lim xodimlari: havola berilganda yonadi">
+          {LAMP_ORDER.map((r) => (
+            <LampTile key={r} as="li" role={r} state="off" size="sm" showJob stateLabel={false} />
+          ))}
+        </ul>
       </section>
 
-      {/* What you get in 60 seconds */}
-      <section aria-labelledby="out-h" className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-          <h2 id="out-h" className="max-w-xl text-[2rem] font-extrabold leading-[1.05] tracking-[-0.035em] sm:text-[2.6rem]">
-            60 soniyada nima olasiz
-          </h2>
-          <p className="max-w-sm text-[15px] text-mute">Bir havoladan. Kanalingizda allaqachon bor narsalardan.</p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <article className="relative flex min-h-[260px] flex-col justify-between overflow-hidden rounded-[32px] p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)] sm:col-span-2" style={{ background: g("copywriter") }}>
-            <div className="flex items-start justify-between">
-              <span className="text-[15px] font-bold text-[#0b0b0e]">Bir haftalik postlar</span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#0b0b0e]/65">Kopirayter · Tarjimon</span>
-            </div>
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <Ticker to={7} dot={8} gap={3} label="7 ta post" />
-                <p className="mt-3 text-[14px] text-white/80">sizning ovozingizda, 4 yozuvda</p>
-              </div>
-              <div className="flex flex-wrap gap-1.5 text-[13px]">
-                {["O'zbek lotin", "Ўзбек кирилл", "Русский", "English"].map((s) => (
-                  <span key={s} className="rounded-full bg-black/40 px-3 py-1.5 font-semibold text-fog">
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </article>
-
-          <article className="flex min-h-[260px] flex-col justify-between overflow-hidden rounded-[32px] p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]" style={{ background: g("radar") }}>
-            <span className="text-[15px] font-bold text-[#0b0b0e]">Mijozlaringiz turgan joylar</span>
-            <div>
-              <Ticker to={10} dot={7} gap={3} label="10 ta joy" />
-              <p className="mt-3 text-[14px] text-white/80">kanallar, guruhlar, bloggerlar — har biriga aniq qadam</p>
-            </div>
-          </article>
-
-          <article className="flex min-h-[260px] flex-col justify-between overflow-hidden rounded-[32px] p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]" style={{ background: g("editor") }}>
-            <span className="text-[15px] font-bold text-fog">Inson bali</span>
-            <div>
-              <Ticker to={94} dot={7} gap={3} label="Inson bali 94" />
-              <p className="mt-3 text-[14px] text-white/80">neyro-so&apos;zlar olib tashlangan, matn odamday</p>
-            </div>
-          </article>
-
-          <article className="flex min-h-[220px] flex-col justify-between overflow-hidden rounded-[32px] p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]" style={{ background: g("brand", 0.85) }}>
-            <span className="text-[15px] font-bold text-[#0b0b0e]">Brend DNK</span>
-            <p className="text-[14px] leading-relaxed text-white/85">Ohang, «siz» yoki «sen», emoji, post uzunligi, chaqiriq uslubi — kanalingizdan o&apos;qiladi.</p>
-          </article>
-
-          <article className="flex min-h-[220px] flex-col justify-between overflow-hidden rounded-[32px] p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]" style={{ background: g("analyst", 0.85) }}>
-            <span className="text-[15px] font-bold text-[#0b0b0e]">Kanal tahlili</span>
-            <div>
-              <Ticker to={27} suffix="%" dot={6} gap={3} label="27% qamrov" />
-              <p className="mt-3 text-[14px] text-white/80">qamrov, eng yaxshi soatlar, raqobatchilar</p>
-            </div>
-          </article>
-
-          <article className="flex min-h-[220px] flex-col justify-between overflow-hidden rounded-[32px] p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)] sm:col-span-2" style={{ background: g("video", 0.85, "0% 0%") }}>
-            <div className="flex items-start justify-between">
-              <span className="text-[15px] font-bold text-[#0b0b0e]">Reels ssenariysi</span>
-              <DotMatrix value="0:15" dot={5} gap={2} color="#0b0b0e" off="rgba(0,0,0,.12)" label="15 soniya" />
-            </div>
-            <ol className="grid grid-cols-5 gap-1.5" aria-label="Kadrlar">
-              {["1 palto", "Ish uchun", "Dam olish", "Kechki", "Narx"].map((s, i) => (
-                <li key={s} className="rounded-2xl bg-black/45 px-2 py-3 text-center">
-                  <span className="block font-mono text-[10px] text-white/55">{[2, 3, 3, 3, 4][i]}s</span>
-                  <span className="mt-1 block text-[11px] font-semibold leading-tight text-fog sm:text-[12px]">{s}</span>
-                </li>
-              ))}
-            </ol>
-          </article>
-        </div>
-      </section>
-
-      {/* Team: radial orb menu */}
-      <section aria-labelledby="team-h" className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
-        <div className="mb-6 max-w-2xl">
-          <h2 id="team-h" className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.035em] sm:text-[2.6rem]">
-            Sizning marketing bo&apos;limingiz
-          </h2>
-          <p className="mt-3 text-[16px] text-mute">
-            O&apos;nta AI xodim, har birining bitta ishi bor. Markazda — siz: topshiriq berasiz va tasdiqlaysiz.
-          </p>
-        </div>
-        <OrbMenu />
-      </section>
-
-      {/* Human in the loop + autopilot rules */}
-      <section aria-labelledby="ok-h" className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center">
+      <section aria-labelledby="proof-h" className="border-t border-[var(--hair)]">
+        <div className="mx-auto grid w-full grid-cols-1 max-w-[1180px] gap-10 px-4 py-16 sm:px-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16 lg:py-24">
           <div>
-            <h2 id="ok-h" className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.035em] sm:text-[2.6rem]">
-              Siz faqat tasdiqlaysiz
+            <h2 id="proof-h" className="max-w-[16ch] text-balance text-[32px] font-semibold leading-[1.04] tracking-[-0.03em] sm:text-[44px]">
+              Bir daqiqadan keyin nima ko‘rasiz
             </h2>
-            <p className="mt-4 max-w-md text-[16px] leading-relaxed text-mute">
-              Oddiy postlar jadval bo&apos;yicha o&apos;zi chiqishi mumkin. Aksiya, narx, video va yangi brendning birinchi postlari esa
-              doim tasdiqlash qutisiga tushadi — bir bosishda tasdiqlaysiz.
+            <p className="mt-3 max-w-[46ch] text-[16px] leading-relaxed text-[var(--ink-2)]">
+              Har bir chiroq bitta xodim. U ishlayotganda yonadi va natijani ichida ushlab turadi. Pastda o‘ylab topilgan kiyim do‘koni misolida, sizning kanalingizda raqamlar va postlar sizniki bo‘ladi.
             </p>
-            <div className="mt-6 flex items-center gap-3">
-              <Orb kind="approval" size={40} glow />
-              <span className="text-[14px] text-fog">Hech narsa sizsiz joylanmaydi, agar o&apos;zingiz ruxsat bermasangiz.</span>
+            <div className="mt-8">
+              <PanelDemo cols="grid-cols-2" />
             </div>
           </div>
+          <div className="flex flex-col gap-4 lg:pt-28">
+            <TgPost
+              name="Nafis kiyim"
+              sample
+              text={"Yangi kuzgi paltolar keldi — issiq, yengil va har kuni kiyishga qulay. 🧥\n\nO‘lchamingizni yozing, ertagacha olib qo‘yamiz."}
+              time="20:00"
+            />
+            <p className="px-1 text-[13.5px] text-[var(--ink-2)]">Kopirayter yozdi, Muharrir neyro-so‘zlarni olib tashladi, Tarjimon kirill, rus va ingliz tiliga o‘girdi.</p>
+            <DnaCard rows={SAMPLE_DNA} sample />
+          </div>
+        </div>
+      </section>
 
-          <div className="overflow-hidden rounded-[32px] shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]" style={{ background: glowBg("#3b5bff", "#7c3aed", 0.55, "100% 0%") }}>
-            <div className="flex items-center justify-between px-6 pt-5">
-              <span className="text-[15px] font-bold">Avtopilot qoidalari</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fog">Jadval · beta</span>
-            </div>
-            <ul className="mt-3 divide-y divide-white/[.07] px-2 pb-2">
+      <section aria-labelledby="ok-h" className="border-t border-[var(--hair)]">
+        <div className="mx-auto grid w-full grid-cols-1 max-w-[1180px] gap-10 px-4 py-16 sm:px-8 lg:grid-cols-2 lg:gap-16 lg:py-24">
+          <div>
+            <h2 id="ok-h" className="text-balance text-[32px] font-semibold leading-[1.04] tracking-[-0.03em] sm:text-[44px]">
+              Siz faqat tasdiqlaysiz
+            </h2>
+            <p className="mt-3 max-w-[46ch] text-[16px] leading-relaxed text-[var(--ink-2)]">
+              Tayyor ishlar navbatga tushadi: bitta karta, bitta qaror. Narx, aksiya, video va birinchi beshta post doim sizning «ha»ingizni kutadi.
+            </p>
+            <ul className="mt-8 divide-y divide-[var(--hair)] rounded-[22px] bg-[var(--glass)] px-5" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
               {RULES.map((r) => (
-                <li key={r.name} className="flex items-center gap-4 px-4 py-3.5">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[15px] font-semibold text-fog">{r.name}</div>
-                    <div className="text-[13px] text-mute">{r.hint}</div>
-                  </div>
-                  <span className={`hidden font-mono text-[10px] uppercase tracking-[0.08em] sm:inline ${r.auto ? "text-ok" : "text-wait"}`}>
-                    {r.auto ? "Avtopilot" : "Tasdiq bilan"}
+                <li key={r.name} className="flex items-center gap-4 py-4">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold">{r.name}</span>
+                    <span className="block text-[13px] text-[var(--ink-2)]">{r.hint}</span>
                   </span>
-                  <span aria-hidden className={`relative h-6 w-11 shrink-0 rounded-full ${r.auto ? "bg-lime" : "bg-white/15"}`}>
-                    <span className={`absolute top-1 h-4 w-4 rounded-full ${r.auto ? "right-1 bg-void" : "left-1 bg-white/70"}`} />
+                  <span className="text-right text-[13px] text-[var(--ink-2)]">{r.auto ? "o‘zi chiqadi, beta" : "tasdiq bilan"}</span>
+                  <span aria-hidden className="switch pointer-events-none" data-on={r.auto}>
+                    <span className="switch__knob" />
                   </span>
                 </li>
               ))}
             </ul>
           </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section id="narx" aria-labelledby="price-h" className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
-        <div className="relative overflow-hidden rounded-[40px] p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,.1)] sm:p-10" style={{ background: glowBg("#d7ff3a", "#16b364", 0.75, "15% 0%") }}>
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-end">
-            <div>
-              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[#0b0b0e]/70">Erta narx · bitta tarif</span>
-              <h2 id="price-h" className="mt-3 text-[2rem] font-extrabold leading-[1.05] tracking-[-0.035em] text-[#0b0b0e] sm:text-[2.6rem]">
-                7 kun bepul, keyin oyiga 149 000 so&apos;m
-              </h2>
-              <div className="mt-6">
-                <DotMatrix value="149 000" dot={6} gap={3} label="149 000 so'm oyiga" />
-                <span className="mt-2 block font-mono text-[11px] uppercase tracking-[0.08em] text-white/60">so&apos;m / oy</span>
-              </div>
-              <p className="mt-5 text-[14px] text-white/70" lang="ru">7 дней бесплатно, затем 149 000 сум/мес</p>
-              <p className="text-[14px] text-white/70" lang="en">7 days free, then 149,000 UZS/month</p>
-            </div>
-            <div>
-              <ul className="space-y-2.5 text-[15px] text-fog">
-                {["10 ta AI xodim", "Postlar 4 yozuvda", "Kanal tahlili va mijoz radar", "Telegramga joylash"].map((f) => (
-                  <li key={f} className="flex items-center gap-2.5">
-                    <Check className="h-4 w-4 text-lime" strokeWidth={3} aria-hidden />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-6 flex flex-wrap gap-2">
-                <a href={TG_BOT_URL} target="_blank" rel="noreferrer" className="pill-lime px-6 py-3.5 text-[15px]">
-                  7 kun bepul boshlash
-                </a>
-                <Link href="/studio" className="pill-ghost px-5 py-3.5 text-[15px]">
-                  Studiyani ochish
-                </Link>
-              </div>
-            </div>
+          <div className="max-w-[420px] lg:pt-24">
+            <Deck
+              items={[
+                { id: "1", why: "Narx bor, siz tasdiqlaysiz", time: "20:00", text: "Kuzgi palto 690 000 so‘m. Shu hafta do‘konda o‘lchab ko‘ring." },
+                { id: "2", why: "Birinchi beshta postdan biri", time: "19:30", text: "Yangi kuzgi paltolar keldi — issiq, yengil va har kuni kiyishga qulay." },
+                { id: "3", why: "Aksiya, siz tasdiqlaysiz", time: "18:00", text: "Juma kuni ikkinchi sharfga −30%. Faqat do‘konda." },
+              ]}
+              publishHref="#havola"
+            />
           </div>
         </div>
       </section>
 
-      {/* Closing CTA */}
-      <section className="mx-auto w-full max-w-6xl px-4 pb-16 pt-6 text-center sm:px-6">
-        <h2 className="mx-auto max-w-2xl text-[2rem] font-extrabold leading-[1.05] tracking-[-0.035em] sm:text-[2.8rem]">
-          Kanalingiz havolasini bering — qolganini bo&apos;lim qiladi
-        </h2>
-        <div className="mt-8 flex flex-wrap justify-center gap-2">
-          <Link href="/studio?demo=bir-havola" className="pill-lime px-7 py-4 text-[16px]">
-            Bo&apos;limni ishga tushirish
-          </Link>
-          <a href={TG_BOT_URL} target="_blank" rel="noreferrer" className="pill-ghost px-6 py-4 text-[16px]">
-            <Send className="h-4 w-4" aria-hidden />
-            Telegram bot
-          </a>
+      <section aria-labelledby="price-h" className="border-t border-[var(--hair)]">
+        <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 px-4 py-16 sm:px-8 lg:flex-row lg:items-end lg:justify-between lg:py-24">
+          <div>
+            <h2 id="price-h" className="max-w-[18ch] text-balance text-[32px] font-semibold leading-[1.04] tracking-[-0.03em] sm:text-[44px]">
+              7 kun bepul. Keyin oyiga 149 000 so‘m.
+            </h2>
+            <p className="mt-3 max-w-[50ch] text-[16px] leading-relaxed text-[var(--ink-2)]">
+              Bitta tarif: 10 xodim, to‘rt yozuvda postlar, kanal tahlili, mijoz radar va Telegramga joylash.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a href="#havola" className="btn-lime">Havolani qo‘yish</a>
+            <a href={TG_BOT_URL} target="_blank" rel="noreferrer" className="btn-quiet">
+              <Send className="h-4 w-4" aria-hidden /> Telegram bot
+            </a>
+          </div>
         </div>
       </section>
 
-      <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 border-t border-white/[.07] px-4 py-6 sm:px-6">
-        <Logo light />
-        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-dim">MARS AI Hackathon · Toshkent, 2026</span>
+      <footer className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-3 border-t border-[var(--hair)] px-4 py-6 text-[13px] text-[var(--ink-3)] sm:px-8">
+        <Mark />
+        <span>MARS AI Hackathon, Toshkent, 2026</span>
       </footer>
     </main>
   );

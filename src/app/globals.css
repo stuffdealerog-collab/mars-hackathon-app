@@ -39,11 +39,10 @@
   --color-track: var(--track);
   --color-good: var(--good);
   --color-bad: var(--bad);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    sans-serif;
-  --font-ui: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jbmono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: var(--font-onest), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-ui: var(--font-onest), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-onest), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Uslub AI — "AI OS" dark widget language */
   --color-void: #050506;
@@ -562,7 +561,11 @@ body {
 .field:focus-within {
   box-shadow: inset 0 0 0 1.5px var(--lime);
 }
+.field[data-invalid] {
+  box-shadow: inset 0 0 0 1.5px var(--bad);
+}
 .field input {
+  width: 0;
   min-width: 0;
   flex: 1;
   background: transparent;
@@ -693,10 +696,10 @@ body {
     transform var(--t-panel) var(--ease-out),
     background var(--t-state) var(--ease-out);
 }
-.switch[aria-checked="true"] {
+.switch:is([aria-checked="true"], [data-on="true"]) {
   background: var(--lime);
 }
-.switch[aria-checked="true"] .switch__knob {
+.switch:is([aria-checked="true"], [data-on="true"]) .switch__knob {
   transform: translateX(20px);
   background: var(--lime-ink);
 }
