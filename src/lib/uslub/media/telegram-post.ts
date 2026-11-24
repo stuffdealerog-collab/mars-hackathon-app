@@ -29,6 +29,21 @@ export function planPostMessages(text: string, imageUrl?: string): PlannedMessag
   ];
 }
 
+/**
+ * The owner approved what the bot's preview showed. Right before sending, the post's current text and
+ * picture must still be exactly that: an edit or a new version in between means "show it again".
+ * `expectedImageUrl`: undefined = not checked; null or "" = the preview had no picture.
+ * Returns a refusal reason, or null when everything still matches.
+ */
+export function changedSincePreview(
+  now: { text: string; imageUrl?: string },
+  expected: { expectedText?: string; expectedImageUrl?: string | null },
+): "text" | "image" | null {
+  if (expected.expectedText !== undefined && expected.expectedText.trim() !== now.text.trim()) return "text";
+  if (expected.expectedImageUrl !== undefined && (expected.expectedImageUrl || undefined) !== (now.imageUrl || undefined)) return "image";
+  return null;
+}
+
 /** Only pictures we made (fal's CDN) are sent; anything else in posts.image is ignored. */
 export function publishableImageUrl(image: { status?: string; url?: string } | undefined | null): string | undefined {
   if (!image || image.status !== "ready" || !image.url) return undefined;

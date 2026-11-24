@@ -3,6 +3,7 @@ export type Lang = "uz" | "ru" | "en";
 
 const uz = {
   making: "Rasm tayyorlanmoqda…",
+  newVersion: "Yangi variant…",
   makingHint: "Kanalingiz uslubida, odatda 15–30 soniya.",
   another: "Boshqa variant",
   ownPhoto: "Mahsulot rasmi",
@@ -41,6 +42,7 @@ type Copy = { [K in keyof typeof uz]: string };
 
 const ru: Copy = {
   making: "Готовим картинку…",
+  newVersion: "Новый вариант…",
   makingHint: "В стиле вашего канала, обычно 15–30 секунд.",
   another: "Другой вариант",
   ownPhoto: "Фото товара",
@@ -77,6 +79,7 @@ const ru: Copy = {
 
 const en: Copy = {
   making: "Making the picture…",
+  newVersion: "New version…",
   makingHint: "In your channel's style, usually 15–30 seconds.",
   another: "Another version",
   ownPhoto: "Product photo",

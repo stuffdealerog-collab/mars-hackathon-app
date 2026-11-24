@@ -5,7 +5,7 @@ import { getEnv } from "@/lib/env";
 import { checkChatRights, checkPublishAccess, type MemberInfo } from "./access";
 import type { Script } from "./contract";
 import { publishImageUrl } from "./media/post-image-service";
-import { planPostMessages, type PlannedMessage } from "./media/telegram-post";
+import { changedSincePreview, planPostMessages, type PlannedMessage } from "./media/telegram-post";
 import { getBrand, getPost, linkBrandChannel, markPublished } from "./store";
 
 const BOT_USERNAME_FALLBACK = "hackathonproj1_bot";
@@ -72,12 +72,17 @@ async function sendPlanned(chat: string, plan: PlannedMessage[]): Promise<number
  * source only: the bot's ctx.from or validated Mini App initData.
  * Checks: caller owns the brand, chat is the brand's channel, caller administers
  * the channel, and the bot can post there.
+ * `expectedText` / `expectedImageUrl` (optional, from the bot's preview): checked right before sending
+ * against the post's current text and picture (`posts.image.url`); a change refuses with 409 so the
+ * owner sees the new version first. expectedImageUrl null or "" = the preview had no picture.
  */
 export async function publishPost(args: {
   postId: string;
   script: Script;
   chat: string;
   userId: number | null;
+  expectedText?: string;
+  expectedImageUrl?: string | null;
 }): Promise<PublishResult> {
   const chat = normalizeChat(args.chat);
   const post = await getPost(args.postId);
@@ -99,7 +104,22 @@ export async function publishPost(args: {
     if (!rights.ok) {
       return { ok: false, status: rights.status, error: rights.error, ...(botMember ? {} : { addAdminUrl }) };
     }
-    const messageId = await sendPlanned(target, planPostMessages(text, await publishImageUrl(post!.id)));
+    // Re-read right before sending: the text and picture that go out are the ones checked here.
+    const latest = (await getPost(post!.id)) ?? post!;
+    const sendText = latest.variants[args.script]?.trim() || text;
+    const imageUrl = await publishImageUrl(post!.id);
+    const changed = changedSincePreview({ text: sendText, imageUrl }, args);
+    if (changed) {
+      return {
+        ok: false,
+        status: 409,
+        error:
+          changed === "text"
+            ? "Post matni o‘zgargan. Yangi variantni ko‘rib, qayta tasdiqlang. / Текст поста изменился — проверьте и подтвердите снова."
+            : "Post rasmi o‘zgargan. Yangi rasmni ko‘rib, qayta tasdiqlang. / Картинка поста изменилась — проверьте и подтвердите снова.",
+      };
+    }
+    const messageId = await sendPlanned(target, planPostMessages(sendText, imageUrl));
     if (access.linkChannel) await linkBrandChannel(brand!.id, target);
     const url = `https://t.me/${target.slice(1)}/${messageId}`;
     await markPublished(post!.id, url, target, userId);

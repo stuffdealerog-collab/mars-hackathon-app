@@ -455,3 +455,20 @@ describe("re-learning a style with no references", async () => {
     expect(needsRelearn(v(3, "2026-11-20T09:00:00Z"), "channel", "shop", t)).toBe(false);
   });
 });
+
+describe("publish refuses what the owner did not see", async () => {
+  const { changedSincePreview } = await import("./telegram-post");
+  const pic = "https://v3b.fal.media/files/a.jpg";
+  it("passes when text and picture are what the preview showed, or when nothing is expected", () => {
+    expect(changedSincePreview({ text: "Salom ", imageUrl: pic }, { expectedText: "Salom", expectedImageUrl: pic })).toBeNull();
+    expect(changedSincePreview({ text: "Salom", imageUrl: pic }, {})).toBeNull();
+    expect(changedSincePreview({ text: "Salom" }, { expectedImageUrl: null })).toBeNull();
+    expect(changedSincePreview({ text: "Salom" }, { expectedImageUrl: "" })).toBeNull();
+  });
+  it("refuses an edited text or a different (or new, or removed) picture", () => {
+    expect(changedSincePreview({ text: "Salom!", imageUrl: pic }, { expectedText: "Salom" })).toBe("text");
+    expect(changedSincePreview({ text: "Salom", imageUrl: "https://v3b.fal.media/files/b.jpg" }, { expectedImageUrl: pic })).toBe("image");
+    expect(changedSincePreview({ text: "Salom", imageUrl: pic }, { expectedImageUrl: null })).toBe("image");
+    expect(changedSincePreview({ text: "Salom" }, { expectedImageUrl: pic })).toBe("image");
+  });
+});

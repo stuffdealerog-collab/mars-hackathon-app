@@ -204,6 +204,21 @@ export function PostImage({
           animate={{ opacity: working && shown ? 0.5 : 0 }}
           transition={{ duration: working ? 0.3 : 0.8, ease: EASE_OUT }}
         />
+        <AnimatePresence>
+          {working && shown ? (
+            <motion.span
+              key="new-version"
+              aria-hidden
+              className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-[color-mix(in_srgb,var(--mi-stage)_70%,transparent)] px-3 py-1 text-[12.5px] text-[var(--mi-ink)] shadow-[inset_0_0_0_1px_var(--mi-hair-2)]"
+              initial={{ opacity: 0, y: reduce ? 0 : 4 }}
+              animate={reduce ? { opacity: 1, y: 0 } : { opacity: [0.6, 1, 0.6], y: 0 }}
+              exit={{ opacity: 0, transition: { duration: 0.4 } }}
+              transition={reduce ? { duration: 0.2 } : { opacity: { duration: 2.4, ease: "easeInOut", repeat: Infinity }, y: { duration: 0.3, ease: EASE_OUT } }}
+            >
+              {t.newVersion}
+            </motion.span>
+          ) : null}
+        </AnimatePresence>
 
         {failed && !shown ? (
           <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-[14px] text-[var(--mi-ink-2)]">{t.failed}</div>
