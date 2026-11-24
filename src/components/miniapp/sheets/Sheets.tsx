@@ -252,7 +252,7 @@ function DetailsSheet({ leaving, postId }: { leaving: boolean; postId: string })
     if (slot.hook) rows.push([m.details.hook, ownerText(slot.hook, lang)]);
     if (slot.cta) rows.push([m.details.cta, ownerText(slot.cta, lang)]);
   }
-  if (post.brief) rows.push([m.details.brief, ownerText(post.brief, lang)]);
+  if (post.brief && post.brief !== slot?.hook) rows.push([m.details.brief, ownerText(post.brief, lang)]);
   const busy = img?.status === "queued" || img?.status === "running";
 
   return (

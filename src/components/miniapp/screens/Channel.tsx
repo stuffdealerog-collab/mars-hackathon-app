@@ -25,7 +25,7 @@ export function ChannelScreen({ onOpenPost }: { onOpenPost: (index: number) => v
   const lamps = useLamps();
   const { ref, compact } = useCompact(56);
   const name = brand?.dna.name || brand?.channel || "Mercat";
-  const sub = [brand?.channel && brand.channel !== name ? brand.channel : null, mode === "channel" && postsRead != null ? fmt(c.work.readChannel.done, { n: postsRead }).split(" · ")[1] : null]
+  const sub = [brand?.channel && brand.channel !== name ? brand.channel : null, mode === "channel" && postsRead != null ? `${postsRead} ${c.lampResult.postsRead}` : null]
     .filter(Boolean)
     .join(" · ");
 

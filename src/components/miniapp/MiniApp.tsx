@@ -13,7 +13,7 @@ import { PostsScreen } from "./screens/Posts";
 import { RunScreen } from "./screens/Run";
 import { FreshScreen, StartScreen } from "./screens/Start";
 import { VideoScreen } from "./screens/Video";
-import { Layer, Skel, Toast } from "./Shell";
+import { EdgeBack, Layer, Skel, Toast } from "./Shell";
 import { SheetHost } from "./sheets/Sheets";
 import { cloud, haptic, tg } from "./tg";
 
@@ -123,6 +123,7 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
       {stack.map((r) => (
         <Layer key={r.key} anim={r.leaving ? "out" : "in"} covered={!r.leaving && r.key !== topKey}>
           <Pushed route={r} active={!r.leaving && r.key === topKey && !sheetOpen} />
+          {!r.leaving && r.key === topKey && <EdgeBack routeKey={r.key} />}
         </Layer>
       ))}
       <SheetHost onRestart={restart} />
