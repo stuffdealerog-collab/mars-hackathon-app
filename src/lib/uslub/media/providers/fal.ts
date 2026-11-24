@@ -11,6 +11,7 @@ import {
   type SubmitRequest,
 } from "../provider";
 import type { MediaKind } from "../types";
+import { wellFormedDeep } from "@/lib/uslub/text";
 
 /**
  * fal.ai queue API (plain REST, no SDK):
@@ -197,7 +198,7 @@ export function falProvider(opts: {
 
     async submit(req: SubmitRequest): Promise<ProviderRef> {
       const model = falModelFor(models, req);
-      const data = await call(`${QUEUE}/${model}`, { method: "POST", body: JSON.stringify(falInput(model, req)) });
+      const data = await call(`${QUEUE}/${model}`, { method: "POST", body: JSON.stringify(wellFormedDeep(falInput(model, req))) });
       if (!isObj(data) || !str(data.request_id)) throw new ProviderError("fal.ai: no request_id in the submit response");
       return {
         requestId: str(data.request_id)!,

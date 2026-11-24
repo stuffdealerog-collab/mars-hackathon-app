@@ -11,6 +11,7 @@ import {
   type SubmitRequest,
 } from "../provider";
 import type { Aspect, MediaKind } from "../types";
+import { wellFormedDeep } from "@/lib/uslub/text";
 
 /**
  * Higgsfield Cloud API (developer API, pay-as-you-go USD balance — NOT the
@@ -190,7 +191,7 @@ export function higgsfieldProvider(opts: {
       const data = await call(`${API}/${model}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": req.idempotencyKey },
-        body: JSON.stringify(higgsfieldInput(model, req, imageUrl)),
+        body: JSON.stringify(wellFormedDeep(higgsfieldInput(model, req, imageUrl))),
       });
       if (!isObj(data) || !str(data.request_id)) throw new ProviderError("Higgsfield: no request_id in the submit response");
       const id = str(data.request_id)!;
