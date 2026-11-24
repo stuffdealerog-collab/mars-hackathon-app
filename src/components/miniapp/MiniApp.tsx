@@ -1,11 +1,12 @@
 import { BarChart3, Clapperboard, Newspaper } from "lucide-react";
+import { LAMP_ORDER, LAMPS } from "../lamp/lamps";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudio, type Tab } from "../studio/store";
 import { isLang, useInitLang, useLang } from "../ui/lang";
 import { parseChannel } from "../ui/parts";
 import { useMiniCopy } from "./copy";
 import "./miniapp.css";
-import { useLatest, useNav, type Route } from "./nav";
+import { PRIORITY, useBottomButtons, useLatest, useNav, type Route } from "./nav";
 import { useBottomBar, useClosingConfirmation, useNativeNav, useTelegramShell, type Theme } from "./native";
 import { ChannelScreen } from "./screens/Channel";
 import { PostScreen } from "./screens/Post";
@@ -116,7 +117,13 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
   } as React.CSSProperties;
 
   return (
-    <div className="ma" data-theme={theme} data-platform={platform === "android" || platform === "android_x" ? "android" : "ios"} style={vars}>
+    <div
+      className="ma"
+      data-theme={theme}
+      data-platform={platform === "android" || platform === "android_x" ? "android" : "ios"}
+      data-fullscreen={insets.content.top > 0 ? "true" : "false"}
+      style={vars}
+    >
       <Layer covered={live.length > 0}>
         <Base phase={phase} active={baseActive} />
       </Layer>
@@ -162,6 +169,12 @@ function Tabs({ active }: { active: boolean }) {
   const count = useStudio((s) => s.posts.filter((p) => p.status === "draft").length);
   const push = useNav((s) => s.push);
   const openPost = useCallback((index: number) => push({ name: "post", index }), [push]);
+  // The one next step on every tab: open the first post that still waits for the owner.
+  const next = useStudio((s) => {
+    const draft = s.posts.findIndex((p) => p.status === "draft");
+    return draft >= 0 ? draft : s.posts.findIndex((p) => p.status === "approved");
+  });
+  useBottomButtons("tabs", PRIORITY.base, active && next >= 0, { text: m.review, onClick: () => (haptic.tap(), openPost(next)) });
 
   const pick = (t: Tab) => {
     if (t === tab) return;
@@ -233,7 +246,15 @@ function Launch({ done, onLeave }: { done: boolean; onLeave: () => void }) {
   useEffect(() => {
     if (!done) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const wait = Math.max(0, (reduce ? 250 : 1250) - (Date.now() - shownAt));
+    // The full moment on the first open; afterwards just long enough to light the lamp.
+    let seen = false;
+    try {
+      seen = localStorage.getItem("mercat.launch") === "1";
+      localStorage.setItem("mercat.launch", "1");
+    } catch {
+      /* private mode: every open is a first open */
+    }
+    const wait = Math.max(0, (reduce ? 250 : seen ? 700 : 1250) - (Date.now() - shownAt));
     const t1 = setTimeout(() => {
       setState("leaving");
       leave.current();
@@ -253,7 +274,11 @@ function Launch({ done, onLeave }: { done: boolean; onLeave: () => void }) {
           <span className="ma-launch__glow" />
           <span className="ma-launch__filament" />
         </div>
-        <div className="ma-launch__spectrum" />
+        <div className="ma-launch__ten" aria-hidden>
+          {LAMP_ORDER.map((r, i) => (
+            <span key={r} style={{ background: LAMPS[r].hue, boxShadow: `0 0 8px ${LAMPS[r].hue}`, animationDelay: `${520 + i * 45}ms` }} />
+          ))}
+        </div>
         <div className="ma-launch__name">Mercat</div>
       </div>
     </div>

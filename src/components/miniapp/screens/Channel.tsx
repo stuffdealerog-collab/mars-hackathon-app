@@ -1,8 +1,9 @@
 import type { ChannelAudit, PlanItem } from "@/lib/uslub/contract";
-import { ChevronRight, Settings2 } from "lucide-react";
+import { Check, ChevronRight, Settings } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useState } from "react";
 import { Led } from "../../lamp/Led";
-import { Panel, Strip, useLamps } from "../../studio/Department";
+import { Strip, useLamps } from "../../studio/Department";
 import { slotKey, useStudio } from "../../studio/store";
 import type { PlanItemExtra } from "../../studio/api";
 import { isMachineEvidence, ownerText, plural, weekday } from "../../ui/format";
@@ -62,11 +63,14 @@ export function ChannelScreen({ onOpenPost }: { onOpenPost: (index: number) => v
                 openSheet({ name: "settings" });
               }}
             >
-              <Settings2 className="h-[22px] w-[22px]" aria-hidden />
+              <Settings className="h-[22px] w-[22px]" strokeWidth={1.8} aria-hidden />
             </button>
           </div>
 
-          <div className="mt-5">{pro ? <Panel lamps={lamps} /> : <Strip lamps={lamps} />}</div>
+          {/* The department in one line; a tap unfolds every lamp (Pro adds depth below, not more light). */}
+          <div className="mt-4">
+            <Strip lamps={lamps} />
+          </div>
 
           {mode === "channel" ? <Numbers /> : <p className="mt-6 px-1 text-[15px] leading-relaxed text-ink-2">{c.channel.freshNoStats}</p>}
           {mode === "fresh" && <Launch />}
@@ -132,7 +136,7 @@ function Numbers() {
       {/* Measured numbers print on the amber LED, like a shop sign; nothing else does. */}
       <dl className="mt-6 grid grid-cols-2 gap-2.5">
         {cells.map(([v, k]) => (
-          <div key={k} className="ma-group flex flex-col-reverse justify-end gap-2.5 px-4 pb-3.5 pt-4">
+          <div key={k} className="ma-group ma-sign flex flex-col-reverse justify-end gap-2.5 px-4 pb-3.5 pt-4">
             <dt className="text-[13px] leading-snug text-ink-2">{k}</dt>
             <dd>
               <Led text={v} dot={3.2} gap={1.2} label={v} grid={false} />
@@ -156,13 +160,53 @@ function Findings({ audit }: { audit: ChannelAudit }) {
   return (
     <ol className="ma-group">
       {list.map((f, i) => (
-        <li key={i} className="ma-row !block !py-3.5">
-          <p className={`text-[13px] font-semibold ${f.kind === "strength" ? "text-ok" : f.kind === "problem" ? "text-bad" : "text-led"}`}>{c.channel.kind[f.kind]}</p>
-          <p className="mt-1 text-[15.5px] leading-snug">{ownerText(f.text, lang)}</p>
-          {f.evidence && !isMachineEvidence(f.evidence) && <p className="mt-1.5 text-[14px] leading-snug text-ink-2">{ownerText(f.evidence, lang)}</p>}
-        </li>
+        <Finding key={i} kind={f.kind} text={ownerText(f.text, lang)} evidence={f.evidence && !isMachineEvidence(f.evidence) ? ownerText(f.evidence, lang) : ""} />
       ))}
     </ol>
+  );
+}
+
+/** One finding: its first sentence and the numbers behind it; the advice opens on a tap. */
+function Finding({ kind, text, evidence }: { kind: "problem" | "opportunity" | "strength"; text: string; evidence: string }) {
+  const c = useCopy();
+  const m = useMiniCopy();
+  const pro = useStudio((s) => s.pro);
+  const [open, setOpen] = useState(false);
+  // No regex lookbehind: Telegram's webview on iOS before 16.4 cannot parse it.
+  const parts = text.match(/^([\s\S]+?[.!?])\s+([\s\S]+)$/);
+  const head = parts ? parts[1] : text;
+  const rest = parts ? parts[2] : "";
+  const dot = kind === "strength" ? "bg-ok" : kind === "problem" ? "bg-bad" : "bg-led";
+  const showAll = pro || open;
+  const body = (
+    <>
+      <span className="flex items-center gap-2 text-[13px] text-ink-2">
+        <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+        {c.channel.kind[kind]}
+      </span>
+      <span className="mt-1 block text-[16px] font-semibold leading-snug">{head}</span>
+      {evidence && <span className="tnum mt-1 block text-[14px] leading-snug text-ink-2">{evidence}</span>}
+      {rest && showAll && <span className="mt-1.5 block text-[14.5px] leading-snug text-ink-2">{rest}</span>}
+      {rest && !showAll && <span className="mt-1 block text-[13.5px] font-medium text-ink-3">{m.more}</span>}
+    </>
+  );
+  return (
+    <li>
+      {rest && !showAll ? (
+        <button
+          type="button"
+          className="ma-row ma-press !block !py-3.5"
+          onClick={() => {
+            haptic.tap();
+            setOpen(true);
+          }}
+        >
+          {body}
+        </button>
+      ) : (
+        <div className="ma-row !block !py-3.5">{body}</div>
+      )}
+    </li>
   );
 }
 
@@ -234,6 +278,7 @@ function Plan({ onOpenPost }: { onOpenPost: (index: number) => void }) {
   const pro = useStudio((s) => s.pro);
   const sample = useStudio((s) => s.sample);
   const brand = useStudio((s) => s.brand);
+  const m = useMiniCopy();
   const title = mode === "fresh" ? c.channel.planFreshTitle : c.channel.planTitle;
 
   if (!plan) {
@@ -292,14 +337,17 @@ function Plan({ onOpenPost }: { onOpenPost: (index: number) => void }) {
           return (
             <li key={i}>
               <button type="button" className="ma-row ma-press !items-start" onClick={() => open(it)} disabled={!has && !canWrite} aria-busy={busy || undefined}>
-                <span className="w-[4.6rem] shrink-0 pt-0.5 text-[13.5px] leading-snug text-ink-2">
-                  <span className="block">{d != null ? c.weekdays[d] : it.day}</span>
-                  <span className="tnum block text-ink-3">{it.time}</span>
+                <span className="w-[3.1rem] shrink-0 pt-0.5 leading-snug">
+                  <span className="block text-[14.5px] font-semibold" title={d != null ? c.weekdays[d] : undefined}>
+                    {d != null ? m.weekdaysShort[d] : it.day}
+                  </span>
+                  <span className="tnum block text-[13px] text-ink-3">{it.time}</span>
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] leading-snug">{ownerText(it.hook, lang)}</span>
                   {pro && <PlanRowDetails item={it as PlanItem & PlanItemExtra} />}
-                  <span className={`mt-1 block text-[13px] ${has ? "text-ok" : "text-ink-3"}`}>
+                  <span className="mt-1 flex items-center gap-1 text-[13px] text-ink-3">
+                    {has && <Check className="h-3.5 w-3.5 text-ink-2" aria-hidden />}
                     {has ? c.channel.planHasPost : busy ? <span className="breathe">{c.channel.writingSlot}</span> : c.channel.goal[it.goal]}
                   </span>
                 </span>

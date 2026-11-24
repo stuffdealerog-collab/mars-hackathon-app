@@ -20,7 +20,7 @@ const THEME_SCRIPT = `(function(){try{var t="dark",q=new URLSearchParams(locatio
 if(q==="light"||q==="dark"){t=q}else{var h=new URLSearchParams(location.hash.slice(1)).get("tgWebAppThemeParams");
 if(h){var b=(JSON.parse(h).bg_color||"").replace("#","");if(b.length===6){var r=parseInt(b.slice(0,2),16),g=parseInt(b.slice(2,4),16),l=parseInt(b.slice(4,6),16);
 t=(0.299*r+0.587*g+0.114*l)>150?"light":"dark"}}}
-window.__maTheme=t;if(t==="light"){var s=document.createElement("style");s.textContent="html,body{background:#fff}";document.head.appendChild(s)}}catch(e){}})();`;
+window.__maTheme=t;if(t==="light"){var s=document.createElement("style");s.textContent="html,body{background:#f2f2f6}";document.head.appendChild(s)}}catch(e){}})();`;
 
 export default function TelegramLayout({ children }: LayoutProps<"/tg">) {
   return (

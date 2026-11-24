@@ -29,12 +29,43 @@ html.ma-html body {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
+/*
+ * Telegram's light theme, the native way: a soft grey page with white grouped cells and no
+ * borders (Telegram's own settings screens). The lamp world keeps its dark signs (.ma-sign).
+ */
 [data-theme="light"] .ma,
 .ma[data-theme="light"] {
+  --stage: #f2f2f6;
+  --glass: #ffffff;
+  --glass-2: #ebebf0;
+  --glass-3: #dfdfe6;
+  --hair: rgb(10 10 15 / 0.07);
   --ma-sheet: #ffffff;
-  --ma-row-press: var(--glass-2);
-  --ma-filament: #ffb547;
-  --ma-filament-glow: #ffb547;
+  --ma-row-press: #ebebf0;
+  --ma-filament: var(--ink);
+  --ma-filament-glow: transparent;
+}
+.ma[data-theme="light"] .ma-group {
+  box-shadow: none;
+}
+
+/*
+ * A shop sign: measured numbers and the channel name glow amber on a dark panel in both
+ * themes, like a running-line sign on a white wall.
+ */
+.ma-sign {
+  --stage: #0b0b0e;
+  --glass: #121216;
+  --hair: rgb(255 255 255 / 0.08);
+  --ink: #f3f1ec;
+  --ink-2: #a8a49c;
+  --ink-3: #85817a;
+  --led: #ffb547;
+  --led-off: rgb(255 181 71 / 0.1);
+  color: var(--ink);
+}
+.ma[data-theme="light"] .ma-group.ma-sign {
+  box-shadow: 0 1px 2px rgb(10 10 15 / 0.12);
 }
 
 /* Chrome is not text to select. */
@@ -223,6 +254,9 @@ html.ma-html body {
   background: var(--stage);
   box-shadow: 0 -1px 0 var(--hair);
 }
+.ma[data-theme="light"] .ma-tabbar {
+  background: #fbfbfd;
+}
 .ma-tabbtn {
   position: relative;
   display: flex;
@@ -382,8 +416,9 @@ html.ma-html body {
   box-shadow: inset 0 0 0 1px var(--hair-2);
   transition: box-shadow var(--t-state) var(--ease-out);
 }
+/* Lime is the owner's one decision (the MainButton); a focused field rings in ink. */
 .ma-field:focus-within {
-  box-shadow: inset 0 0 0 1.5px var(--focus);
+  box-shadow: inset 0 0 0 1.5px var(--ink-2);
 }
 .ma-field[data-invalid] {
   box-shadow: inset 0 0 0 1.5px var(--bad);
@@ -588,17 +623,23 @@ html.ma-html body {
 @keyframes ma-fade-in-to {
   to { opacity: 1; }
 }
-.ma-launch__spectrum {
-  width: 132px;
-  height: 2px;
-  margin: 26px auto 0;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #ffd6a0, #ffb547, #ff8a3d, #ff6152, #ff4580, #e04bc9, #9e62ff, #6273ff, #2f9cff, #25d0c2);
-  transform: scaleX(0);
-  animation: ma-spectrum 640ms var(--ease-out) 520ms both;
+/* Ten small lights, one per employee, come on in pipeline order. */
+.ma-launch__ten {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 26px;
 }
-@keyframes ma-spectrum {
-  to { transform: scaleX(1); }
+.ma-launch__ten > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  opacity: 0;
+  animation: ma-light 420ms var(--ease-out) both;
+}
+@keyframes ma-light {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: none; }
 }
 .ma-launch__name {
   margin-top: 16px;
@@ -611,16 +652,34 @@ html.ma-html body {
 }
 
 /* --------------------------------------------------------------- run */
-/* Ten lamps fit one phone screen during the run. */
+/* The whole department fits one phone screen during the run. */
+.ma-run ul {
+  gap: 8px;
+}
 .ma-run .lamp--sm {
-  min-height: 72px;
+  min-height: 62px;
+  border-radius: 16px;
 }
 .ma-run .lamp__body {
-  padding: 20px 12px 10px;
-  gap: 4px;
+  padding: 18px 12px 9px;
+  gap: 2px;
+}
+.ma-run .lamp__result {
+  min-height: 0;
 }
 
 /* -------------------------------------------------------------- post deck */
+/* A square picture in review, so the text the owner approves is on screen with it. */
+.ma-page .tgpost .aspect-\[4\/5\] {
+  aspect-ratio: 1 / 1;
+}
+/* In fullscreen the "when" sits in Telegram's title row; the page keeps only the status. */
+.ma[data-fullscreen="true"] .ma-inline-when {
+  display: none;
+}
+.ma-page .ma-inline-when:empty {
+  display: none;
+}
 .ma-deck {
   display: flex;
   min-height: 0;
@@ -688,11 +747,39 @@ html.ma-html body {
   background: color-mix(in oklab, var(--ok) 14%, transparent);
   color: var(--ok);
 }
+.ma-stamp--over {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 20;
+  box-shadow: 0 6px 18px -6px rgb(0 0 0 / 0.45);
+}
+.ma-stamp--over[data-state="approved"] {
+  background: var(--ma-sheet);
+}
 .ma-stamp[data-state="published"] {
   background: #25d0c2;
   color: #04201d;
   box-shadow: 0 0 22px -2px rgb(37 208 194 / 0.7);
   animation: lamp-on 720ms linear both;
+}
+
+/* The owner's hand, confirmed: one lime ring that fades outward when a post is approved. */
+.ma-pulse {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 2px var(--lime);
+  pointer-events: none;
+  animation: ma-pulse 900ms var(--ease-out) both;
+}
+[data-theme="light"] .ma-pulse {
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+@keyframes ma-pulse {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: scale(1.015); }
 }
 
 .ma-thumb {
@@ -751,7 +838,7 @@ html.ma-html body {
   .ma-launch__glow,
   .ma-launch__filament,
   .ma-launch__spill,
-  .ma-launch__spectrum,
+  .ma-launch__ten > span,
   .ma-launch__name,
   .ma-stamp[data-state="published"] {
     animation-duration: 1ms !important;

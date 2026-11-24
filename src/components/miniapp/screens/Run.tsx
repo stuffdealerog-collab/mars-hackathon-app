@@ -105,9 +105,11 @@ export function RunScreen({ active }: { active: boolean }) {
         <div className="ma-pad ma-run">
           <div className="flex items-center gap-2.5">
             <div ref={ledRef} className="min-w-0 flex-1">
-              <LedStrip text={led} dot={fit.dot} gap={fit.gap} run={fit.run} label={led} />
+              <div className="ma-sign rounded-[12px]">
+                <LedStrip text={led} dot={fit.dot} gap={fit.gap} run={fit.run} label={led} />
+              </div>
             </div>
-            <span className="rounded-[12px] bg-stage px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
+            <span className="ma-sign rounded-[12px] bg-stage px-3 py-[11px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
               <Elapsed />
             </span>
           </div>
