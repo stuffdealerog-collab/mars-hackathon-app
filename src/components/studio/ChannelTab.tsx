@@ -1,5 +1,6 @@
 import type { ChannelAudit } from "@/lib/uslub/contract";
 import dynamic from "next/dynamic";
+import { useState } from "react";
 import { Led } from "../lamp/Led";
 import { useCopy, useLang, fmt, num } from "../ui/lang";
 import { isMachineEvidence, ownerText, weekday } from "../ui/format";
@@ -185,13 +186,36 @@ function Findings({ audit }: { audit: ChannelAudit }) {
   return (
     <ol className="flex flex-col gap-3">
       {list.map((f, i) => (
-        <li key={i} className="card p-4 sm:p-5">
-          <p className={`text-[14px] font-medium ${f.kind === "strength" ? "text-ok" : f.kind === "problem" ? "text-bad" : "text-ink-2"}`}>{c.channel.kind[f.kind]}</p>
-          <p className="mt-1.5 text-[16px] leading-relaxed">{ownerText(f.text, lang)}</p>
-          {f.evidence && !isMachineEvidence(f.evidence) && <p className="mt-2 text-[14px] leading-relaxed text-ink-2">{ownerText(f.evidence, lang)}</p>}
-        </li>
+        <Finding key={i} kind={f.kind} text={ownerText(f.text, lang)} evidence={f.evidence && !isMachineEvidence(f.evidence) ? ownerText(f.evidence, lang) : ""} />
       ))}
     </ol>
+  );
+}
+
+/** One finding: the first sentence and its numbers; the rest of the explanation on a tap. */
+function Finding({ kind, text, evidence }: { kind: "problem" | "opportunity" | "strength"; text: string; evidence: string }) {
+  const c = useCopy();
+  const pro = useStudio((s) => s.pro);
+  const [open, setOpen] = useState(false);
+  // No regex lookbehind: Telegram's webview on iOS before 16.4 cannot parse it.
+  const m = text.match(/^([\s\S]+?[.!?])\s+([\s\S]+)$/);
+  const head = m ? m[1] : text;
+  const rest = m ? m[2] : "";
+  const showAll = pro || open;
+  return (
+    <li className="card p-4 sm:p-5">
+      <p className={`text-[14px] font-medium ${kind === "strength" ? "text-ok" : kind === "problem" ? "text-bad" : "text-ink-2"}`}>{c.channel.kind[kind]}</p>
+      <p className="mt-1.5 text-[17px] font-medium leading-snug">{head}</p>
+      {evidence && <p className="tnum mt-2 text-[14px] leading-relaxed text-ink-2">{evidence}</p>}
+      {rest &&
+        (showAll ? (
+          <p className="mt-2 text-[15px] leading-relaxed text-ink-2">{rest}</p>
+        ) : (
+          <button type="button" onClick={() => setOpen(true)} className="link mt-1 inline-flex min-h-11 items-center text-[14px] text-ink-2">
+            {c.channel.more}
+          </button>
+        ))}
+    </li>
   );
 }
 
