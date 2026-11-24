@@ -1,13 +1,15 @@
-"use client";
-
 import type { PostDraft, Script } from "@/lib/uslub/contract";
-import { Check } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useState } from "react";
-import { plural, weekday } from "../ui/format";
+import { useEffect, useRef } from "react";
+import { plural } from "../ui/format";
 import { useCopy, useLang, type Lang } from "../ui/lang";
+import type { Lamps } from "./Department";
+import { useDesk } from "./desk";
+import { Inspector } from "./Inspector";
 import { PostCard } from "./PostCard";
+import { Queue, queueOrder } from "./Queue";
 import { slotKey, useStudio } from "./store";
+import { useHotkeys } from "./useHotkeys";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
@@ -26,7 +28,10 @@ function usePostScript() {
   const own = channelLangs.find((s) => available.includes(s));
   const fallback = own ?? (available.includes(SCRIPT_FOR[lang]) ? SCRIPT_FOR[lang] : (available[0] ?? "uz_latn"));
   const script = picked && available.includes(picked) ? picked : fallback;
-  return { available, script, scriptOf: (p: PostDraft): Script => (p.variants[script]?.trim() ? script : "uz_latn") };
+  // Every post has a Cyrillic version, so "more than one available" is always true: the switch is
+  // shown only when the channel itself writes in two languages or more (spec §3.4).
+  const show = available.length > 1 && channelLangs.length > 1;
+  return { available: show ? available : [], script, scriptOf: (p: PostDraft): Script => (p.variants[script]?.trim() ? script : "uz_latn") };
 }
 
 function ScriptSwitch({ available, script }: { available: Script[]; script: Script }) {
@@ -69,15 +74,49 @@ function MissedNote() {
   );
 }
 
-/** Phone and Mini App: the posts one under another, dealt in once. */
-export function PostsTab({ inTelegram }: { inTelegram: boolean }) {
+/** No posts yet (a reopen without them): where they come from, and the way there. */
+function EmptyQueue() {
   const c = useCopy();
+  const setTab = useStudio((s) => s.setTab);
+  return (
+    <div className="card flex max-w-[560px] flex-col items-start gap-4 p-5">
+      <p className="text-[15px] leading-relaxed text-ink-2">{c.queue.empty}</p>
+      <button type="button" className="btn-2" onClick={() => setTab("channel")}>
+        {c.queue.toChannel}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * The posts one under another, dealt in once: phones, the Mini App, and the desktop in Oddiy
+ * (a 640 px column there). On the desktop the card most in view is the post the hub's tools act on.
+ */
+export function PostsTab({ inTelegram, column = false }: { inTelegram: boolean; column?: boolean }) {
   const posts = useStudio((s) => s.posts);
   const { available, script, scriptOf } = usePostScript();
   const reduce = useReducedMotion() ?? false;
-  if (!posts.length) return <p className="text-[15px] text-ink-2">{c.posts.none}</p>;
+  const list = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const root = list.current;
+    if (!column || !root) return;
+    const seen = new Map<string, number>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) seen.set((e.target as HTMLElement).id.replace(/^post-/, ""), e.intersectionRatio);
+        const best = [...seen.entries()].sort((a, b) => b[1] - a[1])[0];
+        if (best && best[1] > 0) useDesk.getState().setFocused(best[0]);
+      },
+      { threshold: [0, 0.25, 0.5, 0.75, 1] },
+    );
+    root.querySelectorAll("[data-post-scope]").forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [column, posts.length]);
+
+  if (!posts.length) return <EmptyQueue />;
   return (
-    <div className="flex flex-col gap-6">
+    <div ref={list} className={`flex flex-col gap-6 ${column ? "max-w-[640px]" : ""}`}>
       <ScriptSwitch available={available} script={script} />
       <MissedNote />
       {/* Cards are dealt in one after another, once; later state changes do not replay it. */}
@@ -96,103 +135,61 @@ export function PostsTab({ inTelegram }: { inTelegram: boolean }) {
 }
 
 /**
- * Desktop: the week's posts as a queue on the left, the chosen one on the right as subscribers
- * will see it in Telegram, with its picture and the owner's buttons.
+ * Postlar · Pro on the desktop: the queue (decisions waiting first), the chosen post as
+ * subscribers will see it with its one lime action, and the Inspector with its insides, each
+ * section signed by the employee who made it. Below 920 px of canvas the Inspector moves under
+ * the preview. Keyboard: J/K, Enter, E, 1-4 (useHotkeys).
  */
-export function PostsSplit() {
+export function PostsSplit({ lamps }: { lamps: Lamps }) {
   const c = useCopy();
   const posts = useStudio((s) => s.posts);
-  const { available, script, scriptOf } = usePostScript();
-  const [chosen, setChosen] = useState<string | null>(null);
+  const { script, scriptOf } = usePostScript();
+  const focused = useDesk((s) => s.focusedPostId);
+  const keysUsed = useDesk((s) => s.keysUsed);
   const reduce = useReducedMotion() ?? false;
-  if (!posts.length) return <p className="text-[15px] text-ink-2">{c.posts.none}</p>;
-  const current = posts.find((p) => p.id === chosen) ?? posts[0];
+  const order = queueOrder(posts);
+  const current = order.find((p) => p.id === focused) ?? order[0];
+  useHotkeys(true);
 
-  const onKey = (e: React.KeyboardEvent) => {
-    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-    e.preventDefault();
-    const i = posts.findIndex((p) => p.id === current.id);
-    const next = posts[(i + (e.key === "ArrowDown" ? 1 : posts.length - 1)) % posts.length];
-    setChosen(next.id);
-    document.getElementById(`queue-${next.id}`)?.focus();
-  };
+  // Entering Postlar puts the keyboard on the queue, without scrolling the page.
+  useEffect(() => {
+    if (!current) return;
+    useDesk.getState().setFocused(current.id);
+    document.getElementById(`q-${current.id}`)?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on entering the section
+  }, []);
+
+  if (!posts.length) return <EmptyQueue />;
+  const drafts = order.filter((p) => p.status === "draft").length;
+  const s = scriptOf(current);
+  const inspector = <Inspector post={current} script={script === s ? script : s} lamps={lamps} />;
 
   return (
-    <div className="grid grid-cols-[minmax(300px,380px)_minmax(0,1fr)] items-start gap-8 xl:gap-12">
-      <div className="flex flex-col gap-4">
-        <ScriptSwitch available={available} script={script} />
-        <MissedNote />
-        <ul className="flex flex-col gap-1.5" aria-label={c.tabs.posts} onKeyDown={onKey}>
-          {posts.map((p, i) => (
-            <motion.li
-              key={p.id}
-              initial={reduce ? false : { opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.36, ease: EASE_OUT, delay: Math.min(i, 6) * 0.05 }}
-            >
-              <QueueRow post={p} script={scriptOf(p)} active={p.id === current.id} onPick={() => setChosen(p.id)} />
-            </motion.li>
-          ))}
-        </ul>
-      </div>
+    <div className="@container">
+      <div className="grid grid-cols-[260px_minmax(0,1fr)] items-start gap-4 @min-[920px]:grid-cols-[280px_minmax(340px,460px)_316px]">
+        <div className="sticky top-3 flex max-h-[calc(100dvh-24px)] flex-col gap-3 overflow-auto">
+          <MissedNote />
+          <Queue script={scriptOf} />
+        </div>
 
-      <div className="sticky top-6 w-full max-w-[480px]">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={current.id}
-            initial={reduce ? false : { opacity: 0, x: 12 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={reduce ? undefined : { opacity: 0, x: -6 }}
-            transition={{ duration: 0.24, ease: EASE_OUT }}
-          >
-            <PostCard post={current} script={scriptOf(current)} inTelegram={false} />
-          </motion.div>
-        </AnimatePresence>
+        <div className="min-w-0">
+          {drafts === 0 && <p className="mb-3 px-1 text-[14px] text-ink-2">{c.queue.allDone}</p>}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={current.id}
+              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0, transition: { duration: reduce ? 0.12 : 0.24, ease: EASE_OUT } }}
+              exit={{ opacity: 0, transition: { duration: reduce ? 0.1 : 0.16, ease: EASE_OUT } }}
+            >
+              <PostCard post={current} script={s} inTelegram={false} inspector advance />
+            </motion.div>
+          </AnimatePresence>
+          {keysUsed && <p className="mt-4 px-1 text-[12.5px] text-ink-3">{c.keys.hint}</p>}
+          <div className="mt-6 @min-[920px]:hidden">{inspector}</div>
+        </div>
+
+        <div className="sticky top-3 hidden max-h-[calc(100dvh-24px)] overflow-auto @min-[920px]:block">{inspector}</div>
       </div>
     </div>
-  );
-}
-
-/** One line of the queue: when, the post's first line, its picture, and where it stands. */
-function QueueRow({ post, script, active, onPick }: { post: PostDraft; script: Script; active: boolean; onPick: () => void }) {
-  const c = useCopy();
-  const lang = useLang((s) => s.lang);
-  const text = post.variants[script] ?? "";
-  const first = text.split("\n").find((l) => l.trim())?.trim() ?? "";
-  const day = post.slot ? weekday(post.slot.day) : null;
-  const dayName = day != null ? (lang === "ru" ? c.weekdays[day].toLowerCase() : c.weekdays[day]) : null;
-  const when = post.slot ? [dayName, post.slot.time].filter(Boolean).join(", ") : "";
-  const blank = post.status === "draft" && (post.placeholders?.find((p) => p.script === script)?.tokens ?? []).some((t) => text.includes(t));
-  const done = post.status !== "draft";
-  const url = post.image?.url;
-  return (
-    <button
-      id={`queue-${post.id}`}
-      type="button"
-      aria-current={active ? "true" : undefined}
-      tabIndex={active ? 0 : -1}
-      onClick={onPick}
-      className={`group flex w-full items-center gap-3.5 rounded-[18px] p-2 pr-3.5 text-left transition-[background-color,box-shadow] duration-150 ${
-        active ? "bg-glass-2 shadow-[inset_0_0_0_1px_var(--hair-2)]" : "hover:bg-glass"
-      }`}
-    >
-      <span className="relative aspect-[4/5] w-12 shrink-0 overflow-hidden rounded-[11px] bg-glass-2 shadow-[inset_0_0_0_1px_var(--hair)]">
-        {url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-        ) : (
-          <span aria-hidden className="absolute inset-0" />
-        )}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[12.5px] text-ink-3">{when}</span>
-        <span className={`mt-0.5 line-clamp-2 text-[14.5px] leading-snug ${active ? "text-ink" : "text-ink-2 group-hover:text-ink"}`}>{first}</span>
-      </span>
-      {done ? (
-        <Check className="h-4 w-4 shrink-0 text-ok" aria-label={post.status === "published" ? c.posts.published : c.posts.approved} />
-      ) : blank ? (
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-led shadow-[0_0_8px_var(--led)]" role="img" aria-label={c.posts.blankShort} />
-      ) : null}
-    </button>
   );
 }

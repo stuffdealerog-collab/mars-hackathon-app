@@ -6,16 +6,20 @@ import { useCallback, useId, useState } from "react";
 import { fmt, keepNumbers, useCopy, useLang } from "../ui/lang";
 import { weekday } from "../ui/format";
 import { PostImage } from "@/components/media";
-import { authHeader, botPublishUrl } from "./api";
-import { showPost, useDesk, type ImageHandle } from "./desk";
+import { authHeader, botPublishUrl, handoffKey } from "./api";
+import { approveWithUndo, useDesk, type ImageHandle } from "./desk";
 import { PictureWaiting } from "./PostPicture";
 import { useStudio } from "./store";
 
 // Professional rejim only, loaded on demand.
 const PostDetails = dynamic(() => import("./pro/ProDetails").then((m) => m.PostDetails), { ssr: false });
 
-/** One post: picture, text in the list's chosen script, edit / approve / publish. */
-export function PostCard({ post, script, inTelegram }: { post: PostDraft; script: Script; inTelegram: boolean }) {
+/**
+ * One post: picture, text in the list's chosen script, edit / approve / publish.
+ * `inspector`: the desktop Pro preview, where the post's insides live in the Inspector beside it.
+ * `advance`: approving moves the queue's focus to the next draft at once.
+ */
+export function PostCard({ post, script, inTelegram, inspector = false, advance = false }: { post: PostDraft; script: Script; inTelegram: boolean; inspector?: boolean; advance?: boolean }) {
   const c = useCopy();
   const lang = useLang((s) => s.lang);
   const id = useId();
@@ -23,8 +27,8 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
   const busy = useStudio((s) => s.busy[post.id]);
   const note = useStudio((s) => s.postNote[post.id]);
   const editPost = useStudio((s) => s.editPost);
-  const approve = useStudio((s) => s.approve);
   const publish = useStudio((s) => s.publish);
+  const channel = useStudio((s) => s.brand?.channel ?? (s.input.channel ? `@${s.input.channel}` : ""));
   const setImage = useStudio((s) => s.setImage);
   const sample = useStudio((s) => s.sample);
   const pro = useStudio((s) => s.pro);
@@ -43,8 +47,11 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
   const n = post.image?.refsUsed ?? 0;
   const owner = visual?.refs.some((r) => r.source === "owner") ?? false;
   const refs = n > 0 ? { palette: visual?.palette.slice(0, 4), text: fmt(fresh ? c.refs.owner : owner ? c.refs.mixed : c.refs.channel, { n }) } : undefined;
-  const [editing, setEditing] = useState(false);
+  const editing = useDesk((s) => s.editingId === post.id);
+  const setEditing = (on: boolean) => useDesk.getState().setEditing(on ? post.id : null);
+  const confirming = useDesk((s) => s.confirmId === post.id);
   const [draft, setDraft] = useState("");
+  const [draftFor, setDraftFor] = useState<string | null>(null);
   const [pulse, setPulse] = useState(false);
   const [wasApproved, setWasApproved] = useState(post.status !== "draft");
   // Pulse once on the change to "approved" (state derived during render, no effect needed).
@@ -70,19 +77,28 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
   // Named for the script on screen; the server's own sentence when it did not say which blanks.
   const blankText = blanks.length ? fmt(c.posts.blank, { facts: blanks.join(", ") }) : post.note;
   const hint = blankLeft ? blankText : note?.tone === "hint" ? note.text : null;
+  // Editing opened from anywhere (the button, or E in the queue) starts from the text on screen.
+  const editKey = `${post.id}:${script}`;
+  if (editing && draftFor !== editKey) {
+    setDraftFor(editKey);
+    setDraft(text);
+  } else if (!editing && draftFor) setDraftFor(null);
+  const save = () => {
+    if (!draft.trim()) return;
+    editPost(post.id, script, draft.trim());
+    setEditing(false);
+  };
+  // From the desktop, with the bot's link key, the Studio publishes itself: two presses, never one.
+  const direct = inTelegram || (typeof window !== "undefined" && !!handoffKey());
+  const onPublish = () => {
+    if (inTelegram || confirming) {
+      useDesk.getState().askPublish(null);
+      void publish(post.id, script);
+    } else useDesk.getState().askPublish(post.id);
+  };
 
   // Approving on the web waits 4 s with "Bekor qilish"; a failure never hides on a post out of view.
-  const onApprove = async () => {
-    const { toast, dismiss } = useDesk.getState();
-    const delay = useStudio.getState().approveDelayMs;
-    const undo = useStudio.getState().undoApprove;
-    const t = delay > 0 && !sample ? toast({ text: c.approve.toast, action: { label: c.approve.undo, run: () => undo(post.id) }, ms: delay }) : null;
-    const r = await approve(post.id);
-    if (t) dismiss(t);
-    if (!r.ok && !r.undone && r.message) {
-      toast({ text: fmt(c.approve.failed, { why: r.message }), tone: "bad", ms: 7000, action: { label: c.approve.show, run: () => showPost(post.id) } });
-    }
-  };
+  const onApprove = () => void approveWithUndo(post.id, advance);
 
   return (
     <article id={`post-${post.id}`} tabIndex={-1} data-post-scope aria-labelledby={`${id}-h`} className="@container outline-none">
@@ -148,7 +164,23 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
               <label htmlFor={`${id}-t`} className="sr-only">
                 {c.posts.textLabel}
               </label>
-              <textarea id={`${id}-t`} className="input min-h-[220px]" value={draft} onChange={(e) => setDraft(e.target.value)} />
+              <textarea
+                id={`${id}-t`}
+                className="input min-h-[220px]"
+                value={draft}
+                autoFocus
+                aria-keyshortcuts="Control+Enter Escape"
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    save();
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    setEditing(false);
+                  }
+                }}
+              />
             </>
           ) : (
             <p lang={script === "ru" ? "ru" : script === "en" ? "en" : "uz"} className="post-text">
@@ -172,15 +204,7 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
             <button type="button" className="btn-2 flex-1 @md:flex-none" onClick={() => setEditing(false)}>
               {c.posts.cancel}
             </button>
-            <button
-              type="button"
-              className="btn flex-1 @md:flex-none"
-              disabled={!draft.trim()}
-              onClick={() => {
-                editPost(post.id, script, draft.trim());
-                setEditing(false);
-              }}
-            >
+            <button type="button" className="btn flex-1 @md:flex-none" disabled={!draft.trim()} aria-keyshortcuts="Control+Enter" onClick={save}>
               {c.posts.save}
             </button>
           </div>
@@ -196,31 +220,32 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
             <p className="text-[14px] leading-relaxed text-ink-2">{c.posts.samplePublish}</p>
           ) : (
             <>
-              {inTelegram ? (
-                <button type="button" className="btn w-full @md:w-auto @md:self-start" disabled={busy === "publish"} onClick={() => void publish(post.id, script)}>
-                  {busy === "publish" ? c.posts.publishing : c.posts.publish}
-                </button>
+              {direct ? (
+                <div className="flex flex-wrap gap-2.5">
+                  <button type="button" className="btn flex-1 @md:flex-none" disabled={busy === "publish"} aria-keyshortcuts="Enter" onClick={onPublish}>
+                    {busy === "publish" ? c.posts.publishing : confirming ? fmt(c.publish.confirm, { channel }) : inTelegram ? c.posts.publish : c.publish.toTelegram}
+                  </button>
+                  {confirming && (
+                    <button type="button" className="btn-2" onClick={() => useDesk.getState().askPublish(null)}>
+                      {c.publish.cancel}
+                    </button>
+                  )}
+                </div>
               ) : (
+                // No link key: the bot publishes; the status catches up when the owner comes back.
                 <a href={botPublishUrl(bot, post.id, script)} target="_blank" rel="noreferrer" className="btn w-full @md:w-auto @md:self-start">
-                  {c.posts.publish}
+                  {c.publish.toTelegram}
                 </a>
               )}
-              {!inTelegram && <p className="text-[14px] leading-relaxed text-ink-2">{c.posts.webNote}</p>}
+              {!direct && <p className="text-[14px] leading-relaxed text-ink-2">{c.posts.webNote}</p>}
             </>
           )
         ) : (
           <div className="flex gap-2.5">
-            <button
-              type="button"
-              className="btn-2 flex-1 @md:flex-none"
-              onClick={() => {
-                setDraft(text);
-                setEditing(true);
-              }}
-            >
+            <button type="button" className="btn-2 flex-1 @md:flex-none" aria-keyshortcuts="E" onClick={() => setEditing(true)}>
               {c.posts.edit}
             </button>
-            <button type="button" className="btn flex-1 @md:flex-none" disabled={busy === "approve"} onClick={() => void onApprove()}>
+            <button type="button" className="btn flex-1 @md:flex-none" disabled={busy === "approve"} aria-keyshortcuts="Enter" title={`${c.posts.approve} · Enter`} onClick={onApprove}>
               {busy === "approve" ? c.posts.approving : c.posts.approve}
             </button>
           </div>
@@ -240,7 +265,7 @@ export function PostCard({ post, script, inTelegram }: { post: PostDraft; script
         )}
       </footer>
       {/* Pro depth comes after the owner's decision, never between the post and its buttons. */}
-      {pro && <PostDetails post={post} />}
+      {pro && !inspector && <PostDetails post={post} />}
     </article>
   );
 }

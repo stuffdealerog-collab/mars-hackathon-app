@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Led } from "../lamp/Led";
 import { fmt, useCopy, useInitLang } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel } from "../ui/parts";
+import { ChannelSign } from "./ChannelSign";
 import { ChannelTab } from "./ChannelTab";
 import { Panel, SOON_ROLES, Strip, useLamps } from "./Department";
 import { Hub, HUB_W, RAIL_W, StageLight, useDesktop, useHub, useHubRestore } from "./Hub";
@@ -124,6 +125,8 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
         className="relative z-10 w-full px-10 pb-24 pt-6 transition-[padding] duration-300"
         style={side === "left" ? { paddingLeft: gutter + 8 } : { paddingRight: gutter + 8 }}
       >
+        {/* The channel's numbers on an LED sign that runs under the glass to the window's edge. */}
+        {phase === "ready" && !sample && <ChannelSign bleed={gutter + 8} side={side} />}
         <div className={phase === "ready" ? "mx-auto max-w-[1280px]" : "mx-auto max-w-[720px]"}>
           {sample && <SampleBanner flush />}
           {phase === "start" && <Start key={`${entry.view}:${entry.channel}`} initialView={entry.view} initialChannel={entry.channel} />}
@@ -398,7 +401,7 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
           transition={{ duration: 0.22, ease: EASE_OUT }}
         >
           {tab === "channel" && <ChannelTab wide={desktop} />}
-          {tab === "posts" && (desktop ? <PostsSplit /> : <PostsTab inTelegram={inTelegram} />)}
+          {tab === "posts" && (desktop && pro ? <PostsSplit lamps={lamps} /> : <PostsTab inTelegram={inTelegram} column={desktop} />)}
           {tab === "dept" && <DeptTab />}
           {tab === "video" && <VideoTab />}
         </motion.div>
