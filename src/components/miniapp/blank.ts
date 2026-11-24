@@ -1,5 +1,5 @@
 import type { PostDraft, Script } from "@/lib/uslub/contract";
-import { useStudio } from "../studio/store";
+import type { PostNote } from "../studio/store";
 
 /**
  * A post whose text still has a blank the writer could not fill (an unknown price, a code): the
@@ -10,13 +10,18 @@ export const hasBlank = (p: PostDraft) => !!p.needsApproval && !!p.placeholders?
 
 export const blankNote = (p: PostDraft) => (hasBlank(p) ? p.note : undefined);
 
-/** The blanks in one script's text ("[kod]", "[narx]"), in the order the engine reported them. */
-export const blankTokens = (p: PostDraft, script: Script) => p.placeholders?.find((x) => x.script === script)?.tokens ?? [];
-
 /**
- * Whether the post waits for the owner to fill a blank: the engine said so and the owner has not
- * edited the text since, or approve/publish just came back with "placeholder_left".
+ * The blanks in one script's text ("[kod]", "[narx]"): what the post carries, plus what the last
+ * approve/publish refusal named (`postNote.missing`, placeholder_left), without repeats.
  */
-export function useBlank(p: PostDraft | undefined): boolean {
-  return useStudio((s) => !!p && ((hasBlank(p) && !s.edited[p.id]) || s.postNote[p.id]?.tone === "hint"));
+export function blankTokens(p: PostDraft, script: Script, note?: PostNote): string[] {
+  const own = p.placeholders?.find((x) => x.script === script)?.tokens ?? [];
+  const named = note?.missing?.find((x) => x.script === script)?.tokens ?? [];
+  return [...new Set([...own, ...named])];
+}
+
+/** The script to edit for a blank: the one the server named first whose text still has it. */
+export function blankScript(p: PostDraft, note?: PostNote): Script | null {
+  const still = (x: { script: Script; tokens: string[] }) => x.tokens.some((tok) => (p.variants[x.script] ?? "").includes(tok));
+  return note?.missing?.find(still)?.script ?? p.placeholders?.find(still)?.script ?? null;
 }
