@@ -47,24 +47,26 @@ Text, logos, UI and the Telegram posts are added by me in the edit — the model
 - Keep the room identical across shots: same bed, grey bedding, wooden nightstand on the right, window on the left.
 
 === STEP 1 — import references (media_import_url; type image or video) ===
-Import each URL and keep a table name -> media_id. If an import fails, tell me; I can upload the file with
-media_upload_widget instead.
-Base: https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/{SHA}/
-  ORBS_LOOK   = {BASE}public/media/3d/constellation-16x9.png
-  ORB_CORE    = {BASE}public/media/3d/orbs/orb-core.png
-  CLAY_A1     = {BASE}docs/video/ad/previs/A1.mp4          (video)
-  CLAY_A2     = {BASE}docs/video/ad/previs/A2.mp4          (video)
-  CLAY_A4     = {BASE}docs/video/ad/previs/A4.mp4          (video)
-  CLAY_A5     = {BASE}docs/video/ad/previs/A5.mp4          (video)
-  CLAY_A7     = {BASE}docs/video/ad/previs/A7.mp4          (video)
-  CLAY_A8     = {BASE}docs/video/ad/previs/A8.mp4          (video)
-  L_A1s = {BASE}docs/video/ad/previs/A1_start.jpg   L_A1e = {BASE}docs/video/ad/previs/A1_end.jpg
-  L_A2s = {BASE}docs/video/ad/previs/A2_start.jpg
-  L_A4s = {BASE}docs/video/ad/previs/A4_start.jpg   L_A4m = {BASE}docs/video/ad/previs/A4_mid.jpg
-  L_A4e = {BASE}docs/video/ad/previs/A4_end.jpg
-  L_A5s = {BASE}docs/video/ad/previs/A5_start.jpg   L_A5e = {BASE}docs/video/ad/previs/A5_end.jpg
-  L_A7m = {BASE}docs/video/ad/previs/A7_mid.jpg
-  L_A8e = {BASE}docs/video/ad/previs/A8_end.jpg
+Import each URL and keep a table name -> media_id. If an import fails (e.g. a video served as
+application/octet-stream), retry the same file from the CDN mirror, which serves proper MIME types:
+https://cdn.jsdelivr.net/gh/stuffdealerog-collab/mars-hackathon-app@2247420451f7f52c9efabb3c55398efbc26bca6b/<same path>
+If that fails too, tell me; I can upload the file with media_upload_widget instead.
+Base: https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/
+  ORBS_LOOK   = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/public/media/3d/constellation-16x9.png
+  ORB_CORE    = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/public/media/3d/orbs/orb-core.png
+  CLAY_A1     = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A1.mp4          (video)
+  CLAY_A2     = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A2.mp4          (video)
+  CLAY_A4     = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A4.mp4          (video)
+  CLAY_A5     = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A5.mp4          (video)
+  CLAY_A7     = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A7.mp4          (video)
+  CLAY_A8     = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A8.mp4          (video)
+  L_A1s = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A1_start.jpg   L_A1e = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A1_end.jpg
+  L_A2s = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A2_start.jpg
+  L_A4s = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A4_start.jpg   L_A4m = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A4_mid.jpg
+  L_A4e = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A4_end.jpg
+  L_A5s = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A5_start.jpg   L_A5e = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A5_end.jpg
+  L_A7m = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A7_mid.jpg
+  L_A8e = https://raw.githubusercontent.com/stuffdealerog-collab/mars-hackathon-app/2247420451f7f52c9efabb3c55398efbc26bca6b/docs/video/ad/previs/A8_end.jpg
 The CLAY_* videos and L_* stills are grey-box Blender previs: they define layout, camera and timing ONLY.
 Their grey look must never appear in the output.
 
