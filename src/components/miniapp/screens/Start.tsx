@@ -5,6 +5,7 @@ import { useStudio } from "../../studio/store";
 import { keepNumbers, useCopy } from "../../ui/lang";
 import { parseChannel } from "../../ui/parts";
 import { useMiniCopy } from "../copy";
+import { isLimit } from "../limits";
 import { PRIORITY, useBottomButtons, useNav } from "../nav";
 import { TopBar, useCompact } from "../Shell";
 import { Sign } from "../Sign";
@@ -97,6 +98,10 @@ export function StartScreen({ active }: { active: boolean }) {
             // With Telegram's own sign-in a 403 means this channel belongs to another account: said calmly.
             <p role="note" className="ma-hint mt-4">
               {m.forbidden}
+            </p>
+          ) : problem && isLimit(problem.code) ? (
+            <p role="note" className="ma-hint mt-4">
+              {m.limit.note}
             </p>
           ) : problem ? (
             <div role="alert" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-bad-soft px-4 py-3 text-[15px] leading-snug text-bad">

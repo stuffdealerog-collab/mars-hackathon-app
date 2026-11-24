@@ -11,6 +11,7 @@ import { TopBar } from "../Shell";
 import { Sign } from "../Sign";
 import { restart } from "../actions";
 import { haptic } from "../tg";
+import { isLimit } from "../limits";
 
 type Copy = ReturnType<typeof useCopy>;
 
@@ -60,6 +61,7 @@ export function RunScreen({ active }: { active: boolean }) {
   const ledRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLUListElement>(null);
   const fixLink = !!problem && ["channel_invalid", "not_found", "invalid_input", "channel_mismatch"].includes(problem.code);
+  const limit = isLimit(problem?.code);
 
   // Spektr on capable phones; on a weak Android a short lamp check instead (each lamp flashes once).
   const [weak] = useState(() => typeof window !== "undefined" && (window as { __maPerf?: string }).__maPerf === "low");
@@ -87,7 +89,7 @@ export function RunScreen({ active }: { active: boolean }) {
   // An error is an outcome the owner should feel once.
   const hadProblem = useRef(false);
   useEffect(() => {
-    if (problem && !hadProblem.current) haptic.error();
+    if (problem && !hadProblem.current) (isLimit(problem.code) ? haptic.warn : haptic.error)();
     hadProblem.current = !!problem;
   }, [problem]);
 
@@ -114,10 +116,10 @@ export function RunScreen({ active }: { active: boolean }) {
           {/* The sign has the whole row, so a channel name fits without running. */}
           <Sign ref={ledRef} text={led} label={led} className="ma-sign rounded-[12px]" />
 
-          <h1 className="ma-h1 mt-6">{problem ? c.error.title : c.dept.working}</h1>
+          <h1 className="ma-h1 mt-6">{limit ? m.limit.title : problem ? c.error.title : c.dept.working}</h1>
           <div className="mt-2 flex min-h-6 items-start justify-between gap-3">
             <p className="min-w-0 text-[16px] leading-snug" aria-live="polite">
-              {problem ? problem.message : nowLabel}
+              {limit ? m.limit.text : problem ? problem.message : nowLabel}
             </p>
             <span className="ma-sign shrink-0 rounded-[10px] bg-stage px-2.5 py-[7px]" style={{ boxShadow: "inset 0 0 0 1px var(--hair)" }}>
               <Elapsed />
