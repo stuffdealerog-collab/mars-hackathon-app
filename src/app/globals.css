@@ -485,6 +485,10 @@ body {
 .lw[data-theme="light"] .lamp:is([data-state="on"], [data-state="you"]) .lamp__title {
   color: var(--ink);
 }
+.lw[data-theme="light"] .lamp__result {
+  color: color-mix(in oklab, var(--deep) 70%, #000);
+  text-shadow: none;
+}
 .lw[data-theme="light"] .lamp__spill {
   filter: blur(22px);
 }
@@ -615,40 +619,58 @@ body {
     0 1px 2px rgb(10 10 15 / 0.08),
     0 8px 24px -12px rgb(10 10 15 / 0.18);
 }
-.deck-card {
-  transform-origin: 50% 0%;
-  transition:
-    transform var(--t-panel) var(--ease-out),
-    opacity var(--t-panel) var(--ease-out),
-    filter var(--t-panel) var(--ease-out);
+.deck__why {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 26px;
+  padding: 0 4px;
+  font-size: 12.5px;
+  color: var(--ink-2);
 }
-.deck-card[data-depth="0"] {
+.deck__front {
+  position: relative;
   z-index: 3;
+  transition:
+    transform 320ms var(--ease-in),
+    opacity 320ms var(--ease-in);
 }
-.deck-card[data-depth="1"] {
-  z-index: 2;
-  transform: translateY(-14px) scale(0.95);
-  opacity: 0.55;
-  filter: blur(0.4px);
-}
-.deck-card[data-depth="2"] {
-  z-index: 1;
-  transform: translateY(-26px) scale(0.9);
-  opacity: 0.28;
-  filter: blur(0.8px);
-}
-.deck-card[data-depth="1"] > p,
-.deck-card[data-depth="2"] > p {
-  visibility: hidden;
-}
-.deck-card[data-leaving] {
-  transform: translate(18px, -70px) rotate(4deg);
+.deck[data-leaving] .deck__front {
+  transform: translate(14px, -40px) rotate(3deg);
   opacity: 0;
-  transition-duration: 320ms;
+}
+.deck__edge {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px 20px 20px 6px;
+  background: var(--glass-2);
+  box-shadow: inset 0 0 0 1px var(--hair-2);
+  transform-origin: 50% 0;
+}
+.deck__edge[data-depth="1"] {
+  z-index: 2;
+  transform: translateY(-11px) scale(0.95);
+  opacity: 0.7;
+}
+.deck__edge[data-depth="2"] {
+  z-index: 1;
+  transform: translateY(-21px) scale(0.9);
+  opacity: 0.4;
+}
+.lw[data-theme="light"] .deck__edge {
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgb(10 10 15 / 0.08),
+    inset 0 0 0 1px var(--hair);
+}
+.neuro {
+  text-decoration: underline wavy var(--bad);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .deck-card,
-  .deck-card[data-leaving] {
+  .deck__front,
+  .deck[data-leaving] .deck__front {
     transform: none;
     transition: opacity 150ms linear;
   }

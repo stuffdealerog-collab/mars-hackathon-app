@@ -23,6 +23,7 @@ export function LampTile({
   showJob = false,
   stateLabel = true,
   bare = false,
+  note,
   as: Tag = "div",
   ...rest
 }: {
@@ -35,6 +36,8 @@ export function LampTile({
   stateLabel?: boolean;
   /** light only: no name, no result (tiny status strips) */
   bare?: boolean;
+  /** replaces the state word, e.g. "bu ishda yo‘q" for an employee this task does not use */
+  note?: string;
   as?: "div" | "li" | "button";
 } & Omit<React.HTMLAttributes<HTMLElement>, "children">) {
   const l = LAMPS[role];
@@ -52,7 +55,7 @@ export function LampTile({
           {stateLabel && (
             <span className="lamp__state">
               {state === "you" && <span className="lamp__you" aria-hidden />}
-              {STATE_TEXT[state]}
+              {note ?? STATE_TEXT[state]}
             </span>
           )}
         </span>

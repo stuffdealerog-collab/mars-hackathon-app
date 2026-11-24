@@ -48,6 +48,12 @@ Raises kept from the declined hand: an empty centre until work starts; weight sh
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
+## Decisions since the contract (24 Nov)
+- Founder approved the /concept board and picked signature animation B "Spektr". It runs on real data in /studio: the field squeezes into a point, splits into ten beams, every lamp flashes once (a power-on lamp test), then only working employees glow.
+- Product renamed to Mercat (user-facing). Internal paths keep `uslub`.
+- Seed corroborated: `concept-seed --check-seed seed:f5c82914f0d67804` exits 0 in the worktree that rolled it.
+
 ## Unresolved
-- Which signature animation (A lamps in sequence / B prism split / C LED board) — founder picks on /concept.
-- Board approval before rebuilding `/`, `/studio`, `/tg`.
+- Older Studio views (Tahlil, Strategiya, Brend xotirasi, Mijoz radar, Videograf, Avtopilot, Jamoa) and the post review drawer still use the previous dark components; hidden inside /tg until restyled.
+- UZ/RU/EN switch removed until the whole landing is translated.
+- A shareable end card for the lit spectrum (save or share to a Telegram story) is the next share-worthy step.

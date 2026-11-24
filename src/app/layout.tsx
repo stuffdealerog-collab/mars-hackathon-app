@@ -3,7 +3,7 @@ import { onest } from "@/components/lamp/font";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.PUBLIC_URL ?? "https://mars-hackathon-app.vercel.app"),
+  metadataBase: new URL(process.env.PUBLIC_URL ?? "https://mercat-ai.vercel.app"),
   title: { default: "Mercat — marketing bo‘limi bir havoladan", template: "%s · Mercat" },
   description:
     "Telegram kanalingiz havolasini bering: 10 ta AI xodim kanalni o‘qiydi va bir daqiqada brend ovozi, bir haftalik postlar, Reels ssenariysi va mijozlaringiz turgan joylarni tayyorlaydi. Siz faqat tasdiqlaysiz.",

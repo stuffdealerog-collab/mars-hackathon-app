@@ -242,7 +242,7 @@ export const useStudio = create<StudioState>((set, get) => ({
     if (channel && brand.source === "mock") {
       const err = (brand as { error?: string }).error;
       const why = err && !/^HTTP|mock mode|abort/i.test(err) ? `${err} ` : "";
-      set({ notice: `${why}Hozircha namuna ma'lumot bilan ko'rsatyapmiz.` });
+      set({ notice: `${why}Hozircha namuna ma’lumot bilan ko‘rsatyapmiz.` });
     }
     const postsP = kinds.has("copywriter") ? api.generatePosts(brandId, task, 2) : Promise.resolve(null);
     const radarP = kinds.has("radar") ? api.findLeads(brandId, task) : Promise.resolve(null);

@@ -421,6 +421,9 @@ export function Studio({ inTelegram = false, theme = "dark" }: { inTelegram?: bo
             )}
           </div>
         </div>
+        {inTelegram ? (
+          <div className="h-3" />
+        ) : (
         <nav aria-label="Studiya" className="mx-auto flex w-full max-w-[1180px] gap-1 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] sm:px-7">
           {NAV.map((n) => {
             const Icon = n.icon;
@@ -444,9 +447,10 @@ export function Studio({ inTelegram = false, theme = "dark" }: { inTelegram?: bo
             );
           })}
         </nav>
+        )}
       </header>
       <main className="mx-auto w-full min-w-0 max-w-[1180px] flex-1 px-4 py-6 sm:px-8 lg:py-10">
-        {view === "delegate" ? (
+        {view === "delegate" || inTelegram ? (
           <Home inTelegram={inTelegram} />
         ) : (
           <div className="uslub-legacy">

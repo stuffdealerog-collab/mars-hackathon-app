@@ -44,8 +44,6 @@ const COPY: Record<Lang, { h: string; sub: string; cta: string; busy: string; ph
   },
 };
 
-const LANGS: Lang[] = ["uz", "ru", "en"];
-
 /** Accepts t.me/x, https://t.me/x, @x or a bare username. */
 export function parseChannel(v: string): string | null {
   const m = v.trim().match(/^(?:https?:\/\/)?(?:t(?:elegram)?\.me\/(?:s\/)?|@)?([A-Za-z][A-Za-z0-9_]{3,31})\/?$/);
@@ -55,7 +53,8 @@ export function parseChannel(v: string): string | null {
 export function Hero() {
   const router = useRouter();
   const id = useId();
-  const [lang, setLang] = useState<Lang>("uz");
+  // Uzbek only for now: a switch that translated just the hero left Russian visitors on a half-Uzbek page.
+  const lang: Lang = "uz";
   const [value, setValue] = useState("");
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -76,16 +75,9 @@ export function Hero() {
   return (
     <div className="flex flex-col">
       {/* The shop sign stays dark until there is a real channel to read: then it spells it. */}
-      <LedStrip text={typed ? `@${typed.toUpperCase()}` : undefined} dot={3} gap={1.5} className="mb-6 max-w-[460px]" label={typed ? `@${typed}` : undefined} />
-      <div role="radiogroup" aria-label="Til / Язык / Language" className="seg w-fit">
-        {LANGS.map((l) => (
-          <button key={l} type="button" role="radio" aria-checked={lang === l} onClick={() => setLang(l)} className="seg__item !min-h-11 !px-3.5 !text-[13px] uppercase">
-            {l}
-          </button>
-        ))}
-      </div>
+      <LedStrip text={typed ? `@${typed.toUpperCase()}` : undefined} dot={3} gap={1.5} className="mb-7 max-w-[460px]" label={typed ? `@${typed}` : undefined} />
 
-      <h1 lang={lang} className="mt-6 max-w-[14ch] text-balance text-[40px] font-semibold leading-[1] tracking-[-0.035em] sm:text-[64px]">
+      <h1 lang={lang} className="max-w-[14ch] text-balance text-[40px] font-semibold leading-[1] tracking-[-0.035em] sm:text-[64px]">
         {c.h}
       </h1>
       <p lang={lang} className="mt-4 max-w-[46ch] text-[16px] leading-[1.5] text-[var(--ink-2)] sm:text-[17px]">

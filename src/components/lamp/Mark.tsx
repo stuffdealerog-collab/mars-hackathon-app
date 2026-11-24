@@ -4,7 +4,7 @@ import Link from "next/link";
 export function Mark({ href = "/", label = "Mercat" }: { href?: string | null; label?: string }) {
   const inner = (
     <>
-      <span aria-hidden className="relative h-[22px] w-[22px] rounded-[7px] bg-[var(--glass-2)]" style={{ boxShadow: "inset 0 0 0 1px var(--hair-2)" }}>
+      <span aria-hidden className="relative h-[22px] w-[22px] rounded-[7px] bg-[#17171b]" style={{ boxShadow: "inset 0 0 0 1px rgb(255 255 255 / .13)" }}>
         <span className="absolute left-1/2 top-[5px] h-[2px] w-[10px] -translate-x-1/2 rounded-full bg-[#FFD6A0] shadow-[0_0_7px_1px_#FFD6A0]" />
       </span>
       <span className="text-[16px] font-semibold tracking-[-0.015em] text-[var(--ink)]">{label}</span>

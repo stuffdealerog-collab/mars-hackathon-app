@@ -8,6 +8,7 @@ import { DnaCard, dnaRows } from "@/components/lamp/Dna";
 import { LampTile } from "@/components/lamp/LampTile";
 import { LAMP_ORDER, LAMPS, type LampState } from "@/components/lamp/lamps";
 import { Led, LedStrip } from "@/components/lamp/Led";
+import { DeckStack } from "@/components/lamp/DeckStack";
 import { TgPost } from "@/components/lamp/TgPost";
 import { StepList } from "./FlowCanvas";
 import { TEMPLATES } from "./mocks";
@@ -125,7 +126,7 @@ function TaskBox({ fieldRef, compact }: { fieldRef: React.RefObject<HTMLFormElem
         <label htmlFor="task" className="sr-only">
           Kanal havolasi yoki topshiriq
         </label>
-        <input id="task" value={v} onChange={(e) => setV(e.target.value)} placeholder="t.me/kanalingiz yoki topshiriq" autoComplete="off" autoCapitalize="none" />
+        <input id="task" value={v} onChange={(e) => setV(e.target.value)} placeholder="Kanal havolasi yoki topshiriq" autoComplete="off" autoCapitalize="none" />
         <button type="submit" disabled={!v.trim() || running} className="btn-lime !min-h-[50px] shrink-0 !px-5" aria-label="Topshiriqni berish">
           {compact ? <ArrowUp className="h-5 w-5" aria-hidden /> : "Yoqish"}
         </button>
@@ -168,7 +169,22 @@ export function ApprovalDeck({ inTelegram }: { inTelegram: boolean }) {
   const waiting = inbox.filter((i) => i.state === "waiting");
   const ready = inbox.filter((i) => i.state === "approved");
   const sample = (i: InboxItem) => sources[i.type === "video" ? "video" : "posts"] !== "live";
-  const textOf = (i: InboxItem) => (i.type === "video" ? video?.hook ?? i.title : posts.find((p) => p.id === i.postId)?.variants.uz_latn ?? i.title);
+  const postOf = (i: InboxItem) => (i.type === "post" ? posts.find((p) => p.id === i.postId) : undefined);
+  const hitsOf = (i: InboxItem) => postOf(i)?.neuroHits.uz_latn ?? [];
+  /** The draft as the owner will see it, with any cliché the editor still flags underlined. */
+  const bodyOf = (i: InboxItem): React.ReactNode => {
+    if (i.type === "video") return video?.hook ?? i.title;
+    const text = postOf(i)?.variants.uz_latn ?? i.title;
+    const hit = hitsOf(i).find((h) => h.index >= 0 && text.slice(h.index, h.index + h.phrase.length) === h.phrase);
+    if (!hit) return text;
+    return (
+      <>
+        {text.slice(0, hit.index)}
+        <span className="neuro" title="Muharrir: neyro-so‘z">{hit.phrase}</span>
+        {text.slice(hit.index + hit.phrase.length)}
+      </>
+    );
+  };
   const approve = (i: InboxItem) => {
     if (leaving) return;
     setLeaving(i.id);
@@ -193,16 +209,20 @@ export function ApprovalDeck({ inTelegram }: { inTelegram: boolean }) {
     <div className="flex flex-col gap-3">
       {waiting.length > 0 ? (
         <>
-          <div className="relative" style={{ height: 300 }} aria-live="polite">
-            {waiting.slice(0, 3).map((it, i) => (
-              <div key={it.id} className="deck-card absolute inset-x-0 bottom-0" data-depth={i} data-leaving={leaving === it.id || undefined} aria-hidden={i > 0 || undefined}>
-                <p className="mb-2 flex items-center gap-2 px-1 text-[12.5px] text-[var(--ink-2)]">
-                  <span className="lamp__you" aria-hidden />
-                  {it.type === "video" ? "Video, siz tasdiqlaysiz" : RULE_WHY[it.reasons[0] ?? "routine"]}
-                </p>
-                <TgPost name={brand.dna.name || brand.channel || "Kanal"} text={<span className="line-clamp-6">{textOf(it)}</span>} time="20:00" sample={sample(it)} />
-              </div>
-            ))}
+          <div aria-live="polite">
+            <DeckStack
+              key={waiting[0].id}
+              why={waiting[0].type === "video" ? "Video, siz tasdiqlaysiz" : RULE_WHY[waiting[0].reasons[0] ?? "routine"]}
+              depth={Math.min(2, waiting.length - 1)}
+              leaving={leaving === waiting[0].id}
+            >
+              <TgPost name={brand.dna.name || brand.channel || "Kanal"} text={<span className="line-clamp-6">{bodyOf(waiting[0])}</span>} time="20:00" sample={sample(waiting[0])} />
+            </DeckStack>
+            {hitsOf(waiting[0]).length > 0 && (
+              <p className="mt-2.5 px-1 text-[13px] leading-snug text-[var(--ink-2)]">
+                Muharrir {hitsOf(waiting[0]).length} ta neyro-so‘zni belgiladi. Qalam bilan oching: bitta tegishda almashtiriladi.
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
             <button type="button" className="btn-lime flex-1" onClick={() => approve(waiting[0])}>
@@ -314,10 +334,13 @@ export function Home({ inTelegram = false }: { inTelegram?: boolean }) {
       ? `@${channel}`
       : undefined;
   const secs = Math.floor(elapsed);
-  const done = flow ? flow.nodes.filter((n) => status[n.id] === "done" || status[n.id] === "needs_approval").length : 0;
+  const staff = flow ? flow.nodes.filter((n) => n.kind !== "input" && n.kind !== "approval") : [];
+  const inTask = new Set(staff.map((n) => n.kind));
+  const done = staff.filter((n) => status[n.id] === "done" || status[n.id] === "needs_approval").length;
 
   const openLamp = (r: AgentRole) => {
     if ((r === "copywriter" || r === "editor" || r === "translator") && posts[0]) return review(posts[0].id);
+    if (inTelegram) return;
     const v = LAMP_VIEW[r];
     if (v) setView(v);
   };
@@ -356,7 +379,7 @@ export function Home({ inTelegram = false }: { inTelegram?: boolean }) {
           <div className="flex items-baseline justify-between gap-3">
             <h1 className="text-[22px] font-semibold tracking-[-0.02em]">{running ? "Bo‘lim ishlayapti" : "Bo‘lim tayyor"}</h1>
             <span className="tnum text-[13px] text-[var(--ink-2)]" aria-live="polite">
-              {done}/{flow.nodes.length} xodim
+              {done}/{staff.length} xodim{staff.length < LAMP_ORDER.length ? ` (${LAMP_ORDER.length} tadan)` : ""}
             </span>
           </div>
         )}
@@ -373,8 +396,9 @@ export function Home({ inTelegram = false }: { inTelegram?: boolean }) {
                     role={r}
                     state={st}
                     size="md"
-                    className="w-full"
-                    aria-label={`${LAMPS[r].name}: ${lit ? "natijani ochish" : st === "warming" ? "ishlayapti" : "kutmoqda"}`}
+                    note={flow && !inTask.has(r) ? "bu ishda yo‘q" : undefined}
+                    className={`w-full ${flow && !inTask.has(r) ? "opacity-55" : ""}`}
+                    aria-label={`${LAMPS[r].name}: ${flow && !inTask.has(r) ? "bu ishda yo‘q" : lit ? "natijani ochish" : st === "warming" ? "ishlayapti" : "kutmoqda"}`}
                     aria-disabled={!lit || undefined}
                     onClick={() => lit && openLamp(r)}
                   >
@@ -420,14 +444,20 @@ export function Home({ inTelegram = false }: { inTelegram?: boolean }) {
         )}
       </div>
 
-      <aside ref={deckRef} aria-labelledby="deck-h" className="flex scroll-mt-20 flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
+      <aside
+        ref={deckRef}
+        aria-labelledby="deck-h"
+        className={`flex scroll-mt-28 flex-col gap-4 lg:sticky lg:top-24 lg:order-none lg:self-start ${!running && waiting > 0 ? "order-first" : ""}`}
+      >
         <div className="flex items-baseline justify-between">
           <h2 id="deck-h" className="text-[22px] font-semibold tracking-[-0.02em]">
             Tasdiqlash
           </h2>
-          <button type="button" onClick={() => setView("rules")} className="text-[13.5px] text-[var(--ink-2)] underline decoration-[var(--hair-2)] underline-offset-4 hover:text-[var(--ink)]">
-            Avtopilot qoidalari
-          </button>
+          {!inTelegram && (
+            <button type="button" onClick={() => setView("rules")} className="inline-flex min-h-11 items-center text-[13.5px] text-[var(--ink-2)] underline decoration-[var(--hair-2)] underline-offset-4 hover:text-[var(--ink)]">
+              Avtopilot qoidalari
+            </button>
+          )}
         </div>
         <ApprovalDeck inTelegram={inTelegram} />
         <p className="text-[12.5px] leading-relaxed text-[var(--ink-3)]">

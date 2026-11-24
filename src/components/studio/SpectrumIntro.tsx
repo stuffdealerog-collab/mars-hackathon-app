@@ -111,8 +111,8 @@ export function SpectrumIntro({
       }
       if (flash) {
         anims.push(
-          flash.animate([{ opacity: 0 }, { opacity: 0.85, offset: 0.18 }, { opacity: 0.25, offset: 0.3 }, { opacity: 0.7, offset: 0.45 }, { opacity: 0 }], {
-            duration: 760,
+          flash.animate([{ opacity: 0 }, { opacity: 0.6, offset: 0.2 }, { opacity: 0.12, offset: 0.36 }, { opacity: 0.45, offset: 0.5 }, { opacity: 0 }], {
+            duration: 520,
             delay: delay + T.beamIn * 0.6,
             easing: "linear",
             fill: "both",
