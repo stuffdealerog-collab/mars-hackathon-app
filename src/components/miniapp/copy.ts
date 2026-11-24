@@ -81,6 +81,9 @@ const uz = {
   sample: "Namuna",
   settingsLabel: "Sozlamalar",
   clear: "Tozalash",
+  review: "Postlarni ko‘rib chiqish",
+  more: "Batafsil",
+  weekdaysShort: ["Ya", "Du", "Se", "Ch", "Pa", "Ju", "Sh"],
 };
 
 export type MiniCopy = typeof uz;
@@ -161,6 +164,9 @@ const ru: MiniCopy = {
   sample: "Пример",
   settingsLabel: "Настройки",
   clear: "Очистить",
+  review: "Проверить посты",
+  more: "Подробнее",
+  weekdaysShort: ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"],
 };
 
 const en: MiniCopy = {
@@ -239,6 +245,9 @@ const en: MiniCopy = {
   sample: "Sample",
   settingsLabel: "Settings",
   clear: "Clear",
+  review: "Review the posts",
+  more: "More",
+  weekdaysShort: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
 };
 
 export const MINI_COPY: Record<"uz" | "ru" | "en", MiniCopy> = { uz, ru, en };

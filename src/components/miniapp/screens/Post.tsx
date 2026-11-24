@@ -83,6 +83,7 @@ export function PostScreen({ start, active }: { start: number; active: boolean }
   const openSheet = useNav((s) => s.openSheet);
   const { script } = usePostScript();
   const { approve, publish } = usePostActions();
+  const when = useWhen();
   const deck = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(() => Math.min(start, Math.max(0, posts.length - 1)));
   const indexRef = useLatest(index);
@@ -160,7 +161,8 @@ export function PostScreen({ start, active }: { start: number; active: boolean }
 
   return (
     <>
-      <TopBar title={<span className="tnum">{fmt(m.post.counter, { i: index + 1, n: posts.length })}</span>} compact={false} pinned />
+      {/* In fullscreen the row between Telegram's pills says when this post goes out. */}
+      <TopBar title={post ? (when(post) ?? fmt(m.post.counter, { i: index + 1, n: posts.length })) : ""} compact={false} pinned />
       <div className="flex min-h-0 flex-1 flex-col pt-[var(--ma-top)]">
         <div className="ma-dots ma-chrome py-2.5" aria-hidden>
           {posts.map((p, i) => (
@@ -199,19 +201,18 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
   const openSheet = useNav((s) => s.openSheet);
   const status = statusOf(post);
   const text = post.variants[script] ?? "";
+  // Approving answers with one lime ring around the post (state derived during render).
+  const [seen, setSeen] = useState(status);
+  const [pulse, setPulse] = useState(0);
+  if (status !== seen) {
+    setSeen(status);
+    if (status === "approved") setPulse((n) => n + 1);
+  }
 
   return (
     <article className="ma-page" aria-roledescription="slide" aria-label={label} inert={!current ? true : undefined}>
       <div className="px-4 pb-8 pt-1">
-        <header className="flex min-h-9 items-center justify-between gap-3 px-1 pb-2.5">
-          <p className="min-w-0 truncate text-[14px] text-ink-2">{when ? fmt(c.posts.when, { when }) : null}</p>
-          {status !== "draft" && (
-            <span className="ma-stamp shrink-0" data-state={status}>
-              {status === "published" ? <Send className="h-3.5 w-3.5" aria-hidden /> : <Check className="h-3.5 w-3.5" aria-hidden />}
-              {status === "published" ? m.posts.published : m.posts.approved}
-            </span>
-          )}
-        </header>
+        <p className="ma-inline-when min-h-9 truncate px-1 pb-2.5 pt-1.5 text-[14px] text-ink-2">{when ? fmt(c.posts.when, { when }) : null}</p>
 
         {blank && status === "draft" && (
           <p role="note" className="mb-3 rounded-2xl bg-[color-mix(in_oklab,var(--led)_14%,transparent)] px-4 py-3 text-[14.5px] leading-snug">
@@ -220,10 +221,18 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
         )}
 
         {/* Drawn close to Telegram's own channel post, so the owner sees what subscribers will see. */}
-        <div className="tgpost">
+        <div className="tgpost relative">
+          {pulse > 0 && <span key={pulse} aria-hidden className="ma-pulse" />}
+          {/* The status sits on the post's corner, so approving never moves the post. */}
+          {status !== "draft" && (
+            <span className="ma-stamp ma-stamp--over" data-state={status}>
+              {status === "published" ? <Send className="h-3.5 w-3.5" aria-hidden /> : <Check className="h-3.5 w-3.5" aria-hidden />}
+              {status === "published" ? m.posts.published : m.posts.approved}
+            </span>
+          )}
           <PostPicture image={post.image} alt={c.posts.image.alt} expected={picturesExpected} onRetry={sample ? undefined : () => void retryImage(post.id)} />
           <div className="px-4 pb-2.5 pt-3">
-            <div className="mb-2 flex items-center gap-2.5">
+            <div className={`mb-2 flex items-center gap-2.5 ${status !== "draft" && !post.image ? "pr-32" : ""}`}>
               <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[14px] font-semibold text-white" style={{ background: "linear-gradient(160deg, #C86B3C, #6b3115)" }}>
                 {channelName.replace(/^@/, "").slice(0, 1).toUpperCase()}
               </span>

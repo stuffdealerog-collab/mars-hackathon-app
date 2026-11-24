@@ -10,10 +10,10 @@ import { topRegistration, useCanGoBack, useLatest, useNav, type BtnSpec } from "
 export type Theme = "light" | "dark";
 
 /** The stage colour per theme (globals.css --stage), painted into Telegram's header and bars. */
-export const STAGE: Record<Theme, string> = { light: "#ffffff", dark: "#000000" };
+export const STAGE: Record<Theme, string> = { light: "#f2f2f6", dark: "#000000" };
 const LIME = "#d7ff3a";
 const LIME_INK = "#0b0c02";
-const GLASS: Record<Theme, string> = { light: "#eae9e5", dark: "#17171b" };
+const GLASS: Record<Theme, string> = { light: "#ffffff", dark: "#17171b" };
 const INK: Record<Theme, string> = { light: "#0d0d11", dark: "#f3f1ec" };
 
 const ZERO: Insets = { top: 0, bottom: 0, left: 0, right: 0 };

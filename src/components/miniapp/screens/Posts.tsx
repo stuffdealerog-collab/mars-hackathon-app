@@ -152,22 +152,26 @@ function Missed() {
 function PostRow({ post, script, onOpen }: { post: PostDraft; script: Script; onOpen: () => void }) {
   const m = useMiniCopy();
   const when = useWhen()(post);
+  // The picture slot stays reserved while pictures are on their way, so rows never shift.
+  const expected = useStudio((s) => !s.sample && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")));
+  const thumb = !!post.image || expected;
   const text = (post.variants[script] ?? "").trim();
   const status = post.status === "published" ? "published" : post.status === "approved" ? "approved" : "draft";
   return (
     <button
       type="button"
-      className={`ma-group ma-card-press flex w-full items-stretch gap-3.5 p-2.5 pr-3 text-left ${post.image ? "" : "!pl-4"}`}
+      className={`ma-group ma-card-press flex w-full items-stretch gap-3.5 p-2.5 pr-3 text-left ${thumb ? "" : "!pl-4"}`}
       onClick={() => {
         haptic.tap();
         onOpen();
       }}
     >
-      {post.image && <Thumb post={post} />}
+      {thumb && <Thumb post={post} />}
       <span className="flex min-w-0 flex-1 flex-col py-0.5">
         <span className="flex items-center justify-between gap-2">
           <span className="truncate text-[13px] text-ink-2">{when}</span>
-          <StatusDot status={status} label={m.posts[status]} />
+          {/* A status appears once the owner acted; a draft needs no label. */}
+          {status !== "draft" && <StatusDot status={status} label={m.posts[status]} />}
         </span>
         <span lang={script === "ru" ? "ru" : script === "en" ? "en" : "uz"} className="mt-1 line-clamp-3 text-[15px] leading-snug">
           {text}

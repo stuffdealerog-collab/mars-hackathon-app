@@ -48,7 +48,9 @@ export function StartScreen({ active }: { active: boolean }) {
       <div ref={ref} className="ma-scroll">
         <div className="ma-pad flex min-h-full flex-col">
           {/* The shop sign stays dark until there is a real channel to read. */}
-          <LedStrip text={sign} dot={led.dot} gap={led.gap} run={led.run} className="mt-2" label={sign} />
+          <div className="ma-sign mt-2 rounded-[12px]">
+            <LedStrip text={sign} dot={led.dot} gap={led.gap} run={led.run} label={sign} />
+          </div>
           <h1 className="ma-h1 mt-8">{c.start.title}</h1>
           <p className="mt-2.5 text-[16px] leading-relaxed text-ink-2">{m.start.sub}</p>
 
@@ -88,8 +90,9 @@ export function StartScreen({ active }: { active: boolean }) {
                 </button>
               )}
             </div>
-            <p id={`${id}-hint`} role={bad ? "alert" : undefined} className={`mt-2.5 px-1 text-[14px] leading-snug ${bad ? "text-bad" : "text-ink-3"}`}>
-              {bad ? c.start.linkBad : c.start.linkExample}
+            {/* The example helps until there is a real link; then the sign above says it. */}
+            <p id={`${id}-hint`} role={bad ? "alert" : undefined} className={`mt-2.5 min-h-[2.6em] px-1 text-[14px] leading-snug ${bad ? "text-bad" : "text-ink-3"}`}>
+              {bad ? c.start.linkBad : typed ? null : c.start.linkExample}
             </p>
           </form>
 
@@ -112,7 +115,6 @@ export function StartScreen({ active }: { active: boolean }) {
               <ChevronRight className="h-5 w-5 shrink-0 text-ink-3" aria-hidden />
             </button>
           </div>
-          <p className="mt-auto pt-8 text-center text-[13px] text-ink-3">{c.start.time}</p>
         </div>
       </div>
     </>
