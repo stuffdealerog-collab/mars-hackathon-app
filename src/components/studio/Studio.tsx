@@ -80,6 +80,9 @@ export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: stri
   // Mini App keep the one-column Studio below.
   const desktop = useDesktop();
   useHubRestore();
+  // Before the browser says how wide it is, draw the hub's silhouette (or the column's header):
+  // no blank frame, no jump from a phone column to the studio.
+  if (desktop === null && !inTelegram) return <StudioSkeleton theme={theme} />;
   if (desktop && !inTelegram) return <DesktopStudio theme={theme} />;
 
   return (
@@ -355,8 +358,8 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
       </div>
 
       {/* The department stays on screen: ten small lights, or the full panel in Professional rejim.
-          On desktop the hub holds the lights and the sections, so only the pro panel shows here. */}
-      {desktop ? pro && <Panel lamps={lamps} className="mt-6" /> : <div className="mt-4">{pro ? <Panel lamps={lamps} /> : <Strip lamps={lamps} />}</div>}
+          On desktop the hub holds the lights; the full panel lives in Bo‘lim. */}
+      {desktop ? null : <div className="mt-4">{pro ? <Panel lamps={lamps} /> : <Strip lamps={lamps} />}</div>}
 
       <div
         role="tablist"
@@ -388,7 +391,7 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
           id={`panel-${tab}`}
           role="tabpanel"
           aria-labelledby={`tab-${tab}`}
-          className="pt-7"
+          className="@container pt-7"
           initial={reduce ? false : { opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={reduce ? undefined : { opacity: 0, y: -4 }}
@@ -396,9 +399,59 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
         >
           {tab === "channel" && <ChannelTab wide={desktop} />}
           {tab === "posts" && (desktop ? <PostsSplit /> : <PostsTab inTelegram={inTelegram} />)}
+          {tab === "dept" && <DeptTab />}
           {tab === "video" && <VideoTab />}
         </motion.div>
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** CSS only, until the first client frame knows the width: the hub at 1024+, the header below. */
+function StudioSkeleton({ theme }: { theme?: Theme }) {
+  return (
+    <div data-theme={theme} className="min-h-dvh bg-paper text-ink lg:bg-stage" aria-busy="true">
+      <div aria-hidden className="hub fixed bottom-3 left-3 top-3 z-30 hidden w-[292px] lg:block" />
+      <div aria-hidden className="mx-auto h-[60px] w-full max-w-[760px] px-4 sm:px-6 lg:hidden" />
+    </div>
+  );
+}
+
+/**
+ * Bo‘lim (Pro): the whole department, each lamp opening what it did, and the work log: every
+ * step of the run, its state and how long it took.
+ */
+function DeptTab() {
+  const c = useCopy();
+  const lamps = useLamps();
+  const steps = useStudio((s) => s.steps);
+  const mode = useStudio((s) => s.mode);
+  const newChannel = useStudio((s) => s.newChannel);
+  const sample = useStudio((s) => s.sample);
+  const rows = steps.map((s) => ({ s, label: stepLabel(s, mode, c) })).filter((r) => r.label);
+  return (
+    <div className="flex flex-col gap-10">
+      <Panel lamps={lamps} size="md" showJob />
+      {rows.length > 0 && (
+        <section aria-labelledby="log-h">
+          <h2 id="log-h" className="mb-4 text-[20px] font-semibold tracking-[-0.01em]">
+            {c.dept.log}
+          </h2>
+          <ol className="card divide-y divide-line">
+            {rows.map(({ s, label }) => (
+              <li key={s.key} className="flex items-baseline justify-between gap-4 px-4 py-3 text-[15px] @md:px-5">
+                <span className={s.status === "fail" ? "text-bad" : s.status === "done" ? "text-ink" : "text-ink-2"}>{label}</span>
+                <span className="tnum shrink-0 text-[13px] text-ink-3">{s.t0 && s.t1 ? fmt(c.pro.took, { s: Math.max(1, Math.round((s.t1 - s.t0) / 1000)) }) : ""}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {!sample && (
+        <button type="button" className="btn-2 self-start" onClick={newChannel}>
+          {c.hub.newChannel}
+        </button>
+      )}
     </div>
   );
 }

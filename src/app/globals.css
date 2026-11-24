@@ -670,7 +670,114 @@
   animation: breathe 2.4s var(--ease-io) infinite;
 }
 
+/* -------------------------------------------- light behind the hub's glass */
+
+/* A spot of a lamp's own colour exactly behind its mini-lamp; the glass frosts it. */
+.stage-spot {
+  position: fixed;
+  width: 140px;
+  height: 110px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.stage-spot[data-warm] {
+  animation: spot-warm 2.4s var(--ease-io) infinite;
+}
+.stage-spot[data-run="check"],
+.lamp-flash[data-run="check"] {
+  animation: lamp-check 420ms var(--ease-out) calc(var(--i, 0) * 70ms) both;
+}
+.stage-spot[data-run="blink"],
+.lamp-flash[data-run="blink"] {
+  animation: smm-blink 900ms var(--ease-out) both;
+}
+/* The flash over a mini-lamp (lamp check, the SMM-menejer answering the owner's hand). */
+.lamp-flash {
+  position: absolute;
+  inset: -6px;
+  border-radius: 14px;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+@keyframes spot-warm {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes lamp-check {
+  0% {
+    opacity: 0;
+    transform: translate(var(--tx, 0), var(--ty, 0)) scale(0.96);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(var(--tx, 0), var(--ty, 0)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx, 0), var(--ty, 0)) scale(1);
+  }
+}
+.stage-spot[data-run] {
+  --tx: -50%;
+  --ty: -50%;
+}
+@keyframes smm-blink {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  45% {
+    opacity: 0.15;
+  }
+  70% {
+    opacity: 1;
+  }
+}
+
+/* The glass gives way to a solid panel wherever transparency would hurt (spec §3.3). */
+@media (prefers-reduced-transparency: reduce) {
+  .hub {
+    background: var(--glass);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (prefers-contrast: more) {
+  .hub {
+    background: var(--stage);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: inset 0 0 0 1.5px var(--ink-2);
+  }
+}
+@media (forced-colors: active) {
+  .hub {
+    background: Canvas;
+    border: 1px solid CanvasText;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hub {
+    background: var(--glass);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .stage-spot,
+  .lamp-flash {
+    animation: none !important;
+  }
   .lamp__glow,
   .lamp__spill,
   .lamp__result {
