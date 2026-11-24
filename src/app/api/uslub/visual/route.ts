@@ -1,9 +1,8 @@
 import { connection } from "next/server";
 import { z } from "zod";
 import { safeLogEvent } from "@/lib/track";
-import { clientIp, json, loadBrandFor, rateLimit, telegramUserId } from "@/lib/uslub/http";
+import { assertDraftAccess, clientIp, json, loadBrandFor, rateLimit, telegramUserId } from "@/lib/uslub/http";
 import { langOf, parseLang, PictureError, pictureErrorResponse, type Lang } from "@/lib/uslub/media/route-errors";
-import { canChangeBrandPictures } from "@/lib/uslub/visual/access";
 import { ImageInputError } from "@/lib/uslub/visual/images";
 import { MAX_OWNER_IMAGES, VisualFetchError } from "@/lib/uslub/visual/learn";
 import { getBrandVisualInfo } from "@/lib/uslub/visual/repo";
@@ -55,7 +54,8 @@ export async function POST(req: Request): Promise<Response> {
 
     const telegramId = telegramUserId(req, body.initData);
     const brand = await loadBrandFor(body.brandId, telegramId);
-    if (!canChangeBrandPictures(brand, telegramId)) throw new PictureError(403, "forbidden");
+    // Owner, an unowned brand, or a web brand claimed in the bot (the id holder keeps making pictures).
+    await assertDraftAccess(brand, telegramId);
 
     const { visual, cached } = await learnAndSaveVisual(brand, {
       ownerImages: body.ownerImages,

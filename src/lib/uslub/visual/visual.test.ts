@@ -286,17 +286,9 @@ describe("learnVisualStyle", () => {
   });
 });
 
-/* ------------------------------------------------------------------ access */
+/* ------------------------------------------------------------------ config */
 
-describe("who may change a brand's pictures", () => {
-  it("anyone with the id while the brand has no owner; only the owner once it has one", async () => {
-    const { canChangeBrandPictures } = await import("./access");
-    expect(canChangeBrandPictures({ ownerTelegramId: null }, null)).toBe(true);
-    expect(canChangeBrandPictures({ ownerTelegramId: 42 }, 42)).toBe(true);
-    expect(canChangeBrandPictures({ ownerTelegramId: 42 }, null)).toBe(false);
-    expect(canChangeBrandPictures({ ownerTelegramId: 42 }, 7)).toBe(false);
-  });
-
+describe("style analysis caps", () => {
   it("style analyses have their own daily caps", async () => {
     const { readMediaConfig } = await import("../media/config");
     expect(readMediaConfig({})).toMatchObject({ visualDailyLimit: 60, visualBrandDailyLimit: 8 });

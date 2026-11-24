@@ -93,7 +93,9 @@ export async function publishPost(args: {
   const userId = args.userId as number;
   const target = chat as string;
 
-  const text = post!.variants[args.script]?.trim();
+  // The same text the bot's preview shows (botpublish-core shownText): the variant, else Uzbek Latin.
+  const textOf = (p: { variants: Partial<Record<Script, string>> }) => p.variants[args.script]?.trim() || p.variants.uz_latn?.trim() || "";
+  const text = textOf(post!);
   if (!text) return { ok: false, status: 400, error: `Postda ${args.script} varianti yo‘q` };
 
   const addAdminUrl = addBotAsAdminLink();
@@ -106,7 +108,7 @@ export async function publishPost(args: {
     }
     // Re-read right before sending: the text and picture that go out are the ones checked here.
     const latest = (await getPost(post!.id)) ?? post!;
-    const sendText = latest.variants[args.script]?.trim() || text;
+    const sendText = textOf(latest) || text;
     const imageUrl = await publishImageUrl(post!.id);
     const changed = changedSincePreview({ text: sendText, imageUrl }, args);
     if (changed) {

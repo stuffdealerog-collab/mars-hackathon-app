@@ -1,13 +1,12 @@
 import { connection } from "next/server";
 import { z } from "zod";
 import { safeLogEvent } from "@/lib/track";
-import { clientIp, HttpError, json, loadBrandFor, rateLimit, telegramUserId } from "@/lib/uslub/http";
+import { assertDraftAccess, clientIp, HttpError, json, loadBrandFor, rateLimit, telegramUserId } from "@/lib/uslub/http";
 import { readMediaConfig } from "@/lib/uslub/media/config";
 import { planPostImageStart, pollPostImage, PostImageLimitError, publicPostImage, startPostImage } from "@/lib/uslub/media/post-image";
 import { ensureVisual, postImageDeps } from "@/lib/uslub/media/post-image-service";
 import { getPostForImage } from "@/lib/uslub/media/post-repo";
 import { langOf, parseLang, PictureError, pictureErrorResponse, pictureErrorText, type Lang } from "@/lib/uslub/media/route-errors";
-import { canChangeBrandPictures } from "@/lib/uslub/visual/access";
 import { downloadImage, ImageInputError, parseDataUrl } from "@/lib/uslub/visual/images";
 import { actorKey } from "@/lib/uslub/visual/service";
 import { falUpload, isFalMedia, StorageError } from "@/lib/uslub/visual/storage";
@@ -76,7 +75,8 @@ export async function POST(req: Request): Promise<Response> {
 
     const telegramId = telegramUserId(req, body.initData);
     const { post, brand } = await loadPost(body.postId, telegramId);
-    if (!canChangeBrandPictures(brand, telegramId)) throw new PictureError(403, "forbidden");
+    // Owner, an unowned brand, or a web brand claimed in the bot (the id holder keeps making pictures).
+    await assertDraftAccess(brand, telegramId);
     const deps = postImageDeps(); // 503 without fal, before anything else
 
     const plan = planPostImageStart(post.image, Boolean(body.regenerate || body.photo));
