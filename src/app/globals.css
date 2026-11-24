@@ -249,3 +249,482 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* ======================================================================
+   Chiroqlar yonadi — the lamp world.
+   Light = work. Lime = the owner's hand. LED amber = measured numbers.
+   Scoped to .lw so the older screens keep compiling until they move over.
+   ====================================================================== */
+.lw {
+  --stage: #000;
+  --glass: #0d0d10;
+  --glass-2: #17171b;
+  --glass-3: #222227;
+  --hair: rgb(255 255 255 / 0.07);
+  --hair-2: rgb(255 255 255 / 0.13);
+  --ink: #f3f1ec;
+  --ink-2: #a39f98;
+  --ink-3: #6f6b65;
+  --led: #ffb547;
+  --led-off: rgb(255 181 71 / 0.1);
+  --lime: #d7ff3a;
+  --lime-ink: #0b0c02;
+  --bad: #ff5a4e;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+  --t-tap: 120ms;
+  --t-state: 200ms;
+  --t-panel: 360ms;
+  --t-on: 720ms;
+  --t-off: 1000ms;
+  background: var(--stage);
+  color: var(--ink);
+  font-family: var(--font-onest), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01" 0;
+  color-scheme: dark;
+  caret-color: var(--lime);
+  accent-color: var(--lime);
+  scrollbar-color: #2b2b31 transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.lw[data-theme="light"] {
+  --stage: #ffffff;
+  --glass: #f1f0ed;
+  --glass-2: #e9e8e4;
+  --glass-3: #dedcd7;
+  --hair: rgb(10 10 15 / 0.07);
+  --hair-2: rgb(10 10 15 / 0.14);
+  --ink: #0d0d11;
+  --ink-2: #5b5852;
+  --ink-3: #8b8780;
+  --led: #c26a00;
+  --led-off: rgb(194 106 0 / 0.1);
+  color-scheme: light;
+  scrollbar-color: #d4d2cc transparent;
+}
+.lw ::selection {
+  background: var(--lime);
+  color: var(--lime-ink);
+}
+.lw :focus-visible {
+  outline: 2px solid var(--lime);
+  outline-offset: 3px;
+}
+.lw[data-theme="light"] :focus-visible {
+  outline-color: #5a7000;
+}
+.lw .tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------- lamp */
+.lamp {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-height: 132px;
+  border-radius: 22px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  color: var(--ink);
+  text-align: left;
+}
+.lamp--sm {
+  min-height: 92px;
+  border-radius: 18px;
+}
+.lamp--lg {
+  min-height: 210px;
+  border-radius: 28px;
+}
+.lamp__glow,
+.lamp__spill {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--t-off) var(--ease-in);
+}
+.lamp__glow {
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(60% 30% at 50% 0%, var(--core) 0%, transparent 100%),
+    radial-gradient(
+      150% 100% at 50% -10%,
+      var(--hue) 0%,
+      color-mix(in oklab, var(--hue) 55%, var(--deep)) 32%,
+      color-mix(in oklab, var(--deep) 60%, transparent) 60%,
+      transparent 88%
+    );
+}
+.lamp__glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.4),
+    inset 0 0 0 1px rgb(255 255 255 / 0.1);
+}
+.lamp__spill {
+  inset: 22% 8% -12% 8%;
+  z-index: -1;
+  border-radius: 40%;
+  background: var(--hue);
+  filter: blur(28px);
+}
+.lamp__filament {
+  position: absolute;
+  top: 11px;
+  left: 50%;
+  width: 26px;
+  height: 3px;
+  margin-left: -13px;
+  border-radius: 3px;
+  background: var(--hair-2);
+  transition:
+    background var(--t-state) var(--ease-out),
+    box-shadow var(--t-state) var(--ease-out);
+}
+.lamp__body {
+  position: relative;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 26px 14px 13px;
+}
+.lamp--lg .lamp__body {
+  padding: 30px 18px 16px;
+}
+.lamp__result {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  color: #fff;
+  text-shadow: 0 1px 14px rgb(0 0 0 / 0.35);
+  opacity: 0;
+  transition: opacity var(--t-panel) var(--ease-out);
+}
+.lamp:is([data-state="on"], [data-state="you"]) .lamp__result {
+  opacity: 1;
+  transition-delay: 260ms;
+}
+.lamp__name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lamp__title {
+  font-size: 15px;
+  font-weight: 640;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  transition:
+    font-weight var(--t-panel) var(--ease-out),
+    color var(--t-panel) var(--ease-out);
+}
+.lamp--sm .lamp__title {
+  font-size: 13.5px;
+}
+.lamp__job {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.lamp__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.lamp:is([data-state="on"], [data-state="you"]) .lamp__state,
+.lamp:is([data-state="on"], [data-state="you"]) .lamp__job {
+  color: rgb(255 255 255 / 0.72);
+}
+.lamp[data-state="off"] .lamp__title {
+  font-weight: 450;
+  color: var(--ink-2);
+}
+.lamp__you {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 0 3px rgb(215 255 58 / 0.2);
+}
+.lamp:is([data-state="on"], [data-state="you"], [data-state="warming"]) .lamp__filament {
+  background: var(--core);
+  box-shadow: 0 0 12px 2px var(--core);
+}
+.lamp:is([data-state="on"], [data-state="you"]) .lamp__glow {
+  opacity: 1;
+  animation: lamp-on var(--t-on) linear both;
+}
+.lamp:is([data-state="on"], [data-state="you"]) .lamp__spill {
+  opacity: 0.42;
+  transition: opacity var(--t-on) var(--ease-out);
+}
+.lamp[data-state="warming"] .lamp__glow {
+  animation: lamp-warm 2.4s var(--ease-io) infinite;
+}
+.lamp[data-state="warming"] .lamp__spill {
+  opacity: 0.16;
+  transition: opacity var(--t-on) var(--ease-out);
+}
+.lamp[data-state="error"] .lamp__glow {
+  opacity: 0.16;
+  filter: saturate(0.3);
+}
+.lamp[data-state="error"] .lamp__filament {
+  background: var(--bad);
+}
+.lw[data-theme="light"] .lamp:is([data-state="on"], [data-state="you"]) .lamp__state,
+.lw[data-theme="light"] .lamp:is([data-state="on"], [data-state="you"]) .lamp__title {
+  color: var(--ink);
+}
+.lw[data-theme="light"] .lamp__spill {
+  filter: blur(22px);
+}
+.lw[data-theme="light"] .lamp:is([data-state="on"], [data-state="you"]) .lamp__spill {
+  opacity: 0.3;
+}
+@keyframes lamp-on {
+  0% { opacity: 0; }
+  8% { opacity: 0.75; }
+  12% { opacity: 0.18; }
+  21% { opacity: 0.9; }
+  27% { opacity: 0.5; }
+  46% { opacity: 1; }
+  100% { opacity: 1; }
+}
+@keyframes lamp-warm {
+  0%, 100% { opacity: 0.34; }
+  50% { opacity: 0.7; }
+}
+
+/* ------------------------------------------------------------- controls */
+.btn-lime,
+.btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 22px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition:
+    transform var(--t-tap) var(--ease-out),
+    background var(--t-state) var(--ease-out),
+    filter var(--t-state) var(--ease-out);
+}
+.btn-lime {
+  background: var(--lime);
+  color: var(--lime-ink);
+}
+.btn-lime:hover {
+  filter: brightness(1.07);
+}
+.btn-quiet {
+  background: var(--glass-2);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+.btn-quiet:hover {
+  background: var(--glass-3);
+}
+.btn-lime:active,
+.btn-quiet:active {
+  transform: scale(0.97);
+}
+.btn-lime:disabled,
+.btn-quiet:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 60px;
+  padding: 4px 4px 4px 18px;
+  border-radius: 999px;
+  background: var(--glass-2);
+  box-shadow: inset 0 0 0 1px var(--hair-2);
+  transition: box-shadow var(--t-state) var(--ease-out);
+}
+.field:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--lime);
+}
+.field input {
+  min-width: 0;
+  flex: 1;
+  background: transparent;
+  font-size: 17px;
+  color: var(--ink);
+  outline: none;
+}
+.field input::placeholder {
+  color: var(--ink-3);
+}
+.namuna {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border: 1px dashed var(--ink-3);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lamp__glow,
+  .lamp__spill,
+  .lamp__result {
+    animation: none !important;
+    transition-duration: 150ms !important;
+    transition-delay: 0ms !important;
+  }
+  .lamp[data-state="warming"] .lamp__glow {
+    opacity: 0.55;
+  }
+}
+.tgpost {
+  border-radius: 20px 20px 20px 6px;
+  padding: 12px 14px 9px;
+  background: var(--glass-2);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  color: var(--ink);
+}
+.lw[data-theme="light"] .tgpost {
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgb(10 10 15 / 0.08),
+    0 8px 24px -12px rgb(10 10 15 / 0.18);
+}
+.deck-card {
+  transform-origin: 50% 0%;
+  transition:
+    transform var(--t-panel) var(--ease-out),
+    opacity var(--t-panel) var(--ease-out),
+    filter var(--t-panel) var(--ease-out);
+}
+.deck-card[data-depth="0"] {
+  z-index: 3;
+}
+.deck-card[data-depth="1"] {
+  z-index: 2;
+  transform: translateY(-14px) scale(0.95);
+  opacity: 0.55;
+  filter: blur(0.4px);
+}
+.deck-card[data-depth="2"] {
+  z-index: 1;
+  transform: translateY(-26px) scale(0.9);
+  opacity: 0.28;
+  filter: blur(0.8px);
+}
+.deck-card[data-depth="1"] > p,
+.deck-card[data-depth="2"] > p {
+  visibility: hidden;
+}
+.deck-card[data-leaving] {
+  transform: translate(18px, -70px) rotate(4deg);
+  opacity: 0;
+  transition-duration: 320ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .deck-card,
+  .deck-card[data-leaving] {
+    transform: none;
+    transition: opacity 150ms linear;
+  }
+}
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+.seg__item {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--ink-2);
+  transition:
+    background var(--t-state) var(--ease-out),
+    color var(--t-state) var(--ease-out);
+}
+.seg__item[aria-checked="true"] {
+  background: var(--glass-3);
+  color: var(--ink);
+}
+.switch {
+  position: relative;
+  width: 52px;
+  height: 32px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--glass-3);
+  box-shadow: inset 0 0 0 1px var(--hair-2);
+  transition: background var(--t-state) var(--ease-out);
+}
+.switch__knob {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--ink-2);
+  transition:
+    transform var(--t-panel) var(--ease-out),
+    background var(--t-state) var(--ease-out);
+}
+.switch[aria-checked="true"] {
+  background: var(--lime);
+}
+.switch[aria-checked="true"] .switch__knob {
+  transform: translateX(20px);
+  background: var(--lime-ink);
+}
+.rule {
+  display: grid;
+  gap: 20px;
+  padding: 22px;
+  border-radius: 24px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+@media (min-width: 900px) {
+  .rule {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    align-items: center;
+    gap: 32px;
+    padding: 28px;
+  }
+}
+.rule__h {
+  font-size: 21px;
+  font-weight: 620;
+  letter-spacing: -0.02em;
+}
+.rule__p {
+  margin-top: 6px;
+  max-width: 48ch;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
