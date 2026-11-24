@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Script } from "@/lib/uslub/contract";
 import { Led } from "../lamp/Led";
+import { plural } from "../ui/format";
 import { fmt, useCopy, useInitLang, useLang, type Lang } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel } from "../ui/parts";
 import { ChannelTab } from "./ChannelTab";
@@ -12,7 +13,7 @@ import { Hub, HUB_W, RAIL_W, StageLight, useDesktop, useHub, useHubRestore } fro
 import { PostCard } from "./PostCard";
 import { SpectrumIntro } from "./SpectrumIntro";
 import { Start } from "./Start";
-import { POSTS_PER_RUN, useStudio, type Step, type Tab } from "./store";
+import { POSTS_PER_RUN, slotKey, useStudio, type Step, type Tab } from "./store";
 
 type Theme = "light" | "dark";
 
@@ -376,6 +377,26 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
 const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
 const SCRIPT_FOR: Record<Lang, Script> = { uz: "uz_latn", ru: "ru", en: "en" };
 
+/** Posts the run asked for but did not get: how many, and one button to write them again. */
+function MissedNote() {
+  const c = useCopy();
+  const lang = useLang((s) => s.lang);
+  const missed = useStudio((s) => s.missed);
+  const writing = useStudio((s) => s.missed.some((it) => s.writingSlot[slotKey(it)]));
+  const writeMissed = useStudio((s) => s.writeMissed);
+  if (!missed.length) return null;
+  return (
+    <div className="card flex flex-wrap items-center gap-3 p-4">
+      <p className="mr-auto text-[15px] text-ink-2">
+        {missed.length} {plural(c.posts.missed, missed.length, lang)}.
+      </p>
+      <button type="button" className="btn-2" disabled={writing} onClick={() => void writeMissed()}>
+        {writing ? c.channel.writingSlot : c.posts.rewrite}
+      </button>
+    </div>
+  );
+}
+
 function PostsTab({ inTelegram }: { inTelegram: boolean }) {
   const c = useCopy();
   const lang = useLang((s) => s.lang);
@@ -409,6 +430,7 @@ function PostsTab({ inTelegram }: { inTelegram: boolean }) {
           </div>
         </div>
       )}
+      <MissedNote />
       {/* Cards are dealt in one after another, once; later state changes do not replay it. */}
       {posts.map((p, i) => (
         <motion.div

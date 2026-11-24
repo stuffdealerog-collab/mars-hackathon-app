@@ -71,6 +71,8 @@ interface StudioState {
   postScript: Script | null;
   /** Plan slots ("day time") whose post is being written on request. */
   writingSlot: Record<string, boolean>;
+  /** Plan slots the run asked for but the writer left empty (partial success of POST /posts). */
+  missed: PlanItem[];
 
   /** Professional rejim: the full lamp panel, the strategy and plan details. Off = the simple path. */
   pro: boolean;
@@ -78,6 +80,8 @@ interface StudioState {
   configure: (o: { bot: string }) => void;
   setPostScript: (s: Script) => void;
   writeSlot: (item: PlanItem) => Promise<void>;
+  /** Writes the missed slots again, in one call. */
+  writeMissed: () => Promise<void>;
   startChannel: (channel: string) => void;
   startFresh: (input: { knowledge: string; channel?: string; photos?: string[] }) => void;
   retry: () => void;
@@ -109,6 +113,10 @@ const isEmptyChannel = (f: Fail) => f.code === "channel_empty";
 const missingRoute = (f: Fail) => f.status === 404 && f.code !== "brand_not_found" && f.code !== "post_not_found";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** The plan items behind `failed[]` (its `index` points into the slots that were sent). */
+const missedOf = (sent: PlanItem[], failed: api.MissedSlot[] | undefined): PlanItem[] =>
+  (failed ?? []).map((f) => sent[f.index]).filter((it): it is PlanItem => Boolean(it));
 
 /** A plan slot's identity, shared by the plan row and the post written from it. */
 export const slotKey = (s: { day: string; time: string }) => `${s.day} ${s.time}`;
@@ -250,7 +258,7 @@ export const useStudio = create<StudioState>((set, get) => {
       const r = await api.writePosts(brand.id, items.map(api.slotOf), lang());
       if (my !== runId) return;
       if (!r.ok) return fail("posts", r);
-      set({ posts: r.data.posts });
+      set({ posts: r.data.posts, missed: missedOf(items, r.data.failed) });
       step("posts", { status: "done", n: r.data.posts.length });
     }
 
@@ -379,6 +387,7 @@ export const useStudio = create<StudioState>((set, get) => {
     postNote: {},
     postScript: null,
     writingSlot: {},
+    missed: [],
     pro: false,
 
     setPro: (pro) => {
@@ -423,6 +432,26 @@ export const useStudio = create<StudioState>((set, get) => {
       void pictures(my);
     },
 
+    writeMissed: async () => {
+      const brand = get().brand;
+      const items = get().missed;
+      if (!brand || get().sample || !items.length) return;
+      const my = runId;
+      const flag = (v: boolean) =>
+        set({ writingSlot: { ...get().writingSlot, ...Object.fromEntries(items.map((it) => [slotKey(it), v])) } });
+      flag(true);
+      set({ problem: null });
+      const r = await api.writePosts(brand.id, items.map(api.slotOf), lang());
+      flag(false);
+      if (my !== runId) return;
+      if (!r.ok) {
+        set({ problem: problemOf(r) });
+        return;
+      }
+      set({ posts: [...get().posts, ...r.data.posts], missed: missedOf(items, r.data.failed) });
+      void pictures(my);
+    },
+
     startChannel: (channel) => {
       visualRun = null;
       set({
@@ -441,6 +470,7 @@ export const useStudio = create<StudioState>((set, get) => {
         emptyChannel: null,
         edited: {},
         postNote: {},
+        missed: [],
         steps: stepsFor("channel", false),
         startedAt: Date.now(),
       });
@@ -464,6 +494,7 @@ export const useStudio = create<StudioState>((set, get) => {
         postsRead: null,
         edited: {},
         postNote: {},
+        missed: [],
         steps: stepsFor("fresh", !!photos?.length),
         startedAt: Date.now(),
       });
@@ -503,6 +534,7 @@ export const useStudio = create<StudioState>((set, get) => {
         edited: {},
         busy: {},
         postNote: {},
+        missed: [],
       });
     },
 

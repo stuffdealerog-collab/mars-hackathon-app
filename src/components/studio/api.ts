@@ -211,8 +211,12 @@ export function slotOf(item: PlanItem): SlotBrief {
   return { day: item.day, time: item.time, goal: item.goal, hook: item.hook, cta: item.cta, brief: item.brief };
 }
 
+/** A slot the writer could not fill; `index` points into the slots that were sent. */
+export type MissedSlot = { index: number; day: string; time: string; error: string; code: string };
+
+/** One post per slot. Partial success is normal: `failed` lists the slots that came out empty. */
 export function writePosts(brandId: string, slots: SlotBrief[], lang: Lang) {
-  return call<{ posts: PostDraft[] }>("/posts", { method: "POST", body: { brandId, slots: slots.slice(0, 7), lang } }, 75_000);
+  return call<{ posts: PostDraft[]; failed?: MissedSlot[] }>("/posts", { method: "POST", body: { brandId, slots: slots.slice(0, 7), lang } }, 75_000);
 }
 
 export function listPosts(brandId: string, lang: Lang) {
