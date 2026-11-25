@@ -5,11 +5,25 @@ import { forwardRef, useMemo, useState } from "react";
 import { Led } from "../lamp/Led";
 import { LampTile } from "../lamp/LampTile";
 import { LAMP_ORDER, OWNER_LAMPS, roomLight, withOutcomes, type LampState } from "../lamp/lamps";
-import { plural } from "../ui/format";
+import { fmt, plural } from "../ui/format";
 import { useCopy, useLang, type Lang } from "../ui/lang";
 import { sampleAudit, sampleBrand, samplePlan, samplePosts } from "./sample";
 import { SCRIPT_ORDER, splitScripts } from "./scripts";
 import { POSTS_PER_RUN, useStudio, type Step, type StepKey } from "./store";
+import { publisherOutcome, tashkentWhen, type Schedule } from "./week";
+
+/**
+ * The SMM-menejer's measured result from the queue: posts it put out at their time ("2 ta post vaqtida chiqdi"), or
+ * the next one waiting ("keyingisi: Juma 07:30"). Nothing until the queue has something (never a made-up number).
+ */
+export function publisherWords(schedule: Schedule, c: ReturnType<typeof useCopy>, lang: Lang): string | null {
+  const o = publisherOutcome(schedule);
+  if (o.out) return `${o.out} ${plural(c.lampResult.outOnTime, o.out, lang)}`;
+  const w = o.next ? tashkentWhen(o.next) : null;
+  if (!w) return null;
+  const day = c.weekdays[w.weekday];
+  return fmt(c.lampResult.next, { when: `${lang === "ru" ? day.toLowerCase() : day} ${w.time}` });
+}
 
 // Professional rejim only, loaded on demand.
 const LampDrawer = dynamic(() => import("./pro/ProDetails").then((m) => m.LampDrawer), { ssr: false });
@@ -87,11 +101,14 @@ export function useLamps(gate = false): Lamps {
   const plan = useStudio((s) => s.plan);
   const progress = useStudio((s) => s.planProgress);
   const posts = useStudio((s) => s.posts);
-  const outcomes = useStudio((s) => s.outcomes);
-  return useMemo(
-    () => lampsFrom({ steps, mode, sample, brand, audit, postsRead, plan, progress, posts, outcomes }, c, lang, gate),
-    [gate, steps, mode, sample, brand, audit, postsRead, plan, progress, posts, outcomes, c, lang],
-  );
+  const given = useStudio((s) => s.outcomes);
+  const schedule = useStudio((s) => s.schedule);
+  return useMemo(() => {
+    // The queue's measured result lights the SMM-menejer, unless the engine said something itself.
+    const out = publisherWords(schedule, c, lang);
+    const outcomes = out && !given.publisher ? { ...given, publisher: out } : given;
+    return lampsFrom({ steps, mode, sample, brand, audit, postsRead, plan, progress, posts, outcomes }, c, lang, gate);
+  }, [gate, steps, mode, sample, brand, audit, postsRead, plan, progress, posts, given, schedule, c, lang]);
 }
 
 /** The same rules as a plain function of a snapshot (the landing feeds it the sample). */

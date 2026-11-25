@@ -2,7 +2,7 @@ import { BarChart3, Newspaper } from "lucide-react";
 import { LAMPS, OWNER_LAMPS } from "../lamp/lamps";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudio, type Tab } from "../studio/store";
-import { fmt, isLang, useInitLang, useLang } from "../ui/lang";
+import { fmt, isLang, useCopy, useInitLang, useLang } from "../ui/lang";
 import { parseChannel } from "../ui/parts";
 import { useMiniCopy } from "./copy";
 import "./miniapp.css";
@@ -18,7 +18,8 @@ import { SheetHost } from "./sheets/Sheets";
 import { MiniIntro } from "./Intro";
 import { decideIntro, forcedIntro, INTRO_CLOUD_KEY, localIntro, seenVersion } from "../onboarding";
 import { launchTarget } from "./launch";
-import { restart } from "./actions";
+import { approveWeekNow, restart } from "./actions";
+import { useQueuePoll, useWeek } from "../studio/WeekCard";
 import { loadLatestPlan, useResume } from "./sync";
 import { isLimit } from "./limits";
 import { cloud, haptic, tg } from "./tg";
@@ -55,6 +56,7 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
   // One owner for Telegram's single closing-confirmation flag (the edit sheet only reports dirtyEdit).
   useClosingConfirmation(phase === "working" || busy || unsaved || dirtyEdit);
   useResume(booted);
+  useQueuePoll(booted);
 
   // The document itself never scrolls: each screen scrolls inside its own region.
   useEffect(() => {
@@ -106,6 +108,8 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
       if (!opened && saved.brand && saved.brand !== target.brand) opened = await open(saved.brand);
       if (opened) {
         const after = useStudio.getState();
+        // The bot's week view («Ko‘rib chiqish»): the posts, with «Haftani tasdiqlash» on the MainButton.
+        if (target.view === "week" && target.brand && after.brand?.id === target.brand) after.setTab("posts");
         if (target.post && after.posts.some((x) => x.id === target.post)) {
           after.setTab("posts");
           useNav.getState().push({ name: "post", id: target.post });
@@ -204,7 +208,11 @@ const TAB_ICONS: Record<PhoneTab, typeof BarChart3> = { channel: BarChart3, post
 const TABS: PhoneTab[] = ["channel", "posts"];
 
 function Tabs({ active }: { active: boolean }) {
+  const c = useCopy();
   const m = useMiniCopy();
+  // «Haftani tasdiqlash · N» takes the MainButton on Postlar once two or more posts can go out at their time.
+  const weekN = useWeek().toQueue.length;
+  const weekBusy = useStudio((s) => s.week.state === "sending");
   const tab: PhoneTab = useStudio((s) => (s.tab === "dept" ? "channel" : s.tab));
   const setTab = useStudio((s) => s.setTab);
   // The badge counts what waits for the owner: drafts to approve.
@@ -223,9 +231,11 @@ function Tabs({ active }: { active: boolean }) {
   const main =
     tab === "channel" && firstLook && total > 0
       ? { text: fmt(m.seePosts, { n: total }), onClick: toPosts }
-      : tab === "posts" && next
-        ? { text: m.review, onClick: () => (haptic.tap(), openPost(next)) }
-        : null;
+      : tab === "posts" && (weekN >= 2 || weekBusy)
+        ? { text: weekBusy ? c.week.sending : fmt(c.week.approve, { n: weekN }), onClick: () => void approveWeekNow(), progress: weekBusy, shine: true }
+        : tab === "posts" && next
+          ? { text: m.review, onClick: () => (haptic.tap(), openPost(next)) }
+          : null;
   useBottomButtons("tabs", PRIORITY.base, active && !!main, main);
 
   // After the run, a failed «Postini yozish», «Qayta yozish» or plan rebuild is said once, never silent.

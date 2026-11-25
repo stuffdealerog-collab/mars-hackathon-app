@@ -1,10 +1,16 @@
-import type { PostDraft, Script } from "@/lib/uslub/contract";
+import type { PostDraft, PostSchedule, Script } from "@/lib/uslub/contract";
 import { LampTile } from "../lamp/LampTile";
 import { fmt, useCopy } from "../ui/lang";
 import { useDesk, whenOf } from "./desk";
 import { pictureBusy, useStudio } from "./store";
 
-type Group = { key: "draft" | "approved" | "published"; title: string; posts: PostDraft[] };
+type Group = { key: "draft" | "approved" | "scheduled" | "published"; title: string; posts: PostDraft[] };
+
+/** An approved post the queue will send (or is sending); one it stopped waits for the owner's hand with the others. */
+const inQueue = (p: PostDraft, schedule: Record<string, PostSchedule>) => {
+  const st = schedule[p.id]?.status;
+  return p.status === "approved" && (st === "queued" || st === "sending" || st === "sent");
+};
 
 /** Monday first, then the time; posts without a slot go last in their group. */
 function bySlot(a: PostDraft, b: PostDraft) {
@@ -12,18 +18,25 @@ function bySlot(a: PostDraft, b: PostDraft) {
   return `${a.slot.day} ${a.slot.time}`.localeCompare(`${b.slot.day} ${b.slot.time}`);
 }
 
-/** Drafts, then approved, then published; inside each by slot. The queue's and J/K's order. */
-export function queueOrder(posts: PostDraft[]): PostDraft[] {
-  return (["draft", "approved", "published"] as const).flatMap((st) => posts.filter((p) => p.status === st).sort(bySlot));
+/** Drafts, then approved (waiting for a hand), then scheduled, then published; inside each by slot. The queue's and J/K's order. */
+export function queueOrder(posts: PostDraft[], schedule: Record<string, PostSchedule> = {}): PostDraft[] {
+  return [
+    posts.filter((p) => p.status === "draft"),
+    posts.filter((p) => p.status === "approved" && !inQueue(p, schedule)),
+    posts.filter((p) => inQueue(p, schedule)),
+    posts.filter((p) => p.status === "published"),
+  ].flatMap((g) => g.sort(bySlot));
 }
 
 /** The owner's posts in the order of the decisions they wait for: theirs first. */
 export function useQueue(): Group[] {
   const c = useCopy();
   const posts = useStudio((s) => s.posts);
+  const schedule = useStudio((s) => s.schedule);
   const groups: Group[] = [
     { key: "draft", title: c.queue.waiting, posts: posts.filter((p) => p.status === "draft").sort(bySlot) },
-    { key: "approved", title: c.queue.approved, posts: posts.filter((p) => p.status === "approved").sort(bySlot) },
+    { key: "approved", title: c.queue.approved, posts: posts.filter((p) => p.status === "approved" && !inQueue(p, schedule)).sort(bySlot) },
+    { key: "scheduled", title: c.queue.scheduled, posts: posts.filter((p) => inQueue(p, schedule)).sort(bySlot) },
     { key: "published", title: c.queue.published, posts: posts.filter((p) => p.status === "published").sort(bySlot) },
   ];
   return groups.filter((g) => g.posts.length);

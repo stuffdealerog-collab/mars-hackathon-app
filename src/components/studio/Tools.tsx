@@ -4,6 +4,7 @@
  * copy the week, make the bot an admin). Never Tasdiqlash or Joylash: those live on the post.
  */
 import { ClipboardList, Copy, Download, ImagePlus, Package, PenLine, RefreshCw, ShieldCheck } from "lucide-react";
+import { instagramFor } from "./PostTools";
 import type { ContentPlan, PostDraft, Script } from "@/lib/uslub/contract";
 import type { Copy as CopyText } from "../ui/copy";
 import { weekday } from "../ui/format";
@@ -55,31 +56,16 @@ export function Tools({ collapsed }: { collapsed: boolean }) {
     const waiting = !post.image && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait"));
     const drawing = pictureBusy(post.id, post.image) || waiting;
     const draftOnly = notInSample ?? (post.status !== "draft" || drawing || !desk.imageHandle ? true : undefined);
-    const url = post.image?.url;
     tools = [
       { key: "img", icon: RefreshCw, label: c.tools.otherImage, run: () => desk.imageHandle?.regenerate(), off: draftOnly },
       { key: "photo", icon: Package, label: c.tools.productPhoto, run: () => desk.imageHandle?.pickPhoto(), off: draftOnly },
       { key: "copy", icon: Copy, label: c.tools.copyText, run: () => void copyText(post.variants[script] ?? "").then(done) },
       {
-        key: "dl",
+        // The picture cropped to 4:5 and saved, the caption on the clipboard (the channel's own hashtags, t.me links).
+        key: "ig",
         icon: Download,
-        label: c.tools.download,
-        off: url ? undefined : true,
-        run: () => {
-          if (!url) return;
-          const day = post.slot?.day ?? new Date().toISOString().slice(0, 10);
-          void fetch(url)
-            .then((r) => (r.ok ? r.blob() : Promise.reject()))
-            .then((blob) => {
-              const a = document.createElement("a");
-              a.href = URL.createObjectURL(blob);
-              a.download = `mercat-${day}.jpg`;
-              a.click();
-              setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-            })
-            // The picture host may refuse a cross-site read: open it, the browser can save it.
-            .catch(() => window.open(url, "_blank", "noopener"));
-        },
+        label: c.instagram.btn,
+        run: () => void instagramFor(post, script).then((r) => desk.toast({ text: c.instagram[r], tone: r === "failed" ? "bad" : "ok", ms: 3600 })),
       },
     ];
   } else {

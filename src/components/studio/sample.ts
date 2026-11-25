@@ -2,8 +2,10 @@
  * Sample data for `?mock=1` only: a made-up bakery, always shown under a "Namuna" banner.
  * Never used as a fallback for a real channel.
  */
-import type { BrandProfile, ChannelAudit, ContentPlan, Goal, PostDraft } from "@/lib/uslub/contract";
+import type { BrandProfile, ChannelAudit, ContentPlan, Goal, PostDraft, PostSchedule } from "@/lib/uslub/contract";
+import type { AutopilotState, BotAdminStatus } from "@/lib/autopilot/types";
 import { latinToCyrillic } from "@/lib/uslub/translit";
+import type { Question } from "../ui/answers";
 import type { Lang } from "../ui/lang";
 
 type L3 = Record<Lang, string>;
@@ -49,6 +51,14 @@ const FINDINGS: { kind: "problem" | "opportunity"; text: L3; evidence: L3 }[] = 
     },
   },
 ];
+
+/** Where each slot's time comes from (PlanItem.timeLabel): guidance, never a promise. */
+const TIME_LABEL: Record<"best" | "morning" | "weekend", L3> = {
+  best: { uz: "Kanalingizda eng ko‘p ko‘rilgan vaqt", ru: "Самое просматриваемое время в вашем канале", en: "Your channel's most-viewed hour so far" },
+  morning: { uz: "Ertalabki postlar ko‘proq ko‘riladi", ru: "Утренние посты смотрят чаще", en: "Morning posts get more views" },
+  weekend: { uz: "Dam olish kuni odamlar kechroq o‘qiydi", ru: "В выходные читают позже", en: "On weekends people read later" },
+};
+const LABEL_OF = ["best", "morning", "best", "morning", "best", "weekend", "weekend"] as const;
 
 const PLAN: { day: number; time: string; goal: Goal; hook: L3 }[] = [
   { day: 0, time: "07:30", goal: "sale", hook: { uz: "Ertalabki patir: narxi va manzili", ru: "Утренний патыр: цена и адрес", en: "Morning patir: price and address" } },
@@ -150,10 +160,11 @@ export function samplePlan(lang: Lang): ContentPlan {
   return {
     weekOf: iso(mon),
     rationale: "",
-    items: PLAN.map((p) => {
+    items: PLAN.map((p, i) => {
       const d = new Date(mon);
       d.setDate(mon.getDate() + p.day);
       return {
+        timeLabel: TIME_LABEL[LABEL_OF[i]][lang],
         day: iso(d),
         time: p.time,
         goal: p.goal,
@@ -185,4 +196,59 @@ export function samplePosts(lang: Lang): PostDraft[] {
       createdAt: new Date().toISOString(),
     };
   });
+}
+
+/**
+ * The sample's week in the Studio (?mock=1): one post of each queue state, so every state is on screen.
+ * The landing keeps samplePosts (all drafts): it shows the department, not the queue.
+ * 1 out (the queue sent it), 2 approved and waiting for its time, 3 stopped (the bot is not an admin yet),
+ * 4 changed after its approval (approve again), 5 a draft.
+ */
+export function sampleWeek(lang: Lang): {
+  posts: PostDraft[];
+  schedule: Record<string, PostSchedule>;
+  autopilot: AutopilotState & { trialDaysLeft?: number };
+  admin: BotAdminStatus;
+} {
+  const posts = samplePosts(lang);
+  const due = (p: PostDraft) => new Date(Date.parse(`${p.slot!.day}T${p.slot!.time}:00+05:00`)).toISOString();
+  const blocked: L3 = {
+    uz: "Bot @namuna kanalida admin emas. Uni admin qiling, post o‘z vaqtida chiqadi.",
+    ru: "Бот не админ в канале @namuna. Сделайте его админом, и пост выйдет вовремя.",
+    en: "The bot is not an admin of @namuna. Make it one and the post goes out on time.",
+  };
+  const now = Date.now();
+  const at = (days: number) => new Date(now + days * 86_400_000).toISOString();
+  const out = posts.map((p, i): PostDraft =>
+    i === 0
+      ? { ...p, status: "published", publishedUrl: "https://t.me/namuna/128", approvedAt: at(-1) }
+      : i === 1 || i === 2
+        ? { ...p, status: "approved", approvedAt: at(-1) }
+        : p,
+  );
+  return {
+    posts: out,
+    schedule: {
+      [out[0].id]: { dueAt: due(out[0]), status: "sent" },
+      [out[1].id]: { dueAt: due(out[1]), status: "queued" },
+      [out[2].id]: { dueAt: due(out[2]), status: "blocked", error: blocked[lang] },
+      [out[3].id]: { dueAt: due(out[3]), status: "queued" },
+    },
+    autopilot: { on: true, since: at(-2), trialEndsAt: at(5), trialDaysLeft: 5 },
+    admin: { status: "not_admin", canPost: false, canInvite: false },
+  };
+}
+
+/** The questions the engine would ask the sample bakery (a shop: the goal, how customers order, prices). */
+export function sampleQuestions(lang: Lang): Question[] {
+  const t = {
+    uz: { goal: "Kanalning asosiy maqsadi nima?", sale: "Ko‘proq buyurtma", grow: "Ko‘proq obunachi", goalHint: "Reja, tahlil va haftalik hisobot shu maqsadga qarab tuziladi.", order: "Mijozlar qanday buyurtma beradi?", phone: "Telefon", manager: "@menejerga yozib", own_bot: "O‘z botimiz", site: "Sayt", mercat_link: "Mercat havolasi (har bir postdan kelganlarni sanaydi)", orderHint: "Postlar kanalingiz yozganidek tugaydi; aloqani o‘zgartirmaymiz.", prices: "3 ta asosiy mahsulot yoki xizmatingiz narxi qancha?", pricesHint: "Sotuv postlari narx bilan chiqadi." },
+    ru: { goal: "Главная цель канала?", sale: "Больше заказов", grow: "Больше подписчиков", goalHint: "От этого зависят план, разбор и отчёт по понедельникам.", order: "Как клиенты делают заказ?", phone: "По телефону", manager: "Пишут @менеджеру", own_bot: "Через наш бот", site: "Через сайт", mercat_link: "Ссылка Mercat (считает, кто пришёл с каждого поста)", orderHint: "Посты заканчиваются так же, как у вас в канале; контакт не меняем.", prices: "Сколько стоят 3 ваших главных товара или услуги?", pricesHint: "Продающие посты выходят с ценой." },
+    en: { goal: "What is the channel's main goal?", sale: "More orders", grow: "More subscribers", goalHint: "The plan, the analysis and the Monday report follow it.", order: "How do customers order?", phone: "By phone", manager: "They message a @manager", own_bot: "Our own bot", site: "Our website", mercat_link: "A Mercat link (counts who came from each post)", orderHint: "Posts end the way your channel's posts do; we keep your contact.", prices: "What do your 3 main products or services cost?", pricesHint: "Sale posts go out with a price." },
+  }[lang];
+  return [
+    { key: "goal", text: t.goal, input: "choice", options: [{ value: "sale", label: t.sale }, { value: "grow", label: t.grow }], prefill: "sale", hint: t.goalHint },
+    { key: "order", text: t.order, input: "choice", options: (["phone", "manager", "own_bot", "site", "mercat_link"] as const).map((v) => ({ value: v, label: t[v] })), hint: t.orderHint },
+    { key: "prices", text: t.prices, input: "prices", prefill: ["patir", "obi non", "kulcha"].map((name) => ({ name, price: "" })), hint: t.pricesHint },
+  ];
 }

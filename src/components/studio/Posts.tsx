@@ -11,6 +11,7 @@ import { Queue, queueOrder } from "./Queue";
 import { SCRIPT_ORDER, shownScripts, splitScripts } from "./scripts";
 import { slotKey, useStudio } from "./store";
 import { useHotkeys } from "./useHotkeys";
+import { WeekCard } from "./WeekCard";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 const SCRIPT_FOR: Record<Lang, Script> = { uz: "uz_latn", ru: "ru", en: "en" };
@@ -132,6 +133,7 @@ export function PostsTab({ inTelegram, column = false }: { inTelegram: boolean; 
   return (
     <div ref={list} className={`flex flex-col gap-6 ${column ? "max-w-[640px]" : ""}`}>
       <ScriptSwitch shown={shown} more={more} script={script} />
+      <WeekCard />
       <MissedNote />
       {/* Cards are dealt in one after another, once; later state changes do not replay it. */}
       {posts.map((p, i) => (
@@ -159,9 +161,10 @@ export function PostsSplit({ lamps }: { lamps: Lamps }) {
   const posts = useStudio((s) => s.posts);
   const { script, scriptOf } = usePostScript();
   const focused = useDesk((s) => s.focusedPostId);
+  const schedule = useStudio((s) => s.schedule);
   const keysUsed = useDesk((s) => s.keysUsed);
   const reduce = useReducedMotion() ?? false;
-  const order = queueOrder(posts);
+  const order = queueOrder(posts, schedule);
   const current = order.find((p) => p.id === focused) ?? order[0];
   useHotkeys(true);
 
@@ -175,6 +178,8 @@ export function PostsSplit({ lamps }: { lamps: Lamps }) {
 
   if (!posts.length) return <EmptyQueue />;
   const drafts = order.filter((p) => p.status === "draft").length;
+  // «Endi Telegramda joylang» only while approved posts wait for a hand: a queued week goes out by itself.
+  const handWaits = order.some((p) => p.status === "approved" && !schedule[p.id]);
   const s = scriptOf(current);
   const inspector = <Inspector post={current} script={script === s ? script : s} lamps={lamps} />;
 
@@ -182,12 +187,13 @@ export function PostsSplit({ lamps }: { lamps: Lamps }) {
     <div className="@container">
       <div className="grid grid-cols-[260px_minmax(0,1fr)] items-start gap-4 @min-[920px]:grid-cols-[280px_minmax(340px,460px)_316px]">
         <div className="sticky top-3 flex max-h-[calc(100dvh-24px)] flex-col gap-3 overflow-auto">
+          <WeekCard compact />
           <MissedNote />
           <Queue script={scriptOf} />
         </div>
 
         <div className="min-w-0">
-          {drafts === 0 && <p className="mb-3 px-1 text-[14px] text-ink-2">{c.queue.allDone}</p>}
+          {drafts === 0 && handWaits && <p className="mb-3 px-1 text-[14px] text-ink-2">{c.queue.allDone}</p>}
           {/* The next post comes in at once. A waited-for exit would hold the column empty while
               the picture inside plays its own exit (up to 0.9 s): too long between two posts. */}
           <motion.div

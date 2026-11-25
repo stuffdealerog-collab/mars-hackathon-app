@@ -8,7 +8,10 @@
  * No sample data unless the page was opened with ?mock=1.
  */
 import type { AgentRole, BrandProfile, ChannelAudit, ContentPlan, PlanItem, PostDraft, PostImage, Script, Strategy, VisualStyle } from "@/lib/uslub/contract";
+import type { AutopilotState, BotAdminStatus } from "@/lib/autopilot/types";
+import { weekHashForClient } from "@/lib/autopilot/week-hash";
 import { create } from "zustand";
+import { answersBody, type AnswerValues, type Question } from "../ui/answers";
 import { COPY } from "../ui/copy";
 import { fmt } from "../ui/format";
 import { useLang, type Lang } from "../ui/lang";
@@ -18,7 +21,8 @@ import { latestBatch } from "./batch";
 import { keepAudit, keepPlan, keptAudit, keptPlan, pickPlan, type KeptPlan } from "./keep";
 import { askChannel, nextAsk, publishFailKind, retryAsk, type AdminAsk } from "./admin-ask";
 import { defaultPro, safeTab, type Tab } from "./mode";
-import { sampleAudit, sampleBrand, samplePlan, samplePosts } from "./sample";
+import { SAMPLE_CHANNEL, sampleAudit, sampleBrand, samplePlan, sampleQuestions, sampleWeek } from "./sample";
+import { needsPicture, weekPlan, type Schedule, type WeekPlan } from "./week";
 
 export type Phase = "start" | "working" | "ready" | "reopening";
 export type Mode = "channel" | "fresh";
@@ -43,6 +47,29 @@ export type Step = { key: StepKey; status: StepStatus; n?: number; m?: number; t
 export const POSTS_PER_RUN = 5;
 const IMAGE_POLL_MS = 4000;
 const IMAGE_POLL_LIMIT_MS = 4 * 60_000;
+
+/**
+ * «Haftani tasdiqlash» as it stands: sending; done (how many went in the queue, what stayed out and why, the bot's
+ * add-to-channel link when it cannot post yet); changed (the week was another one by the time it reached the server:
+ * the posts were read again, look and press again); continue (the server does not know this browser's owner: the
+ * bot's week view carries on); failed.
+ */
+export type WeekState =
+  | { state: "idle" }
+  | { state: "sending" }
+  | { state: "done"; queued: number; skipped: api.WeekSkipped[]; adminUrl?: string }
+  | { state: "changed" }
+  | { state: "continue"; continueUrl: string }
+  | { state: "failed"; message: string };
+
+/** The owner's questions (GET /api/uslub/answers): what the engine asks, and where the card stands. */
+export type QuestionsState = {
+  list: Question[];
+  state: "idle" | "open" | "saving" | "saved" | "skipped" | "error";
+  message?: string;
+};
+
+export type AutopilotView = AutopilotState & { trialDaysLeft?: number };
 
 export interface Problem {
   message: string;
@@ -113,6 +140,31 @@ interface StudioState {
    * supplies them; the lamps show them in place of their work-shaped captions. Empty until then.
    */
   outcomes: Partial<Record<AgentRole, string>>;
+  /** Each queued, sent or stopped post's place in the publish queue (GET /api/uslub/autopilot), by post id. */
+  schedule: Schedule;
+  /** The brand's autopilot and its trial; null until the server said (or for a brand this browser cannot read). */
+  autopilot: AutopilotView | null;
+  /** Is the bot an admin of the channel (Telegram's my_chat_member), null until known. */
+  botAdmin: BotAdminStatus | null;
+  autopilotBusy: boolean;
+  week: WeekState;
+  /** Reads the queue, the autopilot and the bot's rights again (quiet on failure). */
+  loadAutopilot: () => Promise<void>;
+  /** The week as the screen shows it right now (what «Haftani tasdiqlash» would queue). */
+  weekNow: (postIds?: string[]) => WeekPlan;
+  /** Approves and queues the week on screen, or exactly `postIds` (one post approved again). */
+  approveWeek: (postIds?: string[]) => Promise<WeekState>;
+  /** Before the bot's week view opens (a web owner the server does not know): waiting approvals and edits leave. */
+  handOverWeek: () => void;
+  closeWeek: () => void;
+  toggleAutopilot: (on: boolean) => Promise<{ ok: boolean; continueUrl?: string; message?: string }>;
+  questions: QuestionsState;
+  loadQuestions: () => Promise<void>;
+  saveAnswers: (v: AnswerValues) => Promise<boolean>;
+  skipQuestions: () => void;
+  /** Posts being rewritten from the owner's phrase. */
+  rewriting: Record<string, boolean>;
+  rewrite: (id: string, instruction: string) => Promise<boolean>;
   /** Professional rejim: the full lamp panel, the strategy and plan details. Off = the simple path. */
   pro: boolean;
   setPro: (v: boolean) => void;
@@ -232,14 +284,19 @@ let polling = false;
 const seen = new Map<string, number>();
 const isOpen = (i?: PostImage | null) => i?.status === "queued" || i?.status === "running";
 
-/**
- * Which posts the run draws a picture for. Drafts without one (or whose attempt failed and left
- * nothing), and approved posts that never got one, approved before the picture loop reached
- * them. Never a published post, and never a redraw of an approved post's existing picture: the
- * bot sends what the owner approved.
- */
-const needsPicture = (p: PostDraft) =>
-  (p.status === "draft" && (!p.image || (p.image.status === "failed" && !p.image.url))) || (p.status === "approved" && !p.image);
+/** Questions the owner put off in this tab, by brand (asked again in a later session). */
+const SKIPPED_Q = "mercat.q.skip";
+function questionsSkipped(brandId: string): boolean {
+  try {
+    return sessionStorage.getItem(SKIPPED_Q) === brandId;
+  } catch {
+    return false;
+  }
+}
+
+/** The channel a week goes out to: the brand's, the one typed at the start, the sample's. */
+export const weekChannel = (s: { brand: BrandProfile | null; input: { channel?: string }; sample: boolean }) =>
+  s.brand?.channel || (s.input.channel ? `@${s.input.channel}` : s.sample ? SAMPLE_CHANNEL : null);
 
 /** Posts whose picture start is in flight: never a second paid start for the same post. */
 const starting = new Set<string>();
@@ -272,6 +329,24 @@ function rememberRecent(b: BrandProfile) {
     /* private mode */
   }
 }
+
+/** A brand this browser opened before for the same channel: a re-run reuses its row (type, goal, answers). */
+function recentBrandFor(channel?: string): string | undefined {
+  if (!channel) return undefined;
+  const name = channel.replace(/^@/, "").toLowerCase();
+  return recentBrands().find((r) => r.channel?.replace(/^@/, "").toLowerCase() === name)?.id;
+}
+
+/** The autopilot, week and question state of one brand, cleared when another opens. */
+const freshWeek = () => ({
+  schedule: {} as Schedule,
+  autopilot: null,
+  botAdmin: null,
+  autopilotBusy: false,
+  week: { state: "idle" } as WeekState,
+  questions: { list: [], state: "idle" } as QuestionsState,
+  rewriting: {} as Record<string, boolean>,
+});
 
 /**
  * Reads ?ui= and the bot's link key once. The key comes in the fragment (`#k=`, which never
@@ -418,7 +493,7 @@ export const useStudio = create<StudioState>((set, get) => {
     // bot refuses to publish it). A failed attempt that still has a picture keeps it; the owner can
     // ask for another one from the card.
     const batch = latestBatch(get().posts);
-    const posts = get().posts.filter((p) => batch.has(p.id) && needsPicture(p));
+    const posts = get().posts.filter((p) => batch.has(p.id) && needsPicture(p, get().schedule[p.id]));
     if (!posts.length && !get().posts.some((p) => p.image?.status === "queued" || p.image?.status === "running")) {
       countImages();
       return;
@@ -550,6 +625,7 @@ export const useStudio = create<StudioState>((set, get) => {
     const first = get().mode === "channel" && !!get().audit;
     set({ phase: "ready", tab: first ? "channel" : "posts", justFinished: first, problem: null });
     if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+    void get().loadAutopilot();
     // Pictures wait for the style; without one the picture route decides what it can do.
     // The Dizayner is already at work while it studies the channel's photos.
     if (get().posts.some((p) => !p.image)) step("images", { status: "run", n: 0, m: get().posts.length });
@@ -571,12 +647,14 @@ export const useStudio = create<StudioState>((set, get) => {
       const ch = s.input.channel;
       step("read", { status: "run" });
       step("voice", { status: "run" });
+      // The same channel opened on this browser before: its row is reused, with its type, goal and answers.
+      const known = s.mode === "channel" ? recentBrandFor(ch) : undefined;
       const brandP =
         s.mode === "channel"
-          ? api.createBrand({ channel: `@${ch}`, lang: L })
+          ? api.createBrand({ channel: `@${ch}`, lang: L, brandId: known })
           : api.createBrand({ mode: "fresh", knowledge: s.input.knowledge, channel: ch ? `@${ch}` : undefined, lang: L });
       // The analysis needs no brand: it reads the pasted channel directly, in parallel.
-      const auditP = s.mode === "channel" && ch && !s.audit ? api.analyzeChannel(`@${ch}`, L) : null;
+      const auditP = s.mode === "channel" && ch && !s.audit ? api.analyzeChannel(`@${ch}`, L, known) : null;
 
       if (auditP) {
         void auditP.then((a) => {
@@ -611,6 +689,8 @@ export const useStudio = create<StudioState>((set, get) => {
       rememberRecent(b.data.brand);
       step("read", { status: "done", n: read ?? undefined });
       step("voice", { status: "done" });
+      // The owner's questions come while the plan is made: answers given in time reach the writer.
+      void get().loadQuestions();
 
       if (s.mode === "fresh" && s.input.photos?.length) {
         step("photos", { status: "run" });
@@ -628,6 +708,8 @@ export const useStudio = create<StudioState>((set, get) => {
 
   const runSample = async (my: number) => {
     const L = lang();
+    // The engine's questions come while the department works (here, the sample's own).
+    set({ questions: { list: sampleQuestions(L), state: "open" } });
     const seq: [StepKey, Partial<Step>][] = [
       ["read", { status: "done", n: 60 }],
       ["voice", { status: "done" }],
@@ -641,15 +723,36 @@ export const useStudio = create<StudioState>((set, get) => {
       step(k, patch);
     }
     step("images", { status: "skip" });
+    const week = sampleWeek(L);
     set({
       brand: sampleBrand(L),
       audit: sampleAudit(L),
       plan: samplePlan(L),
-      posts: samplePosts(L),
+      posts: week.posts,
+      schedule: week.schedule,
+      autopilot: week.autopilot,
+      botAdmin: week.admin,
       postsRead: 60,
       phase: "ready",
       tab: "posts",
     });
+  };
+
+  const applyAutopilot = (d: api.AutopilotInfo) =>
+    set({ autopilot: d.autopilot ?? null, botAdmin: d.admin ?? null, schedule: d.schedule && typeof d.schedule === "object" ? d.schedule : {} });
+
+  /**
+   * Approvals in their undo window go now and are awaited: the week is approved over what the server holds, and its
+   * hash must be taken of exactly that text.
+   */
+  const settleWaiting = async () => {
+    for (const [id, w] of [...waiting]) {
+      if (!waiting.has(id)) continue;
+      w.settle("go");
+      await w.done;
+    }
+    await sleep(0);
+    while (Object.values(get().busy).some((v) => v === "approve")) await sleep(120);
   };
 
   return {
@@ -684,6 +787,7 @@ export const useStudio = create<StudioState>((set, get) => {
     missed: [],
     adminAsk: null,
     outcomes: {},
+    ...freshWeek(),
     pro: false,
     approveDelayMs: 0,
     pendingApprove: {},
@@ -754,11 +858,22 @@ export const useStudio = create<StudioState>((set, get) => {
       const merged = get().posts.map((p) => {
         const s = server.get(p.id);
         if (!s) return p;
-        // Server facts win (status, link, picture); the owner's unsaved edits and waiting approvals stay.
+        // Server facts win (status, link, picture, and the text when this device has no edit of it: a rewrite on
+        // another device, or «Haftani tasdiqlash» would hash an old text); the owner's unsaved edits and waiting
+        // approvals stay.
         const status = pending[p.id] && s.status === "draft" ? p.status : s.status;
-        return { ...p, status, publishedUrl: s.publishedUrl ?? p.publishedUrl, approvedAt: s.approvedAt ?? p.approvedAt, image: s.image ?? p.image };
+        const mine = !!get().edited[p.id] || !!pending[p.id];
+        return {
+          ...p,
+          status,
+          publishedUrl: s.publishedUrl ?? p.publishedUrl,
+          approvedAt: s.approvedAt ?? p.approvedAt,
+          image: s.image ?? p.image,
+          ...(mine ? {} : { variants: s.variants, needsApproval: s.needsApproval, placeholders: s.placeholders, note: s.note }),
+        };
       });
       set({ posts: [...merged, ...r.data.posts.filter((p) => !local.has(p.id))] });
+      void get().loadAutopilot();
     },
 
     undoApprove: (id) => {
@@ -813,6 +928,7 @@ export const useStudio = create<StudioState>((set, get) => {
         missed: [],
         adminAsk: null,
         outcomes: {},
+        ...freshWeek(),
         steps: stepsFor("channel", false),
         startedAt: Date.now(),
       });
@@ -840,6 +956,7 @@ export const useStudio = create<StudioState>((set, get) => {
         missed: [],
         adminAsk: null,
         outcomes: {},
+        ...freshWeek(),
         steps: stepsFor("fresh", !!photos?.length),
         startedAt: Date.now(),
       });
@@ -884,6 +1001,7 @@ export const useStudio = create<StudioState>((set, get) => {
         missed: [],
         adminAsk: null,
         outcomes: {},
+        ...freshWeek(),
       });
     },
 
@@ -922,6 +1040,7 @@ export const useStudio = create<StudioState>((set, get) => {
         emptyChannel: null,
         adminAsk: null,
         outcomes: {},
+        ...freshWeek(),
       });
       const L = lang();
       const [b, p] = await Promise.all([api.getBrand(brandId, L), api.listPosts(brandId, L)]);
@@ -975,7 +1094,7 @@ export const useStudio = create<StudioState>((set, get) => {
         const audit = keptAudit(brand.id);
         if (audit) set({ audit, auditProblem: null });
         else
-          void api.analyzeChannel(brand.channel, L).then((a) => {
+          void api.analyzeChannel(brand.channel, L, brand.id).then((a) => {
             if (my !== runId) return;
             if (a.ok) {
               set({ audit: a.data.audit, auditProblem: null });
@@ -983,9 +1102,13 @@ export const useStudio = create<StudioState>((set, get) => {
             } else set({ auditProblem: problemOf(a) });
           });
       }
+      void get().loadQuestions();
+      // The queue first: a post it holds keeps the picture it was approved with.
+      await get().loadAutopilot();
+      if (my !== runId) return;
       // A run cut short (tab closed mid-way) leaves drafts without a picture: finish them now,
       // so no slot waits for a picture nobody is drawing.
-      if (posts.some(needsPicture)) void pictures(my);
+      if (posts.some((x) => needsPicture(x, get().schedule[x.id]))) void pictures(my);
       else if (posts.some((x) => isOpen(x.image))) void poll(my);
     },
 
@@ -1027,7 +1150,7 @@ export const useStudio = create<StudioState>((set, get) => {
       if (!channel) return;
       const my = runId;
       set({ auditProblem: null });
-      const a = await api.analyzeChannel(channel, lang());
+      const a = await api.analyzeChannel(channel, lang(), get().brand?.id);
       if (my !== runId) return;
       if (a.ok) {
         set({ audit: a.data.audit });
@@ -1156,6 +1279,181 @@ export const useStudio = create<StudioState>((set, get) => {
       const open = kind === "admin" ? { script, chat, channel: askChannel({ name: b?.dna.name, channel: b?.channel || chat, typed: get().input.channel }) } : null;
       set({ adminAsk: nextAsk(get().adminAsk, id, open) });
       return { ok: false, message: msg, adminUrl: blank ? undefined : admin, botUrl, code: r.ok ? r.data.code : r.code };
+    },
+
+    loadAutopilot: async () => {
+      const b = get().brand;
+      if (!b || get().sample) return;
+      const r = await api.getAutopilot(b.id, lang());
+      // Another channel opened meanwhile: its queue is not this one.
+      if (get().brand?.id !== b.id || !r.ok) return;
+      applyAutopilot(r.data);
+    },
+
+    weekNow: (postIds) => {
+      const s = get();
+      return weekPlan({ posts: s.posts, schedule: s.schedule, channel: weekChannel(s), languages: s.brand?.dna.languages, now: Date.now(), postIds });
+    },
+
+    approveWeek: async (postIds) => {
+      const brand = get().brand;
+      if (!brand || get().week.state === "sending") return get().week;
+      const done = (week: WeekState) => {
+        set({ week });
+        return week;
+      };
+      if (get().sample) {
+        // The sample queues on screen only: every ready post waits for its slot.
+        const plan = get().weekNow(postIds);
+        const at = new Date().toISOString();
+        const due = new Map(plan.toQueue.map((r) => [r.postId, r.dueAt]));
+        set({
+          posts: get().posts.map((p) => (due.has(p.id) ? { ...p, status: "approved", approvedAt: at } : p)),
+          schedule: { ...get().schedule, ...Object.fromEntries([...due].map(([id, dueAt]) => [id, { dueAt, status: "queued" as const }])) },
+          handTick: get().handTick + 1,
+        });
+        return done({ state: "done", queued: due.size, skipped: plan.skipped });
+      }
+      set({ week: { state: "sending" } });
+      // The server approves what it holds: approvals waiting out their undo window and the owner's edits go first,
+      // so the hash below is taken of the same text.
+      await settleWaiting();
+      for (const r of get().weekNow(postIds).toQueue) {
+        const p = get().posts.find((x) => x.id === r.postId);
+        if (p?.status !== "draft" || !get().edited[p.id]) continue;
+        applyApproval(p.id, await api.approvePost(p.id, lang(), get().edited[p.id]));
+      }
+      if (get().brand?.id !== brand.id) return done({ state: "idle" });
+      const plan = get().weekNow(postIds);
+      if (!plan.batch.ready.length) return done({ state: "changed" });
+      const hash = await weekHashForClient(plan.batch, get().posts);
+      const r = await api.approveWeek(brand.id, hash, lang(), postIds);
+      if (get().brand?.id !== brand.id) return done({ state: "idle" });
+      if (!r.ok) {
+        if (r.code === "batch_changed") {
+          // Another batch than the one shown (a picture finished, a new Monday batch): read the posts again.
+          lastRefresh = 0;
+          await get().refreshPosts();
+          await get().loadAutopilot();
+          return done({ state: "changed" });
+        }
+        if (r.continueUrl) return done({ state: "continue", continueUrl: r.continueUrl });
+        return done({ state: "failed", message: problemOf(r).message });
+      }
+      const queued = new Map(r.data.queued.map((q) => [q.postId, q.dueAt]));
+      const at = new Date().toISOString();
+      set({
+        posts: get().posts.map((p) => (queued.has(p.id) && p.status !== "published" ? { ...p, status: "approved", approvedAt: p.approvedAt ?? at } : p)),
+        schedule: { ...get().schedule, ...Object.fromEntries([...queued].map(([id, dueAt]) => [id, { dueAt, status: "queued" as const }])) },
+        botAdmin: r.data.admin ?? get().botAdmin,
+        handTick: get().handTick + 1,
+      });
+      void get().loadAutopilot();
+      return done({ state: "done", queued: queued.size, skipped: r.data.skipped.filter((x) => x.reason !== "published"), adminUrl: r.data.addAdminUrl });
+    },
+
+    handOverWeek: () => {
+      // keepalive: the bot's tab may take the page's place; the bot then shows the text the owner saw.
+      get().flushApprovals();
+      for (const r of get().weekNow().toQueue) {
+        const p = get().posts.find((x) => x.id === r.postId);
+        if (p?.status === "draft" && get().edited[p.id]) void api.approvePost(p.id, lang(), get().edited[p.id], true);
+      }
+    },
+
+    closeWeek: () => set({ week: { state: "idle" } }),
+
+    toggleAutopilot: async (on) => {
+      const b = get().brand;
+      if (!b || get().autopilotBusy) return { ok: false };
+      if (get().sample) {
+        const prev = get().autopilot ?? { on: false };
+        const since = prev.since ?? new Date().toISOString();
+        const trialEndsAt = prev.trialEndsAt ?? new Date(Date.parse(since) + 7 * 86_400_000).toISOString();
+        set({ autopilot: on ? { ...prev, on, since, trialEndsAt, trialDaysLeft: prev.trialDaysLeft ?? 7 } : { ...prev, on } });
+        return { ok: true };
+      }
+      set({ autopilotBusy: true });
+      const r = await api.setAutopilot(b.id, on, lang());
+      set({ autopilotBusy: false });
+      if (get().brand?.id !== b.id) return { ok: false };
+      if (r.ok) {
+        applyAutopilot(r.data);
+        return { ok: true };
+      }
+      return { ok: false, continueUrl: r.continueUrl, message: problemOf(r).message };
+    },
+
+    loadQuestions: async () => {
+      const b = get().brand;
+      if (!b || get().sample || questionsSkipped(b.id)) return;
+      const r = await api.getAnswers(b.id, lang());
+      if (get().brand?.id !== b.id || !r.ok) return;
+      // The owner may have answered meanwhile (another device, the bot): the server's list is the truth.
+      const list = Array.isArray(r.data.questions) ? r.data.questions.filter((q) => q && typeof q.text === "string") : [];
+      const st = get().questions.state;
+      if (st === "saving" || st === "skipped") return;
+      set({ questions: { list, state: list.length ? "open" : "idle" } });
+      if (r.data.channelType && !get().brand?.channelType) set({ brand: { ...get().brand!, channelType: r.data.channelType } });
+    },
+
+    saveAnswers: async (values) => {
+      const b = get().brand;
+      const list = get().questions.list;
+      const body = answersBody(list, values);
+      if (!b || !body) return false;
+      if (get().sample) {
+        set({ questions: { list: [], state: "saved" } });
+        return true;
+      }
+      set({ questions: { ...get().questions, state: "saving", message: undefined } });
+      const r = await api.saveAnswers(b.id, body, lang());
+      if (get().brand?.id !== b.id) return false;
+      if (!r.ok) {
+        set({ questions: { list, state: "error", message: problemOf(r).message } });
+        return false;
+      }
+      set({ questions: { list: Array.isArray(r.data.questions) ? r.data.questions : [], state: "saved" } });
+      if (body.goal) set({ brand: { ...get().brand!, goal: body.goal } });
+      return true;
+    },
+
+    skipQuestions: () => {
+      const b = get().brand;
+      try {
+        if (b) sessionStorage.setItem(SKIPPED_Q, b.id);
+      } catch {
+        /* this page only */
+      }
+      set({ questions: { ...get().questions, state: "skipped" } });
+    },
+
+    rewrite: async (id, instruction) => {
+      const note = (v: PostNote | undefined) => set({ postNote: { ...get().postNote, [id]: v } });
+      const text = instruction.trim();
+      if (!text || get().rewriting[id]) return false;
+      if (get().sample) {
+        note({ text: copy().tools.notInSample, tone: "hint" });
+        return false;
+      }
+      const flag = (v: boolean) => set({ rewriting: { ...get().rewriting, [id]: v } });
+      flag(true);
+      note(undefined);
+      const r = await api.rewritePost(id, text, lang());
+      flag(false);
+      if (!r.ok) {
+        note({ text: problemOf(r).message, tone: "bad" });
+        return false;
+      }
+      const { post, kept, reapprove } = r.data;
+      // The server's text is the post now: an older local edit of it would only bring the old words back.
+      const edited = { ...get().edited };
+      delete edited[id];
+      set({ edited, posts: get().posts.map((p) => (p.id === id ? { ...p, ...post, image: post.image ?? p.image } : p)) });
+      const c = copy().rewrite;
+      const allKept = ["uz_latn", "ru", "en"].every((s) => kept.includes(s as Script));
+      note(allKept ? { text: c.kept, tone: "hint" } : reapprove ? { text: c.reapprove, tone: "hint" } : { text: c.done, tone: "ok" });
+      return !allKept;
     },
 
     adminAdded: () => {

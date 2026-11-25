@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Led } from "../../lamp/Led";
 import { Mark } from "../../lamp/Mark";
 import { Panel, useLamps } from "../../studio/Department";
+import { QuestionsCard } from "../../studio/Questions";
 import { SpectrumIntro } from "../../studio/SpectrumIntro";
 import { POSTS_PER_RUN, useStudio, type Step } from "../../studio/store";
 import { fmt, useCopy } from "../../ui/lang";
@@ -131,6 +132,12 @@ export function RunScreen({ active }: { active: boolean }) {
             <Panel ref={panelRef} lamps={lamps} />
             {intro && <SpectrumIntro fieldRef={ledRef} panelRef={panelRef} onBloom={onBloom} onDone={onDone} />}
           </div>
+          {/* The engine's few questions while the department works, under the lamps; skippable. */}
+          {!problem && (
+            <div className="mt-6">
+              <QuestionsCard variant="mini" />
+            </div>
+          )}
         </div>
       </div>
     </>

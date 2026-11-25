@@ -8,6 +8,7 @@ import { copyFor as mediaCopy, StyleRefs } from "@/components/media";
 import { authHeader, type PlanItemExtra } from "./api";
 import { useDesk, type RefsHandle } from "./desk";
 import { topFindings } from "./findings";
+import { QuestionsCard } from "./Questions";
 import { slotKey, useStudio } from "./store";
 
 // Pro rejim only, loaded on demand: simple mode never downloads it.
@@ -39,6 +40,8 @@ export function ChannelTab({ wide = false }: { wide?: boolean }) {
     return (
       <div className={`@container flex flex-col gap-12 ${wide ? "max-w-[640px]" : ""}`}>
         {findings}
+        {/* Value first, then the engine's few questions (skippable); their answers feed every week. */}
+        <QuestionsCard />
         {mode === "fresh" && <Launch />}
         <PictureStyle />
         {/* «Qanday yozasiz» is a marketer's table: Pro only. The posts already speak the voice. */}
@@ -59,6 +62,7 @@ export function ChannelTab({ wide = false }: { wide?: boolean }) {
         <SufficiencyPanel items={sufficiency} />
       </div>
       <div className="@container flex min-w-0 flex-col gap-12">
+        <QuestionsCard />
         {mode === "fresh" && <Launch />}
         <Plan />
         <StrategyDetails />
@@ -416,6 +420,8 @@ function Plan() {
               </div>
               <div className="min-w-0">
                 <p className="text-[15px] leading-snug">{ownerText(it.hook, lang)}</p>
+                {/* Where the time comes from (the strategist's guidance, never a promise). */}
+                {it.timeLabel && <p className="mt-0.5 text-[13px] leading-snug text-ink-3">{ownerText(it.timeLabel, lang)}</p>}
                 {pro && <PlanRowDetails item={it as typeof it & PlanItemExtra} />}
                 <p className="mt-1 text-[13.5px] text-ink-3">
                   {c.channel.goal[it.goal]}

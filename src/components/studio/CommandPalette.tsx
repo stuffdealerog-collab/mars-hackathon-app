@@ -35,7 +35,7 @@ function commands(c: Copy): Command[] {
     for (const [tab, get] of tabs) add(`tab-${tab}`, get(c), all(get), () => s.setTab(tab));
 
     // The post in focus: the queue's choice, else the first waiting for the owner.
-    const order = queueOrder(s.posts);
+    const order = queueOrder(s.posts, s.schedule);
     const post = s.tab === "posts" ? (order.find((p) => p.id === desk.focusedPostId) ?? order[0]) : undefined;
     if (post) {
       const script = s.postScript && post.variants[s.postScript]?.trim() ? s.postScript : "uz_latn";

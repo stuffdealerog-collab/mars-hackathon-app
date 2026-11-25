@@ -30,7 +30,7 @@ export function useHotkeys(enabled: boolean) {
       const inScope = !a || a === document.body || onOption || a.hasAttribute("data-post-scope");
       if (!inScope || (!onOption && a?.closest(CONTROLS))) return;
 
-      const order = queueOrder(st.posts);
+      const order = queueOrder(st.posts, st.schedule);
       if (!order.length) return;
       const cur = order.find((p) => p.id === desk.focusedPostId) ?? order[0];
       const move = (step: number) => {
