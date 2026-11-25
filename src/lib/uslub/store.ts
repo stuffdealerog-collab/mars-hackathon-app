@@ -410,9 +410,11 @@ export async function markPublished(id: string, url: string | null, chat: string
  * had, draft or approved). Readers see <prev> (toPost), so the contract's three statuses stay as they are; a second
  * publish of the same post finds the claim and sends nothing (publish-once.ts). markPublished replaces the claim
  * with "published"; a failed send puts <prev> back. A claim older than PUBLISH_CLAIM_STALE_MS belongs to a call
- * that died mid-send (the bot webhook's maxDuration is 120 s, the publish route's 30 s) and may be taken over. */
+ * that died mid-send and may be taken over. It must outlive the longest caller: the cron tick sends approved posts
+ * and may live 300 s (its maxDuration, the same rule as the cron lease), the bot webhook 120 s, the publish route
+ * 30 s. A shorter limit would let the owner's tap take over a send that is still running and post it twice. */
 
-export const PUBLISH_CLAIM_STALE_MS = 180_000;
+export const PUBLISH_CLAIM_STALE_MS = 330_000;
 const CLAIM_RE = /^publishing:(draft|approved):(\d{1,15})$/;
 type Unpublished = "draft" | "approved";
 

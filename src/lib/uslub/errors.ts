@@ -36,6 +36,7 @@ export type ErrorCode =
   | "channel_admin_required"
   | "bot_not_admin"
   | "placeholder_left"
+  | "batch_changed"
   | "internal";
 
 type Msg = Record<ApiLang, string>;
@@ -176,6 +177,12 @@ const MESSAGES: Record<ErrorCode, Msg> = {
     uz: "Postda to‘ldirilmagan joy qoldi: {facts}. Shu ma’lumotni yozing yoki o‘sha gapni o‘chiring, keyin qayta tasdiqlang.",
     ru: "В посте осталось незаполненное место: {facts}. Впишите эти данные или удалите это предложение, затем подтвердите снова.",
     en: "The post still has a blank to fill: {facts}. Add that detail or delete the sentence, then approve again.",
+  },
+  // «Approve the week»: the batch is not the one the owner saw (a new batch, a finished picture, an edit).
+  batch_changed: {
+    uz: "Hafta postlari siz ko‘rganingizdan keyin o‘zgardi. Yangi ro‘yxatni ko‘rib, qayta tasdiqlang.",
+    ru: "Посты недели изменились после того, как вы их открыли. Посмотрите новый список и подтвердите снова.",
+    en: "The week's posts changed after you opened them. Look at the new list and approve again.",
   },
   internal: {
     uz: "Kutilmagan xatolik. Qayta urinib ko‘ring.",
