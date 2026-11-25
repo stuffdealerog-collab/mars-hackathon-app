@@ -7,16 +7,21 @@ import { getSql, isDbConfigured } from "./db";
 import { getEnv, getPublicUrl } from "./env";
 import { formatDay, type Locale, pickLocale, t } from "./i18n";
 import { eventStartPayload } from "./source-category";
+import { logPostRegenerated } from "./stats-events";
 import { botEventMeta } from "./stats-meta";
 import { parseSource, safeLogEvent, track } from "./track";
 import { botHandle, botProfile, syncBotProfile } from "./uslub/bot-profile";
+import { answerPendingText, clearPending, registerBotFlows } from "./uslub/botflow/flows";
+import { REBUILD_RE } from "./uslub/botflow/questions-core";
 import { spenderKey, takeUnits } from "./uslub/budget-core";
 import { learnFor } from "./uslub/brain/learn-run";
 import { latestPlanForOwner, ORDER_BUCKETS, planByTag, recordOutcome } from "./uslub/brain/memory";
+import { verifiedPlanBusiness } from "./uslub/brain/plan-owner";
 import { scrapeChannelData } from "./uslub/brain/scrape";
 import { answerPendingChannel, publishFromButton, startPublish, switchScript } from "./uslub/botpublish";
 import { CALLBACK_RE, parseCallback } from "./uslub/botpublish-core";
 import { flushUsage, runWithContext } from "./uslub/context";
+import { getBrand } from "./uslub/store";
 import { clip, wellFormedDeep } from "./uslub/text";
 import {
   classifyOnboardText,
@@ -84,15 +89,19 @@ const PLAN_LINK_RE = /^src_([a-z0-9]{6})_(\d{1,2})$/;
 
 const escapeHtml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-/** Customer tapped a plan post's link: ask before passing their contact to the business owner. */
-async function customerFromPlanLink(ctx: { reply: (text: string, other?: object) => Promise<unknown> }, tag: string, slot: number, locale: Locale) {
+/**
+ * Customer tapped a plan post's link: ask before passing their contact to the business owner. The business is named
+ * only when the plan's owner is a verified admin of the brand's channel (plan-owner.ts); otherwise the question
+ * speaks for "the post's author".
+ */
+async function customerFromPlanLink(ctx: { reply: (text: string, other?: object) => Promise<unknown>; api: Api }, tag: string, slot: number, locale: Locale) {
   const plan = await planByTag(tag);
   if (!plan?.ownerTelegramId) {
     await ctx.reply(t(locale, "bot.link_inactive"));
     return;
   }
-  // The plan's channel is not verified, so the customer is never told which brand is behind the link.
-  await ctx.reply(t(locale, "bot.link_ask"), {
+  const named = await verifiedPlanBusiness(plan, (chat, id) => ctx.api.getChatMember(chat, id));
+  await ctx.reply(named ? t(locale, "bot.link_ask_named", { name: named.name, channel: named.channel }) : t(locale, "bot.link_ask"), {
     reply_markup: new InlineKeyboard().text(t(locale, "bot.link_yes"), `lead:${tag}:${slot}`),
   });
 }
@@ -119,14 +128,18 @@ async function startOnboarding(
     await ctx.reply(gateMessage(gate, locale));
     return;
   }
-  // The app-wide daily Claude budget (shared with the API): an onboarding is a brand and posts, 2 units. A signed-in
+  // The app-wide daily Claude budget (shared with the API), as the Studio spends it for the same run: a channel run is
+  // a brand, an analysis, a plan and posts (4 units); a description is a brand, a launch plan and posts (3). A signed-in
   // Telegram user has no per-user daily cap beyond the hourly gate above.
-  const budget = await takeUnits({ actor: spenderKey(userId, ""), anonymous: false, weight: 2, route: "bot/onboard" }).catch(() => "ok" as const);
+  const weight = "channel" in input ? 4 : 3;
+  const budget = await takeUnits({ actor: spenderKey(userId, ""), anonymous: false, weight, route: "bot/onboard" }).catch(() => "ok" as const);
   if (budget !== "ok") {
     onboardGate.leave(userId);
     await ctx.reply(t(locale, "bot.budget_exhausted"));
     return;
   }
+  // A new run: whatever the bot was still asking about an earlier one is moot (the new run asks again).
+  await clearPending(userId);
   try {
     await ctx.reply("channel" in input ? t(locale, "bot.working_channel", { channel: input.channel }) : t(locale, "bot.working_text"));
     await ctx.replyWithChatAction("typing").catch(() => undefined);
@@ -173,6 +186,8 @@ function registerHandlers(b: Bot) {
     return next();
   });
   registerAutopilot(b); // week_ links, week/autopilot/orders buttons, channel rights, joins, reactions (before /start below)
+  // What the bot waits for after a run (the owner's questions, photos, a video): oq:/oph: buttons, photos, videos.
+  registerBotFlows(b, { later: runLater });
   const pm = b.chatType("private");
 
   // /start <payload> — deep links like https://t.me/<bot>?start=src_booth1
@@ -182,6 +197,8 @@ function registerHandlers(b: Bot) {
     const locale = pickLocale(from.language_code);
     const payload = typeof ctx.match === "string" ? ctx.match.trim() : "";
     await track(from, "start", { payload: eventStartPayload(payload) }, { source: parseSource(payload) });
+    // Starting over (or a publish link, whose next message may be a channel name): no earlier question is still open.
+    await clearPending(from.id);
 
     // The Studio's "Kanalga joylash": t.me/<bot>?start=publish_<postId>[_<script>] — show the post, then publish.
     if (payload.startsWith("publish_")) {
@@ -259,6 +276,9 @@ function registerHandlers(b: Bot) {
       return;
     }
     await track(from, "message", { length: text.length });
+    // The bot asked the owner something after a run (goal, how customers order, prices, what the channel is about):
+    // the pending-state dispatcher reads the answer first; a channel link or a description falls through.
+    if (await answerPendingText(ctx.api, ctx.chat.id, from, locale, clip(text, 4000))) return;
     // The bot asked "which channel?" for a post (publish flow): a channel name answers that, not onboarding.
     if ((!/\s/.test(text.trim()) || /@|t\.me\//i.test(text)) && (await answerPendingChannel(ctx.api, ctx.chat.id, from, locale, text))) return;
     const input = classifyOnboardText(clip(text, 4000));
@@ -274,6 +294,21 @@ function registerHandlers(b: Bot) {
     await ctx.answerCallbackQuery().catch(() => undefined);
     const locale = pickLocale(ctx.from.language_code);
     await startOnboarding(ctx, ctx.chat?.id ?? ctx.from.id, ctx.from.id, locale, { channel: ctx.match[1] });
+  });
+
+  // "Rebuild the week" after the owner chose another goal than the plan was made for: the channel run once more
+  // (the owner's row comes back with its answers, so the plan and posts follow the new goal). Owner only.
+  b.callbackQuery(REBUILD_RE, async (ctx) => {
+    const locale = pickLocale(ctx.from.language_code);
+    const brand = await getBrand(ctx.match[1]);
+    if (!brand || brand.ownerTelegramId !== ctx.from.id || !brand.channel) {
+      await ctx.answerCallbackQuery({ text: t(locale, "bot.not_your_brand") }).catch(() => undefined);
+      return;
+    }
+    await ctx.answerCallbackQuery().catch(() => undefined);
+    await ctx.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => undefined);
+    await logPostRegenerated(ctx.from.id, { brandId: brand.id, why: "another_version" });
+    await startOnboarding(ctx, ctx.chat?.id ?? ctx.from.id, ctx.from.id, locale, { channel: brand.channel });
   });
 
   // "📢 Publish" under a generated post. ctx.from is trusted (comes from Telegram).

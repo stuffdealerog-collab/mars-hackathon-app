@@ -1,13 +1,17 @@
 import "server-only";
 import { InlineKeyboard, type Api } from "grammy";
-import { getPublicUrl } from "@/lib/env";
+import { getEnv, getPublicUrl } from "@/lib/env";
 import { type Locale, type MessageKey, t } from "@/lib/i18n";
 import { safeLogEvent } from "@/lib/track";
+import { loadAnswers } from "./brain/answers-store";
+import { questionsForBrand } from "./brain/brand-questions";
 import { addAdminUrlFor, publishError } from "./botpublish";
 import { pickScript } from "./botpublish-core";
+import { startQuestions } from "./botflow/flows";
+import { analysisMessage, planMessage } from "./botflow/messages";
 import { findPlaceholders, placeholderNote } from "./placeholders";
 import { buildBrand } from "./brand";
-import type { BrandProfile } from "./contract";
+import type { BrandProfile, PostDraft } from "./contract";
 import { generatePosts } from "./copywriter";
 import { createOnboardGate, type GateResult } from "./limit";
 import { errorBody } from "./http";
@@ -89,19 +93,39 @@ function dnaSummary(brand: BrandProfile, postsRead: number, locale: Locale): str
 }
 
 /**
- * Time budget of one bot onboarding. It runs in after() inside the Telegram webhook (maxDuration 120 s): the work
- * gets this long, the owner hears back before the function can be killed, never silence.
+ * Time budget of one bot onboarding before the owner is told it is taking long. It runs in after() inside the Telegram
+ * webhook (maxDuration 120 s): the owner hears back before the function can be killed, never silence.
  */
 export const ONBOARD_BUDGET_MS = 95_000;
+/** The run's own hard end (from its start): the posts must be written by then, leaving time to send them. */
+export const ONBOARD_HARD_MS = 105_000;
+/** Posts are not started with less time than this left before the hard end (the writer needs ≥ 20 s). */
+const POSTS_MIN_MS = 25_000;
+/** How long a plan that is ready waits for the analysis, so the analysis comes first in the chat. */
+const ANALYSIS_WAIT_MS = 8_000;
+/** Posts written in the chat; the rest of the week is in the app. */
+export const BOT_POSTS = 2;
+
+/** When the plan step fails, the owner still gets posts: the brief the bot used before plans existed. */
+const FALLBACK_BRIEF = "Kanal uchun ikkita yangi post: biri mahsulot yoki xizmat haqida, biri mijozlar bilan suhbat (savol yoki foydali maslahat).";
 
 export interface OnboardRun {
-  /** Wall-clock deadline (ms epoch) for the posts step: it skips its optional passes near it. */
+  /** Wall-clock deadline (ms epoch) for the posts step: it skips its optional passes near it, or the posts altogether. */
   deadline?: number;
   /** True once the owner was told "took too long": nothing more is sent for this run. */
   cancelled?: () => boolean;
+  /** Set once the owner got the first result (the brand voice): a late run then only says the posts are coming. */
+  progress?: { delivered: boolean };
 }
 
-/** Slow part of the onboarding: run after replying "Ishlayapman…" so the webhook answers fast. */
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Slow part of the onboarding: run after replying "Ishlayapman…" so the webhook answers fast. The same steps the Studio
+ * runs, each sent as soon as it is ready: the brand voice, the channel analysis (a channel run), the week plan (or the
+ * 2-week launch plan for a description), the first posts from the plan, then the owner's questions (goal first) and, on
+ * a brand's first run, a request for up to 3 photos.
+ */
 export async function runOnboarding(
   api: Api,
   chatId: number,
@@ -112,25 +136,53 @@ export async function runOnboarding(
 ): Promise<void> {
   const started = Date.now();
   const live = () => !run.cancelled?.();
+  const send = async (text: string, other?: Parameters<Api["sendMessage"]>[2]) => {
+    await api.sendMessage(chatId, text, other);
+    if (run.progress) run.progress.delivered = true;
+  };
+  let analysisSent: Promise<boolean> | null = null;
   try {
+    // The planner (analysis, strategy, launch plan) is loaded by the first run only: the webhook's other updates
+    // (buttons, /start, publishing) never pay for it on a cold start.
+    const { analyzeForBot, planForBrand, writePlanPosts } = await import("./botflow/plan");
     // The DNA's prose follows the user's Telegram language; the posts keep all four variants.
-    const { brand, channel } = await buildBrand({ ...input, ownerTelegramId: userId, lang: locale });
+    const built = await buildBrand({ ...input, ownerTelegramId: userId, lang: locale });
+    const { brand, channel } = built;
     if (!live()) return;
-    await api.sendMessage(chatId, dnaSummary(brand, channel?.totalMessages ?? brand.samplePosts.length, locale));
+    await send(dnaSummary(brand, channel?.totalMessages ?? brand.samplePosts.length, locale));
 
-    const posts = await generatePosts(
-      brand,
-      "Kanal uchun ikkita yangi post: biri mahsulot yoki xizmat haqida, biri mijozlar bilan suhbat (savol yoki foydali maslahat).",
-      2,
-      { deadline: run.deadline },
-    );
-    await savePosts(posts, userId);
+    // The analysis (Studio: Kanal) runs next to the plan; both read the channel the brand step has just read.
+    analysisSent = analyzeForBot(brand, locale)
+      .then(async (audit) => {
+        if (!audit || !live()) return false;
+        await send(analysisMessage(audit, locale));
+        return true;
+      })
+      .catch(() => false);
+    const planned = await planForBrand(brand, userId, locale).catch((err) => {
+      console.error("[uslub/onboard] plan failed", err instanceof Error ? err.message : err);
+      return null;
+    });
+    // The analysis goes first when it is about to land; a slow one follows the plan.
+    await Promise.race([analysisSent, sleep(ANALYSIS_WAIT_MS)]);
+    if (!live()) return;
+    if (planned) await send(planMessage(planned.plan, locale, { launch: planned.mode === "fresh" }));
+
+    const late = run.deadline != null && Date.now() > run.deadline - POSTS_MIN_MS;
+    let posts: PostDraft[] = [];
+    if (!late) {
+      if (planned?.plan.items.length) posts = await writePlanPosts(brand, planned.plan.items.slice(0, BOT_POSTS), userId, run.deadline);
+      else {
+        posts = await generatePosts(brand, FALLBACK_BRIEF, BOT_POSTS, { deadline: run.deadline });
+        await savePosts(posts, userId);
+      }
+    }
     if (!live()) return;
     for (const [i, p] of posts.entries()) {
       // Publishing goes through publishFromBot (owner + own channel + admin checks); only for linked channels.
       const kb = brand.channel ? new InlineKeyboard().text(t(locale, "bot.publish_to", { channel: brand.channel }), `pub:${p.id}`) : undefined;
       const text = p.variants[pickScript(p.variants, undefined, brand.dna?.languages)];
-      await api.sendMessage(chatId, clip(`${t(locale, "bot.post_header", { i: i + 1, score: p.humanScore })}\n\n${text}`, 4000), {
+      await send(clip(`${t(locale, "bot.post_header", { i: i + 1, score: p.humanScore })}\n\n${text}`, 4000), {
         ...(kb ? { reply_markup: kb } : {}),
       });
     }
@@ -140,8 +192,23 @@ export async function runOnboarding(
     if (app?.startsWith("https://")) kb.webApp(t(locale, "bot.open_in_app"), `${app}/tg?brand=${brand.id}`).row();
     // The desktop Studio has no Telegram identity: the link carries this owner's signed handoff key (handoff.ts).
     kb.url(t(locale, "bot.open_studio"), studioLink(brand.id, userId));
-    await api.sendMessage(chatId, t(locale, "bot.done"), { reply_markup: kb });
-    await safeLogEvent(userId, "bot_onboarded", { brand_id: brand.id, ms: Date.now() - started });
+    // No posts (no time left, or the writer failed every slot) but a plan: the app writes them from the plan.
+    await send(t(locale, !posts.length && planned ? "bot.posts_later" : "bot.done"), { reply_markup: kb });
+    const analysis = await analysisSent;
+    await safeLogEvent(userId, "bot_onboarded", {
+      brand_id: brand.id,
+      ms: Date.now() - started,
+      analysis,
+      plan_items: planned?.plan.items.length ?? 0,
+      posts: posts.length,
+      ...(planned ? { goal: planned.goal, mode: planned.mode } : {}),
+    });
+
+    // The owner's questions (goal first, then the facts the goal needs) and, on a brand's first run, the photos.
+    const queue = planned?.questions ?? questionsForBrand(brand, await loadAnswers(brand.id).catch(() => null), locale, { bot: getEnv().BOT_USERNAME?.replace(/^@/, "") });
+    const askPhotos = !built.reused && !(brand.visual?.refs ?? []).some((r) => r.source === "owner");
+    const fromChannel = Boolean(brand.channel) && brand.mode !== "fresh";
+    await startQuestions(api, chatId, userId, brand.id, { queue, skipped: [], planGoal: planned?.goal, rebuildable: planned?.mode === "channel", fromChannel, askPhotos }, locale);
   } catch (err) {
     if (!live()) return;
     // Same owner-safe sentence as the API, in the user's language (never a stack trace or an English SDK error).
@@ -149,6 +216,9 @@ export async function runOnboarding(
     if (!(err instanceof ScrapeError)) console.error("[uslub/onboard]", err instanceof Error ? err.message : err);
     const hint = err instanceof ScrapeError && body.code !== "channel_empty" ? `\n\n${t(locale, "bot.or_describe")}` : "";
     await api.sendMessage(chatId, `⚠️ ${body.error}${hint}`).catch(() => undefined);
+  } finally {
+    // A slow analysis still reaches the owner before the run counts as over (the caller keeps the function up).
+    await analysisSent;
   }
 }
 
@@ -158,8 +228,8 @@ export const RETRY_ONBOARD_RE = /^ob:([A-Za-z][A-Za-z0-9_]{3,31})$/;
 
 /**
  * runOnboarding within ONBOARD_BUDGET_MS. If it is not done by then, the owner gets a localized "this is taking
- * long" message right away (with a "try again" button for a channel link, or a request to resend the description)
- * instead of silence. The slow run is NOT abandoned: `settled` resolves when it really ends (it still delivers its
+ * long" message right away (with a "try again" button for a channel link, or a request to resend the description;
+ * once the voice or the plan reached them, only "the posts are coming") instead of silence. The slow run is NOT abandoned: `settled` resolves when it really ends (it still delivers its
  * result if it finishes in time). Callers keep the spend gate — and the function alive — until `settled`, so a
  * retry tap can never start a second paid run next to the first one.
  */
@@ -173,15 +243,19 @@ export async function runOnboardingInTime(
 ): Promise<{ result: "done" | "timeout"; settled: Promise<void> }> {
   const started = Date.now();
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const settled = runOnboarding(api, chatId, userId, input, locale, { deadline: started + budgetMs - 10_000 });
+  const progress = { delivered: false };
+  const settled = runOnboarding(api, chatId, userId, input, locale, { deadline: started + ONBOARD_HARD_MS, progress });
   const late = new Promise<"timeout">((resolve) => {
     timer = setTimeout(() => resolve("timeout"), budgetMs);
   });
   const result = await Promise.race([settled.then(() => "done" as const), late]);
   clearTimeout(timer);
   if (result === "done") return { result, settled };
-  await safeLogEvent(userId, "bot_onboard_timeout", { ms: Date.now() - started, kind: "channel" in input ? "channel" : "text" });
-  if ("channel" in input) {
+  await safeLogEvent(userId, "bot_onboard_timeout", { ms: Date.now() - started, kind: "channel" in input ? "channel" : "text", delivered: progress.delivered });
+  if (progress.delivered) {
+    // The voice, the analysis or the plan are already in the chat: only the posts are still coming.
+    await api.sendMessage(chatId, t(locale, "bot.too_slow_posts")).catch(() => undefined);
+  } else if ("channel" in input) {
     await api
       .sendMessage(chatId, t(locale, "bot.too_slow_channel"), {
         reply_markup: new InlineKeyboard().text(t(locale, "pub.button_retry"), retryOnboardData(input.channel)),

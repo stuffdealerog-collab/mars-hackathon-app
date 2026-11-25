@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Bot onboarding (a channel link or a business description) runs Claude, so it takes the same app-wide daily budget
-// as the API (2 units). Telegram users have no per-user daily cap beyond the hourly gate. Nothing reaches Telegram.
+// as the API: a channel run is a brand, an analysis, a plan and posts (4 units, as the Studio spends for the same run). Telegram users have no per-user daily cap beyond the hourly gate. Nothing reaches Telegram.
 const later: (() => Promise<void>)[] = [];
 vi.mock("server-only", () => ({}));
 vi.mock("next/server", () => ({ after: (task: () => Promise<void>) => void later.push(task) }));
@@ -47,18 +47,18 @@ describe("bot onboarding takes the daily Claude budget", () => {
   it("once today's app-wide units are used up, the owner is told in their language and no Claude work starts", async () => {
     process.env.CLAUDE_DAILY_LIMIT = "3";
     expect(await takeUnits({ actor: "ip:x", anonymous: true, weight: 2, route: "brand" })).toBe("ok");
-    await bot.handleUpdate(linkFrom(++uid)); // 2 + 2 > 3
+    await bot.handleUpdate(linkFrom(++uid)); // 2 + 4 > 3
     expect(replies()).toEqual(["Сегодня у Mercat слишком много запросов — дневной лимит исчерпан. Попробуйте завтра."]);
     expect(later.filter(Boolean)).toHaveLength(1); // only the profile sync, no onboarding run
     expect(buildBrand).not.toHaveBeenCalled();
   });
 
-  it("within the budget the onboarding starts and takes 2 units", async () => {
-    process.env.CLAUDE_DAILY_LIMIT = "3";
+  it("within the budget the onboarding starts and takes 4 units", async () => {
+    process.env.CLAUDE_DAILY_LIMIT = "5";
     await bot.handleUpdate(linkFrom(++uid));
     expect(replies()[0]).toMatch(/@safiabakery|safiabakery/);
     expect(later.length).toBeGreaterThanOrEqual(1);
-    // 2 of 3 units are taken: a 2-unit run no longer fits, a 1-unit one does.
+    // 4 of 5 units are taken: a 2-unit run no longer fits, a 1-unit one does.
     expect(await takeUnits({ actor: "tg:1", anonymous: false, weight: 2, route: "t" })).toBe("app");
     expect(await takeUnits({ actor: "tg:1", anonymous: false, weight: 1, route: "t" })).toBe("ok");
   });

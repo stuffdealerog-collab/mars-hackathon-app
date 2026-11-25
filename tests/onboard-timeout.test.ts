@@ -18,6 +18,8 @@ vi.mock("../src/lib/uslub/brand", () => ({
     }),
 }));
 vi.mock("../src/lib/uslub/copywriter", () => ({ generatePosts: async () => [] }));
+// The planner is not what these tests are about: no analysis, no plan (the run falls back to plain posts).
+vi.mock("../src/lib/uslub/botflow/plan", () => ({ analyzeForBot: async () => null, planForBrand: async () => null, writePlanPosts: async () => [] }));
 
 const { runOnboardingInTime, RETRY_ONBOARD_RE } = await import("../src/lib/uslub/onboard");
 
@@ -49,7 +51,7 @@ describe("a bot onboarding that takes too long", () => {
     await run.settled;
     expect(settled).toBe(true);
     expect(sent.length).toBeGreaterThan(1);
-    expect(sent.at(-1)?.text).toMatch(/Готово/);
+    expect(sent.some((m) => /Готово/.test(m.text))).toBe(true);
   });
 
   it("asks to resend a business description (it can't fit in a button)", async () => {
