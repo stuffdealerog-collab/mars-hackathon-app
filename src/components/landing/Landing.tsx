@@ -2,7 +2,6 @@
 
 import type { AgentRole } from "@/lib/uslub/contract";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import { LedStrip } from "../lamp/Led";
 import { LampTile } from "../lamp/LampTile";
@@ -103,13 +102,20 @@ function SampleDepartment({ armed }: { armed: boolean }) {
 
 function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
   const c = useCopy();
-  const router = useRouter();
   const id = useId();
   const [value, setValue] = useState("");
   const [bad, setBad] = useState(false);
   const [busy, setBusy] = useState(false);
   const typed = parseChannel(value);
   useEffect(() => onTyped(!!typed), [typed, onTyped]);
+  // Back from the Studio, the browser may show this page from its cache: the button works again.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setBusy(false);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
 
   const submit = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -118,7 +124,10 @@ function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
       return;
     }
     setBusy(true);
-    router.push(`/studio?channel=${encodeURIComponent(`t.me/${typed}`)}`);
+    // A full page load, not router.push: the visit counters live only in the landing's own
+    // document (components/analytics), and the Studio must never be drawn inside it.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full load on purpose, see above
+    window.location.assign(`/studio?channel=${encodeURIComponent(`t.me/${typed}`)}`);
   };
 
   // Phones: sign, headline, field in one column. Computers: the headline on the left (seven of
@@ -159,7 +168,6 @@ function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
           button={c.start.go}
           busy={busy}
           describedBy={`${id}-hint`}
-          onFocus={() => router.prefetch("/studio")}
         />
         <p id={`${id}-hint`} role={bad ? "alert" : undefined} className={`mt-2.5 px-2 text-[14px] ${bad ? "text-bad" : "text-ink-3"}`}>
           {bad ? c.start.linkBad : c.start.linkExample}

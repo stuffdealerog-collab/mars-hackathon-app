@@ -2,39 +2,40 @@
 
 import Script from "next/script";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { cleanUrl } from "./clean-url";
+import { LANDING_PATH, isCleanLanding, referrerIsClean, staysOnLanding } from "./landing";
 
 /*
- * Google Analytics 4 and Yandex Metrica, counting visits for the owner. Production builds only,
- * each counter only when its public id is set (NEXT_PUBLIC_GA_ID = "G-…", NEXT_PUBLIC_YM_ID =
- * digits); with neither set this renders nothing and loads nothing.
+ * Google Analytics 4 and Yandex Metrica, counting visits to the landing page. Production
+ * deployments only (NODE_ENV and NEXT_PUBLIC_VERCEL_ENV both "production"), each counter only when
+ * its public id is set (NEXT_PUBLIC_GA_ID = "G-…", NEXT_PUBLIC_YM_ID = digits); otherwise this
+ * renders nothing and loads nothing.
  *
- * The counters only ever see scheme, host and path (cleanUrl). Every page view is sent by hand,
- * on the first load and on each client navigation, with the cleaned address and referrer.
+ * Landing only (landing.ts says why): the counters start in a document that opened on "/" and has
+ * never been anywhere else, with a clean address and referrer, not prerendering. Before either
+ * script is injected, that document is locked to "/": a same-origin link to another page and any
+ * pushState/replaceState to another page become full page loads, so the Studio, the Mini App and
+ * every other page always open in a fresh document without the counters. The history methods are
+ * wrapped before gtag.js loads, so its enhanced-measurement wrapper sits outside this one and never
+ * sees an address the document did not take. Studio usage is not counted.
  *
- * - Never in the Telegram Mini App: a document that opened on /tg (or with Telegram's
- *   #tgWebAppData) keeps both counters off for its whole life. That fragment holds the user's id,
- *   name and the signature of the launch data.
- * - Neither script loads while the address bar has a fragment (the Studio takes its #k= handoff
- *   key out right after it opens) or while the browser is prerendering the page: Metrica reads
- *   location.href itself in a few places that its options do not reach (its prerender hit, and a
- *   cookie sync with mobile operators that Yandex switches on per visitor from its server).
- * - Metrica gets the clean address and referrer in its init options too (`url`, `referrer`):
- *   without them its first request carries location.href with the query and the fragment.
- *   clickmap and trackLinks stay off: their requests carry location.href, and the hrefs of
- *   t.me links with post and brand ids, whatever `url` says. No Webvisor.
- * - GA4: no automatic page_view, no Google signals or ad personalisation. The cleaned address is
- *   set in config as well, so the events gtag sends on its own (user_engagement) use it.
- *   Enhanced measurement is configured in the GA4 property, not here: its history-change page
- *   views fire even with send_page_view off, so it must be switched off there (see the PR).
+ * What the counters are told is cleaned too (cleanUrl: scheme, host, path), once per document:
+ * - GA4: no automatic page_view, no Google signals or ad personalisation, the clean address and
+ *   referrer in config, in `set` and on the page_view.
+ * - Metrica: defer, the clean address and referrer in its init options (without them its first
+ *   request carries location.href), a manual hit, accurateTrackBounce. clickmap and trackLinks stay
+ *   off (their requests carry location.href and link hrefs whatever `url` says), no Webvisor.
  */
 
 const gaId = process.env.NEXT_PUBLIC_GA_ID?.trim() ?? "";
 const ymId = process.env.NEXT_PUBLIC_YM_ID?.trim() ?? "";
 const GA_ID = /^G-[A-Z0-9]+$/.test(gaId) ? gaId : null;
 const YM_ID = /^\d+$/.test(ymId) ? Number(ymId) : null;
-const ENABLED = process.env.NODE_ENV === "production" && (GA_ID !== null || YM_ID !== null);
+const ENABLED =
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXT_PUBLIC_VERCEL_ENV === "production" &&
+  (GA_ID !== null || YM_ID !== null);
 
 type Ym = ((id: number, method: string, ...args: unknown[]) => void) & { a?: IArguments[]; l?: number };
 
@@ -46,80 +47,114 @@ declare global {
   }
 }
 
-const isMiniApp = (path: string) => path === "/tg" || path.startsWith("/tg/");
+/** The address this document was opened with (replaceState does not change it). */
+const firstHref = () => (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined)?.name || window.location.href;
 
-/** Decided once per document, from the address it opened with. */
-let miniAppDocument: boolean | undefined;
-const openedAsMiniApp = () => (miniAppDocument ??= isMiniApp(window.location.pathname) || window.location.hash.includes("tgWebApp"));
+let openedOnLanding: boolean | undefined;
+/** Set once the document has shown any page but the landing: the counters then never start in it. */
+let leftLanding = false;
+let locked = false;
+let counted = false;
 
-/** Nothing in the fragment (not even a bare "#") and the page is really on screen, not prerendered. */
-const addressIsClear = () =>
-  !window.location.href.includes("#") && !(document as Document & { prerendering?: boolean }).prerendering;
+const mayStart = () =>
+  (openedOnLanding ??= staysOnLanding(firstHref(), window.location.origin) && !firstHref().includes("tgWebApp")) &&
+  !leftLanding &&
+  isCleanLanding(window.location.href, window.location.origin) &&
+  referrerIsClean(document.referrer, window.location.origin) &&
+  !(document as Document & { prerendering?: boolean }).prerendering;
 
-let gaStarted = false;
-let ymStarted = false;
+/** From here on this document never shows another page: such navigations become full page loads. */
+function lockToLanding() {
+  if (locked) return;
+  locked = true;
+  const origin = window.location.origin;
+
+  // Links, before Next's <Link> handler (it skips a click whose default is prevented).
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const link = e.target instanceof Element ? e.target.closest("a[href]") : null;
+      if (!(link instanceof HTMLAnchorElement) || link.hasAttribute("download")) return;
+      if (link.target && link.target !== "_self") return;
+      const url = new URL(link.href);
+      if (url.origin !== origin || staysOnLanding(url.href, origin)) return;
+      e.preventDefault();
+      window.location.assign(url.href);
+    },
+    true,
+  );
+
+  // router.push/replace and anything else that rewrites the address: the address of another page
+  // is never written into this document; the browser loads it instead.
+  for (const method of ["pushState", "replaceState"] as const) {
+    const inner = window.history[method];
+    window.history[method] = function (data: unknown, unused: string, url?: string | URL | null) {
+      if (url != null) {
+        const next = new URL(url, window.location.href).href;
+        if (!staysOnLanding(next, origin)) {
+          window.location.assign(next);
+          return;
+        }
+      }
+      inner.call(window.history, data, unused, url);
+    };
+  }
+}
 
 function gaPageView(id: string, page: string, referrer: string) {
-  if (!gaStarted) {
-    gaStarted = true;
-    window.dataLayer = window.dataLayer ?? [];
-    window.gtag = function gtag() {
-      // gtag.js takes its commands as `arguments` objects; it ignores plain arrays.
-      // eslint-disable-next-line prefer-rest-params
-      window.dataLayer!.push(arguments);
-    };
-    window.gtag("js", new Date());
-    window.gtag("config", id, {
-      send_page_view: false,
-      page_location: page,
-      page_referrer: referrer,
-      allow_google_signals: false,
-      allow_ad_personalization_signals: false,
-    });
-  }
-  window.gtag!("event", "page_view", { page_location: page, page_referrer: referrer });
+  window.dataLayer = window.dataLayer ?? [];
+  window.gtag = function gtag() {
+    // gtag.js takes its commands as `arguments` objects; it ignores plain arrays.
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer!.push(arguments);
+  };
+  const where = { page_location: page, page_referrer: referrer };
+  window.gtag("js", new Date());
+  window.gtag("config", id, { ...where, send_page_view: false, allow_google_signals: false, allow_ad_personalization_signals: false });
+  window.gtag("set", where);
+  window.gtag("event", "page_view", where);
 }
 
 function ymPageView(id: number, page: string, referrer: string) {
-  if (!ymStarted) {
-    ymStarted = true;
-    if (!window.ym) {
-      const queue: Ym = Object.assign(
-        function () {
-          // Metrica's tag.js replays this queue of `arguments` objects when it loads.
-          // eslint-disable-next-line prefer-rest-params
-          (queue.a = queue.a ?? []).push(arguments);
-        },
-        { l: Date.now() },
-      );
-      window.ym = queue;
-    }
-    window.ym(id, "init", {
-      defer: true,
-      url: page,
-      referrer,
-      webvisor: false,
-      clickmap: false,
-      trackLinks: false,
-      trackHash: false,
-      accurateTrackBounce: true,
-    });
+  if (!window.ym) {
+    const queue: Ym = Object.assign(
+      function () {
+        // Metrica's tag.js replays this queue of `arguments` objects when it loads.
+        // eslint-disable-next-line prefer-rest-params
+        (queue.a = queue.a ?? []).push(arguments);
+      },
+      { l: Date.now() },
+    );
+    window.ym = queue;
   }
-  window.ym!(id, "hit", page, { referer: referrer });
+  window.ym(id, "init", {
+    defer: true,
+    url: page,
+    referrer,
+    webvisor: false,
+    clickmap: false,
+    trackLinks: false,
+    trackHash: false,
+    accurateTrackBounce: true,
+  });
+  window.ym(id, "hit", page, { referer: referrer });
 }
 
 export function Analytics() {
   const pathname = usePathname();
   const [started, setStarted] = useState(false);
-  const previousPage = useRef<string | null>(null);
 
-  // Waits for a clear address bar. The Studio drops #k= with history.replaceState, which fires
-  // no event, so this polls for a while (again after each client navigation); prerendering and
-  // hash changes have events of their own.
+  // Waits for a clean landing (a fragment can go with replaceState, which fires no event, so this
+  // polls for a while; prerendering and hash changes have events of their own). The lock goes on
+  // before the render that injects the scripts.
   useEffect(() => {
-    if (!ENABLED || started || openedAsMiniApp()) return;
+    if (!ENABLED || started) return;
+    if (pathname !== LANDING_PATH) leftLanding = true;
     const check = () => {
-      if (addressIsClear()) setStarted(true);
+      if (!mayStart()) return;
+      lockToLanding();
+      setStarted(true);
     };
     const first = window.setTimeout(check, 0);
     const poll = window.setInterval(check, 250);
@@ -135,15 +170,15 @@ export function Analytics() {
     };
   }, [started, pathname]);
 
+  // One page view per document: once locked, the document never shows another page.
   useEffect(() => {
-    if (!started || isMiniApp(pathname)) return;
+    if (!started || counted) return;
+    counted = true;
     const page = cleanUrl(window.location.href);
-    if (!page) return;
-    const referrer = previousPage.current ?? cleanUrl(document.referrer);
-    previousPage.current = page;
+    const referrer = cleanUrl(document.referrer);
     if (GA_ID) gaPageView(GA_ID, page, referrer);
     if (YM_ID) ymPageView(YM_ID, page, referrer);
-  }, [started, pathname]);
+  }, [started]);
 
   if (!started) return null;
   return (

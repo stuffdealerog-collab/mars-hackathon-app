@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Analytics } from "@/components/analytics/Analytics";
 import { onest } from "@/components/ui/font";
 import { META, ogImage } from "@/components/ui/meta";
@@ -30,8 +31,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="uz" className={`h-full antialiased ${onest.variable}`}>
       <body className="flex min-h-full flex-col font-sans">
         {children}
-        {/* Visit counters (GA4, Metrica): production only, off in the Mini App, never see ?query or #fragment. */}
-        <Analytics />
+        {/* Visit counters (GA4, Metrica): production, landing page only, never see ?query or #fragment.
+            Suspense: usePathname may suspend under cacheComponents once a route has dynamic params. */}
+        <Suspense fallback={null}>
+          <Analytics />
+        </Suspense>
       </body>
     </html>
   );
