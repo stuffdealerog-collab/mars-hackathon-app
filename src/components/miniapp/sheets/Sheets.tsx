@@ -468,13 +468,14 @@ function ChannelSheet({ leaving, postId }: { leaving: boolean; postId: string })
         <p role={bad ? "alert" : undefined} className={`mt-2.5 px-1 text-[14px] ${bad ? "text-bad" : "text-ink-3"}`}>
           {bad ? c.start.linkBad : fmt(m.channel.text, { bot: `@${bot}` })}
         </p>
-        {/* The intro's add-the-bot card over this sheet: the steps and Telegram's own picker. */}
+        {/* The intro's add-the-bot card over this sheet: the steps and Telegram's own picker.
+            Opened "over": Back closes the card and this sheet, with what was typed, stays. */}
         <button
           type="button"
           className="ma-press mt-1 inline-flex min-h-11 items-center px-1 text-[14px] font-medium text-ink underline decoration-[var(--hair-2)] underline-offset-4"
           onClick={() => {
             haptic.tap();
-            useNav.getState().openIntro("admin");
+            useNav.getState().openIntro("admin", "over");
           }}
         >
           {INTRO_COPY[lang].admin.add}
