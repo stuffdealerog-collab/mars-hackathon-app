@@ -2,7 +2,6 @@
 
 import type { AgentRole } from "@/lib/uslub/contract";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import { LedStrip } from "../lamp/Led";
 import { LampTile } from "../lamp/LampTile";
@@ -22,6 +21,8 @@ export function Landing({ bot }: { bot: string }) {
   useTabTitle("landing");
   const c = useCopy();
   const botUrl = `https://t.me/${bot}`;
+  // The Studio opens in a fresh document (see Hero's submit), so it takes the language along.
+  const studioHref = `/studio?lang=${useLang((s) => s.lang)}`;
   const [armed, setArmed] = useState(false);
   useStageVariant();
   return (
@@ -29,7 +30,7 @@ export function Landing({ bot }: { bot: string }) {
       <header className="mx-auto flex w-full max-w-[1180px] items-center justify-between gap-3 px-4 pt-3 sm:px-8 sm:pt-5">
         <Logo />
         <nav aria-label="Mercat" className="flex items-center gap-1 sm:gap-3">
-          <Link href="/studio" prefetch={false} className="hidden min-h-11 items-center px-2 text-[15px] text-ink-2 hover:text-ink sm:inline-flex">
+          <Link href={studioHref} prefetch={false} className="hidden min-h-11 items-center px-2 text-[15px] text-ink-2 hover:text-ink sm:inline-flex">
             {c.nav.studio}
           </Link>
           <LangSwitch />
@@ -63,7 +64,7 @@ export function Landing({ bot }: { bot: string }) {
       <footer className="mx-auto mt-20 flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-line px-4 py-6 text-[14px] text-ink-3 sm:px-8">
         <span>{c.landing.footer}</span>
         <span className="flex gap-5">
-          <Link href="/studio" prefetch={false} className="link text-ink-2">
+          <Link href={studioHref} prefetch={false} className="link text-ink-2">
             {c.nav.studio}
           </Link>
           <a href={botUrl} target="_blank" rel="noreferrer" className="link text-ink-2">
@@ -103,13 +104,21 @@ function SampleDepartment({ armed }: { armed: boolean }) {
 
 function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
   const c = useCopy();
-  const router = useRouter();
+  const lang = useLang((s) => s.lang);
   const id = useId();
   const [value, setValue] = useState("");
   const [bad, setBad] = useState(false);
   const [busy, setBusy] = useState(false);
   const typed = parseChannel(value);
   useEffect(() => onTyped(!!typed), [typed, onTyped]);
+  // Back from the Studio, the browser may show this page from its cache: the button works again.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setBusy(false);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
 
   const submit = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -118,7 +127,11 @@ function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
       return;
     }
     setBusy(true);
-    router.push(`/studio?channel=${encodeURIComponent(`t.me/${typed}`)}`);
+    // A full page load, not router.push: the visit counters live only in the landing's own
+    // document (components/analytics), and the Studio must never be drawn inside it. The new
+    // document starts without this page's state, so the language goes in the address.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full load on purpose, see above
+    window.location.assign(`/studio?channel=${encodeURIComponent(`t.me/${typed}`)}&lang=${lang}`);
   };
 
   // Phones: sign, headline, field in one column. Computers: the headline on the left (seven of
@@ -159,7 +172,6 @@ function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
           button={c.start.go}
           busy={busy}
           describedBy={`${id}-hint`}
-          onFocus={() => router.prefetch("/studio")}
         />
         <p id={`${id}-hint`} role={bad ? "alert" : undefined} className={`mt-2.5 px-2 text-[14px] ${bad ? "text-bad" : "text-ink-3"}`}>
           {bad ? c.start.linkBad : c.start.linkExample}
@@ -170,7 +182,7 @@ function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
       {/* Computers: under the headline, so the first row ends sooner and the lit department is
           in the first screen of a laptop window. Phones: under the field, as before. */}
       <div className="mt-4 flex flex-col gap-2 px-2 sm:flex-row sm:items-center sm:gap-6 lg:col-span-7 lg:col-start-1 lg:row-start-3 lg:mt-6 lg:px-0">
-        <Link href="/studio?mode=fresh" prefetch={false} className="link inline-flex min-h-11 items-center self-start text-[15px] font-medium">
+        <Link href={`/studio?mode=fresh&lang=${lang}`} prefetch={false} className="link inline-flex min-h-11 items-center self-start text-[15px] font-medium">
           {c.start.emptyToggle}
         </Link>
         <p className="text-[15px] text-ink-2">

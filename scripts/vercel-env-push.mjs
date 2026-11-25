@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Pushes the app's env vars from .env.local to the linked Vercel project
-// (production + preview). Empty values are skipped; values are never printed.
+// (production + preview; the visit counter ids production only). Empty values are skipped;
+// values are never printed.
 // Usage: pnpm env:push   (then redeploy: vercel deploy --prod)
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -39,8 +40,13 @@ const ALLOWED = [
   "MEDIA_VISUAL_ACTOR_DAILY_LIMIT",
   "MEDIA_IMAGE_ANON_ACTOR_DAILY_LIMIT",
   "MEDIA_ANON_ACTOR_DAILY_LIMIT",
+  // Visit counters: public ids, inlined into the client at build time (redeploy after a change).
+  "NEXT_PUBLIC_GA_ID",
+  "NEXT_PUBLIC_YM_ID",
 ];
 const TARGETS = ["production", "preview"];
+// Preview deployments must not count as visits: the counter ids go to production only.
+const PRODUCTION_ONLY = new Set(["NEXT_PUBLIC_GA_ID", "NEXT_PUBLIC_YM_ID"]);
 
 if (!existsSync(".env.local")) {
   console.error("No .env.local found.");
@@ -66,7 +72,7 @@ for (const name of ALLOWED.filter((n) => !MANAGED.test(n) && !n.startsWith("DATA
     console.log(`skip  ${name} (empty)`);
     continue;
   }
-  for (const target of TARGETS) {
+  for (const target of PRODUCTION_ONLY.has(name) ? ["production"] : TARGETS) {
     const result = spawnSync("vercel", ["env", "add", name, target, "--force", "--yes"], {
       input: value,
       encoding: "utf8",
