@@ -1,0 +1,252 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
+import { bucketSources, eventStartPayload, sourceCategory, storedSourceCategory } from "../src/lib/source-category";
+import { statsGate } from "../src/lib/stats-access";
+
+const UUID = "3f2a9c1e-5b7d-4e8f-9a0b-1c2d3e4f5a6b";
+const basic = (user: string, password: string) => `Basic ${Buffer.from(`${user}:${password}`).toString("base64")}`;
+
+describe("sourceCategory", () => {
+  it("keeps only the word in front of an id", () => {
+    expect(sourceCategory(`publish_${UUID}`)).toBe("publish");
+    expect(sourceCategory(`publish_${UUID}_uz_latn`)).toBe("publish");
+    expect(sourceCategory(`brand_${UUID}`)).toBe("brand");
+    expect(sourceCategory(`post_${UUID}`)).toBe("post");
+    expect(sourceCategory("ch_my_bakery")).toBe("ch");
+    expect(sourceCategory("ref_42")).toBe("ref");
+    expect(sourceCategory("promo_a1b2c3d4e5f6")).toBe("promo");
+    expect(sourceCategory("tg_ads_2026")).toBe("tg_ads");
+  });
+
+  it("buckets tracked plan links, with or without the src_ prefix", () => {
+    expect(sourceCategory("src_k3x9qa_4")).toBe("plan");
+    expect(sourceCategory("k3x9qa_12")).toBe("plan");
+  });
+
+  it("keeps safe words as they are", () => {
+    expect(sourceCategory("start")).toBe("start");
+    expect(sourceCategory("landing")).toBe("landing");
+    expect(sourceCategory("src_booth1")).toBe("booth1");
+    expect(sourceCategory("booth1")).toBe("booth1");
+    expect(sourceCategory("utm_source_instagram")).toBe("utm_source_instagram");
+    expect(sourceCategory("Landing")).toBe("landing");
+  });
+
+  it("never returns an id", () => {
+    expect(sourceCategory(UUID)).toBe("other");
+    expect(sourceCategory("123456789")).toBe("other");
+    expect(sourceCategory("deadbeef1234")).toBe("other");
+    expect(sourceCategory("has space")).toBe("other");
+    expect(sourceCategory("a".repeat(65))).toBe("other");
+  });
+
+  it("keeps the owner's /qr label after src_ (only ids hidden in it are dropped)", () => {
+    expect(sourceCategory("src_booth_1")).toBe("booth_1");
+    expect(sourceCategory("src_booth_2")).toBe("booth_2");
+    expect(sourceCategory("src_booth_1")).not.toBe(sourceCategory("src_booth_2"));
+    expect(sourceCategory("src_tashkent2026")).toBe("tashkent2026");
+    expect(sourceCategory("src_techstars2026")).toBe("techstars2026");
+    expect(sourceCategory("src_expo_2026")).toBe("expo_2026");
+    expect(sourceCategory("src_Flyer-A")).toBe("flyer-a");
+    expect(sourceCategory(`src_${"x".repeat(60)}`)).toBe("x".repeat(32));
+    expect(sourceCategory(`src_${UUID}`)).toBe("other");
+    expect(sourceCategory(`src_booth_${UUID.replace(/-/g, "")}`)).toBe("other");
+    expect(sourceCategory("src_a1b2c3d4e5f6a7b8")).toBe("other");
+    expect(sourceCategory(`src_brand_${UUID}`)).toBe("brand");
+    expect(sourceCategory("src_")).toBe("other");
+  });
+
+  it("is empty for no payload, and a stored category reads back as itself", () => {
+    expect(sourceCategory(null)).toBeNull();
+    expect(sourceCategory(undefined)).toBeNull();
+    expect(sourceCategory("  ")).toBeNull();
+    const payloads = [
+      `publish_${UUID}`, `brand_${UUID}`, "src_k3x9qa_4", "src_booth1", "src_booth_1", "src_tashkent2026",
+      "src_expo_2026", "utm_source_ig", "ref_42", "tg_ads_2026", "landing", UUID, "has space",
+    ];
+    for (const p of payloads) {
+      const stored = sourceCategory(p);
+      expect(storedSourceCategory(stored)).toBe(stored);
+    }
+  });
+});
+
+describe("storedSourceCategory (rows from before categories hold the payload minus src_)", () => {
+  it("keeps old /qr labels and still hides old ids", () => {
+    expect(storedSourceCategory("booth_1")).toBe("booth_1");
+    expect(storedSourceCategory("tashkent2026")).toBe("tashkent2026");
+    expect(storedSourceCategory("k3x9qa_4")).toBe("plan");
+    expect(storedSourceCategory(`publish_${UUID}_ru`)).toBe("publish");
+    expect(storedSourceCategory(`brand_${UUID}`)).toBe("brand");
+    expect(storedSourceCategory(UUID)).toBe("other");
+    expect(storedSourceCategory(`x_${"z".repeat(61)}`)).toBe(`x_${"z".repeat(30)}`);
+    expect(storedSourceCategory(null)).toBeNull();
+  });
+
+  it("never strips src_ a second time: a src_src_ payload reads back as its src_ label", () => {
+    expect(sourceCategory("src_src_booth2")).toBe("src_booth2");
+    expect(storedSourceCategory("src_booth2")).toBe("src_booth2");
+    expect(sourceCategory("src_src_market_1")).toBe("src_market_1");
+    expect(storedSourceCategory("src_market_1")).toBe("src_market_1");
+    expect(storedSourceCategory(sourceCategory("src_src_k3x9qa_4"))).toBe(sourceCategory("src_src_k3x9qa_4"));
+  });
+
+  it("agrees with the write side on hex runs inside a word", () => {
+    expect(sourceCategory("x-abcdefabcdefabcd")).toBe("other");
+    expect(storedSourceCategory("x-abcdefabcdefabcd")).toBe("other");
+    expect(sourceCategory("promo_x-abcdefabcdefabcd")).toBe("promo");
+  });
+});
+
+describe("source categories, property-style over fuzzed payloads", () => {
+  const ID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{16,}/i;
+
+  // Deterministic pseudo-random payloads (a fixed LCG seed), plus hand-built shapes.
+  let seed = 20261125;
+  const next = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+  const pick = <T,>(xs: readonly T[]) => xs[Math.floor(next() * xs.length)];
+  const ALPHABET = "abcdefABCDEF0123456789xyzXYZ_-";
+  const randomToken = (max: number) =>
+    Array.from({ length: 1 + Math.floor(next() * max) }, () => pick([...ALPHABET])).join("");
+  const uuid = () =>
+    [8, 4, 4, 4, 12].map((n) => Array.from({ length: n }, () => pick([..."0123456789abcdef"])).join("")).join("-");
+
+  const heads = ["", "src_", "src_src_", "SRC_", "Src_src_", "publish_", "brand_", "post_", "ch_", "ref_", "utm_", "x-", "booth_"];
+  const tails = () => [
+    uuid(), uuid().toUpperCase(), uuid().replace(/-/g, ""), "abcdefabcdefabcd", "ABCDEF0123456789", "booth2", "booth_1",
+    "market_1", "k3x9qa_4", "Tashkent2026", "42", "deadbeef", "a_b_c", "", "_", "x-abcdefabcdefabcd",
+    `prefix${uuid()}`.slice(0, 50), randomToken(20), randomToken(60),
+  ];
+  const suffixes = ["", "_ru", "_1", "_uz_latn", `_${uuid()}`];
+
+  const payloads: string[] = [];
+  for (const head of heads) for (const tail of tails()) for (const suffix of suffixes) payloads.push(`${head}${tail}${suffix}`);
+  for (let i = 0; i < 2000; i++) payloads.push(randomToken(64));
+  for (let i = 0; i < 300; i++) payloads.push(`src_${randomToken(60)}`);
+
+  it("reads every stored category back as itself, and no id survives either side", () => {
+    expect(payloads.length).toBeGreaterThan(3000);
+    for (const p of payloads) {
+      const stored = sourceCategory(p);
+      expect(storedSourceCategory(stored), p).toBe(stored);
+      if (stored) expect(stored, p).not.toMatch(ID_RE);
+      // Rows from before categories held the payload minus one "src_": reading them must not leak an id either.
+      const oldRow = /^src_/.test(p) && p.length > 4 ? p.slice(4) : p;
+      const read = storedSourceCategory(oldRow);
+      if (read) expect(read, p).not.toMatch(ID_RE);
+    }
+  });
+});
+
+describe("eventStartPayload", () => {
+  it("keeps plan links whole (brain/memory.ts counts starts per link) and reduces the rest", () => {
+    expect(eventStartPayload("src_k3x9qa_4")).toBe("src_k3x9qa_4");
+    expect(eventStartPayload(`publish_${UUID}_ru`)).toBe("publish");
+    expect(eventStartPayload(`brand_${UUID}`)).toBe("brand");
+    expect(eventStartPayload("")).toBeNull();
+  });
+});
+
+describe("bucketSources", () => {
+  it("merges raw rows stored before categories into categories, empty as direct", () => {
+    const rows = [
+      { source: `publish_${UUID}`, count: 2 },
+      { source: `publish_${UUID.replace("3f", "4e")}_ru`, count: 3 },
+      { source: `brand_${UUID}`, count: 1 },
+      { source: "booth1", count: 4 },
+      { source: null, count: 6 },
+      { source: "", count: 1 },
+      { source: "k3x9qa_4", count: 2 },
+    ];
+    expect(bucketSources(rows)).toEqual([
+      { source: "direct", count: 7 },
+      { source: "publish", count: 5 },
+      { source: "booth1", count: 4 },
+      { source: "plan", count: 2 },
+      { source: "brand", count: 1 },
+    ]);
+    expect(JSON.stringify(bucketSources(rows))).not.toContain(UUID);
+  });
+});
+
+describe("statsGate", () => {
+  const prod = { NODE_ENV: "production", STATS_PASSWORD: "correct horse" };
+
+  it("hides the page in production when no password is set", () => {
+    expect(statsGate(null, { NODE_ENV: "production" })).toBe("hidden");
+    expect(statsGate(basic("mercat", "anything"), { NODE_ENV: "production", STATS_PASSWORD: "  " })).toBe("hidden");
+  });
+
+  it("is open in development without a password", () => {
+    expect(statsGate(null, { NODE_ENV: "development" })).toBe("allow");
+  });
+
+  it("asks for the password when it is missing or wrong", () => {
+    expect(statsGate(null, prod)).toBe("challenge");
+    expect(statsGate("Bearer correct horse", prod)).toBe("challenge");
+    expect(statsGate("Basic !!!", prod)).toBe("challenge");
+    expect(statsGate(`Basic ${Buffer.from("no-colon").toString("base64")}`, prod)).toBe("challenge");
+    expect(statsGate(basic("mercat", "wrong"), prod)).toBe("challenge");
+    expect(statsGate(basic("mercat", "correct horse!"), prod)).toBe("challenge");
+    expect(statsGate(basic("mercat", ""), prod)).toBe("challenge");
+  });
+
+  it("lets the right password in, whatever the user name", () => {
+    expect(statsGate(basic("mercat", "correct horse"), prod)).toBe("allow");
+    expect(statsGate(basic("", "correct horse"), prod)).toBe("allow");
+    expect(statsGate(basic("owner", "correct horse"), prod)).toBe("allow");
+    expect(statsGate(basic("mercat", "pass:with:colons"), { ...prod, STATS_PASSWORD: "pass:with:colons" })).toBe("allow");
+    // A password set in development is enforced too.
+    expect(statsGate(null, { NODE_ENV: "development", STATS_PASSWORD: "x" })).toBe("challenge");
+  });
+});
+
+describe("proxy for /stats", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const request = (auth?: string) =>
+    new Request("https://mercat.test/stats", auth ? { headers: { authorization: auth } } : {}) as never;
+
+  it("answers 404 in production without STATS_PASSWORD, 401 with a Basic challenge, and passes the right password", async () => {
+    const { proxy, config } = await import("../src/proxy");
+    expect(config.matcher).toContain("/stats");
+
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("STATS_PASSWORD", "");
+    const hidden = proxy(request());
+    expect(hidden.status).toBe(404);
+    expect(hidden.headers.get("cache-control")).toContain("no-store");
+
+    vi.stubEnv("STATS_PASSWORD", "s3cret-pass");
+    const challenged = proxy(request());
+    expect(challenged.status).toBe(401);
+    expect(challenged.headers.get("www-authenticate")).toMatch(/^Basic realm=/);
+    expect(challenged.headers.get("cache-control")).toContain("no-store");
+    expect(proxy(request(basic("mercat", "nope"))).status).toBe(401);
+
+    const allowed = proxy(request(basic("mercat", "s3cret-pass")));
+    expect(allowed.headers.get("x-middleware-next")).toBe("1");
+    expect(allowed.headers.get("cache-control")).toContain("no-store");
+  });
+});
+
+describe("anonIpKey", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("is a keyed hash: same shape, stable per secret, different from the old unsalted hash and per purpose", async () => {
+    const { createHash } = await import("node:crypto");
+    const { anonIpKey } = await import("../src/lib/anon-key");
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "123456:TEST-bot-token-aaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    const a = anonIpKey("203.0.113.7", "claude");
+    expect(a).toMatch(/^ip:[0-9a-f]{16}$/);
+    expect(anonIpKey("203.0.113.7", "claude")).toBe(a);
+    expect(anonIpKey("203.0.113.8", "claude")).not.toBe(a);
+    expect(anonIpKey("203.0.113.7", "media")).not.toBe(a);
+    const unsalted = `ip:${createHash("sha256").update("claude:203.0.113.7").digest("hex").slice(0, 16)}`;
+    expect(a).not.toBe(unsalted);
+
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "123456:TEST-bot-token-bbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    expect(anonIpKey("203.0.113.7", "claude")).not.toBe(a);
+  });
+});

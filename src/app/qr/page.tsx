@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import QRCode from "qrcode";
 import { Suspense } from "react";
 import { getEnv } from "@/lib/env";
+import { sourceCategory } from "@/lib/source-category";
 import PrintButton from "./print-button";
 
 export const metadata: Metadata = { title: "QR code", robots: { index: false } };
@@ -22,7 +23,9 @@ export default function QrPage({ searchParams }: PageProps<"/qr">) {
 async function QrContent({ searchParams }: { searchParams: PageProps<"/qr">["searchParams"] }) {
   const params = await searchParams;
   const raw = typeof params.src === "string" ? params.src.trim() : "";
-  const src = SOURCE_RE.test(raw) ? raw : "";
+  // A label copied from a /qr link ("src_booth2") would otherwise become src_src_booth2.
+  const label = raw.replace(/^(?:src_)+/i, "");
+  const src = SOURCE_RE.test(label) ? label : "";
   const bot = getEnv().BOT_USERNAME;
 
   if (!bot) {
@@ -54,6 +57,11 @@ async function QrContent({ searchParams }: { searchParams: PageProps<"/qr">["sea
         className="h-auto w-full max-w-[480px] rounded-xl bg-white p-2"
       />
       <p className="break-all font-mono text-lg">{link}</p>
+      {src && (
+        <p className="no-print text-sm text-muted">
+          Counted on /stats as <span className="font-mono">{sourceCategory(`src_${src}`)}</span>
+        </p>
+      )}
       {raw && !src && (
         <p className="no-print text-sm text-bad">
           Invalid source. Use 1–60 characters: letters, digits, _ or -.
