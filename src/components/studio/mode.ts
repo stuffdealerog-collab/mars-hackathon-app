@@ -3,8 +3,8 @@
  * section a stored tab means. Kept out of store.ts so they can be tested without a browser.
  */
 
-/** The sections the Studio has. "dept" (Bo‘lim) exists only in Pro. */
-export const TABS = ["channel", "posts", "dept"] as const;
+/** The sections the Studio has. "dept" (Bo‘lim) exists only in Pro; "video" says what the Videographer will do (soon). */
+export const TABS = ["channel", "posts", "dept", "video"] as const;
 export type Tab = (typeof TABS)[number];
 
 /**

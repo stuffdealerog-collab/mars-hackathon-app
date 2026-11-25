@@ -441,6 +441,7 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
   const tabs: { key: Tab; name: string }[] = [
     { key: "channel", name: c.tabs.channel },
     { key: "posts", name: c.tabs.posts },
+    { key: "video", name: c.tabs.video },
   ];
   const name = brand?.dna.name || brand?.channel;
 
@@ -510,6 +511,7 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
           {tab === "channel" && <ChannelTab wide={desktop} />}
           {tab === "posts" && (desktop && pro ? <PostsSplit lamps={lamps} /> : <PostsTab inTelegram={inTelegram} column={desktop} />)}
           {tab === "dept" && <DeptTab />}
+          {tab === "video" && <VideoTab />}
         </motion.div>
       </AnimatePresence>
     </div>
@@ -586,6 +588,17 @@ function DeptTab() {
           {c.hub.newChannel}
         </button>
       )}
+    </div>
+  );
+}
+
+/** «Video»: what the Videographer will do. Its lamp stays dark until it does real work. */
+function VideoTab() {
+  const c = useCopy();
+  return (
+    <div className="card p-5">
+      <h2 className="text-[18px] font-semibold">{c.video.title}</h2>
+      <p className="mt-2 max-w-[60ch] text-[16px] leading-relaxed text-ink-2">{c.video.text}</p>
     </div>
   );
 }

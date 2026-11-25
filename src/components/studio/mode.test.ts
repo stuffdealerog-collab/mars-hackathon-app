@@ -24,7 +24,7 @@ describe("safeTab", () => {
     expect(safeTab("dept")).toBe("dept");
   });
   it("sends a stale «video» (the tab that was removed) and junk to Postlar", () => {
-    expect(safeTab("video")).toBe("posts");
+    expect(safeTab("video")).toBe("video");
     expect(safeTab("")).toBe("posts");
     expect(safeTab(null)).toBe("posts");
     expect(safeTab(undefined)).toBe("posts");

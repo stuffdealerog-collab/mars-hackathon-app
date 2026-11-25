@@ -7,7 +7,7 @@
  */
 import type { AgentRole } from "@/lib/uslub/contract";
 import { INTRO_COPY } from "@/components/onboarding";
-import { BarChart3, Check, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, ExternalLink, GripVertical, LogOut, Newspaper, PanelLeft, PanelRight, Plus } from "lucide-react";
+import { BarChart3, Check, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, Clapperboard, ExternalLink, GripVertical, LogOut, Newspaper, PanelLeft, PanelRight, Plus } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -103,6 +103,7 @@ export const RAIL_W = 76;
 const NAV: { key: Tab; icon: typeof BarChart3 }[] = [
   { key: "posts", icon: Newspaper },
   { key: "channel", icon: BarChart3 },
+  { key: "video", icon: Clapperboard },
 ];
 
 /** In Oddiy a lamp leads to the section its work lives in. */
@@ -301,6 +302,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
           {NAV.map(({ key, icon: Icon }) => {
             const active = ready && tab === key;
             const waiting = key === "posts" && ready && drafts > 0;
+            const soon = key === "video";
             return (
               <button
                 key={key}
@@ -314,6 +316,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
               >
                 <Icon className="h-[19px] w-[19px] shrink-0" strokeWidth={1.75} aria-hidden />
                 {!collapsed && <span className="flex-1 text-left">{c.tabs[key]}</span>}
+                {!collapsed && soon && <span className="text-[12.5px] text-ink-3">{c.lampState.soon}</span>}
                 {!collapsed && key === "posts" && drafts > 0 && <span className="tnum text-[13px] text-ink-2">{drafts}</span>}
                 {/* The only lime in the hub, and it is not a button: posts are waiting for the owner. */}
                 {waiting && (
