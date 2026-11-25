@@ -6,7 +6,7 @@ import type { StoredBrand } from "../store";
 import { getBrandVisualInfo } from "../visual/repo";
 import { learnAndSaveVisual } from "../visual/service";
 import { safeLogEvent } from "@/lib/track";
-import { NEVER_SUBMITTED, TIMED_OUT, type MediaSweepReport } from "./jobs";
+import { NEVER_SUBMITTED, sweepAllowed, TIMED_OUT, type MediaSweepReport } from "./jobs";
 import {
   needsRelearn,
   pollPostImage,
@@ -142,6 +142,9 @@ export interface StuckMediaSweep {
  * 2) posts whose picture still says queued/running pick up their job's state, so the post unlocks.
  * Each ended job is logged as `media_job_expired`. Stops starting new work after `budgetMs`
  * (a provider call already running can add up to its own 15 s limit). Never throws.
+ *
+ * Production only: local and preview instances share the production database, and a sweep there
+ * would end real owners' jobs. MEDIA_SWEEP=1 turns it on elsewhere (with a copy of the database).
  */
 export async function sweepStuckMediaJobs(budgetMs = 10_000): Promise<StuckMediaSweep> {
   const started = Date.now();
@@ -151,6 +154,7 @@ export async function sweepStuckMediaJobs(budgetMs = 10_000): Promise<StuckMedia
     posts: { checked: 0, updated: 0, stoppedEarly: false },
     ms: 0,
   };
+  if (!sweepAllowed(process.env)) return report;
   try {
     const { jobs } = media();
     report.jobs = await jobs.sweep({ olderThanMs: SWEEP_JOB_MIN_AGE_MS, limit: 20, deadline });

@@ -24,6 +24,8 @@ export type StoredPostImage = PostImage & {
   attempts?: number; // jobs started for this post (regenerations are capped)
   productUrl?: string; // the owner's product photo for this post, re-hosted
   scene?: string; // what the picture shows, reused by "another variant"
+  /** The people rule `scene` was written under; a scene from before the rule existed has none. */
+  sceneRule?: PeopleRule;
   model?: string;
   updatedAt?: string;
 };
@@ -207,6 +209,13 @@ export function planPostImageStart(prev: StoredPostImage | undefined, wantNew: b
   return "start";
 }
 
+/** The scene when people are ruled out and no AI scene line came back: the business's place, or the owner's product. */
+function noPeopleScene(brand: Pick<BrandForImage, "name" | "oneLiner">, product: boolean): string {
+  if (product) return "the product from image 1 in the place where it is sold or used, no people";
+  const about = clean(brand.oneLiner.split(/[;:.!?\n]/)[0], 80) || clean(brand.name, 60);
+  return about ? `the place, equipment and tools of ${about}, no people` : "the place, equipment and tools of the business, no people";
+}
+
 /** Media job -> post image. Provider details never reach the owner; they stay in media_jobs. */
 export function imageFromJob(job: MediaJob, prev: StoredPostImage): StoredPostImage {
   const base = { ...prev, jobId: job.id, model: job.model, updatedAt: job.updatedAt };
@@ -236,7 +245,9 @@ export async function startPostImage(
 
   const who = { brandName: brand.name, oneLiner: brand.oneLiner, products: brand.products };
   const people = peopleRule({ ...who, brief: post.brief, hook: post.slot?.hook, text: postText(post) });
-  let scene = !args.productUrl && prev?.scene ? prev.scene : undefined;
+  // "Another variant" reuses the scene, unless it was written under a looser people rule (before the
+  // rule existed, team posts got "Dr. Aziza with a patient"): it would contradict "No people at all".
+  let scene = !args.productUrl && prev?.scene && (people !== "none" || prev.sceneRule === "none") ? prev.scene : undefined;
   if (!scene && deps.describeScene) {
     scene = await deps
       .describeScene({
@@ -250,7 +261,9 @@ export async function startPostImage(
       })
       .catch(() => undefined);
   }
-  scene ||= clean(post.brief || postText(post), 300);
+  // No AI scene (AI off, or the call failed, e.g. during a credit outage): the brief, unless people are
+  // ruled out: a team post's brief is about the people, so the picture shows their place instead.
+  scene ||= people === "none" ? noPeopleScene(brand, Boolean(productUrl)) : clean(post.brief || postText(post), 300);
 
   // A medical business's own photos are mostly its doctors and patients: as references they pull
   // (or copy) real faces into the new picture, so it is made from the style notes alone.
@@ -289,6 +302,7 @@ export async function startPostImage(
     refsUsed: job.refCount ?? ordered.length + (productUrl ? 1 : 0),
     prompt,
     scene,
+    sceneRule: people,
     productUrl,
     attempts: attempts + 1,
     url: prev?.url, // the picture the owner sees stays until a new one is finished

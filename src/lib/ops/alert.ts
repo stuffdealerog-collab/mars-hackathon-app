@@ -17,15 +17,20 @@ export type OpsAlertKind = "image_balance" | "anthropic_credit";
 export type OpsAlertResult = "sent" | "no_chat" | "rate_limited" | "failed";
 
 export const OPS_ALERT_WINDOW_MS = 60 * 60_000;
+/** After a failed send, this instance tries the same kind again this much later (not an hour). */
+export const OPS_ALERT_RETRY_MS = 5 * 60_000;
 
 export interface OpsAlertDeps {
   chatId: () => string | undefined;
   send: (chatId: string, text: string) => Promise<void>;
   /**
-   * Claims this kind's slot for the window, shared by all instances: true = nobody sent it since
-   * `sinceIso` and this caller now holds it. Missing = per-instance limit only.
+   * Claims this kind's slot for the window, shared by all instances: the claim's id = nobody sent it
+   * since `sinceIso` and this caller now holds it; null = another instance did. Missing = per-instance
+   * limit only.
    */
-  claim?: (kind: OpsAlertKind, sinceIso: string) => Promise<boolean>;
+  claim?: (kind: OpsAlertKind, sinceIso: string) => Promise<string | null>;
+  /** Gives a claim back when its message could not be sent, so the next failure tries again. */
+  release?: (claimId: string) => Promise<void>;
   now?: () => number;
   windowMs?: number;
 }
@@ -33,9 +38,10 @@ export interface OpsAlertDeps {
 export function createOpsAlerter(deps: OpsAlertDeps) {
   const last = new Map<OpsAlertKind, number>();
   return async function notify(kind: OpsAlertKind, text: string): Promise<OpsAlertResult> {
+    let claimId: string | null | undefined;
+    const now = (deps.now ?? Date.now)();
+    const windowMs = deps.windowMs ?? OPS_ALERT_WINDOW_MS;
     try {
-      const now = (deps.now ?? Date.now)();
-      const windowMs = deps.windowMs ?? OPS_ALERT_WINDOW_MS;
       const prev = last.get(kind);
       if (prev !== undefined && now - prev < windowMs) return "rate_limited";
       last.set(kind, now); // before any await: parallel failures on this instance send once
@@ -45,13 +51,18 @@ export function createOpsAlerter(deps: OpsAlertDeps) {
         return "no_chat";
       }
       if (deps.claim) {
-        // The shared record is down: still send (this instance's memo keeps it to once an hour).
-        const mine = await deps.claim(kind, new Date(now - windowMs).toISOString()).catch(() => true);
-        if (!mine) return "rate_limited";
+        // The shared record is down (undefined): still send (this instance's memo keeps it to once an hour).
+        claimId = await deps.claim(kind, new Date(now - windowMs).toISOString()).catch(() => undefined);
+        if (claimId === null) return "rate_limited";
       }
       await deps.send(chatId, text);
       return "sent";
     } catch (err) {
+      // Nobody was told, so the hour is not used up: the shared claim is given back (another instance
+      // may send at once) and this one tries again after a short pause (a hung Telegram call costs 5 s,
+      // and failing picture requests wait for it).
+      last.set(kind, now - windowMs + Math.min(OPS_ALERT_RETRY_MS, windowMs));
+      if (claimId && deps.release) await deps.release(claimId).catch(() => undefined);
       console.error(`[ops] ${kind} alert failed:`, err instanceof Error ? err.message : err);
       return "failed";
     }
@@ -164,9 +175,10 @@ async function telegramSend(chatId: string, text: string): Promise<void> {
 /** Arbitrary constant key for pg_advisory_xact_lock: serialises ops alert claims. */
 const OPS_LOCK = 7_310_524_002;
 
-async function claimInDb(kind: OpsAlertKind, sinceIso: string): Promise<boolean> {
+/** The claim's events row id; "" without a database (nothing to release). null = already sent this hour. */
+async function claimInDb(kind: OpsAlertKind, sinceIso: string): Promise<string | null> {
   const { getSql, isDbConfigured } = await import("../db");
-  if (!isDbConfigured()) return true;
+  if (!isDbConfigured()) return "";
   const sql = getSql();
   const props = JSON.stringify({ kind });
   const results = await sql.transaction([
@@ -176,16 +188,24 @@ async function claimInDb(kind: OpsAlertKind, sinceIso: string): Promise<boolean>
         WHERE NOT EXISTS (
           SELECT 1 FROM events WHERE type = 'ops_alert' AND props->>'kind' = ${kind} AND created_at >= ${sinceIso}
         )
-        RETURNING 1 AS ok`,
+        RETURNING id`,
   ]);
-  return (results[1] as unknown[]).length > 0;
+  const row = (results[1] as { id: string | number }[])[0];
+  return row ? String(row.id) : null;
+}
+
+/** Deletes a claim whose message was not sent (only an ops_alert row, by its id). */
+async function releaseInDb(claimId: string): Promise<void> {
+  if (!/^\d{1,19}$/.test(claimId)) return;
+  const { getSql } = await import("../db");
+  await getSql()`DELETE FROM events WHERE id = ${claimId} AND type = 'ops_alert'`;
 }
 
 let shared: ReturnType<typeof createOpsAlerter> | null = null;
 
 /** Sends a team alert (see the module comment). Never throws. */
 export function notifyOps(kind: OpsAlertKind, text: string): Promise<OpsAlertResult> {
-  shared ??= createOpsAlerter({ chatId: () => opsChatId(), send: telegramSend, claim: claimInDb });
+  shared ??= createOpsAlerter({ chatId: () => opsChatId(), send: telegramSend, claim: claimInDb, release: releaseInDb });
   return shared(kind, text);
 }
 

@@ -4,10 +4,11 @@ import {
   anthropicCreditText,
   createOpsAlerter,
   imageBalanceText,
+  OPS_ALERT_RETRY_MS,
   OPS_ALERT_WINDOW_MS,
   opsChatId,
   watchAnthropicBilling,
-} from "../src/lib/ops/alert";
+} from "./alert";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -47,7 +48,7 @@ describe("team alerts (OPS_CHAT_ID)", () => {
   });
 
   it("another instance already sent it (shared claim): nothing is sent here", async () => {
-    const claim = vi.fn(async () => false);
+    const claim = vi.fn(async () => null);
     const { notify, sent } = alerter({ claim });
     expect(await notify("anthropic_credit", "x")).toBe("rate_limited");
     expect(sent).toHaveLength(0);
@@ -63,7 +64,7 @@ describe("team alerts (OPS_CHAT_ID)", () => {
   it("OPS_CHAT_ID unset: a no-op (no send, no claim), one console line", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const send = vi.fn(async () => {});
-    const claim = vi.fn(async () => true);
+    const claim = vi.fn(async () => "1");
     const { notify } = alerter({ chatId: () => undefined, send, claim });
     expect(await notify("image_balance", "x")).toBe("no_chat");
     expect(await notify("image_balance", "x")).toBe("rate_limited");
@@ -80,6 +81,46 @@ describe("team alerts (OPS_CHAT_ID)", () => {
       },
     });
     await expect(notify("image_balance", "x")).resolves.toBe("failed");
+  });
+
+  it("a failed send gives the shared hour back: the claim is released and the alert is tried again", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    let fail = true;
+    const sent: string[] = [];
+    const claims: string[] = [];
+    const released: string[] = [];
+    const { notify, advance } = alerter({
+      send: async (_chatId, text) => {
+        if (fail) throw new Error("Telegram sendMessage 403"); // the bot is not in the OPS_CHAT_ID group
+        sent.push(text);
+      },
+      claim: async () => {
+        const id = String(claims.length + 41);
+        claims.push(id);
+        return id;
+      },
+      release: async (id) => {
+        released.push(id);
+      },
+    });
+    expect(await notify("image_balance", "first")).toBe("failed");
+    expect(released).toEqual(["41"]); // another instance may send at once
+    expect(await notify("image_balance", "right after")).toBe("rate_limited"); // this one pauses briefly, not an hour
+    fail = false;
+    advance(OPS_ALERT_RETRY_MS);
+    expect(await notify("image_balance", "next failure")).toBe("sent");
+    expect(sent).toEqual(["next failure"]);
+    expect(released).toEqual(["41"]); // a sent alert keeps its claim
+  });
+
+  it("a release that fails never throws either", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { notify } = alerter({
+      send: async () => Promise.reject(new Error("Telegram is unreachable")),
+      claim: async () => "7",
+      release: async () => Promise.reject(new Error("db down")),
+    });
+    await expect(notify("anthropic_credit", "x")).resolves.toBe("failed");
   });
 
   it("reads OPS_CHAT_ID: group ids, user ids and @channels; anything else counts as unset", () => {

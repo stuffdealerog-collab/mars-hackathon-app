@@ -140,6 +140,47 @@ describe("no photoreal people in medical niches and team posts", () => {
     expect(vi.mocked(deps.describeScene!).mock.calls[0][0]).not.toHaveProperty("people");
   });
 
+  it("no AI scene for a team post (AI off or failing): the brief about the people is not put in 'The photo shows:'", async () => {
+    const { deps, submits, saved } = setup([], { describeScene: vi.fn(async () => undefined) });
+    const teamPost = post({ brandId: "b2", brief: "Meet our team: Dr. Aziza with a patient", variants: { uz_latn: "Jamoamiz bilan tanishing" } });
+    await startPostImage({ post: teamPost, brand: bakery(), actor: anon }, deps);
+    const shows = submits[0].prompt.split("\n").find((l) => l.startsWith("The photo shows:"));
+    expect(shows).toBe("The photo shows: the place, equipment and tools of Toshkentdagi qandolatchilik uyi, no people.");
+    expect(submits[0].prompt).not.toContain("Aziza");
+    expect(saved.get(teamPost.id)).toMatchObject({ sceneRule: "none" });
+  });
+
+  it("the AI call failing for a clinic post falls back to the place too (never the brief about the doctor)", async () => {
+    const { deps, submits } = setup([], { describeScene: vi.fn(async () => Promise.reject(new Error("credit balance is too low"))) });
+    await startPostImage({ post: post(), brand: clinic(), actor: anon }, deps);
+    expect(submits[0].prompt).toContain("The photo shows: the place, equipment and tools of Kardiologiya va UZI, Toshkent, no people.");
+    expect(submits[0].prompt).not.toContain("Kardiolog qabuli");
+  });
+
+  it("'another variant' does not reuse a scene written before the people rule, and reuses one written under it", async () => {
+    const old: StoredPostImage = { status: "ready", url: "https://v3b.fal.media/files/old.jpg", refsUsed: 0, attempts: 1, scene: "Dr. Aziza smiling with a patient" };
+    const { deps, submits } = setup();
+    const a = post({ id: "c0000000-0000-4000-8000-000000000001", image: old });
+    const next = await startPostImage({ post: a, brand: clinic(), actor: anon, regenerate: true }, deps);
+    expect(submits[0].prompt).not.toContain("Aziza");
+    expect(submits[0].prompt).toContain("The photo shows: An ECG machine on a clean desk.");
+    expect(next).toMatchObject({ scene: "An ECG machine on a clean desk.", sceneRule: "none" });
+
+    vi.mocked(deps.describeScene!).mockClear();
+    await startPostImage({ post: { ...a, image: { ...next, status: "ready" } }, brand: clinic(), actor: anon, regenerate: true }, deps);
+    expect(deps.describeScene).not.toHaveBeenCalled(); // written under "none": reused as is
+    expect(submits[1].prompt).toContain("The photo shows: An ECG machine on a clean desk.");
+  });
+
+  it("a bakery product post still reuses its old scene (written before the rule) for 'another variant'", async () => {
+    const old: StoredPostImage = { status: "ready", url: "https://v3b.fal.media/files/old.jpg", refsUsed: 0, attempts: 1, scene: "A slice of Napoleon cake on a plate" };
+    const { deps, submits } = setup();
+    const p = post({ brandId: "b2", brief: "Napoleon torti", variants: { uz_latn: "Dam olish kuni choyi Napoleon bilan" }, image: old });
+    await startPostImage({ post: p, brand: bakery(), actor: anon, regenerate: true }, deps);
+    expect(deps.describeScene).not.toHaveBeenCalled();
+    expect(submits[0].prompt).toContain("The photo shows: A slice of Napoleon cake on a plate.");
+  });
+
   it("the scene instructions forbid people for 'none' and keep today's rule otherwise", () => {
     expect(sceneSystem("none")).toContain("Never people: no faces, bodies, hands or silhouettes.");
     expect(sceneSystem("none")).not.toContain("unless the post is about people");

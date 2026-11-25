@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { readMediaConfig } from "./config";
-import { MEDIA_DEFAULTS, MediaJobs, NEVER_SUBMITTED, TIMED_OUT } from "./jobs";
+import { MEDIA_DEFAULTS, MediaJobs, NEVER_SUBMITTED, sweepAllowed, TIMED_OUT } from "./jobs";
 import { isBalanceError, ProviderError, type MediaProvider, type PollResult } from "./provider";
 import { falProvider } from "./providers/fal";
 import { MemoryMediaJobRepo } from "./repo";
@@ -179,6 +179,33 @@ describe("sweep: open jobs nobody polls", () => {
     const report = await jobs.sweep({ deadline: T0 + 2 * 60_000 + 50 });
     expect(report.stoppedEarly).toBe(true);
     expect(Date.now() - started).toBeLessThan(2_000);
+  });
+
+  it("an instance without the provider's key (local dev, preview) never polls or ends that provider's live jobs", async () => {
+    // Production Neon is shared: polling fal with no key answers 401, which would fail an owner's real picture.
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ detail: "Unauthorized" }), { status: 401 }));
+    const keyless = falProvider({ key: undefined, fetch });
+    const { jobs, repo, clock: c } = setup(keyless);
+    const live = { ...(await cutOffJob(repo, T0, "00000000-0000-4000-8000-0000000000a1")), providerRequestId: "req-live", model: "fal-ai/nano-banana-2/edit" };
+    await repo.update(live);
+    const cutOff = await cutOffJob(repo, T0, "00000000-0000-4000-8000-0000000000a2"); // never reached fal: needs no key
+    c.advance(60 * 60_000); // far past the picture timeout
+    const report = await jobs.sweep();
+    expect(fetch).not.toHaveBeenCalled();
+    expect((await repo.get(live.id))?.status).toBe("queued");
+    expect(report.ended.map((e) => e.id)).toEqual([cutOff.id]);
+    // A direct refresh (a lab route opened on a preview) leaves it alone too.
+    expect((await jobs.refresh(live.id, undefined, { authorized: true })).status).toBe("queued");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("sweeps only in production, or with MEDIA_SWEEP=1", () => {
+    expect(sweepAllowed({ VERCEL_ENV: "production" })).toBe(true);
+    expect(sweepAllowed({ VERCEL_ENV: "preview", MEDIA_SWEEP: "1" })).toBe(true);
+    expect(sweepAllowed({ VERCEL_ENV: "preview" })).toBe(false);
+    expect(sweepAllowed({ VERCEL_ENV: "development" })).toBe(false);
+    expect(sweepAllowed({})).toBe(false);
+    expect(sweepAllowed({ MEDIA_SWEEP: "0" })).toBe(false);
   });
 
   it("lists open jobs oldest first and only before the cut-off", async () => {

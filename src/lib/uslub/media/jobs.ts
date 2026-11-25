@@ -300,6 +300,9 @@ export class MediaJobs {
       job.error = `Provider ${job.provider} is no longer available`;
       return this.save(job);
     }
+    // No key for this provider here (a local or preview instance on the shared database): asking it
+    // would come back 401 and end someone else's live job. The instance that has the key decides.
+    if (!provider.isConfigured()) return job;
 
     job.polls += 1;
     job.lastPolledAt = new Date(now).toISOString();
@@ -353,18 +356,23 @@ export class MediaJobs {
    * submitted) fails with a reason. Runs from the cron tick and after picture requests, so a closed
    * tab no longer leaves a job "queued" forever. Stops at `deadline` (epoch ms, the job clock); a
    * provider call still running then is left to finish on its own.
+   * A job sent to a provider this instance has no key for is skipped (polling it would answer 401 and
+   * end a live job); one that never reached a provider needs no key and is still ended.
    */
   async sweep(opts: { olderThanMs?: number; limit?: number; deadline?: number } = {}): Promise<MediaSweepReport> {
     const report: MediaSweepReport = { checked: 0, delivered: 0, ended: [], stoppedEarly: false };
     if (!this.deps.repo.listOpen) return report;
     const before = new Date(this.now() - (opts.olderThanMs ?? 60_000)).toISOString();
     const ids = await this.deps.repo.listOpen(before, opts.limit ?? 20);
+    const configured = new Set(this.deps.providers.filter((p) => p.isConfigured()).map((p) => p.id));
     for (const id of ids) {
       const left = opts.deadline === undefined ? Infinity : opts.deadline - this.now();
       if (left <= 0) {
         report.stoppedEarly = true;
         break;
       }
+      const raw = await this.deps.repo.get(id).catch(() => undefined);
+      if (raw?.providerRequestId && !configured.has(raw.provider)) continue;
       const job = await withDeadline(this.refresh(id, ANON, { authorized: true }), left).catch((err: unknown) => {
         console.warn(`[media/jobs] sweep could not refresh ${id}:`, err instanceof Error ? err.message : err);
         return null;
@@ -408,6 +416,14 @@ export class MediaJobs {
     const msg = err instanceof Error ? err.message : String(err);
     return redactSecrets(msg, this.deps.secrets?.() ?? []);
   }
+}
+
+/**
+ * Whether this deployment may sweep open jobs: production, or MEDIA_SWEEP=1. Local and preview
+ * instances share the production database, so a sweep there would end real owners' jobs.
+ */
+export function sweepAllowed(env: Record<string, string | undefined>): boolean {
+  return env.VERCEL_ENV === "production" || env.MEDIA_SWEEP?.trim() === "1";
 }
 
 export const TIMED_OUT = "Provayder javob bermadi (vaqt tugadi). / Провайдер не ответил вовремя.";

@@ -23,7 +23,7 @@ const spend = vi.hoisted(() => ({
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/server", () => ({ connection: async () => {} }));
-vi.mock("@/lib/ops/labs", async () => await import("../src/lib/ops/labs"));
+vi.mock("@/lib/ops/labs", async () => await import("./labs"));
 vi.mock("@/lib/track", () => ({ safeLogEvent: async () => {} }));
 vi.mock("@/lib/uslub/http", () => {
   class HttpError extends Error {
@@ -70,19 +70,19 @@ vi.mock("@/lib/uslub/media/service", () => ({
 }));
 vi.mock("@/lib/uslub/visual/service", () => ({ actorKey: () => "ip:0000000000000000" }));
 
-const { labsGate, labsRouteEnabled, LABS_ROUTES } = await import("../src/lib/ops/labs");
+const { labsGate, labsRouteEnabled, LABS_ROUTES } = await import("./labs");
 
 const routes = {
-  department: await import("../src/app/api/uslub/department/route"),
-  radar: await import("../src/app/api/uslub/radar/route"),
-  video: await import("../src/app/api/uslub/video/route"),
-  plan: await import("../src/app/api/uslub/plan/route"),
-  neuro: await import("../src/app/api/uslub/neuro/route"),
-  adcheck: await import("../src/app/api/uslub/adcheck/route"),
-  learn: await import("../src/app/api/uslub/learn/route"),
-  "media/captions": await import("../src/app/api/uslub/media/captions/route"),
-  "media/jobs": await import("../src/app/api/uslub/media/jobs/route"),
-  "media/jobs/cancel": await import("../src/app/api/uslub/media/jobs/cancel/route"),
+  department: await import("../../app/api/uslub/department/route"),
+  radar: await import("../../app/api/uslub/radar/route"),
+  video: await import("../../app/api/uslub/video/route"),
+  plan: await import("../../app/api/uslub/plan/route"),
+  neuro: await import("../../app/api/uslub/neuro/route"),
+  adcheck: await import("../../app/api/uslub/adcheck/route"),
+  learn: await import("../../app/api/uslub/learn/route"),
+  "media/captions": await import("../../app/api/uslub/media/captions/route"),
+  "media/jobs": await import("../../app/api/uslub/media/jobs/route"),
+  "media/jobs/cancel": await import("../../app/api/uslub/media/jobs/cancel/route"),
 };
 
 const bodies: Record<keyof typeof routes, unknown> = {

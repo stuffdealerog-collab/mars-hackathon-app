@@ -62,8 +62,6 @@ export async function POST(req: Request): Promise<Response> {
   let lang: Lang = langOf(req);
   try {
     rateLimit(req, "post_image", 30);
-    // Pictures nobody is polling any more (closed tabs) are finished or failed after the answer.
-    after(() => maybeSweepStuckMediaJobs());
     let raw: unknown;
     try {
       raw = await req.json();
@@ -80,6 +78,9 @@ export async function POST(req: Request): Promise<Response> {
     // Owner, an unowned brand, or a web brand claimed in the bot (the id holder keeps making pictures).
     await assertDraftAccess(brand, telegramId);
     const deps = postImageDeps(); // 503 without fal, before anything else
+    // Pictures nobody is polling any more (closed tabs) are finished or failed after the answer.
+    // Only here, past the fal check: an instance without the key must never sweep (production only, too).
+    after(() => maybeSweepStuckMediaJobs());
 
     // A picture shown as rendering may have finished, or got stuck, while nobody polled: bring it up to
     // date first, so "another variant" is never blocked by a job that is already over.
