@@ -1,5 +1,6 @@
 import "server-only";
 import { heartbeat } from "./heartbeat";
+import { mediaSweep } from "./media-sweep";
 import { CronRegistry } from "./registry";
 
 /**
@@ -7,4 +8,4 @@ import { CronRegistry } from "./registry";
  * changes nothing else in src/lib/cron (see registry.ts for the rules). Work that must not wait, such as
  * publishing posts that are due, goes before slow work.
  */
-export const cronRegistry = new CronRegistry().register(heartbeat);
+export const cronRegistry = new CronRegistry().register(heartbeat).register(mediaSweep);

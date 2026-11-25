@@ -92,10 +92,12 @@ describe("CronRegistry", () => {
     expect(reg.list()).toHaveLength(1);
   });
 
-  it("ships with the heartbeat task only", async () => {
+  it("ships with the heartbeat and media-sweep tasks", async () => {
     vi.doMock("@/lib/db", () => ({ getSql: () => async () => [{ "?column?": 1 }] }));
+    vi.doMock("../src/lib/cron/media-sweep", () => ({ mediaSweep: { name: "media-sweep", budgetMs: 25_000, run: async () => ({}) } }));
     const { cronRegistry } = await import("../src/lib/cron/tasks");
-    expect(cronRegistry.list().map((t) => t.name)).toEqual(["heartbeat"]);
+    expect(cronRegistry.list().map((t) => t.name)).toEqual(["heartbeat", "media-sweep"]);
+    vi.doUnmock("../src/lib/cron/media-sweep");
     vi.doUnmock("@/lib/db");
   });
 });
