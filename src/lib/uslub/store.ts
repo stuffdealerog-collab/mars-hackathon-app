@@ -148,20 +148,28 @@ export async function findChannelOnlyBrand(channel: string): Promise<StoredBrand
   return rows[0] ? toBrand(rows[0]) : null;
 }
 
+/** The language a brand's DNA prose is written in (a hidden field of the dna jsonb; rows before it are Uzbek). */
+export const dnaProseLang = (dna: unknown): string => (dna as { proseLang?: string } | null)?.proseLang ?? "uz";
+
 /**
- * The newest brand this Telegram user already has for this channel (any age, any source): running the same channel
- * again reuses it, so plans, answers and the visual style stay on one row.
+ * The newest brand this Telegram user already has for this channel with its DNA in `lang` (any age, any source):
+ * running the same channel again reuses it, so plans, answers and the visual style stay on one row. Each language
+ * keeps its own row: the bot, the Mini App and the Studio can run in different languages without rewriting one
+ * shared DNA back and forth.
  */
-export async function findOwnBrand(ownerTelegramId: number, channel: string): Promise<StoredBrand | null> {
+export async function findOwnBrand(ownerTelegramId: number, channel: string, lang: string): Promise<StoredBrand | null> {
   const key = normChannel(channel);
   if (!key) return null;
   if (!isDbConfigured()) {
-    const hits = [...mem.brands.values()].filter((b) => b.channel === key && b.ownerTelegramId === ownerTelegramId && b.mode !== "fresh");
+    const hits = [...mem.brands.values()].filter(
+      (b) => b.channel === key && b.ownerTelegramId === ownerTelegramId && b.mode !== "fresh" && dnaProseLang(b.dna) === lang,
+    );
     return hits.at(-1) ?? null;
   }
   const rows = (await getSql()`
     SELECT id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, visual, created_at FROM brands
     WHERE owner_telegram_id = ${ownerTelegramId} AND channel = ${key} AND mode = 'channel'
+      AND COALESCE(dna->>'proseLang', 'uz') = ${lang}
     ORDER BY created_at DESC LIMIT 1
   `) as BrandRow[];
   return rows[0] ? toBrand(rows[0]) : null;

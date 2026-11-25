@@ -97,6 +97,9 @@ function periodContinues(text: string, sentenceStart: number, punctStart: number
   while (wordStart > sentenceStart && !SPACE_RE.test(text[wordStart - 1])) wordStart--;
   const word = text.slice(wordStart, punctStart).replace(/^[^\p{L}\p{N}]+/u, "");
   const bare = word.toLowerCase().replace(/['‘’ʻʼ`]/g, "'");
+  // "2026 г." after a number is a year and can end a sentence ("Акция до 31 декабря 2026 г. Звоните…"); "г. Ташкент"
+  // (a city) goes on.
+  if ((bare === "г" || bare === "гг") && /\d\s*$/.test(text.slice(sentenceStart, wordStart))) return false;
   if (NO_END.has(bare)) return true;
   if (/^\p{Lu}$/u.test(word)) return true; // an initial: "A. Karimov"
   // A list number that opens the sentence ("1. Napoleon"), not a number that ends one ("…narxi 50.").

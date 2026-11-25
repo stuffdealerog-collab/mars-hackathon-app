@@ -25,6 +25,13 @@ describe("one price format per script", () => {
     expect(normalizePrices(text, script)).toBe(want);
   });
 
+  it("an item number before a price is not part of the amount", () => {
+    // Review of PR #50: "Set №3 150 000 so'm" became "Set №3,150,000 UZS".
+    expect(normalizePrices("Set №3 150 000 so'm", "en")).toBe("Set №3 150,000 UZS");
+    expect(normalizePrices("Set #3 150 000 so'm", "en")).toBe("Set #3 150,000 UZS");
+    expect(normalizePrices("Torti x2 150 000 so'm", "uz_latn")).toBe("Torti x2 150 000 soʻm");
+  });
+
   it("keeps a price in words and only fixes its currency word", () => {
     expect(normalizePrices("Hammasi 150 ming so'm", "uz_latn")).toBe("Hammasi 150 ming soʻm");
     expect(normalizePrices("Всего 150 тыс. сумов", "ru")).toBe("Всего 150 тыс. сум");
@@ -63,5 +70,21 @@ describe("product names as the brand DNA writes them", () => {
     expect(alignProductNames("Sayt: patyr.uz, bot: @patyr_bot, #patyr", products)).toBe("Sayt: patyr.uz, bot: @patyr_bot, #patyr");
     expect(alignProductNames("Patisseriya va napaleon", products)).toBe("Patisseriya va napaleon");
     expect(alignProductNames("Bugun patir bor", [])).toBe("Bugun patir bor");
+  });
+
+  // Review of PR #50: "To'rtta tort oling. To‘rtinchi buyurtma bepul." became "Tortta tort oling. Tortinchi …"
+  // ("four" read as "cake"), and "the best choice… Our choir" became "choyce… choyr" with a product "Choy".
+  it("an apostrophe the text wrote is a letter: 'four' never becomes 'cake'", () => {
+    expect(alignProductNames("To'rtta tort oling. To‘rtinchi buyurtma bepul.", ["Tort"])).toBe("To'rtta tort oling. To‘rtinchi buyurtma bepul.");
+    expect(alignProductNames("To‘rtta tort", ["Tort"])).toBe("To‘rtta tort");
+    expect(alignProductNames("Har to‘rtinchi buyurtma bepul", ["Napoleon torti"])).toBe("Har to‘rtinchi buyurtma bepul");
+  });
+
+  it("only an Uzbek suffix may follow the name; English matches whole words", () => {
+    expect(alignProductNames("The best choice for tea. Our choir sings.", ["Choy"])).toBe("The best choice for tea. Our choir sings.");
+    expect(alignProductNames("The best choice for tea", ["Choy"], { wholeWord: true })).toBe("The best choice for tea");
+    expect(alignProductNames("Fresh patyrs and patyr", products, { wholeWord: true })).toBe("Fresh patyrs and patir");
+    expect(alignProductNames("Patyrni oling, patyrlarimiz issiq", products)).toBe("Patirni oling, patirlarimiz issiq");
+    expect(alignProductNames("Bugun lagmonlar bor", products)).toBe("Bugun lag'monlar bor");
   });
 });

@@ -131,25 +131,25 @@ export function launchQuestions(sig: DescriptionSignals, lang: Lang): string[] {
 
 const S: Record<Lang, { noData: string; prices: string; noPrices: string; proof: string; time: string }> = {
   uz: {
-    noData: "Kanal ma’lumoti hali yo‘q: kanal yangi, ko‘rishlar va obunachilar hali kam. Reja tavsifingiz asosida tuzildi; Mercat’ni ochganingizda kanalni qayta hisoblaymiz va raqamlar yangilanadi.",
+    noData: "Kanal ma’lumoti hali yo‘q: kanal yangi, ko‘rishlar va obunachilar hali kam. Reja tavsifingiz asosida tuzildi.",
     prices: "Narxlar: tavsifingizda bor, postlarda shu narxlar ishlatiladi.",
     noPrices: "Narxlar: tavsifda yo‘q — sotuv postlari hozircha narxni adminga so‘rashga chaqiradi; narxlarni yuborsangiz, postlarga qo‘shamiz.",
-    proof: "Ishonch dalillari (mijoz fikrlari, raqamlar): hali yo‘q — ularni birinchi haftada yig‘amiz.",
-    time: "Vaqtlar: kanal ma’lumoti yo‘qligi uchun taxminiy (12:40 va 20:40); postlaringiz ko‘rishlar to‘plagach, vaqtni ular bo‘yicha tanlaymiz.",
+    proof: "Ishonch dalillari (mijoz fikrlari, raqamlar) hali yo‘q: ularni yuborsangiz, postlarga qo‘shamiz.",
+    time: "Vaqtlar taxminiy (12:40 va 20:40): kanal ma’lumoti hali yo‘q.",
   },
   ru: {
-    noData: "Данных канала пока нет: канал новый, просмотров и подписчиков мало. План составлен по вашему описанию; цифры обновятся, когда вы откроете Mercat: мы пересчитаем канал.",
+    noData: "Данных канала пока нет: канал новый, просмотров и подписчиков мало. План составлен по вашему описанию.",
     prices: "Цены: есть в описании, посты используют их.",
     noPrices: "Цены: в описании нет — пока продающие посты предлагают уточнить цену у администратора; пришлите цены, и мы добавим их в посты.",
-    proof: "Доказательства (отзывы, цифры): пока нет — соберём их в первую неделю.",
-    time: "Время: ориентировочное (12:40 и 20:40), данных канала ещё нет; когда у постов появятся просмотры, подберём время по ним.",
+    proof: "Отзывов и цифр пока нет: пришлите их, и мы добавим их в посты.",
+    time: "Время ориентировочное (12:40 и 20:40): данных канала ещё нет.",
   },
   en: {
-    noData: "No channel data yet: the channel is new, with few views and subscribers. The plan is built from your description; the numbers update when you open Mercat: we count the channel again.",
+    noData: "No channel data yet: the channel is new, with few views and subscribers. The plan is built from your description.",
     prices: "Prices: in your description; the posts use them.",
     noPrices: "Prices: not in the description — for now sale posts invite people to ask the admin; send your prices and we add them.",
-    proof: "Proof (reviews, numbers): none yet — we collect it in the first week.",
-    time: "Times: rule of thumb (12:40 and 20:40) because there is no channel data; once your posts have views, we pick times from them.",
+    proof: "No proof yet (reviews, numbers): send some and we add them to the posts.",
+    time: "Times are a rule of thumb (12:40 and 20:40): there is no channel data yet.",
   },
 };
 

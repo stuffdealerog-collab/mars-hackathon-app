@@ -5,7 +5,9 @@ import {
   canReuseBrandRow,
   checkChatRights,
   checkPublishAccess,
+  isDnaStale,
   isReusableBrand,
+  mayRewriteBrandRow,
 } from "../src/lib/uslub/access";
 
 const NOW = Date.parse("2026-11-24T12:00:00Z");
@@ -131,5 +133,24 @@ describe("canReuseBrandRow: a re-run of a channel returns only the caller's own 
     expect(canReuseBrandRow(row(null, "boshqa"), { channel: "tort_uyi", ownerTelegramId: null })).toBe(false);
     expect(canReuseBrandRow(row(null, "tort_uyi", "fresh"), { channel: "tort_uyi", ownerTelegramId: null })).toBe(false);
     expect(canReuseBrandRow({ ownerTelegramId: null, channel: null }, { channel: "tort_uyi", ownerTelegramId: null })).toBe(false);
+  });
+});
+
+describe("a reused row is changed only by the one it belongs to, and only once its DNA is old", () => {
+  it("the owner, or the browser holding an unowned row; never a browser using a claimed row", () => {
+    expect(mayRewriteBrandRow({ ownerTelegramId: 7 }, 7)).toBe(true);
+    expect(mayRewriteBrandRow({ ownerTelegramId: null }, null)).toBe(true);
+    expect(mayRewriteBrandRow({ ownerTelegramId: 7 }, null)).toBe(false);
+    expect(mayRewriteBrandRow({ ownerTelegramId: 7 }, 8)).toBe(false);
+    expect(mayRewriteBrandRow({ ownerTelegramId: null }, 7)).toBe(false);
+  });
+
+  it("DNA age counts from its builtAt stamp, else from the row", () => {
+    expect(isDnaStale({ dna: {}, createdAt: hoursAgo(25) }, NOW)).toBe(true);
+    expect(isDnaStale({ dna: {}, createdAt: hoursAgo(1) }, NOW)).toBe(false);
+    // A row rebuilt an hour ago is fresh, however old the row itself is.
+    expect(isDnaStale({ dna: { builtAt: hoursAgo(1) }, createdAt: hoursAgo(300) }, NOW)).toBe(false);
+    expect(isDnaStale({ dna: { builtAt: hoursAgo(30) }, createdAt: hoursAgo(300) }, NOW)).toBe(true);
+    expect(isDnaStale({ dna: null, createdAt: "garbage" }, NOW)).toBe(true);
   });
 });

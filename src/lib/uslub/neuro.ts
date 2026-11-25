@@ -198,38 +198,63 @@ const RU_LATIN = new Set([
   "pereshlite", "pereshli", "podpishites", "podpisyvaytes", "zakazhite", "zakajite", "zakazyvayte", "zvonite", "pozvonite", "pishite",
   "napishite", "prihodite", "prixodite", "prikhodite", "zahodite", "zaxodite", "zakhodite", "uznayte", "uznaite", "spasibo", "pozhaluysta",
   "pojaluysta", "pozhalujsta", "kupite", "pokupayte", "zhdite", "jdite", "zhdem", "jdem", "zhdyom", "jdyom", "priglashaem", "speshite",
-  "toropites", "uspeyte", "uspeite", "smotrite", "dobro", "pozhalovat", "pojalovat", "ostavlyayte", "obrashchaytes", "obrashaytes",
+  "toropites", "uspeyte", "uspeite", "smotrite", "pozhalovat", "pojalovat", "ostavlyayte", "obrashchaytes", "obrashaytes",
 ]);
 /** English words in Latin that end like a Russian imperative ("-ite"). */
-const EN_ITE = new Set(["website", "websites", "favorite", "favorites", "favourite", "favourites", "opposite", "definite", "infinite", "satellite", "appetite", "composite", "exquisite", "requisite", "graphite", "granite", "dynamite", "parasite", "parasites"]);
+const EN_ITE = new Set([
+  "website", "websites", "favorite", "favorites", "favourite", "favourites", "opposite", "definite", "infinite", "satellite", "appetite",
+  "composite", "exquisite", "requisite", "graphite", "granite", "dynamite", "parasite", "parasites", "expedite", "erudite", "meteorite",
+  "marguerite", "aphrodite", "socialite", "termites",
+]);
 
 /** Spans of links, @handles and #hashtags: a word inside them is a name, never a Russian word in the text. */
 const NAME_SPAN_RE = /(?:https?:\/\/|www\.|t\.me\/)\S+|[@#][\p{L}\p{N}_]+|\S+\.(?:uz|ru|com|me|org|net)(?:\/\S*)?/giu;
+/** Quoted words are a name or a quote (a shop called «Сладкоежка»), not the post speaking Russian. */
+const QUOTE_SPAN_RE = /«[^»\n]*»|"[^"\n]*"|“[^”\n]*”|„[^“”\n]*[“”]/gu;
+
+/** A Russian imperative ending on a long word: "-ayte/-oyte" (zakazyvayte, otkroyte), "-ite" (prihodite). "Gigabyte" is not one. */
+const ruImperative = (w: string) => (w.length >= 6 && /[aeiou]ytes?$/.test(w)) || (w.length >= 8 && /ites?$/.test(w) && !EN_ITE.has(w));
+
+const RU_TO_LAT: Record<string, string> = {
+  а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "yo", ж: "zh", з: "z", и: "i", й: "y", к: "k", л: "l", м: "m", н: "n", о: "o",
+  п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "h", ц: "ts", ч: "ch", ш: "sh", щ: "shch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
+};
+const ruToLatin = (word: string) => Array.from(word.toLowerCase(), (ch) => RU_TO_LAT[ch] ?? ch).join("");
 
 /**
- * A Latin word that is Russian: a known call to action, or a Russian imperative ending on a long word. A word in
- * capitals is usually a brand ("AMBRELITE" in the golden corpus), so only the known words count there.
+ * A Latin word that is Russian: a known call to action, or a Russian imperative ending on a long word. A capitalised
+ * word is a name ("Gigabyte", "Aphrodite", the brand "AMBRELITE" in the golden corpus) unless it is a known call to
+ * action ("Pereshlite").
  */
 function russianInLatin(word: string): boolean {
   const w = word.toLowerCase().replace(/['‘’ʻʼ`]/g, "");
   if (RU_LATIN.has(w)) return true;
-  if (word === word.toUpperCase()) return false;
-  if (w.length >= 6 && /(?:ayte|aytes|yte|ytes)$/.test(w)) return true;
-  return w.length >= 8 && /(?:ite|ites)$/.test(w) && !EN_ITE.has(w);
+  if (/^\p{Lu}/u.test(word)) return false;
+  return ruImperative(w);
 }
 
-/** Russian words inside Uzbek Latin text: whole Cyrillic words (3+ letters) and Russian written in Latin letters. */
+/**
+ * A Cyrillic word in Uzbek Latin text: a lowercase one is Russian; a capitalised one is a name ("Наполеон") unless
+ * it is a Russian call to action ("Звоните", "Подпишитесь").
+ */
+function russianInCyrillic(word: string): boolean {
+  if (word.length < 3) return false;
+  if (!/^\p{Lu}/u.test(word)) return true;
+  const w = ruToLatin(word);
+  return RU_LATIN.has(w) || ruImperative(w);
+}
+
+/** Russian words inside Uzbek Latin text: Cyrillic words and Russian written in Latin letters (names and quotes skipped). */
 export function russianInUzbek(text: string): NeuroHit[] {
-  const names = [...text.matchAll(NAME_SPAN_RE)].map((m) => [m.index, m.index + m[0].length] as const);
+  const names = [...text.matchAll(NAME_SPAN_RE), ...text.matchAll(QUOTE_SPAN_RE)].map((m) => [m.index, m.index + m[0].length] as const);
   const inName = (i: number) => names.some(([a, b]) => i >= a && i < b);
   const hits: NeuroHit[] = [];
   for (const m of text.matchAll(/[\p{L}'‘’ʻʼ`]+/gu)) {
     const word = m[0].replace(/^['‘’ʻʼ`]+|['‘’ʻʼ`]+$/g, "");
     const index = m.index + m[0].indexOf(word);
     if (!word || inName(index)) continue;
-    const cyrillic = /^[Ѐ-ӿ]+$/.test(word);
-    if ((cyrillic && word.length >= 3) || (!cyrillic && /^[A-Za-z'‘’ʻʼ`]+$/.test(word) && russianInLatin(word)))
-      hits.push({ phrase: word, index, suggestion: RU_IN_UZ_HINT });
+    const russian = /^[Ѐ-ӿ]+$/.test(word) ? russianInCyrillic(word) : /^[A-Za-z'‘’ʻʼ`]+$/.test(word) && russianInLatin(word);
+    if (russian) hits.push({ phrase: word, index, suggestion: RU_IN_UZ_HINT });
   }
   return hits;
 }

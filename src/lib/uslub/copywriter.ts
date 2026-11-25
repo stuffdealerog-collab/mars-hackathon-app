@@ -245,7 +245,8 @@ export async function generatePosts(brand: BrandProfile, brief: string, count = 
       let text = oneContactRoute(replaceHiddenPrice(d.variants[script], script));
       if (noContact) text = contactBlankIfNone(text, script);
       // One price format per script (12 000 soʻm · 12 000 сум · 12,000 UZS) and the DNA's spelling of each product.
-      text = alignProductNames(normalizePrices(text, script), brand.dna.products);
+      // English takes whole words only: "choice" or "choir" never become a product called "Choy".
+      text = alignProductNames(normalizePrices(text, script), brand.dna.products, { wholeWord: script === "en" });
       d.variants[script] = script === "uz_latn" ? polishUzLatin(text) : text;
     }
     d.variants.uz_cyrl = latinToCyrillic(d.variants.uz_latn, keep);

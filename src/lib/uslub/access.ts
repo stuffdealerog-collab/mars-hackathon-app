@@ -54,6 +54,24 @@ export function canReuseBrandRow(
 }
 
 /**
+ * May this caller change a reused row (rebuild its DNA, swap its sample posts)? Only its owner, or the browser holding
+ * an unowned row. A browser that keeps using a web brand later claimed in the bot reads it but never writes to it.
+ */
+export const mayRewriteBrandRow = (row: Pick<BrandAccessInfo, "ownerTelegramId">, ownerTelegramId: number | null): boolean =>
+  row.ownerTelegramId == null ? ownerTelegramId == null : row.ownerTelegramId === ownerTelegramId;
+
+/**
+ * Is a brand's DNA older than the cache window? Counted from the `builtAt` stamp the engine keeps inside the dna
+ * jsonb (set on every build and rebuild, so a rebuilt row is not rebuilt again on the next run), else from the row's
+ * createdAt. An unreadable date counts as old.
+ */
+export function isDnaStale(row: { dna: unknown; createdAt: string }, now = Date.now(), maxAgeHours = BRAND_CACHE_MAX_AGE_HOURS): boolean {
+  const stamp = (row.dna as { builtAt?: unknown } | null)?.builtAt;
+  const at = Date.parse(typeof stamp === "string" ? stamp : row.createdAt);
+  return !Number.isFinite(at) || now - at >= maxAgeHours * 3600_000;
+}
+
+/**
  * Who may read a brand (and generate content from it):
  * - channel_only brands hold only public channel content: anyone with the id;
  * - custom brands without an owner (anonymous web Studio): anyone with the unguessable id;

@@ -1,11 +1,14 @@
 import "server-only";
 import { safeLogEvent } from "@/lib/track";
-import { BRAND_CACHE_MAX_AGE_HOURS, brandSourceFor, canReuseBrandRow, isReusableBrand } from "./access";
+import { brandSourceFor, canReuseBrandRow, isDnaStale, isReusableBrand, mayRewriteBrandRow } from "./access";
 import type { BrandMode } from "./contract";
 import { extractBrandDNA } from "./dna";
 import type { ApiLang } from "./errors";
 import { MIN_CHANNEL_POSTS, parseChannelUsername, scrapeChannel, ScrapeError, type ScrapedChannel } from "./scrape";
-import { findChannelOnlyBrand, findOwnBrand, getBrand, isUuid, saveBrand, updateBrandProfile, wasClaimed, type StoredBrand } from "./store";
+import { dnaProseLang, findChannelOnlyBrand, findOwnBrand, getBrand, isUuid, saveBrand, updateBrandProfile, wasClaimed, type StoredBrand } from "./store";
+
+/** A DNA just written, with the time it was written: kept inside the dna jsonb (no schema change), read by isDnaStale. */
+const stamped = <T extends object>(dna: T): T & { builtAt: string } => ({ ...dna, builtAt: new Date().toISOString() });
 
 export interface BuildBrandInput {
   channel?: string;
@@ -41,56 +44,59 @@ export const MIN_ABOUT = 80;
 const emptyChannel = (username: string, posts: number) =>
   new ScrapeError(`@${username} has ${posts} posts`, 422, "channel_empty", { channel: username, reason: posts ? "few_posts" : "no_preview", postsFound: posts });
 
+type EarlierBrand = { brand: StoredBrand; via: "brand_id" | "owner" };
+
 /**
- * The caller's own earlier brand for this channel: the id their browser holds, or (Telegram user) their newest row
- * for the channel at any age. Null when there is none or it is not theirs (canReuseBrandRow).
+ * The caller's own earlier brand for this channel with its DNA in `lang`: the id their browser holds, or (Telegram
+ * user) their newest row for the channel in that language, at any age. Null when there is none or it is not theirs
+ * (canReuseBrandRow); the caller then gets a new row, as before reuse existed.
+ * A row in another language comes back only to the browser holding an unowned row: nobody else reads it, so its DNA
+ * is rewritten in place. A Telegram-owned row is shared by the bot, the Mini App and a browser that held it before
+ * the claim, so it is never rewritten into another language: each language keeps its own row.
  */
-async function ownEarlierBrand(channel: string, owner: number | null, brandId: string | undefined): Promise<{ brand: StoredBrand; via: "brand_id" | "owner" } | null> {
+async function ownEarlierBrand(channel: string, owner: number | null, brandId: string | undefined, lang: ApiLang): Promise<EarlierBrand | null> {
   if (brandId && isUuid(brandId)) {
     const row = await getBrand(brandId);
     const claimed = row && owner == null && row.ownerTelegramId != null ? await wasClaimed(row.id) : false;
-    if (row && canReuseBrandRow(row, { channel, ownerTelegramId: owner, claimed })) return { brand: row, via: "brand_id" };
+    if (row && canReuseBrandRow(row, { channel, ownerTelegramId: owner, claimed }) && (dnaProseLang(row.dna) === lang || row.ownerTelegramId == null))
+      return { brand: row, via: "brand_id" };
   }
   if (owner != null) {
-    const row = await findOwnBrand(owner, channel);
+    const row = await findOwnBrand(owner, channel, lang);
     if (row && canReuseBrandRow(row, { channel, ownerTelegramId: owner })) return { brand: row, via: "owner" };
   }
   return null;
 }
 
 /**
- * Reuses the caller's row: the DNA is written again only when it is in another language (one Claude call), and the
- * sample posts follow the channel once the row is older than the cache window (no Claude call).
+ * Reuses the caller's row (same id: plans and answers stay on it). Its DNA is built again, in place and for one
+ * Claude call, when it is older than the cache window (counted from the DNA's builtAt) or in another language, as a
+ * new row would have been before reuse existed. A row built from the channel alone takes the channel's newest posts;
+ * one with the owner's own samples keeps them. Only a caller who may change the row does this (mayRewriteBrandRow):
+ * a browser using a web brand later claimed in the bot gets the row as it is and never writes to it.
  */
-async function reuseBrand(
-  found: { brand: StoredBrand; via: "brand_id" | "owner" },
-  scraped: ScrapedChannel,
-  input: { owner: number | null; lang: ApiLang; beforeLlm?: () => Promise<void> },
-): Promise<BuildBrandResult> {
+async function reuseBrand(found: EarlierBrand, scraped: ScrapedChannel, input: { owner: number | null; lang: ApiLang; beforeLlm?: () => Promise<void> }): Promise<BuildBrandResult> {
   let brand = found.brand;
-  // A row built from the channel alone follows the channel; one with the owner's own samples keeps them.
-  const fresh = brand.source === "channel_only" ? scraped.posts.map((p) => p.text).slice(-30) : [];
-  const rowLang = (brand.dna as { proseLang?: string }).proseLang ?? "uz";
-  const stale = Date.now() - Date.parse(brand.createdAt) >= BRAND_CACHE_MAX_AGE_HOURS * 3600_000;
-  let rewritten = false;
-  if (rowLang !== input.lang) {
+  const rebuild = mayRewriteBrandRow(brand, input.owner) && (dnaProseLang(brand.dna) !== input.lang || isDnaStale(brand));
+  if (rebuild) {
     await input.beforeLlm?.();
+    const fresh = brand.source === "channel_only" ? scraped.posts.map((p) => p.text).slice(-30) : [];
     const samplePosts = fresh.length ? fresh : brand.samplePosts;
-    const dna = await extractBrandDNA({ samplePosts, knowledge: brand.knowledge, channelTitle: scraped.title, channelDescription: scraped.description, lang: input.lang });
+    const dna = stamped(
+      await extractBrandDNA({ samplePosts, knowledge: brand.knowledge, channelTitle: scraped.title, channelDescription: scraped.description, lang: input.lang }),
+    );
     brand = (await updateBrandProfile(brand.id, { dna, samplePosts })) ?? { ...brand, dna, samplePosts };
-    rewritten = true;
-  } else if (stale && fresh.length) {
-    brand = (await updateBrandProfile(brand.id, { samplePosts: fresh })) ?? brand;
   }
   // brand_created no longer fires for a re-run, so the funnel counts the reuse instead of seeing a drop.
-  await safeLogEvent(input.owner, "brand_reused", { brand_id: brand.id, channel: brand.channel ?? null, via: found.via, dna_rewritten: rewritten });
-  return { brand, cached: true, reused: true, channel: scraped };
+  await safeLogEvent(input.owner, "brand_reused", { brand_id: brand.id, channel: brand.channel ?? null, via: found.via, dna_rewritten: rebuild });
+  return { brand, cached: !rebuild, reused: true, channel: scraped };
 }
 
 /**
  * Channel link and/or owner notes -> Brand DNA -> saved brand.
  * Running the same channel again returns the caller's own row (the id their browser holds, or a Telegram user's
- * newest row for the channel): no duplicate rows, plans and answers stay attached. Otherwise only pure channel
+ * newest row for the channel in the requested language): no duplicate rows, plans and answers stay attached; its DNA
+ * is rebuilt in place once it is older than 24 h (see reuseBrand). Otherwise only pure channel
  * scrapes are reused as a cache (never rows with owner-supplied text), and every caller gets their own row, so
  * ownership is never shared.
  * Empty channels (no public preview or fewer than MIN_CHANNEL_POSTS posts) throw ScrapeError "channel_empty"
@@ -131,12 +137,11 @@ export async function buildBrand(input: BuildBrandInput): Promise<BuildBrandResu
     }
     // The same caller running the same channel again (no new text of their own): their row comes back.
     if (source === "channel_only") {
-      const own = await ownEarlierBrand(scraped.username, owner, input.brandId);
+      const own = await ownEarlierBrand(scraped.username, owner, input.brandId, lang);
       if (own) return reuseBrand(own, scraped, { owner, lang, beforeLlm: input.beforeLlm });
     }
     const cached = source === "channel_only" ? await findChannelOnlyBrand(scraped.username) : null;
-    const cachedLang = (cached?.dna as { proseLang?: string } | undefined)?.proseLang ?? "uz";
-    if (cached && cachedLang === lang && isReusableBrand(cached, { channel: scraped.username })) {
+    if (cached && dnaProseLang(cached.dna) === lang && isReusableBrand(cached, { channel: scraped.username })) {
       // Only the same Telegram user gets the same row back. Anonymous callers never share a row: the brand id is
       // their capability for its posts (GET /posts), so a competitor pasting the same channel can't see drafts.
       if (owner != null && cached.ownerTelegramId === owner) return { brand: cached, cached: true, channel: scraped };
@@ -158,7 +163,7 @@ export async function buildBrand(input: BuildBrandInput): Promise<BuildBrandResu
   }
 
   await input.beforeLlm?.();
-  const dna = await extractBrandDNA({ samplePosts, knowledge, channelTitle: scraped?.title, channelDescription: scraped?.description, lang });
+  const dna = stamped(await extractBrandDNA({ samplePosts, knowledge, channelTitle: scraped?.title, channelDescription: scraped?.description, lang }));
   const brand = await saveBrand({ channel: scraped?.username, knowledge, samplePosts, dna, mode: "channel" }, owner, source);
   return { brand, cached: false, channel: scraped };
 }
@@ -172,6 +177,6 @@ async function buildFresh(channelInput: string | undefined, knowledge: string, o
     if (!channel) throw new ScrapeError("bad channel", 400, "channel_invalid");
   }
   await beforeLlm?.();
-  const dna = await extractBrandDNA({ samplePosts: [], knowledge, lang, mode: "fresh" });
+  const dna = stamped(await extractBrandDNA({ samplePosts: [], knowledge, lang, mode: "fresh" }));
   return saveBrand({ channel, knowledge, samplePosts: [], dna, mode: "fresh" }, owner, "custom");
 }

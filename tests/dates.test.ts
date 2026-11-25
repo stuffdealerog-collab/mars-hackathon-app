@@ -64,6 +64,17 @@ describe("periods: a promotion still running is not a past date", () => {
     expect(pastDatesIn("Sale from November 1 to November 20", DAY)).toEqual(["2026-11-20"]);
   });
 
+  // Review of PR #50: with the month written once only the start was read, so a running sale was "past".
+  it.each(["November 1–20", "Nov 1-20 sale", "from November 1 to 20", "Sale Nov 1st – 20th", "Aksiya noyabr 1-20"])("month written once: %s", (text) => {
+    expect(pastDatesIn(text, "2026-11-10")).toEqual([]);
+  });
+
+  it("a period with the month written once that is over is named by its end", () => {
+    expect(pastDatesIn("Sale November 1–20", DAY)).toEqual(["2026-11-20"]);
+    expect(datesIn("from November 1 to 20", DAY)).toEqual(["2026-11-01", "2026-11-20"]);
+    expect(datesIn("November 1 to 20 December", DAY)).toEqual(["2026-11-01", "2026-12-20"]);
+  });
+
   it("a period over New Year runs on", () => {
     expect(pastDatesIn("Yangi yil aksiyasi 25-dekabrdan 10-yanvargacha", "2026-12-28")).toEqual([]);
   });

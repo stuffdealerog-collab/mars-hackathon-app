@@ -18,7 +18,8 @@ export function groupDigits(n: number, script: Script): string {
 export const formatSum = (amount: number, script: Script): string => `${groupDigits(amount, script)} ${SUM_UNIT[script]}`;
 
 // A number: grouped thousands ("12 000", "12.000", "12,000", "1 200 000") or plain digits. "1.5" or "12,5" are left alone.
-const NUM = String.raw`(?<![\d.,])(?:\d{1,3}(?:(?:[^\S\n]|[.,])\d{3})+|\d+)(?![\d]|[.,]\d)`;
+// An item number or a count never starts it: "Set №3 150 000" is set 3 at 150 000, not 3 150 000 (nor "x2 150 000").
+const NUM = String.raw`(?<![\d.,№#×])(?<!(?<!\p{L})[xX])(?:\d{1,3}(?:(?:[^\S\n]|[.,])\d{3})+|\d+)(?![\d]|[.,]\d)`;
 // "ming", "тыс.", "k", "mln": the amount is written in words, so only its currency word is touched.
 const MULT = String.raw`(?:ming|минг|тыс\.?|тысяч\p{L}*|thousand|mln|млн|million|k)`;
 // The currency word, with an Uzbek suffix kept ("soʻmdan", "сўмга"); Russian forms and English plurals drop theirs.

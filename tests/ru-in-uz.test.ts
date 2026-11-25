@@ -27,6 +27,29 @@ describe("Russian words inside an Uzbek Latin post are hits the editor rewrites"
       expect(russianInUzbek(text)).toEqual([]);
   });
 
+  // Review of PR #50: brand and product names were hits, cost an editor call each, and the deletion fallback dropped
+  // their whole sentence ("Gigabyte noutbuklari keldi." went).
+  it("leaves brand and product names alone, in either script", () => {
+    for (const text of [
+      "Gigabyte noutbuklari keldi. Kilobyte va Megabyte do‘konlari ham bor.",
+      "Expedite xizmati, Aphrodite go‘zallik saloni, Marguerite pitsasi.",
+      "Dobro sharbatlari chegirmada.",
+      "«Сладкоежка» qandolatxonasi: yangi tortlar.",
+      "Наполеон torti tayyor.",
+      "Bugun \"Пирожное\" to‘plami bor.",
+      "256 gigabyte xotira, megabyte emas.",
+    ])
+      expect(russianInUzbek(text)).toEqual([]);
+    expect(deletionEdit("Gigabyte noutbuklari keldi. Narxi 5 000 000 so'm.", detectNeuro("Gigabyte noutbuklari keldi. Narxi 5 000 000 so'm.", "uz_latn"))).toBe(
+      "Gigabyte noutbuklari keldi. Narxi 5 000 000 so'm.",
+    );
+  });
+
+  it("a capitalised Russian call to action is still a hit, and so is a lowercase Cyrillic word", () => {
+    expect(russianInUzbek("Звоните! Подпишитесь kanalga. Ждём sizni, приходите.").map((h) => h.phrase)).toEqual(["Звоните", "Подпишитесь", "Ждём", "приходите"]);
+    expect(russianInUzbek("Otkroyte ilovani, pokupayte").map((h) => h.phrase)).toEqual(["pokupayte"]);
+  });
+
   it("is only an Uzbek Latin rule: Russian and English texts are not checked for it", () => {
     expect(detectNeuro("Звоните нам: +998 90 123 45 67", "ru")).toEqual([]);
     expect(detectNeuro("Spasibo, see you!", "en")).toEqual([]);

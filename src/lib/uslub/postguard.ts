@@ -176,13 +176,21 @@ function spellKey(word: string): string {
 
 const keepCase = (from: string, to: string) => (/^\p{Lu}/u.test(from) ? to.charAt(0).toUpperCase() + to.slice(1) : to.charAt(0).toLowerCase() + to.slice(1));
 
+const HAS_APOS = /['‘’ʻʼ`]/;
+/** What may follow a name in the same word: an Uzbek suffix ("patyrlar", "tortni"), never any letters ("choice"). */
+const UZ_LATIN_SUFFIX = /^(?:(?:lar(?:i|imiz|ingiz)?|i|si|im|imiz|ingiz)?(?:ni|ning|ga|ka|qa|da|dan|dagi|gacha)?|cha|chi|lik)$/i;
+/** The same for Cyrillic: Uzbek suffixes and Russian case endings ("чизкейка", "самсалар"). */
+const CYR_SUFFIX = /^(?:(?:лар(?:и)?|и|си)?(?:ни|нинг|га|ка|қа|да|дан|даги|гача)?|ча|чи|лик|а|я|у|ю|ом|ем|ой|ей|е|и|ы|ов|ев|ам|ям|ами|ями|ах|ях)$/i;
+
 /**
  * Product names written the way the brand DNA writes them, so one post never says "patir" in one line and "patyr" in
  * the next. Only a word that is the same name spelled another way changes (same spelling key, same script, 4+
- * letters); an Uzbek suffix stays ("patyrlar" -> "patirlar"). Russian keeps its own spelling of a Latin name
- * ("патыр"): names are matched within one script only.
+ * letters); an Uzbek suffix stays ("patyrlar" -> "patirlar"), any other ending means another word ("choice" is not
+ * "Choy"). An apostrophe the text wrote is a letter (oʻ, gʻ): "toʻrtta" (four) never becomes "tortta" (cake).
+ * English (`wholeWord`) matches whole words only. Russian keeps its own spelling of a Latin name ("патыр"): names are
+ * matched within one script only.
  */
-export function alignProductNames(text: string, products: readonly string[] | undefined): string {
+export function alignProductNames(text: string, products: readonly string[] | undefined, opts: { wholeWord?: boolean } = {}): string {
   const canon = new Map<string, string>(); // spelling key -> the DNA's spelling
   for (const p of products ?? []) {
     for (const raw of p.match(/[\p{L}'‘’ʻʼ`]+/gu) ?? []) {
@@ -202,7 +210,11 @@ export function alignProductNames(text: string, products: readonly string[] | un
       // The whole word, or the name plus a suffix ("patyrlar"): the shortest prefix with the name's key.
       for (let len = Math.max(4, name.length - 1); len <= Math.min(token.length, name.length + 2); len++) {
         const stem = token.slice(0, len);
-        if (spellKey(stem) !== key || /['‘’ʻʼ`]/.test(token.charAt(len))) continue;
+        if (spellKey(stem) !== key || HAS_APOS.test(token.charAt(len))) continue;
+        // "To‘rtta" is "four", not "Tort": an apostrophe only the text has is part of another word.
+        if (HAS_APOS.test(stem) && !HAS_APOS.test(name)) continue;
+        const rest = token.slice(len);
+        if (rest && (opts.wholeWord || !(isCyr(rest) ? CYR_SUFFIX : UZ_LATIN_SUFFIX).test(rest))) continue;
         return stem.toLowerCase() === name.toLowerCase() ? word : keepCase(stem, name) + word.slice(len);
       }
     }

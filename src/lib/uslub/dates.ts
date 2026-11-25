@@ -60,6 +60,10 @@ interface DateSpan {
 
 const DAY_MONTH = new RegExp(`(?<![\\d${LETTER}])(\\d{1,2})(?:-?(?:go|го|chi|nchi|th|st|nd|rd))?[\\s-]+([${LETTER}]{3,})(?:\\s+(20\\d{2}))?`, "g");
 const MONTH_DAY = new RegExp(`(?<![${LETTER}])([${LETTER}]{3,})\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(20\\d{2}))?(?![\\d.:])`, "g");
+const MONTH_DAYS = new RegExp(
+  `(?<![${LETTER}])([${LETTER}]{3,})\\s+(\\d{1,2})(?:st|nd|rd|th)?\\s*(?:[-–—]|to|until|till|through|thru)\\s*(\\d{1,2})(?:st|nd|rd|th)?(?![\\d.:])`,
+  "gi",
+);
 
 /** Every date in `text` (NFC) with its position, in order of appearance; overlapping matches keep the first one. */
 function dateSpans(t: string, ref: string): DateSpan[] {
@@ -86,6 +90,16 @@ function dateSpans(t: string, ref: string): DateSpan[] {
   for (const m of t.matchAll(MONTH_DAY)) {
     const month = BARE_MONTH.test(m[1]) ? monthOf(m[1]) : null;
     if (month) add(m[3] ? iso(Number(m[3]), month, Number(m[2])) : nearest(month, Number(m[2]), ref), m.index, m[0].length, m[1]);
+  }
+  // November 1–20, Nov 1-20, November 1 to 20: the month is written once, so the end day is a date of that month too
+  // (two spans, which rangeStarts joins into one period).
+  for (const m of t.matchAll(MONTH_DAYS)) {
+    const month = BARE_MONTH.test(m[1]) ? monthOf(m[1]) : null;
+    if (!month) continue;
+    const firstAt = m.index + m[1].length + m[0].slice(m[1].length).search(/\d/);
+    add(nearest(month, Number(m[2]), ref), m.index, firstAt + m[2].length - m.index, m[1]);
+    const endAt = m.index + (/\d{1,2}(?:st|nd|rd|th)?$/i.exec(m[0])?.index ?? 0);
+    add(nearest(month, Number(m[3]), ref), endAt, m.index + m[0].length - endAt);
   }
   found.sort((a, b) => a.at - b.at || b.end - a.end);
   const out: DateSpan[] = [];

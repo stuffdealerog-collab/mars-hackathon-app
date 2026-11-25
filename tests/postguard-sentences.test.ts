@@ -69,6 +69,17 @@ describe("blanks and dropped sentences leave no debris", () => {
     expect(dropVideoMentions("Ochiqmiz 9 a.m. dan. Videoni 1.5 daqiqada ko‘ring. Keling!")).toBe("Ochiqmiz 9 a.m. dan. Keling!");
   });
 
+  // Review of PR #50: "г" (год) after a year was read as "г. Ташкент", so the date sentence went with the next one.
+  it("a year abbreviation after a number ends its sentence: the date sentence stays", () => {
+    expect(splitSentences("Акция до 31 декабря 2026 г. Звоните администратору.")).toEqual(["Акция до 31 декабря 2026 г. ", "Звоните администратору."]);
+    expect(splitSentences("Мы в г. Ташкент. Ждём!")).toEqual(["Мы в г. Ташкент. ", "Ждём!"]);
+    expect(contactBlankIfNone("Акция до 31 декабря 2026 г. Звоните администратору.", "ru")).toBe("Акция до 31 декабря 2026 г. Для заказа: [контакт].");
+    expect(replaceHiddenPrice("Новая коллекция 2026 г. Цену уточняйте у администратора.", "ru")).toBe("Новая коллекция 2026 г. Цена: [цена].");
+    expect(oneContactRoute("Заказ: t.me/mercatai?start=src_ab. Скидка до 31.12.2026 г. Пишите @tortuyi_admin.")).toBe(
+      "Заказ: t.me/mercatai?start=src_ab. Скидка до 31.12.2026 г.",
+    );
+  });
+
   it("the editor's deletion fallback drops a whole sentence, never half of one", () => {
     const text = "Narxi 12.000 so‘m. Zamonaviy dunyoda 1.5 kg tort — noyob imkoniyat. Buyurtma: t.me/x.";
     const out = deletionEdit(text, detectNeuro(text, "uz_latn"));

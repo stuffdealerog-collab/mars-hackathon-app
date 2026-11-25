@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { bestTimeLabel, forecastSlot } from "../../src/lib/uslub/brain/forecast";
 import { KIND_BRIEF, launchSufficiency } from "../../src/lib/uslub/brain/launch-plan";
+import { evidenceText } from "../../src/lib/uslub/brain/plain";
 import { statsLedger } from "../../src/lib/uslub/brain/rules";
 import { buildKpis, metricText } from "../../src/lib/uslub/brain/skeleton";
 import { computeStats } from "../../src/lib/uslub/brain/stats";
@@ -37,8 +38,21 @@ describe("reach is a share of subscribers: never above 100%", () => {
     expect(s.viewsPerSubscriber).toBeGreaterThan(1);
     expect(s.reachRate).toBe(1);
     expect(s.viewsAboveSubs).toBe(true);
-    const reach = statsLedger(s, []).find((e) => e.id === "S.reachRate");
-    expect(reach?.display).toMatch(/^100% \(/);
+    const ledger = statsLedger(s, []);
+    expect(ledger.find((e) => e.id === "S.reachRate")?.display).toBe("100%");
+    expect(ledger.find((e) => e.id === "S.viewsAboveSubs")?.display).toMatch(/×$/);
+  });
+
+  // Review of PR #50: the Uzbek note inside the reach display was printed in every language.
+  it("the owner reads why in their own language", () => {
+    const s = computeStats(channel(800), NOW);
+    const ledger = new Map(statsLedger(s, []).map((e) => [e.id, e]));
+    const ru = evidenceText(["S.reachRate", "S.viewsAboveSubs"], ledger, "ru");
+    const en = evidenceText(["S.reachRate", "S.viewsAboveSubs"], ledger, "en");
+    expect(ru).toMatch(/^доля подписчиков, видящих пост: 100% · просмотров больше, чем подписчиков: \+\d+%$/);
+    expect(en).toMatch(/^subscribers who see a post: 100% · views exceed subscribers: \+\d+%$/);
+    for (const t of [ru, en]) expect(t).not.toMatch(/ko.rishlar/);
+    expect(statsLedger(computeStats(channel(20_000), NOW), []).some((e) => e.id === "S.viewsAboveSubs")).toBe(false);
   });
 
   it("drops the reach KPI when views exceed subscribers", () => {
@@ -111,7 +125,12 @@ describe("best time is labelled for what it is", () => {
 describe("no promise without a mechanism", () => {
   it("the launch plan never says 'we measure in 2 weeks'", () => {
     for (const lang of ["uz", "ru", "en"] as const)
-      for (const s of launchSufficiency({ hasPrice: true, hasAddress: true, hasContact: true }, lang)) expect(s.text).not.toMatch(/2 hafta|2 недел|2 weeks/i);
+      for (const hasPrice of [true, false])
+        for (const s of launchSufficiency({ hasPrice, hasAddress: true, hasContact: true }, lang)) {
+          expect(s.text).not.toMatch(/2 hafta|2 недел|2 weeks/i);
+          // Nothing recounts a fresh brand's channel or collects proof by itself (review of PR #50).
+          expect(s.text).not.toMatch(/ochganingizda|откроете Mercat|open Mercat|birinchi haftada|первую неделю|first week/i);
+        }
   });
 
   it("the intro post is pinned by the owner and never calls itself pinned", () => {
