@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   brandSourceFor,
   canAccessBrand,
+  canReuseBrandRow,
   checkChatRights,
   checkPublishAccess,
   isReusableBrand,
@@ -105,5 +106,30 @@ describe("publish authorization", () => {
     const noBot = checkChatRights(owner, null, "https://t.me/bot?startchannel&admin=post_messages");
     expect(noBot.ok).toBe(false);
     if (!noBot.ok) expect(noBot.error).toContain("startchannel");
+  });
+});
+
+describe("canReuseBrandRow: a re-run of a channel returns only the caller's own row", () => {
+  const row = (ownerTelegramId: number | null, channel = "tort_uyi", mode = "channel") => ({ ownerTelegramId, channel, mode });
+
+  it("same channel, same caller", () => {
+    expect(canReuseBrandRow(row(null), { channel: "@Tort_Uyi", ownerTelegramId: null })).toBe(true);
+    expect(canReuseBrandRow(row(7), { channel: "tort_uyi", ownerTelegramId: 7 })).toBe(true);
+  });
+
+  it("never another user's row, never an unowned row for an owned caller", () => {
+    expect(canReuseBrandRow(row(7), { channel: "tort_uyi", ownerTelegramId: 8 })).toBe(false);
+    expect(canReuseBrandRow(row(7), { channel: "tort_uyi", ownerTelegramId: null })).toBe(false);
+    expect(canReuseBrandRow(row(null), { channel: "tort_uyi", ownerTelegramId: 7 })).toBe(false);
+  });
+
+  it("a web brand claimed in the bot stays with the browser that holds its id", () => {
+    expect(canReuseBrandRow(row(7), { channel: "tort_uyi", ownerTelegramId: null, claimed: true })).toBe(true);
+  });
+
+  it("another channel or a fresh-mode brand is never reused", () => {
+    expect(canReuseBrandRow(row(null, "boshqa"), { channel: "tort_uyi", ownerTelegramId: null })).toBe(false);
+    expect(canReuseBrandRow(row(null, "tort_uyi", "fresh"), { channel: "tort_uyi", ownerTelegramId: null })).toBe(false);
+    expect(canReuseBrandRow({ ownerTelegramId: null, channel: null }, { channel: "tort_uyi", ownerTelegramId: null })).toBe(false);
   });
 });

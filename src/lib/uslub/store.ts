@@ -148,6 +148,45 @@ export async function findChannelOnlyBrand(channel: string): Promise<StoredBrand
   return rows[0] ? toBrand(rows[0]) : null;
 }
 
+/**
+ * The newest brand this Telegram user already has for this channel (any age, any source): running the same channel
+ * again reuses it, so plans, answers and the visual style stay on one row.
+ */
+export async function findOwnBrand(ownerTelegramId: number, channel: string): Promise<StoredBrand | null> {
+  const key = normChannel(channel);
+  if (!key) return null;
+  if (!isDbConfigured()) {
+    const hits = [...mem.brands.values()].filter((b) => b.channel === key && b.ownerTelegramId === ownerTelegramId && b.mode !== "fresh");
+    return hits.at(-1) ?? null;
+  }
+  const rows = (await getSql()`
+    SELECT id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, visual, created_at FROM brands
+    WHERE owner_telegram_id = ${ownerTelegramId} AND channel = ${key} AND mode = 'channel'
+    ORDER BY created_at DESC LIMIT 1
+  `) as BrandRow[];
+  return rows[0] ? toBrand(rows[0]) : null;
+}
+
+/** Updates a reused brand in place: a DNA rewritten in another language, or newer channel posts. */
+export async function updateBrandProfile(brandId: string, patch: { dna?: BrandDNA; samplePosts?: string[] }): Promise<StoredBrand | null> {
+  if (!isUuid(brandId)) return null;
+  if (!isDbConfigured()) {
+    const b = mem.brands.get(brandId);
+    if (!b) return null;
+    const next = { ...b, ...(patch.dna ? { dna: patch.dna } : {}), ...(patch.samplePosts ? { samplePosts: patch.samplePosts } : {}) };
+    mem.brands.set(brandId, next);
+    return next;
+  }
+  const rows = (await getSql()`
+    UPDATE brands SET
+      dna = COALESCE(${patch.dna ? JSON.stringify(patch.dna) : null}::jsonb, dna),
+      sample_posts = COALESCE(${patch.samplePosts ? JSON.stringify(patch.samplePosts) : null}::jsonb, sample_posts)
+    WHERE id = ${brandId}
+    RETURNING id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, visual, created_at
+  `) as BrandRow[];
+  return rows[0] ? toBrand(rows[0]) : null;
+}
+
 /** Links a verified channel to a brand that had none (first authorized publish). */
 export async function linkBrandChannel(brandId: string, channel: string): Promise<void> {
   const key = normChannel(channel);

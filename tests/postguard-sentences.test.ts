@@ -16,6 +16,7 @@ describe("splitSentences: a period inside a time, number, link or abbreviation d
     ["Toshkent sh. Chilonzor tum. 5-mavze. Keling.", ["Toshkent sh. Chilonzor tum. 5-mavze. ", "Keling."]],
     ["Shifokor A. Karimova qabul qiladi. Yozing.", ["Shifokor A. Karimova qabul qiladi. ", "Yozing."]],
     ["Buyurtma: t.me/mercatai?start=src_ab12_1. Kutamiz!", ["Buyurtma: t.me/mercatai?start=src_ab12_1. ", "Kutamiz!"]],
+    ["Торт 30 см. Цена 200 000 сум.", ["Торт 30 см. ", "Цена 200 000 сум."]],
     ["«Salom.» Keyin", ["«Salom.» ", "Keyin"]],
     ["Kutib turing… tez orada", ["Kutib turing… tez orada"]],
   ];

@@ -37,7 +37,7 @@ describe("Russian words inside an Uzbek Latin post are hits the editor rewrites"
     expect(deletionEdit(text, detectNeuro(text, "uz_latn"))).toBe("Yangi tortlar keldi.");
   });
 
-  it("finds almost nothing in real Uzbek Latin channel posts (golden corpus sweep)", () => {
+  it("finds nothing in real Uzbek Latin channel posts (golden corpus sweep)", () => {
     const posts = loadFixtures().flatMap((f) => f.data.posts.map((p) => p.text)).filter((t) => detectLang(t) === "uz-Latn");
     expect(posts.length).toBeGreaterThan(200);
     // 1 359 Uzbek Latin posts of the golden channels: no hit (the one candidate, the brand "AMBRELITE", is in capitals).

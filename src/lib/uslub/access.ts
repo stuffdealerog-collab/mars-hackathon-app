@@ -38,6 +38,22 @@ export function isReusableBrand(
 }
 
 /**
+ * May running a channel again return this existing brand row instead of a new one? Only a channel brand of the same
+ * channel, and only to the same caller: its Telegram owner, or, for a row nobody owns, the browser that already holds
+ * its id (a web brand later claimed in the bot stays usable by that browser, as in loadBrandFor). An owned caller never
+ * gets an unowned row (it would not be theirs to publish), and nobody gets a row another user owns.
+ */
+export function canReuseBrandRow(
+  row: Pick<BrandAccessInfo, "ownerTelegramId" | "channel"> & { mode?: string },
+  req: { channel: string; ownerTelegramId: number | null; claimed?: boolean },
+): boolean {
+  const norm = (c?: string | null) => (c ?? "").replace(/^@/, "").toLowerCase();
+  if (row.mode === "fresh" || !norm(row.channel) || norm(row.channel) !== norm(req.channel)) return false;
+  if (req.ownerTelegramId != null) return row.ownerTelegramId === req.ownerTelegramId;
+  return row.ownerTelegramId == null || req.claimed === true;
+}
+
+/**
  * Who may read a brand (and generate content from it):
  * - channel_only brands hold only public channel content: anyone with the id;
  * - custom brands without an owner (anonymous web Studio): anyone with the unguessable id;

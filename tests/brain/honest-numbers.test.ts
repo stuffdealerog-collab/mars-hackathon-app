@@ -12,6 +12,7 @@ const NOW = Date.parse("2026-11-25T08:00:00Z");
 const DAY = 86_400_000;
 
 const post = (id: number, daysAgo: number, views: number): RawPost => ({
+  id,
   channel: "tortuyi",
   url: `https://t.me/tortuyi/${id}`,
   text: `Napoleon torti tayyor, buyurtma qiling. Post ${id}`,

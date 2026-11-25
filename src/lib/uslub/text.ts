@@ -73,16 +73,17 @@ export function wellFormedFetch(base?: typeof fetch): typeof fetch {
 /**
  * Words that end with a period but never end a sentence: they stand before a name or a number ("ул. Навои",
  * "д. 5", "Toshkent sh. Chilonzor", "Dr. Karimova"). Lowercase, apostrophes as "'", without the final period.
- * "a.m.", "ч.", "т.д." are not here: a capital letter after them does start a new sentence.
+ * "a.m.", "ч.", "см.", "т.д." are not here: they often end a sentence ("30 см. Цена…"), so a capital after them
+ * starts a new one. A wrong guess either way never leaves debris: at worst two sentences are handled as one.
  */
 const NO_END = new Set([
   // ru
-  "г", "гг", "ул", "д", "пр", "просп", "пер", "кв", "им", "тел", "мкр", "стр", "корп", "оф", "см", "напр", "т.е", "т.к", "т.н",
-  "обл", "р-н", "пл", "наб", "проф", "доц", "акад", "св", "ок",
+  "г", "гг", "ул", "д", "пр", "просп", "пер", "кв", "им", "тел", "мкр", "стр", "корп", "оф", "напр", "т.е", "т.к", "т.н",
+  "обл", "р-н", "пл", "наб", "проф", "доц", "акад", "св",
   // uz
   "ko'ch", "kv", "mkr", "tel", "sh", "tum", "mah", "prof", "dots", "akad",
   // en
-  "mr", "mrs", "ms", "dr", "st", "no", "approx", "vs", "e.g", "i.e", "apt", "jr", "sr", "mt",
+  "mr", "mrs", "ms", "dr", "st", "approx", "vs", "e.g", "i.e", "apt", "jr", "sr", "mt",
 ]);
 
 const TERMINAL_RE = /[.!?…]/;

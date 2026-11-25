@@ -14,16 +14,21 @@ const Body = z.object({
   mode: z.enum(["channel", "fresh"]).optional(),
   lang: z.enum(["uz", "ru", "en"]).optional(),
   initData: z.string().max(8192).optional(),
+  /** The brand id this browser already holds for the channel: running the channel again returns that row. */
+  brandId: z.string().trim().max(64).optional(),
 });
 
 /**
- * POST { channel?, knowledge?, samplePosts?, mode?, lang? } -> { brand, cached, owned, mode, switchedToFresh?, channelInfo? }
+ * POST { channel?, knowledge?, samplePosts?, mode?, lang?, brandId? } -> { brand, cached, reused?, owned, mode, switchedToFresh?, channelInfo? }
  * mode "fresh": knowledge (the owner's description, a few sentences) is required; channel is optional (the empty
  *   channel to publish to later). The DNA is built from the description only.
  * A pasted channel with no public preview or fewer than 5 posts answers 422 { code: "channel_empty", reason, postsFound }
  *   unless knowledge was sent too — then the brand is built in fresh mode (switchedToFresh: true).
  * lang (uz | ru | en) is the language of the DNA's descriptive fields and of errors.
  * With Telegram auth (Mini App initData) the brand is owned by that user and can be published.
+ * Running the same channel again (no new owner text) returns the caller's own row (reused: true): the brandId this
+ *   browser holds, or a Telegram user's newest row for the channel. No duplicate row; plans and answers stay on it.
+ * A daily Claude unit is taken only when a DNA is actually written (not for a reused or cached brand).
  */
 export const POST = handle(async (req) => {
   rateLimit(req, "brand", 6);
@@ -32,11 +37,15 @@ export const POST = handle(async (req) => {
     throw new HttpError(400, "Send a channel, knowledge or samplePosts", "knowledge_needed");
   }
   const ownerTelegramId = telegramUserId(req, body.initData);
-  await spendClaude(req, ownerTelegramId, "brand");
-  const { brand, cached, channel, switchedToFresh } = await buildBrand({ ...body, ownerTelegramId });
+  const { brand, cached, reused, channel, switchedToFresh } = await buildBrand({
+    ...body,
+    ownerTelegramId,
+    beforeLlm: () => spendClaude(req, ownerTelegramId, "brand"),
+  });
   return json({
     brand: publicBrand(brand),
     cached,
+    ...(reused ? { reused: true } : {}),
     owned: ownerTelegramId != null,
     mode: brand.mode ?? "channel",
     ...(switchedToFresh ? { switchedToFresh: true } : {}),
