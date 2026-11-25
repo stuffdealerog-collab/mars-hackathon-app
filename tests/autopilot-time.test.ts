@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dueState, isoWeek, isReportTime, onTime, planDue, slotTime, weekBounds } from "../src/lib/autopilot/time";
+import { dueState, isoWeek, isReportTime, onTime, planDue, relativeDayWords, slotTime, weekBounds } from "../src/lib/autopilot/time";
 import { tashkentClock } from "../src/lib/cron/clock";
 
 const at = (iso: string) => Date.parse(iso);
@@ -50,11 +50,33 @@ describe("planDue: when an approved post goes out", () => {
 
 describe("dueState: the ±15 minute window of the tick", () => {
   const due = at("2026-11-30T07:40:00Z");
-  it("waits until 15 minutes before the slot, then sends; more than 24 h late expires", () => {
+  it("waits until 15 minutes before the slot, then sends; more than 3 h late expires", () => {
     expect(dueState(due, due - 16 * MIN)).toBe("wait");
     expect(dueState(due, due - 15 * MIN)).toBe("send");
     expect(dueState(due, due + 3 * 3600_000)).toBe("send");
-    expect(dueState(due, due + 24 * 3600_000 + 1)).toBe("expired");
+    expect(dueState(due, due + 3 * 3600_000 + 1)).toBe("expired");
+    expect(dueState(due, due + 24 * 3600_000)).toBe("expired");
+  });
+
+  it("late only by day (07:00–22:00 Tashkent); on time at the owner's own hour whatever it is", () => {
+    const nine = at("2026-11-30T16:00:00Z"); // 21:00 Tashkent
+    expect(dueState(nine, nine + 50 * MIN)).toBe("send"); // 21:50
+    expect(dueState(nine, nine + 60 * MIN)).toBe("expired"); // 22:00, late: not at night
+    const lateNight = at("2026-11-30T17:45:00Z"); // 22:45, the owner's slot
+    expect(dueState(lateNight, lateNight + 10 * MIN)).toBe("send");
+    const early = at("2026-11-30T01:00:00Z"); // 06:00 Tashkent slot
+    expect(dueState(early, early + 30 * MIN)).toBe("expired"); // 06:30, late and before 07:00
+    expect(dueState(early, early + 70 * MIN)).toBe("send"); // 07:10
+  });
+
+  it("'today'/'tomorrow' words matter only when the post goes out on another day than its slot", () => {
+    const slot = at("2026-11-30T18:55:00Z"); // Monday 23:55 Tashkent
+    const tuesday = at("2026-11-30T19:05:00Z"); // Tuesday 00:05
+    expect(relativeDayWords("Bugun 23:59 gacha chegirma, ertaga yangi menyu.", slot, tuesday)).toEqual(["bugun", "ertaga"]);
+    expect(relativeDayWords("Скидка только сегодня! Завтрашний день тоже хорош.", slot, tuesday)).toEqual(["сегодня", "завтрашний"]);
+    expect(relativeDayWords("Bugun 23:59 gacha chegirma.", slot, slot + 2 * MIN)).toEqual([]);
+    expect(relativeDayWords("Bugungi narxlar.", slot, tuesday)).toEqual(["bugungi"]);
+    expect(relativeDayWords("Bugunchalik emas.", slot, tuesday)).toEqual([]);
   });
 
   it("on time = within 15 minutes of the slot", () => {

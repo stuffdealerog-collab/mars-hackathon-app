@@ -16,6 +16,10 @@ import { slotTime } from "./time";
 export const APPROVE_WEEK_RE = /^apw:([0-9a-f-]{36}):([A-Za-z0-9_-]{16})$/;
 /** "apa:1:<brandId>" turns the autopilot on, "apa:0:<brandId>" off. */
 export const AUTOPILOT_RE = /^apa:([01]):([0-9a-f-]{36})$/;
+/** "apr:<brandId>": "check again" after the bot was made an admin (the week_ link of a brand nobody owns yet). */
+export const WEEK_RETRY_RE = /^apr:([0-9a-f-]{36})$/;
+/** "apg:<brandId>:sale|grow": the owner's goal from the Monday report (channel type and goal unknown). */
+export const GOAL_RE = /^apg:([0-9a-f-]{36}):(sale|grow)$/;
 /** "apo:<brandId>:<bucket>": the weekly orders answer of a brand without last week's plan. */
 export const ORDERS_RE = /^apo:([0-9a-f-]{36}):(0|1|4|10)$/;
 
@@ -44,6 +48,8 @@ export function weekMessage(
     /** https origin of the app, for the Mini App button; omitted when there is none. */
     appUrl?: string;
     autopilotOn: boolean;
+    /** The brand has an owner: only then the autopilot switch is offered (only the owner can use it). */
+    owned: boolean;
   },
 ): { text: string; keyboard?: InlineKeyboard } {
   const byId = new Map(o.posts.map((p) => [p.id, p]));
@@ -77,7 +83,7 @@ export function weekMessage(
     kb.webApp(say(locale, "week_review"), `${o.appUrl}/tg?brand=${encodeURIComponent(o.brandId)}&view=week`).row();
     any = true;
   }
-  if (!o.autopilotOn) {
+  if (!o.autopilotOn && o.owned) {
     kb.text(say(locale, "autopilot_offer"), `apa:1:${o.brandId}`);
     any = true;
   }

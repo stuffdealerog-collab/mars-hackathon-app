@@ -24,6 +24,8 @@ vi.mock("@/lib/bot", () => ({
 // The queue table: approving again keeps a queued post's time when its text is the same (repo.ts enqueuePost).
 const queue = vi.hoisted(() => new Map<string, { dueAt: number; textHash: string; status: string; chat: string; brandId: string; lastError: string | null }>());
 const autopilotRows = vi.hoisted(() => new Map<string, Record<string, unknown>>());
+// Who counted as active (app_users.last_seen_at) through these routes.
+const touched = vi.hoisted(() => [] as number[]);
 vi.mock("../src/lib/autopilot/repo", () => ({
   enqueuePost: async (r: { postId: string; brandId: string; chat: string; dueAt: number; textHash: string }) => {
     const prev = queue.get(r.postId);
@@ -32,6 +34,7 @@ vi.mock("../src/lib/autopilot/repo", () => ({
     return { dueAt, status: "queued" };
   },
   setPostSchedule: async () => {},
+  touchUser: async (id: number) => void touched.push(id),
   saveBotAdmin: async (_c: string, s: Record<string, unknown>) => {
     for (const [id, row] of autopilotRows) autopilotRows.set(id, { ...row, botAdmin: s });
     return 1;
@@ -88,6 +91,7 @@ const post = (body: unknown, user?: number) =>
 
 beforeEach(() => {
   queue.clear();
+  touched.length = 0;
   botAdmin.member = { status: "administrator", can_post_messages: true, can_invite_users: true };
 });
 
@@ -143,6 +147,8 @@ describe("POST /api/uslub/posts/approve-week", () => {
     expect((await store.getPost(posts[0].id))?.status).toBe("approved");
     expect((await store.getPost(posts[1].id))?.status).toBe("draft");
     expect((await store.getPost(posts[4].id))?.status).toBe("published");
+    // Approving the week from the web counts as the owner being active (the autopilot's 14-day gate).
+    expect(touched).toEqual([OWNER]);
   });
 
   it("a second call is idempotent: same posts, same times", async () => {
@@ -191,6 +197,8 @@ describe("GET/POST /api/uslub/autopilot", () => {
     const body = (await res.json()) as { autopilot: Record<string, unknown>; admin: { status: string }; schedule: Record<string, { status: string; dueAt: string }> };
     expect(body.autopilot).toEqual({ on: true, since: new Date(NOW).toISOString(), trialEndsAt: new Date(NOW + 7 * 86_400_000).toISOString(), trialDaysLeft: 7 });
     expect(Object.values(body.schedule)).toEqual([{ dueAt: "2026-12-01T07:40:00.000Z", status: "queued" }]);
+    // Approving and switching both count as the owner being active.
+    expect(touched).toEqual([OWNER, OWNER]);
     const again = (await (await get(brand.id, OWNER)).json()) as { autopilot: { on: boolean } };
     expect(again.autopilot.on).toBe(true);
   });
@@ -199,6 +207,7 @@ describe("GET/POST /api/uslub/autopilot", () => {
     const { brand } = await brandWithPosts(OWNER, [{ text: "Yangi non." }]);
     const anon = await set({ brandId: brand.id, on: true });
     expect(anon.status).toBe(401);
+    expect(touched).toEqual([]);
     expect(((await anon.json()) as { continueUrl: string }).continueUrl).toBe(`https://t.me/test_bot?start=week_${brand.id}`);
     expect((await set({ brandId: brand.id, on: true }, 99)).status).toBe(403);
     expect((await get(brand.id, 99)).status).toBe(403);

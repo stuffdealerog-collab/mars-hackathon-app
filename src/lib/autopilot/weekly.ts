@@ -6,12 +6,13 @@
  * message. Nothing is ever approved or published here: the owner approves the week from the message.
  *
  * Exactly once per brand and week through autopilot_runs claims (`report:<brand>:<week>`, `week:<brand>:<week>`);
- * a run that failed or died is claimed again after 30 minutes, three tries in all.
+ * a run that failed or died is claimed again 30 minutes after its last change, three tries in all.
  * I/O goes through `deps` (src/lib/autopilot/tasks.ts wires the real ones); the rules are unit-tested.
  */
 import type { TashkentClock } from "../cron/clock";
 import type { Locale } from "../i18n";
-import type { AutopilotState, ChannelType, Goal } from "../uslub/contract";
+import type { ChannelType, Goal } from "../uslub/contract";
+import type { AutopilotState } from "./types";
 import { buildWeeklyReport, type WeeklyReportInput } from "./report";
 import { isoWeek, isReportTime, tashkentDate, weekBounds } from "./time";
 
@@ -66,9 +67,12 @@ export interface WeeklyDeps {
   claim(key: string, brandId: string, kind: string): Promise<number>;
   finish(key: string, status: "done" | "failed" | "skipped", detail?: Record<string, number | string>): Promise<void>;
   reportInput(b: WeeklyBrand, bounds: ReturnType<typeof weekBounds>): Promise<WeeklyReportInput>;
-  sendReport(b: WeeklyBrand, report: { text: string; askOrders: boolean }, bounds: ReturnType<typeof weekBounds>): Promise<SendResult>;
+  sendReport(b: WeeklyBrand, report: { text: string; askOrders: boolean; askGoal?: boolean }, bounds: ReturnType<typeof weekBounds>): Promise<SendResult>;
   spentUsd(brandId: string): Promise<number>;
-  /** Writes next week's plan and posts and sends the owner the week to approve; returns how many posts. */
+  /**
+   * Writes next week's plan and posts and starts their pictures; the owner gets the week to approve once the pictures
+   * are done (week-ready.ts). Returns how many posts.
+   */
   generate(b: WeeklyBrand, deadline: number): Promise<number>;
   tell(b: WeeklyBrand, what: "cap_reached" | "week_failed" | "idle"): Promise<SendResult>;
   pause(brandId: string): Promise<void>;

@@ -6,6 +6,9 @@
  *   week?" with buttons (the answer is stored as an outcome).
  * - Growth (blog, expert, media, community, or the goal is subscribers/engagement): posts published, the subscriber
  *   change, views and reactions against the typical post, the best post of the week. Never an orders question.
+ * - Unknown (no channel type and no goal that says orders or subscribers yet, e.g. a brand from before the type was
+ *   detected): the growth lines, no orders question, and the one-time goal question instead ("More orders / More
+ *   subscribers"); the answer is stored as the brand's goal (brands.goal), so from the next week the report follows it.
  *
  * A line without data is left out, never shown as 0. Forwards are not in the report: neither the Bot API nor the
  * public channel page gives them.
@@ -14,13 +17,17 @@ import { formatDay, type Locale } from "../i18n";
 import type { ChannelType, Goal } from "../uslub/contract";
 import { fmtDelta, fmtNum } from "./copy";
 
-export type ReportKind = "sales" | "growth";
+export type ReportKind = "sales" | "growth" | "unknown";
 
-/** The owner's confirmed goal decides; without one, the channel type (unknown = today's sales plan). */
+/**
+ * The owner's goal decides when it says orders or subscribers; otherwise the channel type. With neither, "unknown":
+ * a blog must never be asked about orders, so the report asks for the goal instead.
+ */
 export function reportKind(channelType: ChannelType | null | undefined, goal: Goal | null | undefined): ReportKind {
   if (goal === "grow" || goal === "engage") return "growth";
-  if (goal) return "sales";
-  return channelType && channelType !== "business" ? "growth" : "sales";
+  if (goal === "sale") return "sales";
+  if (channelType) return channelType === "business" ? "sales" : "growth";
+  return "unknown";
 }
 
 export interface WeeklyReportInput {
@@ -79,6 +86,11 @@ const L = {
     ru: "Сколько заказов было за прошлую неделю?",
     en: "How many orders did you get last week?",
   },
+  goal: {
+    uz: "Kanal sizga asosan nima uchun kerak? Javobingizga qarab keyingi hisobotlarni tuzaman.",
+    ru: "Для чего вам в первую очередь канал? По ответу я буду строить следующие отчёты.",
+    en: "What is the channel mainly for? I'll shape the next reports around your answer.",
+  },
 } satisfies Record<string, Record<Locale, string>>;
 
 /** Last week's raw numbers (repo.ts weekNumbers) as the report's input. */
@@ -123,7 +135,7 @@ const clipHook = (s: string) => {
   return one.length > 70 ? `${one.slice(0, 69).trimEnd()}…` : one;
 };
 
-export function buildWeeklyReport(r: WeeklyReportInput): { text: string; askOrders: boolean } {
+export function buildWeeklyReport(r: WeeklyReportInput): { text: string; askOrders: boolean; askGoal: boolean } {
   const loc = r.locale;
   const line = (key: keyof typeof L, vars: Record<string, string | number> = {}) => fill(L[key][loc], vars);
   const n = (x: number) => fmtNum(x, loc);
@@ -133,7 +145,8 @@ export function buildWeeklyReport(r: WeeklyReportInput): { text: string; askOrde
   else if (r.published > 0) out.push(line("published", { x: n(r.published) }));
   else out.push(line("nothing"));
 
-  if (r.kind === "growth" && r.subscribers) {
+  const growth = r.kind !== "sales"; // "unknown" gets the growth lines: never orders for a channel that may be a blog
+  if (growth && r.subscribers) {
     const d = r.subscribers.delta;
     out.push(line("subscribers", { d: d > 0 ? `+${n(d)}` : n(d), now: n(r.subscribers.now) }));
   }
@@ -146,13 +159,15 @@ export function buildWeeklyReport(r: WeeklyReportInput): { text: string; askOrde
     );
   }
   if (r.kind === "sales" && r.starts !== undefined) out.push(line("starts", { n: n(r.starts) }));
-  if (r.kind === "growth") {
+  if (growth) {
     if (r.reactions !== undefined && r.reactions > 0) out.push(line("reactions", { n: n(r.reactions) }));
     if (r.best && r.best.views > 0 && r.best.hook.trim()) {
       out.push([line("best", { hook: clipHook(r.best.hook), views: n(r.best.views) }), r.best.url ?? ""].filter(Boolean).join(" "));
     }
   }
   const askOrders = r.kind === "sales";
+  const askGoal = r.kind === "unknown";
   if (askOrders) out.push("", line("orders"));
-  return { text: out.join("\n"), askOrders };
+  if (askGoal) out.push("", line("goal"));
+  return { text: out.join("\n"), askOrders, askGoal };
 }

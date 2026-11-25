@@ -4,12 +4,14 @@ import { recordPublication } from "@/lib/autopilot/repo";
 import { getBot } from "@/lib/bot";
 import { getEnv } from "@/lib/env";
 import { checkChatRights, checkPublishAccess, type MemberInfo } from "./access";
-import type { Script } from "./contract";
+import type { PostDraft, Script } from "./contract";
 import { publishImageUrl } from "./media/post-image-service";
 import { changedSincePreview, planPostMessages, type PlannedMessage } from "./media/telegram-post";
 import { getBrand, getPost, linkBrandChannel, markPublished } from "./store";
 
 const BOT_USERNAME_FALLBACK = "mercatai";
+
+type PostDraftSlot = PostDraft["slot"];
 
 /**
  * Adds the bot to one of the owner's channels as an admin with the rights it needs: post the approved posts, and
@@ -21,7 +23,15 @@ export function addBotAsAdminLink(): string {
   return `https://t.me/${bot}?startchannel&admin=post_messages+invite_users`;
 }
 
-export type PublishResult = { ok: boolean; status: number; url?: string; error?: string; addAdminUrl?: string };
+/**
+ * `sent` is set on failures only: false = nothing reached the channel (a check refused, Telegram answered with an
+ * error, or a step before the send failed), so trying again cannot post twice. A failure without `sent` is a send
+ * that may have reached the channel (a network error or timeout while sending): never resend it on its own.
+ */
+export type PublishResult = { ok: boolean; status: number; url?: string; error?: string; addAdminUrl?: string; sent?: false };
+
+/** Some messages of a post reached the channel and could not all be taken back: never resend on its own. */
+class PartialSendError extends Error {}
 
 /** Normalizes "@name", "name", "https://t.me/name" to "@name". Only public usernames are accepted. */
 export function normalizeChat(chat: string): string | null {
@@ -66,10 +76,24 @@ async function sendPlanned(chat: string, plan: PlannedMessage[]): Promise<number
       sent.push(msg.message_id);
     }
   } catch (err) {
-    for (const id of sent) await getBot().api.deleteMessage(chat, id).catch(() => undefined);
+    let left = 0;
+    for (const id of sent) await getBot().api.deleteMessage(chat, id).catch(() => void left++);
+    if (left) throw new PartialSendError(`${left} message(s) of the post stayed in the channel`);
     throw err;
   }
   return sent[0];
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** A database write after the post is already in the channel: tried twice, logged, never fails the publish. */
+async function afterSend(what: string, write: () => Promise<unknown>): Promise<void> {
+  try {
+    await write();
+  } catch {
+    await sleep(400);
+    await write().catch((err) => console.error(`[uslub/publish] sent, but ${what} was not stored:`, err instanceof Error ? err.message : err));
+  }
 }
 
 /**
@@ -81,6 +105,8 @@ async function sendPlanned(chat: string, plan: PlannedMessage[]): Promise<number
  * `expectedText` / `expectedImageUrl` (optional, from the bot's preview): checked right before sending
  * against the post's current text and picture (`posts.image.url`); a change refuses with 409 so the
  * owner sees the new version first. expectedImageUrl null or "" = the preview had no picture.
+ * Once Telegram has the post, the answer is always { ok: true, url }: a database write that fails after the send is
+ * logged, never reported as a failed send (that would make the owner or the autopilot send it again).
  */
 export async function publishPost(args: {
   postId: string;
@@ -89,59 +115,85 @@ export async function publishPost(args: {
   userId: number | null;
   expectedText?: string;
   expectedImageUrl?: string | null;
+  /** Send the text alone even when the post has a picture now (the autopilot: approved before any picture). */
+  textOnly?: boolean;
 }): Promise<PublishResult> {
   const chat = normalizeChat(args.chat);
-  const post = await getPost(args.postId);
-  const brand = post ? await getBrand(post.brandId) : null;
-
-  const access = checkPublishAccess({ userId: args.userId, brand, chat });
-  if (!access.ok) return { ok: false, status: access.status, error: access.error };
-  const userId = args.userId as number;
-  const target = chat as string;
-
-  // The same text the bot's preview shows (botpublish-core shownText): the variant, else Uzbek Latin.
-  const textOf = (p: { variants: Partial<Record<Script, string>> }) => p.variants[args.script]?.trim() || p.variants.uz_latn?.trim() || "";
-  const text = textOf(post!);
-  if (!text) return { ok: false, status: 400, error: `Postda ${args.script} varianti yo‘q` };
-
+  // Before the send nothing can reach the channel: any failure here is safe to try again (`sent: false`).
+  let messageId: number;
+  let linkChannel = false;
+  let postId: string;
+  let brandId: string;
+  let slot: PostDraftSlot;
+  let target: string;
+  let userId: number;
   const addAdminUrl = addBotAsAdminLink();
   try {
+    const post = await getPost(args.postId);
+    const brand = post ? await getBrand(post.brandId) : null;
+
+    const access = checkPublishAccess({ userId: args.userId, brand, chat });
+    if (!access.ok) return { ok: false, status: access.status, error: access.error, sent: false };
+    userId = args.userId as number;
+    target = chat as string;
+    postId = post!.id;
+    brandId = brand!.id;
+    linkChannel = Boolean(access.linkChannel);
+
+    // The same text the bot's preview shows (botpublish-core shownText): the variant, else Uzbek Latin.
+    const textOf = (p: { variants: Partial<Record<Script, string>> }) => p.variants[args.script]?.trim() || p.variants.uz_latn?.trim() || "";
+    const text = textOf(post!);
+    if (!text) return { ok: false, status: 400, error: `Postda ${args.script} varianti yo‘q`, sent: false };
+
     const me = await getBot().api.getMe();
     const [userMember, botMember] = await Promise.all([memberInfo(target, userId), memberInfo(target, me.id)]);
     const rights = checkChatRights(userMember, botMember, addAdminUrl);
     if (!rights.ok) {
-      return { ok: false, status: rights.status, error: rights.error, ...(botMember ? {} : { addAdminUrl }) };
+      return { ok: false, status: rights.status, error: rights.error, sent: false, ...(botMember ? {} : { addAdminUrl }) };
     }
     // Re-read right before sending: the text and picture that go out are the ones checked here.
     const latest = (await getPost(post!.id)) ?? post!;
+    slot = latest.slot ?? post!.slot;
     const sendText = textOf(latest) || text;
-    const imageUrl = await publishImageUrl(post!.id);
+    // `textOnly`: the owner approved this post without a picture; one drawn later is not sent.
+    const imageUrl = args.textOnly ? undefined : await publishImageUrl(post!.id);
     const changed = changedSincePreview({ text: sendText, imageUrl }, args);
     if (changed) {
       return {
         ok: false,
         status: 409,
+        sent: false,
         error:
           changed === "text"
             ? "Post matni o‘zgargan. Yangi variantni ko‘rib, qayta tasdiqlang. / Текст поста изменился — проверьте и подтвердите снова."
             : "Post rasmi o‘zgargan. Yangi rasmni ko‘rib, qayta tasdiqlang. / Картинка поста изменилась — проверьте и подтвердите снова.",
       };
     }
-    const messageId = await sendPlanned(target, planPostMessages(sendText, imageUrl));
-    if (access.linkChannel) await linkBrandChannel(brand!.id, target);
-    const url = `https://t.me/${target.slice(1)}/${messageId}`;
-    await markPublished(post!.id, url, target, userId);
-    // Message id, chat, time and plan item on the post, and a metrics row for its 24 h / 72 h views. Never fails
-    // the publish: the post is already in the channel.
-    await recordPublication({ postId: post!.id, brandId: brand!.id, chat: target, messageId, slot: latest.slot ?? post!.slot }).catch((err) =>
-      console.warn("[uslub/publish] publication details not stored:", err instanceof Error ? err.message : err),
-    );
-    return { ok: true, status: 200, url };
+    try {
+      messageId = await sendPlanned(target, planPostMessages(sendText, imageUrl));
+    } catch (err) {
+      if (err instanceof GrammyError) {
+        // Telegram answered with an error: this post is not in the channel (sendPlanned took back any earlier part).
+        return { ok: false, status: 502, error: `Telegram xatosi: ${err.description}`, addAdminUrl, sent: false };
+      }
+      // A network error or timeout while sending, or part of the post left behind: it may be in the channel.
+      console.error("[uslub/publish] send interrupted:", err instanceof Error ? err.message : err);
+      return { ok: false, status: 502, error: "Telegramga yuborib bo‘lmadi" };
+    }
   } catch (err) {
     if (err instanceof GrammyError) {
-      return { ok: false, status: 502, error: `Telegram xatosi: ${err.description}`, addAdminUrl };
+      return { ok: false, status: 502, error: `Telegram xatosi: ${err.description}`, addAdminUrl, sent: false };
     }
     console.error("[uslub/publish]", err instanceof Error ? err.message : err);
-    return { ok: false, status: 502, error: "Telegramga yuborib bo‘lmadi" };
+    return { ok: false, status: 502, error: "Telegramga yuborib bo‘lmadi", sent: false };
   }
+
+  // The post is in the channel from here on: whatever happens to the bookkeeping below, the answer is "published",
+  // so nobody (the owner's next tap, the autopilot's retry) sends it a second time.
+  const url = `https://t.me/${target.slice(1)}/${messageId}`;
+  if (linkChannel) await afterSend("the channel link", () => linkBrandChannel(brandId, target));
+  await afterSend("the published state", () => markPublished(postId, url, target, userId));
+  // Message id, chat, time and plan item on the post, and a metrics row for its 24 h / 72 h views.
+  await afterSend("the publication details", () => recordPublication({ postId, brandId, chat: target, messageId, slot }));
+  return { ok: true, status: 200, url };
 }

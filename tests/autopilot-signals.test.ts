@@ -55,9 +55,10 @@ describe("24 h and 72 h views", () => {
     expect(median([])).toBeUndefined();
   });
 
-  it("reads each channel's page once and stores what it finds", async () => {
+  it("reads each channel's page once, stores what it finds, and backs off from what it did not find", async () => {
     const saved: unknown[] = [];
     const reads: string[] = [];
+    const tried: unknown[] = [];
     const now = pub + 25 * H;
     const r = await runMetrics(
       {
@@ -72,18 +73,42 @@ describe("24 h and 72 h views", () => {
           return [{ id: 41, views: 120 }];
         },
         save: async (channel, messageId, v) => void saved.push({ channel, messageId, v }),
+        tried: async (channel, ids) => void tried.push({ channel, ids }),
       },
       ctl,
     );
     expect(reads).toEqual(["nonvoy"]);
     expect(saved).toEqual([{ channel: "nonvoy", messageId: 41, v: { views: 120, views24h: 120 } }]);
     expect(r).toEqual({ measured: 1, notFound: 1, channels: 1 });
+    // The post missing from the page waits an hour (repo.ts metricsDue skips it), not the next 10-minute tick.
+    expect(tried).toEqual([{ channel: "nonvoy", ids: [42] }]);
+  });
+
+  it("a page that does not load backs off every post of that channel", async () => {
+    const tried: unknown[] = [];
+    await runMetrics(
+      {
+        now: () => pub + 25 * H,
+        due: async () => [
+          { channel: "nonvoy", messageId: 41, publishedAt: pub, views24h: null, views72h: null },
+          { channel: "nonvoy", messageId: 42, publishedAt: pub, views24h: null, views72h: null },
+        ],
+        channelPosts: async () => {
+          throw new Error("429");
+        },
+        save: async () => {},
+        tried: async (channel, ids) => void tried.push({ channel, ids }),
+      },
+      ctl,
+    );
+    expect(tried).toEqual([{ channel: "nonvoy", ids: [41, 42] }]);
   });
 });
 
 describe("daily subscriber counts", () => {
   it("uses getChatMemberCount, falls back to the public page, skips a channel with neither", async () => {
     const saved: unknown[] = [];
+    const tried: string[] = [];
     const r = await runSnapshots(
       {
         today: "2026-11-30",
@@ -91,6 +116,7 @@ describe("daily subscriber counts", () => {
         memberCount: async (c) => (c === "a_chan" ? 1520 : null),
         scrapeCount: async (c) => (c === "b_chan" ? 300 : null),
         save: async (...args) => void saved.push(args),
+        tried: async (c) => void tried.push(c),
       },
       ctl,
     );
@@ -99,6 +125,8 @@ describe("daily subscriber counts", () => {
       ["b_chan", "2026-11-30", 300, "scrape"],
     ]);
     expect(r).toEqual({ saved: 2, missing: 1 });
+    // The channel with no count is left alone for an hour (repo.ts channelsForSnapshot), not fetched every tick.
+    expect(tried).toEqual(["c_chan"]);
   });
 
   it("a failing call never stops the others", async () => {
@@ -115,6 +143,7 @@ describe("daily subscriber counts", () => {
           throw new Error("down");
         },
         save: async (c) => void saved.push(c),
+        tried: async () => {},
       },
       ctl,
     );

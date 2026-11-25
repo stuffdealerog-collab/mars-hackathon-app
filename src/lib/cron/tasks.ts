@@ -1,5 +1,5 @@
 import "server-only";
-import { channelSnapshots, postMetrics, publishDue, weekly } from "../autopilot/tasks";
+import { channelSnapshots, postMetrics, publishDue, weekly, weekMessages } from "../autopilot/tasks";
 import { heartbeat } from "./heartbeat";
 import { mediaSweep } from "./media-sweep";
 import { CronRegistry } from "./registry";
@@ -13,6 +13,7 @@ export const cronRegistry = new CronRegistry()
   .register(heartbeat)
   .register(publishDue)
   .register(mediaSweep)
+  .register(weekMessages)
   .register(channelSnapshots)
   .register(postMetrics)
   .register(weekly);

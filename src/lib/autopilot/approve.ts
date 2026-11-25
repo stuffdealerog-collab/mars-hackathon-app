@@ -3,10 +3,11 @@ import { GrammyError, type Api } from "grammy";
 import { getEnv } from "../env";
 import { safeLogEvent } from "../track";
 import { pickScript, shownHash } from "../uslub/botpublish-core";
-import type { BotAdminStatus, PostDraft } from "../uslub/contract";
+import type { PostDraft } from "../uslub/contract";
+import type { BotAdminStatus } from "./types";
 import { addBotAsAdminLink } from "../uslub/publish";
 import { approvePost, getPost, listPosts, type StoredBrand } from "../uslub/store";
-import { enqueuePost, saveBotAdmin, setPostSchedule } from "./repo";
+import { enqueuePost, saveBotAdmin, setPostSchedule, touchUser } from "./repo";
 import { botAdminFrom } from "./state";
 import { selectWeekBatch, type WeekBatch, type WeekSkip } from "./week";
 
@@ -62,6 +63,8 @@ export async function approveWeek(args: {
 }): Promise<ApproveWeekResult & { batch: WeekBatch }> {
   const now = args.now ?? Date.now();
   const { brand } = args;
+  // Approving the week (web Studio, Mini App or the bot) counts as the owner being active (the 14-day gate).
+  await touchUser(args.ownerTelegramId);
   const posts = args.posts ?? (await listPosts(brand.id, 50));
   const batch = selectWeekBatch({ posts, channel: brand.channel, languages: brand.dna?.languages, postIds: args.postIds, now });
   const queued: ApproveWeekResult["queued"] = [];

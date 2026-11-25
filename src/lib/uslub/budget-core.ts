@@ -89,14 +89,3 @@ export async function takeUnits(args: { actor: string; anonymous: boolean; weigh
     return "ok";
   }
 }
-
-/**
- * The autopilot's spend cap per brand per rolling 30 days, in USD (§12a): AUTOPILOT_BRAND_MONTHLY_USD, default 4.
- * Read from process.env like CLAUDE_DAILY_LIMIT, so the owner changes it without code. The autopilot prepares a
- * brand's week only while the last 30 days' spend plus one more week stays within it (src/lib/autopilot/weekly.ts).
- */
-export function brandMonthlyCapUsd(env: Record<string, string | undefined> = process.env): number {
-  const raw = env.AUTOPILOT_BRAND_MONTHLY_USD;
-  const n = Number(raw);
-  return raw != null && raw.trim() !== "" && Number.isFinite(n) && n >= 0 ? n : 4;
-}

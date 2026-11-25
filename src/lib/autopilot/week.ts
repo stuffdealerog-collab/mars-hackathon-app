@@ -11,7 +11,8 @@
  * - its picture is not still being made (the picture could change after the approval);
  * - a video slot has the owner's video.
  */
-import type { PostImage, Script, WeekSkipReason } from "../uslub/contract";
+import type { PostImage, Script } from "../uslub/contract";
+import type { WeekSkipReason } from "./types";
 import { findPlaceholders } from "../uslub/placeholders";
 import { pastDatesInPost } from "../uslub/postguard";
 import { planDue, tashkentDate } from "./time";

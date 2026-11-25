@@ -1,6 +1,7 @@
 import "server-only";
 import { getSql, isDbConfigured } from "../db";
-import type { AutopilotState, BotAdminStatus, PlanSlot, Script } from "../uslub/contract";
+import type { PlanSlot, Script } from "../uslub/contract";
+import type { AutopilotState, BotAdminStatus } from "./types";
 
 /**
  * The autopilot's database work: the publish queue, the brand's autopilot state, channel signals (subscribers,
@@ -253,6 +254,12 @@ export async function pauseAutopilot(brandId: string): Promise<void> {
   await getSql()`UPDATE brands SET autopilot = autopilot || '{"paused":"blocked"}'::jsonb WHERE id = ${brandId}`;
 }
 
+/** The owner's answer to the Monday report's goal question ("More orders" / "More subscribers"). */
+export async function saveGoal(brandId: string, goal: "sale" | "grow"): Promise<void> {
+  if (!isDbConfigured()) return;
+  await getSql()`UPDATE brands SET goal = ${goal} WHERE id = ${brandId}`;
+}
+
 /** The bot's rights in a channel, on every brand of that channel. */
 export async function saveBotAdmin(channel: string, status: BotAdminStatus): Promise<number> {
   if (!isDbConfigured()) return 0;
@@ -285,11 +292,15 @@ export async function userLanguage(telegramId: number): Promise<string | null> {
   }
 }
 
-/** A button tap counts as the owner being active (only /start, messages and the Mini App did before). */
+/**
+ * The owner acted (any bot button, approving the week, switching the autopilot): counts as active for the 14-day
+ * gate, like /start, messages and the Mini App. At most one write per user per hour.
+ */
 export async function touchUser(telegramId: number): Promise<void> {
   if (!isDbConfigured()) return;
   await getSql()`
-    UPDATE app_users SET last_seen_at = now() WHERE telegram_id = ${telegramId} AND last_seen_at < now() - interval '1 hour'
+    UPDATE app_users SET last_seen_at = now()
+    WHERE telegram_id = ${telegramId} AND (last_seen_at IS NULL OR last_seen_at < now() - interval '1 hour')
   `.catch(() => undefined);
 }
 
@@ -303,9 +314,23 @@ export async function channelsForSnapshot(day: string, activeSince: number, limi
     WHERE b.owner_telegram_id IS NOT NULL AND b.channel IS NOT NULL AND b.channel <> ''
       AND ((b.autopilot->>'on') = 'true' OR u.last_seen_at >= ${new Date(activeSince).toISOString()})
       AND NOT EXISTS (SELECT 1 FROM channel_snapshots s WHERE s.channel = b.channel AND s.day = ${day}::date)
+      AND NOT EXISTS (
+        SELECT 1 FROM autopilot_runs r WHERE r.key = 'snap:' || b.channel || ':' || ${day} AND r.updated_at > now() - interval '1 hour'
+      )
     LIMIT ${limit}
   `) as { channel: string }[];
   return rows.map((r) => r.channel);
+}
+
+/** No count for this channel today: not tried again for an hour (channelsForSnapshot skips it). */
+export async function markSnapshotTried(channel: string, day: string): Promise<void> {
+  if (!isDbConfigured()) return;
+  await getSql()`
+    INSERT INTO autopilot_runs AS r (key, brand_id, kind, status, detail)
+    VALUES (${`snap:${channelKey(channel)}:${day}`}, NULL, 'snapshot', 'failed', '{"tries":1}'::jsonb)
+    ON CONFLICT (key) DO UPDATE SET updated_at = now(),
+      detail = r.detail || jsonb_build_object('tries', COALESCE((r.detail->>'tries')::int, 1) + 1)
+  `;
 }
 
 export async function saveSnapshot(channel: string, day: string, subscribers: number, source: "bot" | "scrape"): Promise<void> {
@@ -324,7 +349,10 @@ export interface MetricRow {
   views72h: number | null;
 }
 
-/** Mercat posts whose 24 h or 72 h reading is due now (24–48 h and 72–120 h after they went out). */
+/**
+ * Mercat posts whose 24 h or 72 h reading is due now (24–48 h and 72–120 h after they went out), not looked at in
+ * the last hour (a post missing from the public page is tried again hourly, not on every tick).
+ */
 export async function metricsDue(limit = 60): Promise<MetricRow[]> {
   if (!isDbConfigured()) return [];
   const rows = (await getSql()`
@@ -332,6 +360,7 @@ export async function metricsDue(limit = 60): Promise<MetricRow[]> {
     WHERE post_id IS NOT NULL AND published_at IS NOT NULL
       AND ((views_24h IS NULL AND published_at <= now() - interval '24 hours' AND published_at > now() - interval '48 hours')
         OR (views_72h IS NULL AND published_at <= now() - interval '72 hours' AND published_at > now() - interval '120 hours'))
+      AND (measured_at IS NULL OR measured_at < now() - interval '1 hour')
     ORDER BY published_at LIMIT ${limit}
   `) as { channel: string; message_id: number; published_at: string | Date; views_24h: number | null; views_72h: number | null }[];
   return rows.map((r) => ({ channel: r.channel, messageId: Number(r.message_id), publishedAt: ms(r.published_at), views24h: r.views_24h, views72h: r.views_72h }));
@@ -344,6 +373,14 @@ export async function saveViews(channel: string, messageId: number, v: { views: 
       views_24h = COALESCE(views_24h, ${v.views24h ?? null}::int), views_72h = COALESCE(views_72h, ${v.views72h ?? null}::int),
       measured_at = now(), updated_at = now()
     WHERE channel = ${channelKey(channel)} AND message_id = ${messageId}
+  `;
+}
+
+/** Posts looked for and not found (or a page that did not load): their next try waits an hour (metricsDue). */
+export async function markMetricsTried(channel: string, messageIds: number[]): Promise<void> {
+  if (!isDbConfigured() || !messageIds.length) return;
+  await getSql()`
+    UPDATE post_metrics SET measured_at = now() WHERE channel = ${channelKey(channel)} AND message_id = ANY(${messageIds}::int[])
   `;
 }
 
@@ -407,8 +444,8 @@ export async function autopilotBrands(limit = 200): Promise<WeeklyBrandRow[]> {
 }
 
 /**
- * Exactly-once claim of a scheduled job (autopilot_runs). A run that failed, or that started over `retryAfterMin`
- * ago and never finished (the function died), may be claimed again, up to `maxAttempts` in all.
+ * Exactly-once claim of a scheduled job (autopilot_runs). A run that failed, or that started and never finished (the
+ * function died), may be claimed again once `retryAfterMin` has passed since its last change, up to `maxAttempts`.
  * Returns the attempt number (1, 2, …), or 0 when the run is taken, done or out of attempts.
  */
 export async function claimRun(key: string, brandId: string | null, kind: string, retryAfterMin = 30, maxAttempts = 3): Promise<number> {
@@ -417,7 +454,7 @@ export async function claimRun(key: string, brandId: string | null, kind: string
     INSERT INTO autopilot_runs AS r (key, brand_id, kind, status, detail) VALUES (${key}, ${brandId}, ${kind}, 'started', '{"attempts":1}'::jsonb)
     ON CONFLICT (key) DO UPDATE SET status = 'started', updated_at = now(),
       detail = r.detail || jsonb_build_object('attempts', COALESCE((r.detail->>'attempts')::int, 1) + 1)
-    WHERE (r.status = 'failed' OR (r.status = 'started' AND r.updated_at < now() - make_interval(mins => ${retryAfterMin})))
+    WHERE r.status IN ('failed', 'started') AND r.updated_at < now() - make_interval(mins => ${retryAfterMin})
       AND COALESCE((r.detail->>'attempts')::int, 1) < ${maxAttempts}
     RETURNING (detail->>'attempts')::int AS attempts
   `) as { attempts: number }[];
@@ -532,4 +569,45 @@ export async function saveInviteLink(r: { link: string; brandId: string; channel
     INSERT INTO invite_links (link, brand_id, channel, name, source) VALUES (${r.link}, ${r.brandId}, ${channelKey(r.channel)}, ${r.name}, ${r.source})
     ON CONFLICT (link) DO NOTHING
   `;
+}
+
+/* ---------------------------------------------------------- week messages */
+
+/**
+ * "Next week's posts are ready" waits for their pictures (weekly: the posts' pictures are started on the server, so
+ * the owner approves each post with its picture). A waiting message is an autopilot_runs row (kind 'week_msg',
+ * status 'waiting'); the week-messages task sends it once the pictures are done, then marks it 'done'.
+ */
+export async function queueWeekMessage(key: string, brandId: string): Promise<void> {
+  if (!isDbConfigured()) return;
+  await getSql()`
+    INSERT INTO autopilot_runs (key, brand_id, kind, status) VALUES (${key}, ${brandId}, 'week_msg', 'waiting')
+    ON CONFLICT (key) DO NOTHING
+  `;
+}
+
+/** Week messages still waiting (written in the last 2 days), oldest first. */
+export async function waitingWeekMessages(limit = 10): Promise<{ key: string; brandId: string; since: number }[]> {
+  if (!isDbConfigured()) return [];
+  const rows = (await getSql()`
+    SELECT key, brand_id, created_at FROM autopilot_runs
+    WHERE kind = 'week_msg' AND status = 'waiting' AND created_at > now() - interval '2 days'
+    ORDER BY created_at LIMIT ${limit}
+  `) as { key: string; brand_id: string; created_at: string | Date }[];
+  return rows.map((r) => ({ key: r.key, brandId: r.brand_id, since: ms(r.created_at) }));
+}
+
+/** Takes a waiting week message (one statement: two ticks never both send it). */
+export async function takeWeekMessage(key: string): Promise<boolean> {
+  if (!isDbConfigured()) return false;
+  const rows = (await getSql()`
+    UPDATE autopilot_runs SET status = 'sending', updated_at = now() WHERE key = ${key} AND status = 'waiting' RETURNING key
+  `) as { key: string }[];
+  return rows.length > 0;
+}
+
+/** After the send: 'done' (or 'skipped'), or back to 'waiting' when Telegram failed (tried again on the next tick). */
+export async function settleWeekMessage(key: string, status: "done" | "waiting" | "skipped"): Promise<void> {
+  if (!isDbConfigured()) return;
+  await getSql()`UPDATE autopilot_runs SET status = ${status}, updated_at = now() WHERE key = ${key}`;
 }

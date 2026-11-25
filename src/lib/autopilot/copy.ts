@@ -3,8 +3,9 @@
  * src/lib/i18n.ts so the bot's dictionary stays with the bot stream; plain sentences, no promises we cannot keep.
  */
 import { formatDay, type Locale } from "../i18n";
-import type { WeekSkipReason } from "../uslub/contract";
+import type { WeekSkipReason } from "./types";
 import { tashkentClock } from "../cron/clock";
+import { LATE_LIMIT_HOURS } from "./time";
 
 type Dict = Record<Locale, string>;
 
@@ -17,14 +18,14 @@ const TEXT = {
   open_post: { uz: "Ko‘rish", ru: "Открыть", en: "Open" },
 
   bot_not_admin: {
-    uz: "{when} dagi post chiqmadi: bot @{channel} kanalida admin emas yoki unda «Yozuvli xabarlar» huquqi yo‘q. Botni admin qiling — post keyingi tekshiruvda o‘zi chiqadi (24 soat ichida).",
-    ru: "Пост на {when} не вышел: бот не админ в @{channel} или у него нет права «Публикация сообщений». Сделайте бота админом — пост выйдет сам при следующей проверке (в течение 24 часов).",
-    en: "The post for {when} did not go out: the bot is not an admin of @{channel}, or it lacks the \"Post messages\" right. Make it an admin and the post goes out on the next check (within 24 hours).",
+    uz: "{when} dagi post chiqmadi: bot @{channel} kanalida admin emas yoki unda «Yozuvli xabarlar» huquqi yo‘q. Botni {hours} soat ichida admin qilsangiz, post o‘zi chiqadi (tunda emas). Undan keyin postni ilovadan joylang.",
+    ru: "Пост на {when} не вышел: бот не админ в @{channel} или у него нет права «Публикация сообщений». Если сделать бота админом в течение {hours} ч, пост выйдет сам (но не ночью). Позже — опубликуйте его в приложении.",
+    en: "The post for {when} did not go out: the bot is not an admin of @{channel}, or it lacks the \"Post messages\" right. Make it an admin within {hours} hours and the post goes out on its own (not at night). After that, publish it from the app.",
   },
   owner_not_admin: {
-    uz: "{when} dagi post chiqmadi: Telegram sizni @{channel} kanalining egasi yoki post joylay oladigan admini deb ko‘rmayapti. Huquqingizni tekshiring — post keyingi tekshiruvda o‘zi chiqadi (24 soat ichida).",
-    ru: "Пост на {when} не вышел: Telegram не видит вас владельцем или админом @{channel} с правом публикации. Проверьте права — пост выйдет сам при следующей проверке (в течение 24 часов).",
-    en: "The post for {when} did not go out: Telegram doesn't list you as the owner or an admin of @{channel} who can post. Check your rights and the post goes out on the next check (within 24 hours).",
+    uz: "{when} dagi post chiqmadi: Telegram sizni @{channel} kanalining egasi yoki post joylay oladigan admini deb ko‘rmayapti. Huquqingizni {hours} soat ichida tuzatsangiz, post o‘zi chiqadi (tunda emas). Undan keyin postni ilovadan joylang.",
+    ru: "Пост на {when} не вышел: Telegram не видит вас владельцем или админом @{channel} с правом публикации. Если исправить права в течение {hours} ч, пост выйдет сам (но не ночью). Позже — опубликуйте его в приложении.",
+    en: "The post for {when} did not go out: Telegram doesn't list you as the owner or an admin of @{channel} who can post. Fix your rights within {hours} hours and the post goes out on its own (not at night). After that, publish it from the app.",
   },
   changed: {
     uz: "{when} dagi post chiqmadi: tasdiqlangandan keyin matni yoki rasmi o‘zgargan. Yangi variantni ko‘rib, qayta tasdiqlang.",
@@ -42,9 +43,14 @@ const TEXT = {
     en: "The post for {when} did not go out: Telegram refused it. Open the post in the app and publish it again.",
   },
   expired: {
-    uz: "{when} dagi post o‘z vaqtida chiqmadi (bizda uzilish bo‘ldi) va endi eskirgan bo‘lishi mumkin. Hali kerak bo‘lsa, ilovada qayta joylang.",
-    ru: "Пост на {when} не вышел вовремя (у нас был сбой) и мог устареть. Если он ещё нужен, опубликуйте его в приложении.",
-    en: "The post for {when} didn't go out on time (we had an outage) and may be out of date. If you still want it, publish it from the app.",
+    uz: "{when} dagi post o‘z vaqtida chiqmadi, endi esa kech: o‘zimiz yubormadik. Hali kerak bo‘lsa, ilovadan joylang.",
+    ru: "Пост на {when} не вышел вовремя, а сейчас уже поздно, поэтому сами мы его не отправили. Если он ещё нужен, опубликуйте его в приложении.",
+    en: "The post for {when} didn't go out on time and it is too late now, so we didn't send it. If you still want it, publish it from the app.",
+  },
+  past_date: {
+    uz: "{when} dagi post chiqmadi: u rejadagidan boshqa kuni chiqayotgan edi, matnda esa o‘sha kunga bog‘liq so‘z yoki sana bor ({dates}). Matnni tuzatib, qayta tasdiqlang.",
+    ru: "Пост на {when} не вышел: он уходил в другой день, а в тексте есть слово или дата, привязанные к дню публикации ({dates}). Исправьте текст и подтвердите снова.",
+    en: "The post for {when} did not go out: it was going out on a different day, and the text has a word or date tied to its day ({dates}). Fix the text and approve it again.",
   },
   unknown: {
     uz: "{when} dagi postni yuborayotganda aloqa uzildi. @{channel} kanalini tekshiring: post chiqqan bo‘lsa, hech narsa qilmang; chiqmagan bo‘lsa, ilovada qayta joylang. Ikki marta chiqmasligi uchun o‘zimiz qayta yubormaymiz.",
@@ -74,6 +80,12 @@ const TEXT = {
     ru: "Бот пока не может публиковать в @{channel}. Сделайте его админом, иначе посты не выйдут.",
     en: "The bot can't post in @{channel} yet. Make it an admin, or the posts won't go out.",
   },
+  week_bot_not_admin: {
+    uz: "Bot hali @{channel} kanalida post joylay olmaydi. Botni kanalga admin qiling («Yozuvli xabarlar» huquqi bilan), keyin «Qayta tekshirish»ni bosing.",
+    ru: "Бот пока не может публиковать в @{channel}. Сделайте его админом канала с правом «Публикация сообщений», затем нажмите «Проверить снова».",
+    en: "The bot can't post in @{channel} yet. Make it an admin of the channel with the \"Post messages\" right, then tap \"Check again\".",
+  },
+  week_retry: { uz: "🔄 Qayta tekshirish", ru: "🔄 Проверить снова", en: "🔄 Check again" },
   autopilot_offer: { uz: "🔁 Har hafta shunday tayyorlab bering", ru: "🔁 Готовить так каждую неделю", en: "🔁 Do this every week" },
   autopilot_on: {
     uz: "Avtopilot yoqildi. Har dushanba soat 9:00 da o‘tgan hafta hisobotini va yangi hafta postlarini yuboraman. Tasdig‘ingizsiz hech narsa chiqmaydi. Sinov muddati: {days} kun.",
@@ -113,9 +125,16 @@ const TEXT = {
     en: "I couldn't write this week's posts. Try refreshing the plan in the app.",
   },
   idle: {
-    uz: "Avtopilot pauzada: 14 kundan beri sizdan xabar yo‘q. /start bosing — keyingi dushanbadan yana ishlaydi.",
-    ru: "Автопилот на паузе: вы не заходили 14 дней. Нажмите /start — со следующего понедельника он снова заработает.",
-    en: "Autopilot is paused: we haven't heard from you in 14 days. Tap /start and it resumes next Monday.",
+    uz: "Avtopilot pauzada: {days} kundan beri sizdan xabar yo‘q. /start bosing — keyingi dushanbadan yana ishlaydi.",
+    ru: "Автопилот на паузе: вы не заходили {days} дн. Нажмите /start — со следующего понедельника он снова заработает.",
+    en: "Autopilot is paused: we haven't heard from you in {days} days. Tap /start and it resumes next Monday.",
+  },
+  goal_sale: { uz: "Ko‘proq buyurtma", ru: "Больше заказов", en: "More orders" },
+  goal_grow: { uz: "Ko‘proq obunachi", ru: "Больше подписчиков", en: "More subscribers" },
+  goal_saved: {
+    uz: "Yozib qo‘ydim: {label}. Keyingi hisobotlar shunga qarab bo‘ladi.",
+    ru: "Записал: {label}. Следующие отчёты будут под эту цель.",
+    en: "Noted: {label}. The next reports follow this goal.",
   },
   not_owner: {
     uz: "Bu brend boshqa foydalanuvchiga tegishli.",
@@ -175,9 +194,11 @@ export const fmtDelta = (value: number, base: number) => {
 export function queueErrorText(locale: Locale, code: string | null | undefined, vars: { when: string; channel: string }): string | undefined {
   switch (code) {
     case "bot_not_admin":
-      return say(locale, "bot_not_admin", vars);
+      return say(locale, "bot_not_admin", { ...vars, hours: LATE_LIMIT_HOURS });
     case "owner_not_admin":
-      return say(locale, "owner_not_admin", vars);
+      return say(locale, "owner_not_admin", { ...vars, hours: LATE_LIMIT_HOURS });
+    case "past_date":
+      return say(locale, "past_date", { ...vars, dates: "…" });
     case "changed":
       return say(locale, "changed", vars);
     case "blank":

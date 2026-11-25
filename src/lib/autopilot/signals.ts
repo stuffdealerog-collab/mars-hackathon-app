@@ -85,9 +85,11 @@ export interface SnapshotDeps {
   /** Subscribers from the public t.me/s page; null when it has none. */
   scrapeCount(channel: string): Promise<number | null>;
   save(channel: string, day: string, subscribers: number, source: "bot" | "scrape"): Promise<void>;
+  /** No count today: the channel is left alone for an hour (repo.ts markSnapshotTried). */
+  tried(channel: string): Promise<void>;
 }
 
-/** One subscriber count per channel per day. A channel that fails is tried again on the next tick. */
+/** One subscriber count per channel per day. A channel with no count is tried again an hour later, not every tick. */
 export async function runSnapshots(deps: SnapshotDeps, ctl: RunControl): Promise<{ saved: number; missing: number }> {
   let saved = 0;
   let missing = 0;
@@ -101,6 +103,7 @@ export async function runSnapshots(deps: SnapshotDeps, ctl: RunControl): Promise
     }
     if (n == null || !Number.isFinite(n) || n < 0) {
       missing++;
+      await deps.tried(channel).catch(() => undefined);
       continue;
     }
     await deps.save(channel, deps.today, Math.round(n), source);
@@ -115,9 +118,11 @@ export interface MetricsDeps {
   /** The public page's posts of a channel: id and views. */
   channelPosts(channel: string): Promise<{ id: number; views?: number }[]>;
   save(channel: string, messageId: number, v: { views: number; views24h?: number; views72h?: number }): Promise<void>;
+  /** Looked for and not found (or the page did not load): tried again in an hour (repo.ts markMetricsTried). */
+  tried(channel: string, messageIds: number[]): Promise<void>;
 }
 
-/** 24 h / 72 h views of Mercat's posts, one page read per channel. */
+/** 24 h / 72 h views of Mercat's posts, one page read per channel; a miss waits an hour before the next look. */
 export async function runMetrics(deps: MetricsDeps, ctl: RunControl): Promise<{ measured: number; notFound: number; channels: number }> {
   const rows = await deps.due();
   const byChannel = new Map<string, typeof rows>();
@@ -132,19 +137,25 @@ export async function runMetrics(deps: MetricsDeps, ctl: RunControl): Promise<{ 
   for (const [channel, items] of byChannel) {
     if (ctl.signal?.aborted || ctl.timeLeft() < 8_000) break;
     const posts = await deps.channelPosts(channel).catch(() => null);
-    if (!posts) continue;
+    if (!posts) {
+      await deps.tried(channel, items.map((it) => it.messageId)).catch(() => undefined);
+      continue;
+    }
     channels++;
     const views = new Map(posts.map((p) => [p.id, p.views]));
     const now = deps.now();
+    const missed: number[] = [];
     for (const it of items) {
       const v = views.get(it.messageId);
       if (typeof v !== "number") {
         notFound++;
+        missed.push(it.messageId);
         continue;
       }
       await deps.save(channel, it.messageId, metricPatch(it, v, now));
       measured++;
     }
+    if (missed.length) await deps.tried(channel, missed).catch(() => undefined);
   }
   return { measured, notFound, channels };
 }

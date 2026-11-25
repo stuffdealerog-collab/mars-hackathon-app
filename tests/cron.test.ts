@@ -99,13 +99,14 @@ describe("CronRegistry", () => {
     const fake = (name: keyof typeof AUTOPILOT_BUDGETS) => ({ name, budgetMs: AUTOPILOT_BUDGETS[name], run: async () => ({}) });
     vi.doMock("../src/lib/autopilot/tasks", () => ({
       publishDue: fake("publish-due"),
+      weekMessages: fake("week-messages"),
       channelSnapshots: fake("channel-snapshots"),
       postMetrics: fake("post-metrics"),
       weekly: fake("weekly"),
     }));
     const { cronRegistry } = await import("../src/lib/cron/tasks");
     const { TICK_BUDGET_MS } = await import("../src/lib/cron/registry");
-    expect(cronRegistry.list().map((t) => t.name)).toEqual(["heartbeat", "publish-due", "media-sweep", "channel-snapshots", "post-metrics", "weekly"]);
+    expect(cronRegistry.list().map((t) => t.name)).toEqual(["heartbeat", "publish-due", "media-sweep", "week-messages", "channel-snapshots", "post-metrics", "weekly"]);
     // Every task's budget fits in the tick together, so none is ever skipped for lack of time.
     expect(cronRegistry.list().reduce((a, t) => a + t.budgetMs, 0)).toBeLessThanOrEqual(TICK_BUDGET_MS);
     vi.doUnmock("../src/lib/autopilot/tasks");

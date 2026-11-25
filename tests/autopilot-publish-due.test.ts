@@ -39,14 +39,24 @@ function rowFor(post: PostDraft, over: Partial<QueueRow> = {}): QueueRow {
   };
 }
 
-function harness(opts: { posts: PostDraft[]; rows: QueueRow[]; publish?: (a: { postId: string; userId: number; chat: string }) => PublishAttempt; brand?: { ownerTelegramId: number | null; channel?: string } ; stale?: QueueRow[]; overdue?: QueueRow[] }) {
+type SendArgs = { postId: string; userId: number; chat: string; textOnly?: boolean; expectedImageUrl: string | null };
+
+function harness(opts: {
+  posts: PostDraft[];
+  rows: QueueRow[];
+  publish?: (a: SendArgs) => PublishAttempt;
+  brand?: { ownerTelegramId: number | null; channel?: string };
+  stale?: QueueRow[];
+  overdue?: QueueRow[];
+  now?: number;
+}) {
   const queue = [...opts.rows];
   const finished: { postId: string; status: QueueStatus; error?: string | null }[] = [];
   const told: { postId: string; event: OwnerEvent }[] = [];
   const team: string[] = [];
-  const sends: { postId: string; userId: number; chat: string }[] = [];
+  const sends: { postId: string; userId: number; chat: string; textOnly?: boolean }[] = [];
   const deps: PublishDueDeps = {
-    now: () => NOW,
+    now: () => opts.now ?? NOW,
     markStaleSending: async () => opts.stale ?? [],
     expireOverdue: async () => opts.overdue ?? [],
     claimDue: async () => queue.shift() ?? null,
@@ -54,7 +64,7 @@ function harness(opts: { posts: PostDraft[]; rows: QueueRow[]; publish?: (a: { p
     loadPost: async (id) => opts.posts.find((p) => p.id === id) ?? null,
     loadBrand: async () => opts.brand ?? { ownerTelegramId: OWNER, channel: "nonvoy" },
     publish: async (a) => {
-      sends.push({ postId: a.postId, userId: a.userId, chat: a.chat });
+      sends.push({ postId: a.postId, userId: a.userId, chat: a.chat, ...(a.textOnly ? { textOnly: true } : {}) });
       return opts.publish?.(a) ?? { ok: true, status: 200, url: `https://t.me/nonvoy/${sends.length}` };
     },
     notifyOwner: async (row, event) => void told.push({ postId: row.postId, event }),
@@ -143,9 +153,9 @@ describe("publish-due: approved posts go out at their slot, once", () => {
     expect(h.told[0].event.kind).toBe("owner_not_admin");
   });
 
-  it("Telegram errors are retried, then fail with the owner and the team told", async () => {
+  it("Telegram refused it (nothing reached the channel): retried, then failed with the owner and the team told", async () => {
     const post = makePost();
-    const down = () => ({ ok: false, status: 502, error: "Telegram xatosi: Bad Gateway" });
+    const down = () => ({ ok: false, status: 502, error: "Telegram xatosi: Bad Gateway", sent: false as const });
     const early = harness({ posts: [post], rows: [rowFor(post, { attempts: 1 })], publish: down });
     await runPublishDue(early.deps, ctl);
     expect(early.finished[0].status).toBe("queued");
@@ -171,7 +181,7 @@ describe("publish-due: approved posts go out at their slot, once", () => {
     expect(h.finished[0]).toEqual({ postId: post.id, status: "failed", error: "changed" });
   });
 
-  it("a send cut off mid-way is reported as unknown and never resent; an outage-late post expires with a message", async () => {
+  it("a send cut off mid-way is reported as unknown and never resent; a post 3 hours late expires with a message", async () => {
     const post = makePost();
     const h = harness({
       posts: [post],
@@ -182,8 +192,107 @@ describe("publish-due: approved posts go out at their slot, once", () => {
     const counts = await runPublishDue(h.deps, ctl);
     expect(counts).toMatchObject({ unknown: 1, expired: 2 });
     expect(h.sends).toEqual([]);
-    expect(h.told.map((t) => t.event.kind)).toEqual(["unknown", "expired"]);
+    // A blocked post was promised to go out once the rights were fixed, so its expiry is news too.
+    expect(h.told.map((t) => t.event.kind)).toEqual(["unknown", "expired", "expired"]);
     expect(h.team).toEqual(["unknown"]);
+  });
+
+  it("a send cut off after the post went out: 'sent' with 'post is out', no 'check the channel'", async () => {
+    const post = makePost({ status: "published", publishedUrl: "https://t.me/nonvoy/77" });
+    const h = harness({ posts: [post], rows: [], stale: [rowFor(post, { status: "unknown" })] });
+    const counts = await runPublishDue(h.deps, ctl);
+    expect(counts).toMatchObject({ unknown: 0, already: 1 });
+    expect(h.finished).toEqual([{ postId: post.id, status: "sent", error: undefined }]);
+    expect(h.told).toEqual([{ postId: post.id, event: { kind: "post_out", url: "https://t.me/nonvoy/77" } }]);
+    expect(h.team).toEqual([]);
+  });
+
+  it("a failure that may have reached the channel (no `sent: false`) is 'unknown' and never retried", async () => {
+    const post = makePost();
+    // publishPost's answer to a network error or timeout while sending: the post may be in the channel.
+    const cut = harness({ posts: [post], rows: [rowFor(post, { attempts: 1 })], publish: () => ({ ok: false, status: 502, error: "Telegramga yuborib bo‘lmadi" }) });
+    const counts = await runPublishDue(cut.deps, ctl);
+    expect(counts).toMatchObject({ unknown: 1, retried: 0 });
+    expect(cut.finished).toEqual([{ postId: post.id, status: "unknown", error: "unknown" }]);
+    expect(cut.told.map((t) => t.event.kind)).toEqual(["unknown"]);
+    expect(cut.team).toHaveLength(1);
+    expect(cut.sends).toHaveLength(1);
+
+    const threw = harness({
+      posts: [post],
+      rows: [rowFor(post, { attempts: 1 })],
+      publish: () => {
+        throw new Error("socket hang up");
+      },
+    });
+    await runPublishDue(threw.deps, ctl);
+    expect(threw.finished).toEqual([{ postId: post.id, status: "unknown", error: "unknown" }]);
+    expect(threw.told.map((t) => t.event.kind)).toEqual(["unknown"]);
+  });
+
+  it("approved without a picture, a picture drawn later: the approved text goes out alone", async () => {
+    const post = makePost();
+    const row = rowFor(post); // approved with no picture
+    post.image = { status: "ready", url: "https://v3.fal.media/files/p.png", refsUsed: 0 };
+    const h = harness({ posts: [post], rows: [row] });
+    expect((await runPublishDue(h.deps, ctl)).published).toBe(1);
+    expect(h.sends).toEqual([{ postId: post.id, userId: OWNER, chat: "@nonvoy", textOnly: true }]);
+    expect(h.finished[0].status).toBe("sent");
+    expect(h.told[0].event.kind).toBe("post_out");
+  });
+
+  it("approved with a picture that was replaced since: stopped as changed", async () => {
+    const post = makePost({ image: { status: "ready", url: "https://v3.fal.media/files/a.png", refsUsed: 0 } });
+    const row = rowFor(post);
+    post.image = { status: "ready", url: "https://v3.fal.media/files/b.png", refsUsed: 0 };
+    const h = harness({ posts: [post], rows: [row] });
+    await runPublishDue(h.deps, ctl);
+    expect(h.sends).toEqual([]);
+    expect(h.finished[0]).toEqual({ postId: post.id, status: "failed", error: "changed" });
+  });
+
+  it("more than 3 hours late, or late at night: stopped as expired, the owner told", async () => {
+    const post = makePost();
+    const HOUR = 3600_000;
+    const tooLate = harness({ posts: [post], rows: [rowFor(post, { dueAt: NOW - 3 * HOUR - 60_000 })] });
+    expect((await runPublishDue(tooLate.deps, ctl)).expired).toBe(1);
+    expect(tooLate.sends).toEqual([]);
+    expect(tooLate.finished[0]).toEqual({ postId: post.id, status: "expired", error: "expired" });
+    expect(tooLate.told[0].event.kind).toBe("expired");
+
+    // 21:00 Tashkent slot, the tick only gets to it at 22:30: an evening post at night is not sent.
+    const at2230 = Date.parse("2026-11-30T17:30:00Z");
+    const night = harness({ posts: [post], rows: [rowFor(post, { dueAt: Date.parse("2026-11-30T16:00:00Z") })], now: at2230 });
+    expect((await runPublishDue(night.deps, ctl)).expired).toBe(1);
+    expect(night.sends).toEqual([]);
+
+    // The owner's own 22:30 slot, on time: it goes out.
+    const own = harness({ posts: [post], rows: [rowFor(post, { dueAt: at2230 })], now: at2230 });
+    expect((await runPublishDue(own.deps, ctl)).published).toBe(1);
+
+    // 2 hours late in the afternoon: still sent.
+    const late = harness({ posts: [post], rows: [rowFor(post, { dueAt: NOW - 2 * HOUR })] });
+    expect((await runPublishDue(late.deps, ctl)).published).toBe(1);
+  });
+
+  it("going out on another day than its slot: a text that says 'today' or names a past date is stopped", async () => {
+    // Slot Monday 23:55 Tashkent, sent Tuesday 00:05 (on time, but the day changed).
+    const due = Date.parse("2026-11-30T18:55:00Z");
+    const at = Date.parse("2026-11-30T19:05:00Z");
+    const today = makePost({ variants: { uz_latn: "Bugun soat 23:59 gacha chegirma!", uz_cyrl: "", ru: "", en: "" } });
+    const h = harness({ posts: [today], rows: [rowFor(today, { dueAt: due })], now: at });
+    await runPublishDue(h.deps, ctl);
+    expect(h.sends).toEqual([]);
+    expect(h.finished[0]).toEqual({ postId: today.id, status: "failed", error: "past_date" });
+    expect(h.told[0].event).toEqual({ kind: "past_date", dates: ["bugun"] });
+
+    const plain = makePost();
+    const ok = harness({ posts: [plain], rows: [rowFor(plain, { dueAt: due })], now: at });
+    expect((await runPublishDue(ok.deps, ctl)).published).toBe(1);
+
+    // The same "today" on the slot's own day is fine.
+    const sameDay = harness({ posts: [today], rows: [rowFor(today)] });
+    expect((await runPublishDue(sameDay.deps, ctl)).published).toBe(1);
   });
 
   it("stops claiming when the budget runs low", async () => {

@@ -5,6 +5,7 @@ import { safeLogEvent } from "../track";
 import { say, whenLabel } from "./copy";
 import type { OwnerEvent } from "./publish-due";
 import { markNotified, pauseAutopilot, type QueueRow, userLanguage } from "./repo";
+import { LATE_LIMIT_HOURS } from "./time";
 
 /**
  * Messages the autopilot sends an owner nobody asked it to (a post went out, a post could not go out, the Monday
@@ -40,7 +41,7 @@ export async function sendToOwner(
 
 /** The queue's message for one post (publish-due OwnerEvent), with its buttons. */
 export function queueMessage(locale: Locale, row: Pick<QueueRow, "chat" | "dueAt">, event: OwnerEvent, addAdminUrl: string): { text: string; keyboard?: InlineKeyboard } {
-  const vars = { when: whenLabel(row.dueAt, locale), channel: row.chat };
+  const vars = { when: whenLabel(row.dueAt, locale), channel: row.chat, hours: LATE_LIMIT_HOURS };
   switch (event.kind) {
     case "post_out":
       return { text: say(locale, "post_out", vars), keyboard: new InlineKeyboard().url(say(locale, "open_post"), event.url) };
@@ -48,6 +49,8 @@ export function queueMessage(locale: Locale, row: Pick<QueueRow, "chat" | "dueAt
       return { text: say(locale, "bot_not_admin", vars), keyboard: new InlineKeyboard().url(addAdminLabel(locale), addAdminUrl) };
     case "blank":
       return { text: say(locale, "blank", { ...vars, tokens: event.tokens.slice(0, 5).map((t) => `«${t}»`).join(", ") }) };
+    case "past_date":
+      return { text: say(locale, "past_date", { ...vars, dates: event.dates.slice(0, 5).map((d) => `«${d}»`).join(", ") }) };
     default:
       return { text: say(locale, event.kind, vars) };
   }

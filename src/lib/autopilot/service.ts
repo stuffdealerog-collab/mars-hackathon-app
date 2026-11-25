@@ -1,11 +1,12 @@
 import "server-only";
 import { logTrialStarted } from "../stats-events";
 import { safeLogEvent } from "../track";
-import type { AutopilotState, BotAdminStatus, PostSchedule } from "../uslub/contract";
+import type { PostSchedule } from "../uslub/contract";
+import type { AutopilotState, BotAdminStatus } from "./types";
 import type { Locale } from "../i18n";
 import type { StoredBrand } from "../uslub/store";
 import { queueErrorText, whenLabel } from "./copy";
-import { loadAutopilotRow, queueForBrand, writeAutopilot } from "./repo";
+import { loadAutopilotRow, queueForBrand, touchUser, writeAutopilot } from "./repo";
 import { readAutopilot, readBotAdmin, switchAutopilot, trialDaysLeft } from "./state";
 
 /**
@@ -37,6 +38,8 @@ export async function setAutopilot(brandId: string, on: boolean, actor: number, 
   const prev = readAutopilot((await loadAutopilotRow(brandId))?.autopilot);
   const next = switchAutopilot(prev, on, now);
   await writeAutopilot(brandId, next);
+  // Switching the autopilot (web Studio, Mini App or the bot) counts as the owner being active (the 14-day gate).
+  await touchUser(actor);
   await safeLogEvent(actor, on ? "autopilot_on" : "autopilot_off", { brand_id: brandId });
   if (on && !prev.since && next.since && next.trialEndsAt) await logTrialStarted(actor, { brandId, since: next.since, trialEndsAt: next.trialEndsAt });
   return next;

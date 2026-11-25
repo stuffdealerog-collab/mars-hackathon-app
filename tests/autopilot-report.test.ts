@@ -5,9 +5,15 @@ import { detectNeuro } from "../src/lib/uslub/neuro";
 const base: WeeklyReportInput = { locale: "uz", kind: "sales", from: "2026-11-23", to: "2026-11-29", planned: 3, published: 3 };
 
 describe("which Monday report a channel gets (owner correction 2)", () => {
-  it("follows the confirmed goal first, else the channel type; unknown = sales", () => {
+  it("follows the goal first, else the channel type; neither = unknown (never the orders question)", () => {
     expect(reportKind("business", undefined)).toBe("sales");
-    expect(reportKind(undefined, undefined)).toBe("sales");
+    expect(reportKind(undefined, undefined)).toBe("unknown");
+    expect(reportKind(null, null)).toBe("unknown");
+    // A goal that says neither orders nor subscribers falls back to the type, and with no type to "unknown".
+    expect(reportKind(undefined, "reach")).toBe("unknown");
+    expect(reportKind("blog", "trust")).toBe("growth");
+    expect(reportKind(undefined, "sale")).toBe("sales");
+    expect(reportKind(undefined, "grow")).toBe("growth");
     for (const t of ["blog", "expert", "media", "community"] as const) expect(reportKind(t, undefined)).toBe("growth");
     expect(reportKind("blog", "sale")).toBe("sales");
     expect(reportKind("business", "grow")).toBe("growth");
@@ -85,10 +91,29 @@ describe("Monday report for a blog, expert, media or community channel", () => {
   });
 });
 
+describe("Monday report when neither the channel type nor the goal is known yet", () => {
+  const unknown: WeeklyReportInput = { ...base, kind: "unknown" };
+
+  it("no orders question and no sales lines: the growth numbers, then the one-time goal question", () => {
+    const r = buildWeeklyReport({ ...unknown, published: 2, subscribers: { now: 400, delta: 12 }, views72: { avg: 300, n: 2 }, starts: 4, reactions: 9 });
+    expect(r.askOrders).toBe(false);
+    expect(r.askGoal).toBe(true);
+    expect(r.text).not.toMatch(/buyurtma|havolalari orqali/i);
+    expect(r.text).toContain("Obunachilar: +12 (hozir 400).");
+    expect(r.text).toContain("Kanal sizga asosan nima uchun kerak?");
+    expect(buildWeeklyReport({ ...unknown, locale: "ru" }).text).not.toMatch(/заказ/);
+  });
+
+  it("a sales or growth report never asks for the goal", () => {
+    expect(buildWeeklyReport(base).askGoal).toBe(false);
+    expect(buildWeeklyReport({ ...base, kind: "growth" }).askGoal).toBe(false);
+  });
+});
+
 describe("report wording", () => {
   it("has no machine-sounding words", () => {
     for (const locale of ["uz", "ru", "en"] as const) {
-      for (const kind of ["sales", "growth"] as const) {
+      for (const kind of ["sales", "growth", "unknown"] as const) {
         const r = buildWeeklyReport({ ...base, locale, kind, published: 2, views72: { avg: 500, n: 2 }, medianViews: 400, starts: 3, subscribers: { now: 100, delta: 5 }, reactions: 7, best: { hook: "x", views: 600 } });
         const script = locale === "uz" ? "uz_latn" : locale;
         expect(detectNeuro(r.text, script), `${locale} ${kind}`).toEqual([]);

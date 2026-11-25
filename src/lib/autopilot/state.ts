@@ -2,7 +2,7 @@
  * The autopilot's state on a brand (brands.autopilot jsonb) and the bot's admin status in the brand's channel.
  * Pure and client-safe: the Studio and the Mini App read the same shapes from GET /api/uslub/autopilot.
  */
-import type { AutopilotState, BotAdminStatus } from "../uslub/contract";
+import type { AutopilotState, BotAdminStatus } from "./types";
 
 export const TRIAL_DAYS = 7;
 const DAY = 86_400_000;

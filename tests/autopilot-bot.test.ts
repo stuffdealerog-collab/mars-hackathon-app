@@ -21,6 +21,7 @@ vi.mock("../src/lib/uslub/publish", () => ({ publishPost: vi.fn(), addBotAsAdmin
 const repo = vi.hoisted(() => ({
   autopilot: {} as Record<string, unknown>,
   saveBotAdmin: vi.fn(async () => 1),
+  saveGoal: vi.fn(async () => {}),
   saveMemberEvent: vi.fn(async () => {}),
   saveReactions: vi.fn(async () => {}),
   touchUser: vi.fn(async () => {}),
@@ -141,6 +142,34 @@ describe("/start week_<brandId>", () => {
     expect(String(sent().at(-1)?.payload.text)).toContain("Bu haftaning postlari (2):");
   });
 
+  it("a brand nobody owns and the bot not an admin yet: add-the-bot and «check again», which then claims and shows the week", async () => {
+    const { brand } = await brandWithPosts(null);
+    const before = makeBot({ [OTHER]: { status: "administrator", can_post_messages: true } });
+    await before.bot.handleUpdate(startUpdate(OTHER, `week_${brand.id}`) as never);
+    expect((await store.getBrand(brand.id))?.ownerTelegramId).toBeNull();
+    const msg = before.sent()[0];
+    expect(String(msg.payload.text)).toBe(
+      "Bot hali @nonvoy kanalida post joylay olmaydi. Botni kanalga admin qiling («Yozuvli xabarlar» huquqi bilan), keyin «Qayta tekshirish»ni bosing.",
+    );
+    const kb = buttons(msg);
+    expect(kb[0].url).toBe("https://t.me/test_bot?startchannel&admin=post_messages+invite_users");
+    expect(kb[1].callback_data).toBe(`apr:${brand.id}`);
+    // Never the publish flow's "send the channel name again": that text would start a new onboarding.
+    expect(String(msg.payload.text)).not.toMatch(/nomini|название/i);
+
+    const after = makeBot({ [BOT_ID]: { status: "administrator", can_post_messages: true }, [OTHER]: { status: "administrator", can_post_messages: true } });
+    await after.bot.handleUpdate(callbackUpdate(OTHER, kb[1].callback_data as string) as never);
+    expect((await store.getBrand(brand.id))?.ownerTelegramId).toBe(OTHER);
+    expect(String(after.sent().at(-1)?.payload.text)).toContain("Bu haftaning postlari (2):");
+  });
+
+  it("a brand nobody owns and without a channel: the week is shown without the autopilot switch", async () => {
+    const brand = await store.saveBrand({ knowledge: "Non do‘koni.", samplePosts: [], dna, mode: "fresh" }, null, "custom");
+    const { bot, sent } = makeBot();
+    await bot.handleUpdate(startUpdate(OTHER, `week_${brand.id}`) as never);
+    expect(buttons(sent()[0]).some((b) => b.callback_data?.startsWith("apa:"))).toBe(false);
+  });
+
   it("a brand nobody owns and a user who is not a channel admin: refused, not claimed", async () => {
     const { brand } = await brandWithPosts(null);
     const { bot, sent } = makeBot({ [BOT_ID]: { status: "administrator", can_post_messages: true }, [OTHER]: { status: "member" } });
@@ -219,6 +248,28 @@ describe("autopilot switch and the orders answer", () => {
     expect(repo.writeAutopilot).not.toHaveBeenCalled();
   });
 
+  it("any button tap counts as the person being active, also ones the bot's own handlers answer (ord:, pb:…)", async () => {
+    const { bot } = makeBot();
+    let reached = false;
+    bot.callbackQuery(/^ord:/, () => void (reached = true));
+    await bot.handleUpdate(callbackUpdate(OWNER, "ord:abc123:4") as never);
+    expect(reached).toBe(true);
+    expect(repo.touchUser).toHaveBeenCalledWith(OWNER);
+  });
+
+  it("the Monday report's goal answer is stored on the brand (owner only)", async () => {
+    const { brand } = await brandWithPosts(OWNER);
+    const { bot, calls } = makeBot();
+    await bot.handleUpdate(callbackUpdate(OTHER, `apg:${brand.id}:grow`) as never);
+    expect(repo.saveGoal).not.toHaveBeenCalled();
+    await bot.handleUpdate(callbackUpdate(OWNER, `apg:${brand.id}:grow`) as never);
+    expect(repo.saveGoal).toHaveBeenCalledWith(brand.id, "grow");
+    expect(calls.filter((c) => c.method === "answerCallbackQuery").at(-1)?.payload.text).toBe(
+      "Yozib qo‘ydim: Ko‘proq obunachi. Keyingi hisobotlar shunga qarab bo‘ladi.",
+    );
+    expect(events.find((e) => e.type === "goal_confirmed")?.props).toEqual({ brand_id: brand.id, goal: "grow", from: "weekly_report" });
+  });
+
   it("the orders answer is stored for last week (owner only)", async () => {
     const { brand } = await brandWithPosts(OWNER);
     const { bot } = makeBot();
@@ -247,6 +298,22 @@ describe("channel updates", () => {
     expect(repo.saveBotAdmin).toHaveBeenCalledWith("nonvoy", expect.objectContaining({ status: "admin", canPost: true, canInvite: true }));
     expect(sent()[0].payload.chat_id).toBe(OWNER);
     expect(String(sent()[0].payload.text)).toBe("Бот стал админом @nonvoy. Подтверждённые посты теперь выходят сами в своё время.");
+  });
+
+  it("my_chat_member on a channel with no Mercat brand: stored nowhere, nobody messaged", async () => {
+    repo.saveBotAdmin.mockImplementationOnce(async () => 0);
+    const { bot, sent } = makeBot();
+    await bot.handleUpdate({
+      update_id: updateId++,
+      my_chat_member: {
+        chat: { id: -1009999, type: "channel", title: "Boshqa", username: "boshqa" },
+        from: from(OWNER),
+        date: 0,
+        old_chat_member: { status: "left", user: { id: BOT_ID, is_bot: true, first_name: "M" } },
+        new_chat_member: { status: "administrator", user: { id: BOT_ID, is_bot: true, first_name: "M" }, can_post_messages: true, can_invite_users: true, can_be_edited: false, is_anonymous: false, can_manage_chat: true, can_delete_messages: false, can_manage_video_chats: false, can_restrict_members: false, can_promote_members: false, can_change_info: false, can_post_stories: false, can_edit_stories: false, can_delete_stories: false },
+      },
+    } as never);
+    expect(sent()).toEqual([]);
   });
 
   it("chat_member stores a join with its invite link and a keyed hash, never the member's id", async () => {

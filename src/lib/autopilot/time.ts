@@ -9,8 +9,14 @@ const DAY = 24 * 60 * MIN;
 
 /** Ticks come every ~10 minutes, so a post may go out up to 15 minutes before its slot ("on time" = ±15 min). */
 export const DUE_EARLY_MS = 15 * MIN;
-/** A queued post more than this late (the ticker was down) is not sent on its own: the owner decides. */
-export const LATE_LIMIT_MS = DAY;
+/**
+ * A queued post more than this late (the ticker was down, or the owner fixed the bot's rights late) is not sent on
+ * its own: the owner decides. The owner's messages about a blocked post name the same number of hours.
+ */
+export const LATE_LIMIT_MS = 3 * 60 * MIN;
+export const LATE_LIMIT_HOURS = LATE_LIMIT_MS / (60 * MIN);
+/** A late post goes out only in these Tashkent hours, [from, until): never at night. On time it goes at its slot. */
+export const LATE_SEND_HOURS = { from: 7, until: 22 } as const;
 /** A slot that passed earlier today goes out this much after the approval… */
 export const LATE_TODAY_DELAY_MS = 10 * MIN;
 /** …but never from this Tashkent hour on (an evening post at night reads wrong). */
@@ -49,11 +55,31 @@ export function planDue(slot: { day?: string; time?: string } | null | undefined
 
 export type DueState = "wait" | "send" | "expired";
 
-/** What the tick does with a queued post due at `dueAt`. */
+/**
+ * What the tick does with a queued post due at `dueAt`: wait for its slot, send it, or stop it as expired. A post
+ * within 15 minutes of its slot goes out whatever the hour (the owner chose that time); a late one only up to 3 hours
+ * after its slot and only between 07:00 and 22:00 Tashkent (an evening post at 03:00 reads wrong).
+ */
 export function dueState(dueAt: number, now: number): DueState {
   if (dueAt - now > DUE_EARLY_MS) return "wait";
+  if (now - dueAt <= DUE_EARLY_MS) return "send";
   if (now - dueAt > LATE_LIMIT_MS) return "expired";
-  return "send";
+  const hour = tashkentClock(new Date(now)).hour;
+  return hour >= LATE_SEND_HOURS.from && hour < LATE_SEND_HOURS.until ? "send" : "expired";
+}
+
+/** Words that name the day relative to the day of writing ("bugun", "завтра"…), in the post's languages. */
+const RELATIVE_DAY_RE =
+  /(?<![\p{L}\p{N}])(bugun(?:gi)?|ertaga|ertangi|бугун(?:ги)?|эртага|сегодня|сегодняшн\p{L}*|завтра|завтрашн\p{L}*|вчера|today|tonight|tomorrow|yesterday)(?![\p{L}\p{N}])/giu;
+
+/**
+ * Text written for the day of its slot that would read wrong on another day ("bugun", "until Monday 20:00"): the
+ * words that name today or tomorrow, when the post goes out on another Tashkent day than its slot. Dates that are
+ * over by the send day are checked separately (postguard.ts pastDatesInPost).
+ */
+export function relativeDayWords(text: string, dueAt: number, sendAt: number): string[] {
+  if (tashkentDate(dueAt) === tashkentDate(sendAt)) return [];
+  return [...new Set([...text.matchAll(RELATIVE_DAY_RE)].map((m) => m[1].toLowerCase()))];
 }
 
 export const onTime = (dueAt: number, sentAt: number) => Math.abs(sentAt - dueAt) <= DUE_EARLY_MS;
