@@ -1,6 +1,7 @@
 import "server-only";
 import { getSql, isDbConfigured } from "./db";
 import { sourceCategory } from "./source-category";
+import { currentEventMeta, withEventMeta } from "./stats-meta";
 
 export type TrackedUser = {
   id: number;
@@ -74,10 +75,11 @@ export async function logEvent(
   props: Record<string, unknown> = {},
 ): Promise<void> {
   if (dbMissing()) return;
+  const row = withEventMeta(type, props ?? {}, telegramId, currentEventMeta());
   try {
     await getSql()`
       INSERT INTO events (telegram_id, type, props)
-      VALUES (${telegramId}, ${type.slice(0, 64)}, ${JSON.stringify(props ?? {})}::jsonb)
+      VALUES (${row.telegramId}, ${type.slice(0, 64)}, ${JSON.stringify(row.props)}::jsonb)
     `;
   } catch (err) {
     throw new Error(`events insert failed: ${err instanceof Error ? err.message : String(err)}`);

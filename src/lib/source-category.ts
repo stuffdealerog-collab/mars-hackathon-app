@@ -105,6 +105,82 @@ export function eventStartPayload(payload?: string | null): string | null {
   return sourceCategory(raw);
 }
 
+/**
+ * Where a web visit came from, by the referrer's host only: the host is reduced to one of these words and never
+ * kept itself (a referrer can be a private page). Browsers send only the origin across sites
+ * (Referrer-Policy: strict-origin-when-cross-origin), so the path is never seen here anyway.
+ */
+export type ReferrerCategory =
+  | "telegram"
+  | "instagram"
+  | "facebook"
+  | "youtube"
+  | "tiktok"
+  | "whatsapp"
+  | "google"
+  | "yandex"
+  | "search"
+  | "internal"
+  | "other"
+  | "direct";
+
+const REFERRER_HOSTS: [RegExp, ReferrerCategory][] = [
+  [/(^|\.)(t\.me|telegram\.(org|me|dog))$/, "telegram"],
+  [/(^|\.)(instagram\.com|ig\.me)$/, "instagram"],
+  [/(^|\.)(facebook\.com|fb\.com|fb\.me|messenger\.com)$/, "facebook"],
+  [/(^|\.)(youtube\.com|youtu\.be)$/, "youtube"],
+  [/(^|\.)tiktok\.com$/, "tiktok"],
+  [/(^|\.)(whatsapp\.com|wa\.me)$/, "whatsapp"],
+  [/(^|\.)google\.[a-z.]{2,8}$/, "google"],
+  [/(^|\.)(yandex\.[a-z.]{2,8}|ya\.ru)$/, "yandex"],
+  [/(^|\.)(bing\.com|duckduckgo\.com|yahoo\.com|ecosia\.org|baidu\.com|search\.brave\.com|mail\.ru)$/, "search"],
+];
+
+function hostOf(value: string | null | undefined): string | null {
+  const raw = value?.trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw.includes("://") ? raw : `https://${raw}`);
+    return url.hostname.toLowerCase().replace(/^www\./, "") || null;
+  } catch {
+    return null;
+  }
+}
+
+/** The category of a Referer header; `ownHost` (the site's own host) makes in-site navigation "internal". */
+export function referrerCategory(referrer: string | null | undefined, ownHost?: string | null): ReferrerCategory {
+  const host = hostOf(referrer);
+  if (!host) return referrer?.trim() ? "other" : "direct";
+  const own = hostOf(ownHost);
+  if (own && host === own) return "internal";
+  for (const [re, category] of REFERRER_HOSTS) if (re.test(host)) return category;
+  return "other";
+}
+
+/**
+ * The source of a web visit, as one category: the `?src=` tag (the owner's campaign label, as on /qr), else
+ * `?utm_source=`, else the referrer's category. A tag is cut to Telegram's payload alphabet first (so
+ * `utm_source=facebook.com` reads "facebook_com") and then goes through sourceCategory, which drops ids.
+ */
+export function visitSource(input: {
+  src?: string | null;
+  utmSource?: string | null;
+  referrer?: string | null;
+  ownHost?: string | null;
+}): string {
+  for (const tag of [input.src, input.utmSource]) {
+    const cleaned = tag
+      ?.trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 64);
+    const category = sourceCategory(cleaned);
+    if (category) return category;
+  }
+  return referrerCategory(input.referrer, input.ownHost);
+}
+
 export type SourceCount = { source: string; count: number };
 
 /** Users per stored source for /stats, merged by category. No source (or an empty one) counts as "direct". */

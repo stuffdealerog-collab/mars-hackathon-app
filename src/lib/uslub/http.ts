@@ -5,7 +5,8 @@ import { getEnv } from "@/lib/env";
 import { authenticateRequest, validateInitData } from "@/lib/telegram-auth";
 import { canAccessBrand } from "./access";
 import { BrainScrapeError } from "./brain/scrape";
-import { currentContext, flushUsage, runWithContext, setContextLang, setContextUser } from "./context";
+import { dailyVisitorKey } from "../anon-key";
+import { currentContext, flushUsage, runWithContext, setContextLang, setContextSurface, setContextUser } from "./context";
 import { type ApiLang, codeForStatus, type ErrorCode, errorText, type InputIssue, invalidInputText, isApiLang, pickApiLang } from "./errors";
 import { verifyHandoff } from "./handoff";
 import { RateLimiter } from "./limit";
@@ -22,6 +23,7 @@ export function miniAppUserId(req: Request, initData?: string): number | null {
   const fromHeader = authenticateRequest(req);
   if (fromHeader) {
     setContextUser(fromHeader.id);
+    setContextSurface("miniapp");
     return fromHeader.id;
   }
   const token = getEnv().TELEGRAM_BOT_TOKEN;
@@ -29,6 +31,7 @@ export function miniAppUserId(req: Request, initData?: string): number | null {
     const r = validateInitData(initData, token);
     if (r.ok) {
       setContextUser(r.user.id);
+      setContextSurface("miniapp");
       return r.user.id;
     }
   }
@@ -173,12 +176,15 @@ export async function readJson<S extends z.ZodType>(req: Request, schema: S): Pr
 /**
  * Wraps a route handler: runs it inside a request context (language, usage accounting), maps every error to an
  * owner-safe `{ error, code }` and logs the run's Claude usage as one `llm_usage` event.
+ * Events logged inside are tagged for /stats: surface "web" (the Mini App once its initData verifies) and the
+ * caller's cookie-less daily visitor key, which stats-meta.ts keeps only on rows without a verified Telegram user.
  */
 export function handle(fn: (req: Request) => Promise<Response>) {
   return async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
     const lang = pickApiLang(url.searchParams.get("lang"), req.headers.get("x-lang"), req.headers.get("accept-language"));
-    return runWithContext({ route: url.pathname.replace(/^\/api\//, ""), lang, telegramId: null }, async () => {
+    const visitor = dailyVisitorKey(clientIp(req), req.headers.get("user-agent") ?? "");
+    return runWithContext({ route: url.pathname.replace(/^\/api\//, ""), lang, telegramId: null, surface: "web", visitor }, async () => {
       const ctx = currentContext();
       try {
         return await fn(req);
