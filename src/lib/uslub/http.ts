@@ -6,6 +6,8 @@ import { authenticateRequest, validateInitData } from "@/lib/telegram-auth";
 import { canAccessBrand } from "./access";
 import { BrainScrapeError } from "./brain/scrape";
 import { dailyVisitorKey } from "../anon-key";
+import { logApiError } from "../stats-events";
+import { eventEnv } from "../stats-meta";
 import { currentContext, flushUsage, runWithContext, setContextLang, setContextSurface, setContextUser } from "./context";
 import { type ApiLang, codeForStatus, type ErrorCode, errorText, type InputIssue, invalidInputText, isApiLang, pickApiLang } from "./errors";
 import { verifyHandoff } from "./handoff";
@@ -173,21 +175,58 @@ export async function readJson<S extends z.ZodType>(req: Request, schema: S): Pr
   return parsed.data;
 }
 
+/** Runs a best-effort write after the response (or right away outside a request, as in tests). */
+function afterResponse(write: Promise<unknown> | null): void {
+  if (!write) return;
+  try {
+    after(() => write);
+  } catch {
+    void write;
+  }
+}
+
+/**
+ * An error answer a route returned instead of throwing (a JSON body with `code`): logged like a thrown one. Only the
+ * code is read, from a copy of the body, so the caller still gets the original. Production only (no copy in dev).
+ */
+function logReturnedError(route: string, res: Response): Promise<void> | null {
+  if (res.status < 400 || eventEnv() !== "prod") return null;
+  if (!/json/i.test(res.headers.get("content-type") ?? "")) return logApiError(route, codeForStatus(res.status), res.status);
+  let copy: Response;
+  try {
+    copy = res.clone();
+  } catch {
+    return logApiError(route, codeForStatus(res.status), res.status);
+  }
+  return copy
+    .json()
+    .then(
+      (body: unknown) => (body as { code?: unknown } | null)?.code,
+      () => undefined,
+    )
+    .then((code) => logApiError(route, typeof code === "string" ? code : codeForStatus(res.status), res.status) ?? undefined);
+}
+
 /**
  * Wraps a route handler: runs it inside a request context (language, usage accounting), maps every error to an
  * owner-safe `{ error, code }` and logs the run's Claude usage as one `llm_usage` event.
  * Events logged inside are tagged for /stats: surface "web" (the Mini App once its initData verifies) and the
  * caller's cookie-less daily visitor key, which stats-meta.ts keeps only on rows without a verified Telegram user.
+ * Every error answer (thrown, or returned with status >= 400) is logged as `api_error` { route, code, status }:
+ * codes only, never the message, capped per minute, production only (stats-events.ts logApiError).
  */
 export function handle(fn: (req: Request) => Promise<Response>) {
   return async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
     const lang = pickApiLang(url.searchParams.get("lang"), req.headers.get("x-lang"), req.headers.get("accept-language"));
     const visitor = dailyVisitorKey(clientIp(req), req.headers.get("user-agent") ?? "");
-    return runWithContext({ route: url.pathname.replace(/^\/api\//, ""), lang, telegramId: null, surface: "web", visitor }, async () => {
+    const route = url.pathname.replace(/^\/api\//, "");
+    return runWithContext({ route, lang, telegramId: null, surface: "web", visitor }, async () => {
       const ctx = currentContext();
       try {
-        return await fn(req);
+        const res = await fn(req);
+        afterResponse(logReturnedError(route, res));
+        return res;
       } catch (err) {
         // A refusal thrown before the body was read (the rate limit) still answers in the body's language.
         if (err instanceof HttpError && err.status === 429 && !req.bodyUsed) {
@@ -195,6 +234,7 @@ export function handle(fn: (req: Request) => Promise<Response>) {
           if (isApiLang(bodyLang)) setContextLang(bodyLang);
         }
         const { status, body } = errorBody(err);
+        afterResponse(logApiError(route, body.code, status));
         return json(body, status);
       } finally {
         // Streams flush their own usage when they finish; this writes whatever the handler itself spent.

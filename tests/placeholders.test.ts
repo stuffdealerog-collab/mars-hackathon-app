@@ -13,6 +13,7 @@ vi.mock("@/lib/telegram-auth", () => ({
 // The routes import engine modules through "@/lib/uslub/…": point them at the same files the test uses.
 vi.mock("@/lib/uslub/edits", async () => await import("../src/lib/uslub/edits"));
 vi.mock("@/lib/uslub/http", async () => await import("../src/lib/uslub/http"));
+vi.mock("@/lib/stats-events", async () => await import("../src/lib/stats-events"));
 vi.mock("@/lib/uslub/botpublish-core", async () => await import("../src/lib/uslub/botpublish-core"));
 vi.mock("@/lib/uslub/placeholders", async () => await import("../src/lib/uslub/placeholders"));
 vi.mock("@/lib/uslub/store", async () => await import("../src/lib/uslub/store"));

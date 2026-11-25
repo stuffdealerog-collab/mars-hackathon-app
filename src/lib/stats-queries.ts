@@ -1,6 +1,6 @@
 import type { Sql } from "./db";
 import { STATS_TIMEZONE, type StatsOptions } from "./stats-model";
-import { EVENT_TYPE_SURFACE } from "./stats-meta";
+import { EVENT_TYPE_SURFACE, STATS_EVENT } from "./stats-meta";
 
 /**
  * SQL for /stats, as composable neon templates (values are always bound parameters; the only raw text is from the
@@ -105,7 +105,8 @@ export function overviewQuery(sql: Sql, o: StatsOptions) {
 
 /**
  * Brands created in the range and how far each got: posts, an approval, a published post, a customer tapping a
- * tracked link from its plan. Per surface: the one written on brand_created, else inferred for older brands (no owner
+ * tracked link from its plan. `unapproved` counts their drafts left without approval for 48 hours or more (a quiet
+ * rejection: there is no reject button yet). Per surface: the one written on brand_created, else inferred for older brands (no owner
  * = anonymous web, a bot_onboarded event = bot, otherwise unknown: Mini App or handoff-linked web).
  */
 export function funnelQuery(sql: Sql, o: StatsOptions) {
@@ -133,7 +134,9 @@ export function funnelQuery(sql: Sql, o: StatsOptions) {
     ), pp AS (
       SELECT p.brand_id, count(*)::int AS posts,
              count(*) FILTER (WHERE p.approved_at IS NOT NULL OR p.status IN ('approved', 'published'))::int AS approved,
-             count(*) FILTER (WHERE p.status = 'published')::int AS published
+             count(*) FILTER (WHERE p.status = 'published')::int AS published,
+             count(*) FILTER (WHERE p.status = 'draft' AND p.approved_at IS NULL
+                                AND p.created_at < now() - interval '48 hours')::int AS unapproved
       FROM posts p
       WHERE p.brand_id IN (SELECT id FROM br)
       GROUP BY p.brand_id
@@ -155,6 +158,7 @@ export function funnelQuery(sql: Sql, o: StatsOptions) {
            coalesce(sum(pp.posts), 0)::int AS posts,
            coalesce(sum(pp.approved), 0)::int AS approved,
            coalesce(sum(pp.published), 0)::int AS published,
+           coalesce(sum(pp.unapproved), 0)::int AS unapproved,
            coalesce(sum(taps.taps), 0)::int AS taps
     FROM br
     LEFT JOIN pp ON pp.brand_id = br.id
@@ -249,7 +253,9 @@ export function hasPublishedAtQuery(sql: Sql) {
 
 /**
  * North star: external brands (an owner outside the team) with at least 3 posts published in the last 7 days, plus
- * how many published at least one. Only valid once posts.published_at exists (see hasPublishedAtQuery).
+ * how many published at least one. Only valid once posts.published_at exists (see hasPublishedAtQuery); 0 is then a
+ * real answer. A published post counts by its published_at, or, while nothing writes that column yet (posts the bot
+ * or the publish route sent before the autopilot), by its `post_published` event in the last 7 days.
  */
 export function northStarQuery(sql: Sql, o: StatsOptions) {
   const f = statsFragments(sql, o);
@@ -258,13 +264,69 @@ export function northStarQuery(sql: Sql, o: StatsOptions) {
     : sql`NOT EXISTS (SELECT 1 FROM events e WHERE e.type = 'brand_created' AND e.props->>'brand_id' = b.id::text
                                               AND e.props->>'env' = 'dev')`;
   return sql`
-    WITH pub AS (
-      SELECT p.brand_id, count(*)::int AS n
-      FROM posts p JOIN brands b ON b.id = p.brand_id
+    WITH sent AS (
+      SELECT p.id, p.brand_id FROM posts p
       WHERE p.published_at >= now() - interval '7 days'
-        AND b.owner_telegram_id IS NOT NULL AND ${f.notTeam("b.owner_telegram_id", true)} AND ${devOk}
-      GROUP BY p.brand_id
+      UNION
+      SELECT p.id, p.brand_id
+      FROM events e JOIN posts p ON p.id::text = e.props->>'post_id'
+      WHERE e.type = 'post_published' AND e.created_at >= now() - interval '7 days'
+        AND p.published_at IS NULL AND p.status = 'published' AND ${f.envOk}
+    ), pub AS (
+      SELECT sent.brand_id, count(*)::int AS n
+      FROM sent JOIN brands b ON b.id = sent.brand_id
+      WHERE b.owner_telegram_id IS NOT NULL AND ${f.notTeam("b.owner_telegram_id", true)} AND ${devOk}
+      GROUP BY sent.brand_id
     )
     SELECT count(*) FILTER (WHERE n >= 3)::int AS brands, count(*)::int AS publishing FROM pub
+  `;
+}
+
+/** Event types the quality card reads (kept narrow so the scan uses events (type, created_at)). */
+const QUALITY_TYPES = [
+  "post_approved",
+  "post_image_started",
+  STATS_EVENT.postRegenerated,
+  STATS_EVENT.postRejected,
+  STATS_EVENT.apiError,
+  STATS_EVENT.trialStarted,
+];
+
+/**
+ * What happened to posts and people in the range: approvals with the owner's edits, texts written again, pictures
+ * redone (a post's picture started more than once), explicit rejections, error answers (and how many people got one),
+ * autopilot trials started. Counts only.
+ */
+export function qualityQuery(sql: Sql, o: StatsOptions) {
+  const f = statsFragments(sql, o);
+  return sql`
+    SELECT
+      count(*) FILTER (WHERE e.type = 'post_approved')::int AS approvals,
+      count(*) FILTER (WHERE e.type = 'post_approved' AND CASE WHEN jsonb_typeof(e.props->'edited') = 'array'
+                                                              THEN jsonb_array_length(e.props->'edited') ELSE 0 END > 0)::int AS edited,
+      count(*) FILTER (WHERE e.type = ${STATS_EVENT.postRegenerated})::int AS rewritten,
+      count(*) FILTER (WHERE e.type = 'post_image_started' AND CASE WHEN e.props->>'attempt' ~ '^[0-9]{1,4}$'
+                                                                   THEN (e.props->>'attempt')::int ELSE 1 END > 1)::int AS pictures_redone,
+      count(*) FILTER (WHERE e.type = ${STATS_EVENT.postRejected})::int AS rejected,
+      count(*) FILTER (WHERE e.type = ${STATS_EVENT.apiError})::int AS errors,
+      count(DISTINCT coalesce('tg:' || e.telegram_id::text, e.props->>'visitor'))
+        FILTER (WHERE e.type = ${STATS_EVENT.apiError})::int AS error_people,
+      count(*) FILTER (WHERE e.type = ${STATS_EVENT.trialStarted})::int AS trials
+    FROM events e
+    WHERE e.type = ANY(${QUALITY_TYPES}::text[]) AND e.created_at >= ${f.since}
+      AND ${f.envOk} AND ${f.notTeam("e.telegram_id")}
+  `;
+}
+
+/** The error answers people got most in the range: API route and error code (both categories), most first. */
+export function errorsQuery(sql: Sql, o: StatsOptions, limit = 8) {
+  const f = statsFragments(sql, o);
+  return sql`
+    SELECT e.props->>'route' AS route, e.props->>'code' AS code, count(*)::int AS count
+    FROM events e
+    WHERE e.type = ${STATS_EVENT.apiError} AND e.created_at >= ${f.since} AND ${f.envOk} AND ${f.notTeam("e.telegram_id")}
+    GROUP BY 1, 2
+    ORDER BY 3 DESC, 1, 2
+    LIMIT ${limit}
   `;
 }

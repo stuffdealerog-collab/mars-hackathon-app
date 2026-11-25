@@ -16,10 +16,10 @@ export function fixtureStats(query: StatsQuery, now: Date = new Date()): Stats {
       { span: "30d", landing_visitors: 640, studio_visitors: 251, studio_users: 102, miniapp_users: 27, bot_users: 61, customers: 9, tg_active: 70, tg_new: 52, tg_returning: 18 },
     ],
     funnel: [
-      { surface: "web", brands: 34, with_posts: 29, with_approved: 9, with_published: 0, with_taps: 0, posts: 146, approved: 15, published: 0, taps: 0 },
-      { surface: "miniapp", brands: 6, with_posts: 6, with_approved: 3, with_published: 2, with_taps: 1, posts: 28, approved: 5, published: 3, taps: 4 },
-      { surface: "bot", brands: 3, with_posts: 3, with_approved: 1, with_published: 0, with_taps: 0, posts: 9, approved: 1, published: 0, taps: 0 },
-      { surface: "unknown", brands: 7, with_posts: 7, with_approved: 4, with_published: 2, with_taps: 0, posts: 31, approved: 4, published: 2, taps: 0 },
+      { surface: "web", brands: 34, with_posts: 29, with_approved: 9, with_published: 0, with_taps: 0, posts: 146, approved: 15, published: 0, unapproved: 98, taps: 0 },
+      { surface: "miniapp", brands: 6, with_posts: 6, with_approved: 3, with_published: 2, with_taps: 1, posts: 28, approved: 5, published: 3, unapproved: 12, taps: 4 },
+      { surface: "bot", brands: 3, with_posts: 3, with_approved: 1, with_published: 0, with_taps: 0, posts: 9, approved: 1, published: 0, unapproved: 6, taps: 0 },
+      { surface: "unknown", brands: 7, with_posts: 7, with_approved: 4, with_published: 2, with_taps: 0, posts: 31, approved: 4, published: 2, unapproved: 19, taps: 0 },
     ],
     landingSources: [
       { source: "telegram", count: 96 },
@@ -47,6 +47,13 @@ export function fixtureStats(query: StatsQuery, now: Date = new Date()): Stats {
       { type: "post_published", surface: "bot", at: ago(41) },
       { type: "miniapp_open", surface: "miniapp", at: ago(75) },
       { type: "posts_generated", surface: "unknown", at: ago(60 * 3) },
+    ],
+    quality: { approvals: 25, edited: 7, rewritten: 3, pictures_redone: 11, rejected: 2, errors: 23, error_people: 9, trials: 0 },
+    errors: [
+      { route: "uslub/analyze", code: "channel_empty", count: 9 },
+      { route: "uslub/posts", code: "budget_exhausted", count: 6 },
+      { route: "uslub/posts/approve", code: "placeholder_left", count: 5 },
+      { route: "uslub/brand", code: "rate_limited", count: 3 },
     ],
   };
 }

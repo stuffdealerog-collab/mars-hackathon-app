@@ -90,6 +90,7 @@ const FunnelRowSchema = z.object({
   posts: int,
   approved: int,
   published: int,
+  unapproved: int,
   taps: int,
 });
 export type FunnelRow = z.infer<typeof FunnelRowSchema>;
@@ -126,7 +127,26 @@ const FeedRowSchema = z.object({ type: z.string(), surface, created_at: isoDate 
 export type FeedRow = { type: string; surface: StatsSurface; at: string };
 
 const NorthStarRowSchema = z.object({ brands: int, publishing: int });
-export type NorthStar = { status: "waiting" } | { status: "live"; brands: number; publishing: number };
+/**
+ * waiting: posts.published_at does not exist yet (before the foundation migration); live: counted (0 is a real
+ * answer); unavailable: the count failed this time (the rest of the page still loads).
+ */
+export type NorthStar = { status: "waiting" } | { status: "unavailable" } | { status: "live"; brands: number; publishing: number };
+
+const QualityRowSchema = z.object({
+  approvals: int,
+  edited: int,
+  rewritten: int,
+  pictures_redone: int,
+  rejected: int,
+  errors: int,
+  error_people: int,
+  trials: int,
+});
+export type Quality = z.infer<typeof QualityRowSchema>;
+
+const ErrorRowSchema = z.object({ route: z.string().nullable().catch(null), code: z.string().nullable().catch(null), count: int });
+export type ErrorRow = { route: string; code: string; count: number };
 
 export type Stats = {
   query: StatsQuery;
@@ -138,6 +158,8 @@ export type Stats = {
   telegramSources: SourceCount[];
   users: UserRow[];
   feed: FeedRow[];
+  quality: Quality;
+  errors: ErrorRow[];
 };
 
 export type StatsResult =
@@ -177,7 +199,7 @@ export function shapeFunnel(rows: unknown[]): FunnelRow[] {
 }
 
 export function sumFunnel(rows: FunnelRow[], as: StatsSurface = "unknown"): FunnelRow {
-  const total: FunnelRow = { surface: as, brands: 0, with_posts: 0, with_approved: 0, with_published: 0, with_taps: 0, posts: 0, approved: 0, published: 0, taps: 0 };
+  const total: FunnelRow = { surface: as, brands: 0, with_posts: 0, with_approved: 0, with_published: 0, with_taps: 0, posts: 0, approved: 0, published: 0, unapproved: 0, taps: 0 };
   for (const row of rows) {
     for (const key of Object.keys(total) as (keyof FunnelRow)[]) {
       if (key !== "surface") total[key] += row[key];
@@ -224,8 +246,35 @@ export function shapeFeed(rows: unknown[]): FeedRow[] {
     .map(({ data }) => ({ type: /^[a-z][a-z0-9_]{0,40}$/.test(data.type) ? data.type : "other", surface: data.surface, at: data.created_at }));
 }
 
+/**
+ * The north star from its query: waiting without posts.published_at, unavailable when the count failed (rows null),
+ * else the live numbers, where no row or zeros read 0.
+ */
 export function shapeNorthStar(hasPublishedAt: boolean, rows: unknown[] | null): NorthStar {
-  if (!hasPublishedAt || !rows) return { status: "waiting" };
+  if (!hasPublishedAt) return { status: "waiting" };
+  if (!rows) return { status: "unavailable" };
   const parsed = NorthStarRowSchema.safeParse(rows[0] ?? {});
   return parsed.success ? { status: "live", brands: parsed.data.brands, publishing: parsed.data.publishing } : { status: "live", brands: 0, publishing: 0 };
+}
+
+/** The quality counts (one row; none reads zeros). */
+export function shapeQuality(rows: unknown[]): Quality {
+  const parsed = QualityRowSchema.safeParse(rows[0] ?? {});
+  return parsed.success ? parsed.data : QualityRowSchema.parse({});
+}
+
+/** Error rows: route and code are re-checked as categories (anything else reads "other"), merged, most first. */
+export function shapeErrors(rows: unknown[]): ErrorRow[] {
+  const merged = new Map<string, ErrorRow>();
+  for (const raw of rows) {
+    const parsed = ErrorRowSchema.safeParse(raw);
+    if (!parsed.success || parsed.data.count === 0) continue;
+    const r = parsed.data.route;
+    const route = r && /^[a-z0-9/_:.-]{1,64}$/.test(r) && !/[0-9a-f]{8}-|\d{4,}/.test(r) ? r : "other";
+    const code = parsed.data.code && /^[a-z][a-z0-9_]{0,40}$/.test(parsed.data.code) ? parsed.data.code : "other";
+    const key = `${route} ${code}`;
+    const prev = merged.get(key);
+    merged.set(key, { route, code, count: (prev?.count ?? 0) + parsed.data.count });
+  }
+  return [...merged.values()].sort((a, b) => b.count - a.count || a.route.localeCompare(b.route) || a.code.localeCompare(b.code));
 }

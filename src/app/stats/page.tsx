@@ -5,9 +5,10 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { getStats } from "@/lib/stats";
 import { statsGate } from "@/lib/stats-access";
+import { eventEnv } from "@/lib/stats-meta";
 import { parseStatsQuery, type StatsQuery, type StatsRange, statsHref, STATS_TIMEZONE } from "@/lib/stats-model";
 import RefreshButton from "./refresh-button";
-import { ActivityFeed, Funnel, NorthStarCard, Overview, SourceList, UsersList } from "./sections";
+import { ActivityFeed, Funnel, NorthStarCard, Overview, QualityCard, SourceList, UsersList } from "./sections";
 
 export const metadata: Metadata = {
   title: "Live stats",
@@ -67,7 +68,7 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       <Controls query={query} teamConfigured={stats.teamConfigured} />
-      <NorthStarCard northStar={stats.northStar} />
+      <NorthStarCard northStar={stats.northStar} teamConfigured={stats.teamConfigured} />
       <Overview rows={stats.overview} />
       <Funnel rows={stats.funnel} range={query.range} />
       <div className="grid gap-5 sm:gap-6 lg:grid-cols-2">
@@ -84,12 +85,14 @@ async function StatsContent({ searchParams }: { searchParams: PageProps<"/stats"
           empty="No new Telegram users in this range."
         />
       </div>
+      <QualityCard quality={stats.quality} errors={stats.errors} />
       <UsersList rows={stats.users} timeFormat={timeFormat} teamHidden={stats.teamConfigured && !query.includeTeam} />
       <ActivityFeed rows={stats.feed} timeFormat={timeFormat} />
       <p className="text-xs leading-relaxed text-muted">
         Updated {timeFormat.format(new Date(result.generatedAt))} (Tashkent time). Operator view: Telegram first names and
         @usernames only. No Telegram ids, brand ids, IPs or visitor keys are shown. Dev traffic is{" "}
         {query.includeDev ? "included" : "left out"}; the team is {query.includeTeam || !stats.teamConfigured ? "included" : "left out"}.
+        New events from this deployment are tagged “{eventEnv()}”.
       </p>
     </div>
   );

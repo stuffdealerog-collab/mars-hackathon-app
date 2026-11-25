@@ -19,7 +19,7 @@ vi.mock("@/lib/track", async () => await import("../src/lib/track"));
 import { anonIpKey, dailyVisitorKey, tashkentDay } from "../src/lib/anon-key";
 import { referrerCategory, visitSource } from "../src/lib/source-category";
 import { botEventMeta, currentEventMeta, eventEnv, runWithEventMeta, withEventMeta } from "../src/lib/stats-meta";
-import { isPageVisit, pageViewFrom, recordPageView, VisitGuard, visitIp } from "../src/lib/stats-pageview";
+import { isPageVisit, pageViewFrom, recordPageView, VisitGuard, visitIp, visitKind } from "../src/lib/stats-pageview";
 import { logEvent } from "../src/lib/track";
 
 const UUID = "3f2a9c1e-5b7d-4e8f-9a0b-1c2d3e4f5a6b";
@@ -175,6 +175,50 @@ describe("page views (counted server-side by the proxy)", () => {
     expect(isPageVisit(noDest(old))).toBe(false);
   });
 
+  it("counts an in-app jump to the Studio (a next/link click), but not to the landing page or from another site", () => {
+    // What the proxy sees for a client navigation: Next.js strips its rsc headers, the browser marks a same-origin fetch.
+    const jump = { "sec-fetch-dest": "empty", "sec-fetch-mode": "cors", "sec-fetch-site": "same-origin", referer: "https://mercat-ai.vercel.app/" };
+    expect(visitKind(visit("/studio?lang=uz", jump))).toBe("jump");
+    expect(pageViewFrom(visit("/studio?mode=fresh&lang=ru", jump))).toMatchObject({ path: "studio", source: "internal" });
+    expect(pageViewFrom(visit("/", jump))).toBeNull(); // links back to "/" may prefetch
+    expect(pageViewFrom(visit("/studio", { ...jump, "sec-fetch-site": "cross-site" }))).toBeNull();
+    expect(pageViewFrom(visit("/studio", { ...jump, "sec-fetch-mode": "no-cors" }))).toBeNull();
+    expect(pageViewFrom(visit("/studio", { ...jump, "next-router-prefetch": "1" }))).toBeNull();
+    expect(pageViewFrom(visit("/studio", { ...jump, "sec-purpose": "prefetch" }))).toBeNull();
+    expect(pageViewFrom(visit("/studio", { ...jump, "user-agent": "TelegramBot (like TwitterBot)" }))).toBeNull();
+    expect(visitKind(visit("/studio"))).toBe("load");
+  });
+
+  it("no link to /studio prefetches (the proxy could not tell a prefetch from a click)", async () => {
+    const { readdirSync, readFileSync, statSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.tsx?$/.test(name)) files.push(path);
+      }
+    };
+    walk(join(__dirname, "..", "src"));
+    const offenders: string[] = [];
+    let links = 0;
+    for (const file of files) {
+      const text = readFileSync(file, "utf8");
+      for (const m of text.matchAll(/<Link\b/g)) {
+        const tag = text.slice(m.index, m.index + 400);
+        const href = /href=(\{[^}]*\}|"[^"]*")/.exec(tag)?.[1] ?? "";
+        const target = /href=\{\s*([A-Za-z_]\w*)\s*\}/.exec(tag)?.[1];
+        const resolved = target ? (new RegExp(`const ${target}\\s*=\\s*([^;\\n]+)`).exec(text)?.[1] ?? "") : href;
+        if (!/\/studio/.test(resolved)) continue;
+        links += 1;
+        if (!/prefetch=\{false\}/.test(tag.slice(0, tag.indexOf(">", tag.indexOf("href")) + 1))) offenders.push(`${file}: ${href}`);
+      }
+    }
+    expect(links).toBeGreaterThan(0);
+    expect(offenders).toEqual([]);
+  });
+
   it("reads the client IP from the first forwarded hop", () => {
     expect(visitIp(new Headers({ "x-forwarded-for": "198.51.100.4, 10.0.0.1" }))).toBe("198.51.100.4");
     expect(visitIp(new Headers({ "x-real-ip": "198.51.100.5" }))).toBe("198.51.100.5");
@@ -228,13 +272,18 @@ describe("event meta (surface, visitor, env on every event)", () => {
     expect(withEventMeta("post_approved", {}, null, undefined, "prod").props).toEqual({ env: "prod" });
   });
 
-  it("lets fields the caller set win, and drops an invalid surface", () => {
+  it("lets a surface or visitor the caller set win, drops an invalid surface, and never lets a caller pick env", () => {
     expect(withEventMeta("page_view", { surface: "web", visitor: "v:x", env: "dev" }, null, { surface: "bot", visitor: "v:y" }, "prod").props).toEqual({
       surface: "web",
       visitor: "v:x",
-      env: "dev",
+      env: "prod",
     });
     expect(withEventMeta("start", { surface: "mars" }, 1, undefined, "prod").props.surface).toBe("bot");
+    // A dev machine cannot tag a row "prod", and keeps no visitor key at all.
+    expect(withEventMeta("brand_created", { env: "prod", visitor: "v:x" }, null, { surface: "web", visitor: "v:y" }, "dev").props).toEqual({
+      surface: "web",
+      env: "dev",
+    });
   });
 
   it("logEvent writes the meta inside a run and only the type's surface outside one", async () => {
@@ -283,7 +332,22 @@ describe("request context feeds the event meta", () => {
 });
 
 describe("proxy counts page views and leaves the page alone", () => {
+  it("counts nothing outside production, even with a database", async () => {
+    dbOn = true;
+    const { proxy } = await import("../src/proxy");
+    const waitUntil = vi.fn();
+    const req = new Request("https://mercat-ai.vercel.app/", {
+      headers: { "user-agent": CHROME, "sec-fetch-dest": "document", "x-forwarded-for": "198.51.100.77" },
+    });
+    expect(proxy(req as never, { waitUntil } as never).headers.get("x-middleware-next")).toBe("1");
+    expect(waitUntil).not.toHaveBeenCalled();
+    vi.stubEnv("VERCEL_ENV", "preview");
+    expect(recordPageView(visit("/", { "x-forwarded-for": "198.51.100.78" }))).toBeNull();
+    expect(inserted).toEqual([]);
+  });
+
   it("hands the write to waitUntil for a counted visit and passes the request on", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
     const { proxy, config } = await import("../src/proxy");
     expect(config.matcher).toEqual(expect.arrayContaining(["/", "/studio", "/stats"]));
     const waitUntil = vi.fn();
@@ -309,12 +373,13 @@ describe("proxy counts page views and leaves the page alone", () => {
 
   it("writes one page_view row with the env tag when the database is on", async () => {
     dbOn = true;
+    vi.stubEnv("VERCEL_ENV", "production");
     const write = recordPageView(visit("/?src=booth7", { "x-forwarded-for": "192.0.2.44" }), new Date("2026-11-25T10:00:00Z"));
     await write;
     expect(inserted).toHaveLength(1);
     expect(inserted[0].type).toBe("page_view");
     expect(inserted[0].telegramId).toBeNull();
-    expect(inserted[0].props).toMatchObject({ path: "landing", source: "booth7", surface: "web", env: "dev" });
+    expect(inserted[0].props).toMatchObject({ path: "landing", source: "booth7", surface: "web", env: "prod" });
     expect(inserted[0].props.visitor).toMatch(/^v:[0-9a-f]{16}$/);
   });
 });
