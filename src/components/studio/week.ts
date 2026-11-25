@@ -29,6 +29,7 @@ export function weekPost(p: PostDraft): WeekPost {
     variants: p.variants,
     ...(p.slot ? { slot: { day: p.slot.day, time: p.slot.time, ...(p.slot.format ? { format: p.slot.format } : {}) } } : {}),
     ...(p.image ? { image: { status: p.image.status, url: p.image.url } } : {}),
+    ...(p.video ? { video: { ...(p.video.fileId ? { fileId: p.video.fileId } : {}) } } : {}),
     ...(p.publishedUrl ? { publishedUrl: p.publishedUrl } : {}),
   };
 }

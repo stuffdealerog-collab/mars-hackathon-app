@@ -50,6 +50,7 @@ vi.mock("@/lib/uslub/http", () => {
 vi.mock("@/lib/uslub/budget", () => ({ spendClaude: spend.spendClaude }));
 vi.mock("@/lib/uslub/radar", () => ({ findLeads: spend.findLeads }));
 vi.mock("@/lib/uslub/video", () => ({ planVideo: spend.planVideo }));
+vi.mock("@/lib/uslub/video-core", async () => await import("../uslub/video-core"));
 vi.mock("@/lib/uslub/planner", () => ({ planFlow: spend.planFlow }));
 vi.mock("@/lib/uslub/store", () => ({ saveFlow: async (f: unknown) => f, countPublished: async () => 0, publicBrand: (b: unknown) => b, savePosts: async () => {} }));
 vi.mock("@/lib/uslub/brand", () => ({ buildBrand: spend.buildBrand }));
@@ -75,7 +76,6 @@ const { labsGate, labsRouteEnabled, LABS_ROUTES } = await import("./labs");
 const routes = {
   department: await import("../../app/api/uslub/department/route"),
   radar: await import("../../app/api/uslub/radar/route"),
-  video: await import("../../app/api/uslub/video/route"),
   plan: await import("../../app/api/uslub/plan/route"),
   neuro: await import("../../app/api/uslub/neuro/route"),
   adcheck: await import("../../app/api/uslub/adcheck/route"),
@@ -88,7 +88,6 @@ const routes = {
 const bodies: Record<keyof typeof routes, unknown> = {
   department: { channel: "safiabakery" },
   radar: { brandId: "b1" },
-  video: { brandId: "b1", brief: "Yangi tort" },
   plan: { brandId: "b1", task: "Haftalik reja" },
   neuro: { text: "Matn", script: "uz_latn" },
   adcheck: { channel: "kanal_nomi" },
@@ -107,6 +106,10 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("LABS_ROUTES parsing", () => {
+  it("/video is no lab route any more: the Video tab calls it", () => {
+    expect(LABS_ROUTES as readonly string[]).not.toContain("video");
+  });
+
   it("unset or empty: every lab route is off", () => {
     for (const r of LABS_ROUTES) {
       expect(labsRouteEnabled(r, undefined)).toBe(false);
@@ -116,9 +119,9 @@ describe("LABS_ROUTES parsing", () => {
 
   it("'all' (or 1 / true / *) opens all; a list opens only its names, with or without the /api/uslub/ prefix", () => {
     for (const v of ["all", "1", "true", "*", "ALL"]) expect(labsRouteEnabled("radar", v)).toBe(true);
-    expect(labsRouteEnabled("radar", "radar, video")).toBe(true);
-    expect(labsRouteEnabled("video", "radar,video")).toBe(true);
-    expect(labsRouteEnabled("department", "radar,video")).toBe(false);
+    expect(labsRouteEnabled("radar", "radar, neuro")).toBe(true);
+    expect(labsRouteEnabled("neuro", "radar,neuro")).toBe(true);
+    expect(labsRouteEnabled("department", "radar,neuro")).toBe(false);
     expect(labsRouteEnabled("media/jobs", "/api/uslub/media/jobs")).toBe(true);
     expect(labsRouteEnabled("media/captions", "media/jobs")).toBe(false);
   });
@@ -156,7 +159,7 @@ describe("every lab route is closed by default, before any spend", () => {
     expect(res.status).toBe(200);
     expect(spend.spendClaude).toHaveBeenCalledOnce();
     expect(spend.findLeads).toHaveBeenCalledOnce();
-    expect((await routes.video.POST(post("video", bodies.video))).status).toBe(404);
-    expect(spend.planVideo).not.toHaveBeenCalled();
+    expect((await routes.neuro.POST(post("neuro", bodies.neuro))).status).toBe(404);
+    expect(spend.cleanText).not.toHaveBeenCalled();
   });
 });

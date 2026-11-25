@@ -37,6 +37,9 @@ export type ErrorCode =
   | "bot_not_admin"
   | "placeholder_left"
   | "batch_changed"
+  | "video_missing"
+  | "video_busy"
+  | "not_video_post"
   | "internal";
 
 type Msg = Record<ApiLang, string>;
@@ -183,6 +186,22 @@ const MESSAGES: Record<ErrorCode, Msg> = {
     uz: "Hafta postlari siz ko‘rganingizdan keyin o‘zgardi. Yangi ro‘yxatni ko‘rib, qayta tasdiqlang.",
     ru: "Посты недели изменились после того, как вы их открыли. Посмотрите новый список и подтвердите снова.",
     en: "The week's posts changed after you opened them. Look at the new list and approve again.",
+  },
+  // A video post goes out only with the owner's video (never a text that talks about a video nobody sent).
+  video_missing: {
+    uz: "Bu video post: avval videoni botga yuboring («Video» bo‘limi), keyin joylang.",
+    ru: "Это видеопост: сначала отправьте видео боту (раздел «Видео»), потом публикуйте.",
+    en: "This is a video post: send its video to the bot first (the Video tab), then publish.",
+  },
+  video_busy: {
+    uz: "Videograf bu ssenariyni hozir yozyapti. Bir daqiqadan keyin qarang.",
+    ru: "Видеограф уже пишет этот сценарий. Загляните через минуту.",
+    en: "The Videographer is writing this script right now. Check back in a minute.",
+  },
+  not_video_post: {
+    uz: "Bu post video uchun emas.",
+    ru: "Этот пост не для видео.",
+    en: "This post is not a video post.",
   },
   internal: {
     uz: "Kutilmagan xatolik. Qayta urinib ko‘ring.",

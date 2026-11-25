@@ -17,7 +17,8 @@ import { isLimit } from "../limits";
 import { ledFit, useWidth } from "../measure";
 import { useNav } from "../nav";
 import { Skel, TopBar, useCompact } from "../Shell";
-import { haptic } from "../tg";
+import { confirmNative, haptic, openLink } from "../tg";
+import { ConnectionsCard } from "../../connections";
 
 // Pro rejim depth from the Studio, loaded only when Pro is on.
 const AuditFull = dynamic(() => import("../../studio/pro/ProDetails").then((m) => m.AuditFull), { ssr: false });
@@ -88,6 +89,10 @@ export function ChannelScreen({ onOpenPost }: { onOpenPost: (id: string) => void
           {/* «Qanday yozasiz» is a marketer's table: Pro only. */}
           {pro && <Voice />}
           <Plan onOpenPost={onOpenPost} />
+          {/* Other platforms, read-only: nothing at all until a provider is set up for this owner. */}
+          {brand && !sample && (
+            <ConnectionsCard brandId={brand.id} lang={lang} from="miniapp" authorization={api.authHeader()} openUrl={openLink} confirm={confirmNative} className="mt-8" />
+          )}
           {pro && <StrategyDetails />}
           {pro && (
             <div className="ma-pro mt-8 flex flex-col gap-8">

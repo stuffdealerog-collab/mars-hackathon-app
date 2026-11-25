@@ -4,7 +4,7 @@ import { getSql, isDbConfigured } from "@/lib/db";
 import { safeLogEvent } from "@/lib/track";
 import { BRAND_CACHE_MAX_AGE_HOURS, type BrandSource } from "./access";
 import { adoptBrandPlans } from "./brain/memory";
-import type { BrandDNA, BrandMode, BrandProfile, ChannelType, Flow, Goal, NeuroHit, PlanSlot, PostDraft, PostImage, Script, VisualStyle } from "./contract";
+import type { BrandDNA, BrandMode, BrandProfile, ChannelType, Flow, Goal, NeuroHit, PlanSlot, PostDraft, PostImage, PostVideo, Script, VideoPlan, VisualStyle } from "./contract";
 
 /**
  * Persistence for brands, posts and flows (Neon Postgres). Falls back to an
@@ -82,9 +82,18 @@ type PostRow = {
   published_url: string | null;
   slot?: PlanSlot | null;
   image?: PostImage | null;
+  video?: (PostVideo & { writingAt?: string }) | null;
   approved_at?: Date | string | null;
   created_at: Date | string;
 };
+
+/** posts.video without the write claim (writingAt); null when nothing but a claim is there. */
+function publicVideo(v: PostRow["video"]): PostVideo | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const rest: PostVideo & { writingAt?: string } = { ...v };
+  delete rest.writingAt;
+  return Object.keys(rest).length ? rest : undefined;
+}
 
 const toPost = (r: PostRow): PostDraft => ({
   id: r.id,
@@ -97,6 +106,7 @@ const toPost = (r: PostRow): PostDraft => ({
   publishedUrl: r.published_url ?? undefined,
   ...(r.slot ? { slot: r.slot } : {}),
   ...(r.image ? { image: r.image } : {}),
+  ...(publicVideo(r.video) ? { video: publicVideo(r.video) } : {}),
   ...(r.approved_at ? { approvedAt: iso(r.approved_at) } : {}),
   createdAt: iso(r.created_at),
 });
@@ -322,11 +332,11 @@ export async function savePosts(posts: PostDraft[], telegramId: number | null = 
     await Promise.all(
       posts.map(
         (p) => sql`
-          INSERT INTO posts (id, brand_id, brief, variants, neuro_hits, human_score, status, slot, image, created_at)
+          INSERT INTO posts (id, brand_id, brief, variants, neuro_hits, human_score, status, slot, image, video, created_at)
           VALUES (${p.id}, ${p.brandId}, ${p.brief}, ${JSON.stringify(p.variants)}::jsonb,
                   ${JSON.stringify(p.neuroHits)}::jsonb, ${p.humanScore}, ${p.status},
                   ${p.slot ? JSON.stringify(p.slot) : null}::jsonb, ${p.image ? JSON.stringify(p.image) : null}::jsonb,
-                  ${p.createdAt})
+                  ${p.video ? JSON.stringify(p.video) : null}::jsonb, ${p.createdAt})
         `,
       ),
     );
@@ -366,7 +376,7 @@ export async function getPost(id: string): Promise<PostDraft | null> {
   if (!isUuid(id)) return null;
   if (!isDbConfigured()) return mem.posts.get(id) ?? null;
   const rows = (await getSql()`
-    SELECT id, brand_id, brief, variants, neuro_hits, human_score, status, published_url, slot, image, approved_at, created_at
+    SELECT id, brand_id, brief, variants, neuro_hits, human_score, status, published_url, slot, image, video, approved_at, created_at
     FROM posts WHERE id = ${id}
   `) as PostRow[];
   return rows[0] ? toPost(rows[0]) : null;
@@ -390,7 +400,7 @@ export async function findRecentSlotPost(brandId: string, slot: PlanSlot, brief:
     return hits.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
   }
   const rows = (await getSql()`
-    SELECT id, brand_id, brief, variants, neuro_hits, human_score, status, published_url, slot, image, approved_at, created_at
+    SELECT id, brand_id, brief, variants, neuro_hits, human_score, status, published_url, slot, image, video, approved_at, created_at
     FROM posts
     WHERE brand_id = ${brandId} AND slot = ${JSON.stringify(slot)}::jsonb AND brief = ${brief}
       AND created_at >= ${new Date(since).toISOString()}
@@ -411,7 +421,7 @@ export async function listPosts(brandId: string, limit = 50): Promise<PostDraft[
       .slice(0, n);
   }
   const rows = (await getSql()`
-    SELECT id, brand_id, brief, variants, neuro_hits, human_score, status, published_url, slot, image, approved_at, created_at
+    SELECT id, brand_id, brief, variants, neuro_hits, human_score, status, published_url, slot, image, video, approved_at, created_at
     FROM posts WHERE brand_id = ${brandId}
     ORDER BY created_at DESC, slot->>'day' ASC NULLS LAST, slot->>'time' ASC NULLS LAST, id DESC LIMIT ${n}
   `) as PostRow[];
@@ -461,6 +471,129 @@ export async function setPostImage(postId: string, image: PostImage): Promise<vo
     return;
   }
   await getSql()`UPDATE posts SET image = ${JSON.stringify(image)}::jsonb WHERE id = ${postId}`;
+}
+
+/* ------------------------------------------------------------------ video
+ * posts.video (PostVideo): the Videographer's script and the owner's video (Telegram file_id). While a script is
+ * written the row carries {writingAt}: a second tap finds the claim and pays nothing. */
+
+/** A write claim older than this belongs to a request that died (the route's maxDuration is 60 s). */
+export const VIDEO_CLAIM_STALE_MS = 120_000;
+
+export type VideoClaim = "claimed" | "has_plan" | "busy" | "published" | "missing";
+
+const memVideoClaims = new Map<string, number>();
+
+/**
+ * Claims writing the script of a video post, atomically. "has_plan": it already has one (return it, pay nothing);
+ * "busy": another request is writing it; "published": the post is in the channel.
+ */
+export async function claimVideoWriting(id: string, now = Date.now()): Promise<VideoClaim> {
+  if (!isUuid(id)) return "missing";
+  if (!isDbConfigured()) {
+    const p = mem.posts.get(id);
+    if (!p) return "missing";
+    if (p.video?.plan) return "has_plan";
+    if (p.status === "published") return "published";
+    const at = memVideoClaims.get(id);
+    if (at != null && now - at < VIDEO_CLAIM_STALE_MS) return "busy";
+    memVideoClaims.set(id, now);
+    return "claimed";
+  }
+  const stale = new Date(now - VIDEO_CLAIM_STALE_MS).toISOString();
+  const rows = (await getSql()`
+    UPDATE posts SET video = coalesce(video, '{}'::jsonb) || jsonb_build_object('writingAt', ${new Date(now).toISOString()}::text)
+    WHERE id = ${id} AND status IN ('draft', 'approved') AND (video IS NULL OR video->'plan' IS NULL)
+      AND (video IS NULL OR video->>'writingAt' IS NULL OR (video->>'writingAt')::timestamptz < ${stale}::timestamptz)
+    RETURNING id
+  `) as { id: string }[];
+  if (rows.length) return "claimed";
+  const p = await getPost(id);
+  if (!p) return "missing";
+  if (p.video?.plan) return "has_plan";
+  return p.status === "published" ? "published" : "busy";
+}
+
+/** Drops a write claim after a failed run, so the owner can try again at once. */
+export async function releaseVideoWriting(id: string): Promise<void> {
+  if (!isUuid(id)) return;
+  if (!isDbConfigured()) {
+    memVideoClaims.delete(id);
+    return;
+  }
+  await getSql()`UPDATE posts SET video = nullif(video - 'writingAt', '{}'::jsonb) WHERE id = ${id} AND video ? 'writingAt'`;
+}
+
+/**
+ * Stores the script on the post (and, when given, the short caption as its text). A new caption makes an approved
+ * post a draft again: nothing the owner has not seen goes out on an earlier approval. A published post is untouched.
+ * Returns the post, or null when it was published meanwhile.
+ */
+export async function saveVideoPlan(
+  id: string,
+  plan: VideoPlan,
+  caption?: Pick<PostDraft, "variants" | "neuroHits" | "humanScore">,
+  now = Date.now(),
+): Promise<PostDraft | null> {
+  if (!isUuid(id)) return null;
+  const plannedAt = new Date(now).toISOString();
+  if (!isDbConfigured()) {
+    memVideoClaims.delete(id);
+    const p = mem.posts.get(id);
+    if (!p || p.status === "published") return null;
+    const next: PostDraft = { ...p, video: { ...p.video, plan, plannedAt } };
+    if (caption) {
+      Object.assign(next, { variants: caption.variants, neuroHits: caption.neuroHits, humanScore: caption.humanScore, status: "draft" });
+      delete next.approvedAt;
+    }
+    mem.posts.set(id, next);
+    return next;
+  }
+  const video = JSON.stringify({ plan, plannedAt });
+  const rows = caption
+    ? ((await getSql()`
+        UPDATE posts SET video = (coalesce(video, '{}'::jsonb) - 'writingAt') || ${video}::jsonb,
+          variants = ${JSON.stringify(caption.variants)}::jsonb, neuro_hits = ${JSON.stringify(caption.neuroHits)}::jsonb,
+          human_score = ${caption.humanScore}, status = 'draft', approved_at = NULL
+        WHERE id = ${id} AND status IN ('draft', 'approved')
+        RETURNING id
+      `) as { id: string }[])
+    : ((await getSql()`
+        UPDATE posts SET video = (coalesce(video, '{}'::jsonb) - 'writingAt') || ${video}::jsonb
+        WHERE id = ${id} AND status IN ('draft', 'approved')
+        RETURNING id
+      `) as { id: string }[]);
+  return rows.length ? getPost(id) : null;
+}
+
+/** The owner's video as Telegram gave it (no copy is kept: file_id only). */
+export type VideoFile = Pick<PostVideo, "fileId" | "fileUniqueId" | "as" | "duration" | "width" | "height" | "size" | "mime" | "thumbFileId"> & { fileId: string };
+
+/**
+ * Puts the owner's video on the post (the script stays). An approved post becomes a draft again: the owner approves
+ * the post with this video. A published post, or one being sent right now, is untouched (null).
+ */
+export async function setPostVideoFile(id: string, file: VideoFile, now = Date.now()): Promise<PostDraft | null> {
+  if (!isUuid(id)) return null;
+  const v: PostVideo = { ...file, receivedAt: new Date(now).toISOString() };
+  if (!isDbConfigured()) {
+    const p = mem.posts.get(id);
+    if (!p || p.status === "published" || memClaims.has(id)) return null;
+    const next: PostDraft = { ...p, video: { ...(p.video?.plan ? { plan: p.video.plan, plannedAt: p.video.plannedAt } : {}), ...v }, status: "draft" };
+    delete next.approvedAt;
+    mem.posts.set(id, next);
+    return next;
+  }
+  // The keys of an earlier video go first, so a new video never keeps the old one's thumbnail or size.
+  const rows = (await getSql()`
+    UPDATE posts SET
+      video = (coalesce(video, '{}'::jsonb) - 'writingAt' - 'fileId' - 'fileUniqueId' - 'as' - 'duration' - 'width' - 'height'
+               - 'size' - 'mime' - 'thumbFileId' - 'receivedAt') || ${JSON.stringify(v)}::jsonb,
+      status = 'draft', approved_at = NULL
+    WHERE id = ${id} AND status IN ('draft', 'approved')
+    RETURNING id
+  `) as { id: string }[];
+  return rows.length ? getPost(id) : null;
 }
 
 export async function markPublished(id: string, url: string | null, chat: string, telegramId: number): Promise<void> {

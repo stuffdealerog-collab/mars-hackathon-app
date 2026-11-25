@@ -14,6 +14,7 @@ import { VisualLimitError } from "../visual/service";
 import { addPendingPhoto, clearPending, getPending, ownsABrand, setPending, takePendingPhotos } from "./pending";
 import type { Pending, QuestionFlow } from "./pending-core";
 import { learnFromOwnerPhotos, telegramPhoto } from "./photos";
+import type { IncomingVideo } from "./video-core";
 import { saveOwnerAnswers } from "./answers";
 import {
   asKey,
@@ -42,8 +43,8 @@ import {
  *   reused by every weekly plan and post;
  * - then, on a brand's first run, up to 3 photos of the product or place, which become the designer's style
  *   references (the Studio's visual path). Skippable, never blocking;
- * - a video for a post (kind "video") is waited for here too; its handler is registered by the media stream
- *   (registerVideoHandler), so the bot has one dispatcher for everything it waits for.
+ * - a video for a post (kind "video") is waited for here too; its handler is botflow/video.ts (registered with
+ *   registerVideoHandler), so the bot has one dispatcher for everything it waits for.
  * Every handler that touches a brand is for its owner only. Callback prefixes: oq: and oph: (questions-core.ts).
  */
 
@@ -284,8 +285,11 @@ async function receivePhoto(api: Api, chatId: number, user: User, locale: Locale
 
 /* ----------------------------------------------------------------------------------------------------- video */
 
-/** A video the bot is waiting for (media stream): text or a video message while a video wait is pending. */
-export type VideoInput = { type: "text"; text: string } | { type: "video"; fileId: string };
+/**
+ * What arrives while a video wait is pending: a text, or a video (a video message, or a video sent as a file) with
+ * what Telegram says about it (botflow/video-core.ts IncomingVideo).
+ */
+export type VideoInput = { type: "text"; text: string } | ({ type: "video" } & IncomingVideo);
 export type VideoHandler = (api: Api, chatId: number, user: User, locale: Locale, pending: Extract<Pending, { kind: "video" }>, input: VideoInput) => Promise<boolean>;
 
 let videoHandler: VideoHandler | null = null;
@@ -321,6 +325,14 @@ export async function answerPendingText(api: Api, chatId: number, user: User, lo
   }
   if (pending.kind === "video") return videoHandler ? videoHandler(api, chatId, user, locale, pending, { type: "text", text }) : false;
   return false; // photos: a text is not a photo
+}
+
+/** A video message or file: to the video wait's handler when one is pending. false = nothing took it. */
+async function onVideo(api: Api, chatId: number, user: User, input: VideoInput): Promise<boolean> {
+  if (!videoHandler) return false;
+  const pending = await getPending(user.id);
+  if (pending?.kind !== "video") return false;
+  return videoHandler(api, chatId, user, pickLocale(user.language_code), pending, input);
 }
 
 export { clearPending };
@@ -406,16 +418,40 @@ export function registerBotFlows(b: Bot, deps: FlowDeps): void {
   });
   pm.on("message:document", async (ctx, next) => {
     const doc = ctx.message.document;
+    // A video sent as a file, while the bot waits for one.
+    if (ctx.from && /^video\//i.test(doc.mime_type ?? "")) {
+      const input: VideoInput = {
+        type: "video",
+        as: "document",
+        fileId: doc.file_id,
+        fileUniqueId: doc.file_unique_id,
+        size: doc.file_size,
+        mime: doc.mime_type,
+        thumbFileId: doc.thumbnail?.file_id,
+      };
+      if (await onVideo(ctx.api, ctx.chat.id, ctx.from, input)) return;
+      return next();
+    }
     if (!ctx.from || !/^image\/(jpeg|png|webp)$/i.test(doc.mime_type ?? "")) return next();
     await onImage(ctx.api, ctx.chat.id, ctx.from, (doc.file_size ?? 0) <= 5_000_000 ? doc.file_id : null, Boolean(ctx.message.media_group_id));
   });
 
-  // A video for a post, when the media stream waits for one.
+  // A video for a post, when the bot waits for one (botflow/video.ts).
   pm.on("message:video", async (ctx, next) => {
-    if (!ctx.from || !videoHandler) return next();
-    const pending = await getPending(ctx.from.id);
-    if (pending?.kind !== "video") return next();
-    const locale = pickLocale(ctx.from.language_code);
-    if (!(await videoHandler(ctx.api, ctx.chat.id, ctx.from, locale, pending, { type: "video", fileId: ctx.message.video.file_id }))) return next();
+    if (!ctx.from) return next();
+    const v = ctx.message.video;
+    const input: VideoInput = {
+      type: "video",
+      as: "video",
+      fileId: v.file_id,
+      fileUniqueId: v.file_unique_id,
+      duration: v.duration,
+      width: v.width,
+      height: v.height,
+      size: v.file_size,
+      mime: v.mime_type,
+      thumbFileId: v.thumbnail?.file_id,
+    };
+    if (!(await onVideo(ctx.api, ctx.chat.id, ctx.from, input))) return next();
   });
 }

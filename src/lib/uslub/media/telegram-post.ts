@@ -16,7 +16,28 @@
 export const CAPTION_LIMIT = 1024;
 export const MESSAGE_LIMIT = 4096;
 
-export type PlannedMessage = { kind: "photo"; photo: string; caption?: string } | { kind: "text"; text: string };
+export type PlannedMessage =
+  | { kind: "photo"; photo: string; caption?: string }
+  | { kind: "text"; text: string }
+  /** The owner's video by Telegram file_id: sendVideo, or sendDocument for a video the owner sent as a file. */
+  | { kind: "video"; fileId: string; as: "video" | "document"; caption?: string };
+
+/** The owner's video as publishing needs it (PostVideo). */
+export type PublishVideo = { fileId: string; as?: "video" | "document" };
+
+/**
+ * A post with the owner's video: the video with the text as its caption (up to 1024 characters), else the video first
+ * and the full text right under it, like a picture. The video wins over any picture the post has.
+ */
+export function planVideoMessages(text: string, video: PublishVideo): PlannedMessage[] {
+  const body = text.trim().slice(0, MESSAGE_LIMIT);
+  const as = video.as === "document" ? "document" : "video";
+  if (body.length <= CAPTION_LIMIT) return [{ kind: "video", fileId: video.fileId, as, caption: body || undefined }];
+  return [
+    { kind: "video", fileId: video.fileId, as },
+    { kind: "text", text: body },
+  ];
+}
 
 /** Telegram counts UTF-16 code units, like String.length. */
 export function planPostMessages(text: string, imageUrl?: string): PlannedMessage[] {
@@ -36,11 +57,13 @@ export function planPostMessages(text: string, imageUrl?: string): PlannedMessag
  * Returns a refusal reason, or null when everything still matches.
  */
 export function changedSincePreview(
-  now: { text: string; imageUrl?: string },
-  expected: { expectedText?: string; expectedImageUrl?: string | null },
-): "text" | "image" | null {
+  now: { text: string; imageUrl?: string; videoFileId?: string },
+  expected: { expectedText?: string; expectedImageUrl?: string | null; expectedVideoFileId?: string | null },
+): "text" | "image" | "video" | null {
   if (expected.expectedText !== undefined && expected.expectedText.trim() !== now.text.trim()) return "text";
   if (expected.expectedImageUrl !== undefined && (expected.expectedImageUrl || undefined) !== (now.imageUrl || undefined)) return "image";
+  // `expectedVideoFileId`: undefined = not checked; null or "" = the preview had no video.
+  if (expected.expectedVideoFileId !== undefined && (expected.expectedVideoFileId || undefined) !== (now.videoFileId || undefined)) return "video";
   return null;
 }
 

@@ -7,7 +7,8 @@
  * - late: more than 3 hours after its slot, or late and at night (outside 07:00–22:00 Tashkent): "expired", the owner
  *   decides (time.ts dueState);
  * - the text or picture changed since the approval (hash): nothing is sent, the owner is asked to approve again. One
- *   exception: approved with no picture and a picture drawn since: the approved text goes out alone;
+ *   exception: approved with no picture and a picture drawn since: the approved text goes out alone. A video post's
+ *   hash covers its video (Telegram file id): another video sent to the bot since the approval stops the send too;
  * - a blank is still in the text: nothing is sent, the owner is told which one;
  * - going out on another day than its slot, and the text names a date that is over by then or says "today"/"tomorrow":
  *   nothing is sent ("past_date"), the owner is told;
@@ -24,7 +25,7 @@
  * Pure of I/O: everything goes through `deps`, so the rules are unit-tested (tests/autopilot-publish-due.test.ts).
  */
 import type { PostDraft, Script } from "../uslub/contract";
-import { shownHash, shownPhoto, shownText } from "../uslub/botpublish-core";
+import { shownHash, shownPhoto, shownText, shownVideo } from "../uslub/botpublish-core";
 import { findPlaceholders } from "../uslub/placeholders";
 import { pastDatesInPost } from "../uslub/postguard";
 import { publishErrorCode } from "../uslub/publish-errors";
@@ -70,6 +71,8 @@ export interface PublishDueDeps {
     userId: number;
     expectedText: string;
     expectedImageUrl: string | null;
+    /** The owner's video approved with the post (null = none): a video post goes out only with exactly it. */
+    expectedVideoFileId: string | null;
     textOnly?: boolean;
   }): Promise<PublishAttempt>;
   notifyOwner(row: QueueRow, event: OwnerEvent): Promise<void>;
@@ -183,6 +186,7 @@ async function sendOne(deps: PublishDueDeps, row: QueueRow): Promise<Outcome> {
       userId: row.ownerTelegramId,
       expectedText: text,
       expectedImageUrl: textOnly ? null : shownPhoto(post),
+      expectedVideoFileId: shownVideo(post),
       ...(textOnly ? { textOnly } : {}),
     });
   } catch {

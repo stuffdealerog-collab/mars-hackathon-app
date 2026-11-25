@@ -7,10 +7,10 @@
  *   LABS_ROUTES=radar,video,media/jobs    only these
  *   unset / empty                         all off (production default)
  *
- * The code behind them stays (radar becomes a lamp later; planVideo is the base for the video slot's
- * shot list), only the public door is closed.
+ * The code behind them stays (radar becomes a lamp later), only the public door is closed. /video left the list on
+ * 2026-11-25: the Video tab calls it (the owner's scripts, with auth, rate limit and budget units).
  */
-export const LABS_ROUTES = ["department", "radar", "video", "plan", "neuro", "adcheck", "learn", "media/captions", "media/jobs"] as const;
+export const LABS_ROUTES = ["department", "radar", "plan", "neuro", "adcheck", "learn", "media/captions", "media/jobs"] as const;
 export type LabsRoute = (typeof LABS_ROUTES)[number];
 
 const ALL = new Set(["all", "1", "true", "*", "on"]);

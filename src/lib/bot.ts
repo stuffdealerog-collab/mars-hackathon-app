@@ -13,6 +13,7 @@ import { parseSource, safeLogEvent, track } from "./track";
 import { botHandle, botProfile, syncBotProfile } from "./uslub/bot-profile";
 import { answerPendingText, clearPending, registerBotFlows } from "./uslub/botflow/flows";
 import { REBUILD_RE } from "./uslub/botflow/questions-core";
+import { registerVideoFlow, startVideo } from "./uslub/botflow/video";
 import { spenderKey, takeUnits } from "./uslub/budget-core";
 import { learnFor } from "./uslub/brain/learn-run";
 import { latestPlanForOwner, ORDER_BUCKETS, planByTag, recordOutcome } from "./uslub/brain/memory";
@@ -191,6 +192,7 @@ function registerHandlers(b: Bot) {
   registerAutopilot(b); // week_ links, week/autopilot/orders buttons, channel rights, joins, reactions (before /start below)
   // What the bot waits for after a run (the owner's questions, photos, a video): oq:/oph: buttons, photos, videos.
   registerBotFlows(b, { later: runLater });
+  registerVideoFlow(b); // the owner's video for a video post: video_ links, the wait, [Approve] / [Cancel]
   const pm = b.chatType("private");
 
   // /start <payload> — deep links like https://t.me/<bot>?start=src_booth1
@@ -206,6 +208,11 @@ function registerHandlers(b: Bot) {
     // The Studio's "Kanalga joylash": t.me/<bot>?start=publish_<postId>[_<script>] — show the post, then publish.
     if (payload.startsWith("publish_")) {
       if (await startPublish(ctx.api, ctx.chat.id, from, locale, payload)) return;
+    }
+
+    // The Video tab's "Send the video to the bot": t.me/<bot>?start=video_<postId> — wait for the owner's video.
+    if (payload.startsWith("video_")) {
+      if (await startVideo(ctx.api, ctx.chat.id, from, locale, payload)) return;
     }
 
     // A customer who tapped a tracked link in a plan post (src_<planTag>_<slot>): not an owner, no onboarding.

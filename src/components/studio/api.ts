@@ -18,6 +18,7 @@ import type {
   PostSchedule,
   Script,
   Strategy,
+  VideoPlan,
   VisualStyle,
 } from "@/lib/uslub/contract";
 import type { AutopilotState, BotAdminStatus, WeekSkipReason } from "@/lib/autopilot/types";
@@ -417,4 +418,39 @@ export function publishPost(postId: string, script: Script, chat: string, lang: 
     { method: "POST", body: { postId, script, chat, lang, initData: tgInitData() } },
     35_000,
   );
+}
+
+/* ------------------------------------------------------------------ video */
+
+/** The Videographer's answer: the script, and the post it is stored on (with its new caption). */
+export type VideoResult = { plan: VideoPlan; post: PostDraft; reused?: boolean };
+
+/**
+ * The script for a video post (once: a post that has one gets it back). Two Claude calls: the client waits a little
+ * longer than the route's 60 s.
+ */
+export function writeVideoScript(brandId: string, postId: string, lang: Lang) {
+  return call<VideoResult>("/video", { method: "POST", body: { brandId, postId, lang, initData: tgInitData() } }, 65_000);
+}
+
+/** A new video idea (optional brief), saved as a draft video post without a slot. */
+export function newVideoIdea(brandId: string, brief: string, lang: Lang) {
+  return call<VideoResult>("/video", { method: "POST", body: { brandId, ...(brief.trim() ? { brief: brief.trim() } : {}), lang, initData: tgInitData() } }, 65_000);
+}
+
+/** The bot's link that waits for this post's video (t.me/<bot>?start=video_<postId>). */
+export const botVideoUrl = (bot: string, postId: string) => `https://t.me/${bot}?start=${encodeURIComponent(`video_${postId}`)}`;
+
+/**
+ * The thumbnail of the owner's video, as an object URL (an <img> cannot carry the Authorization header). null when
+ * there is none or it cannot be read: the card shows an icon and the length instead. The caller revokes the URL.
+ */
+export async function videoThumb(postId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${BASE}/video/thumb?postId=${encodeURIComponent(postId)}`, { headers: headers(), signal: AbortSignal.timeout(15_000) });
+    if (!res.ok || !/^image\//.test(res.headers.get("content-type") ?? "")) return null;
+    return URL.createObjectURL(await res.blob());
+  } catch {
+    return null;
+  }
 }
