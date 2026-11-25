@@ -183,20 +183,48 @@ export async function latestPlanForOwner(telegramId: number): Promise<StoredPlan
  * The plan behind a tracked link and who receives its leads: the Telegram user who made the plan, else the
  * brand's owner (a plan made on the web before the brand was claimed in the bot has no owner of its own).
  */
-export async function planByTag(tag: string): Promise<(StoredPlan & { ownerTelegramId: number | null }) | null> {
+export async function planByTag(
+  tag: string,
+): Promise<(StoredPlan & { ownerTelegramId: number | null; brandId?: string; brandName?: string; brandChannel?: string }) | null> {
   if (!/^[a-z0-9]{6}$/.test(tag)) return null;
   if (!isDbConfigured()) {
     const p = mem.plans.find((x) => x.tag === tag);
-    return p ? { ...p, ownerTelegramId: p.ownerTelegramId ?? null } : null;
+    return p ? { ...p, ownerTelegramId: p.ownerTelegramId ?? null, ...(p.brandId ? { brandId: p.brandId } : {}) } : null;
   }
+  // The brand's name and channel ride along: the bot names the business to a customer only once the plan's owner is
+  // verified as an admin of that channel (plan-owner.ts verifiedPlanBusiness).
   const rows = (await getSql()`
-    SELECT p.id, p.tag, p.channel, p.week_of, p.items, p.baseline, p.created_at,
+    SELECT p.id, p.tag, p.channel, p.week_of, p.items, p.baseline, p.created_at, p.brand_id,
+           b.channel AS brand_channel, b.dna->>'name' AS brand_name,
            COALESCE(p.owner_telegram_id, b.owner_telegram_id) AS owner_telegram_id
     FROM brain_plans p LEFT JOIN brands b ON b.id = p.brand_id
     WHERE p.tag = ${tag}
-  `.catch(soft("plan by tag", []))) as (PlanRow & { owner_telegram_id: string | number | null })[];
+  `.catch(soft("plan by tag", []))) as (PlanRow & { owner_telegram_id: string | number | null; brand_id: string | null; brand_channel: string | null; brand_name: string | null })[];
   const r = rows[0];
-  return r ? { ...toPlan(r), ownerTelegramId: r.owner_telegram_id == null ? null : Number(r.owner_telegram_id) } : null;
+  return r
+    ? {
+        ...toPlan(r),
+        ownerTelegramId: r.owner_telegram_id == null ? null : Number(r.owner_telegram_id),
+        ...(r.brand_id ? { brandId: r.brand_id } : {}),
+        ...(r.brand_name ? { brandName: r.brand_name } : {}),
+        ...(r.brand_channel ? { brandChannel: r.brand_channel } : {}),
+      }
+    : null;
+}
+
+/**
+ * Daily subscriber counts Mercat measured for a channel (channel_snapshots, written by the autopilot's daily task),
+ * the last `days` days. Empty when there are none or the table is missing.
+ */
+export async function loadSubscriberSnapshots(channel: string, days = 35): Promise<{ day: string; subscribers: number }[]> {
+  if (!isDbConfigured()) return [];
+  const ch = channel.replace(/^@/, "").toLowerCase();
+  const rows = (await getSql()`
+    SELECT to_char(day, 'YYYY-MM-DD') AS day, subscribers FROM channel_snapshots
+    WHERE lower(replace(channel, '@', '')) = ${ch} AND day >= (current_date - ${days}::int)
+    ORDER BY day
+  `.catch(soft("subscriber snapshots", []))) as { day: string; subscribers: number }[];
+  return rows.map((r) => ({ day: r.day, subscribers: Number(r.subscribers) }));
 }
 
 /* --------------------------------------------------------------- measures */
@@ -308,6 +336,11 @@ export type PlanView = {
   plan: unknown;
   strategy: unknown;
   ownerQuestions: string[];
+  /** Structured owner questions (brain/questions.ts) the plan was made with; answered via POST /api/uslub/answers. */
+  questions?: unknown;
+  /** What kind of channel the plan was made for and its goal (owner correction 2). */
+  channelType?: string;
+  goal?: string;
   planTag: string | null;
   launch?: unknown;
   lang?: string;

@@ -1,6 +1,10 @@
 import "server-only";
 import { z } from "zod";
-import type { ContentPlan, PlanItem, Strategy } from "@/lib/uslub/contract";
+import type { ChannelType, ContentPlan, PlanItem, PostEnding, Strategy } from "@/lib/uslub/contract";
+import { answeredContact, type OwnerAnswers } from "./answers";
+import { defaultGoalFor, planTypeFor } from "./channel-type";
+import { wrongLanguage } from "./language";
+import { runQuestions, type OwnerQuestion } from "./questions";
 import { createHash } from "node:crypto";
 import { getEnv } from "@/lib/env";
 import { analyzeDeterministic, type Analysis, type OnStage } from "./audit";
@@ -13,16 +17,18 @@ import { brainJson, GROUNDING, HAIKU, SONNET } from "./llm";
 import { loadFactsCache, newPlanTag, saveFactsCache, savePlan } from "./memory";
 import { scrapeChannelData } from "./scrape";
 import { ownerText, stripIds, stripIdsAll } from "./copy";
-import { cycleOf, pillarShares, ruleLedger, runRules, type KbSignals } from "./rules";
+import { cycleOf, pillarShares, planGoals, ruleLedger, runRules, type KbSignals } from "./rules";
 import { assignFocus, assignHookTypes, buildKpis, buildSkeleton, HOOK_TYPES, type Slot } from "./skeleton";
 import { features, LEXICON, median, normApos } from "./stats";
 import { sufficiency } from "./sufficiency";
-import type { ChannelData, ChannelStats, Goal, Lang, LedgerEntry, RuleResult } from "./types";
+import type { ChannelData, ChannelStats, Lang, LedgerEntry, RuleResult } from "./types";
 import { webContext } from "./web";
 import { clip } from "../text";
 import { dotted, pastDatesIn } from "../dates";
-import { briefMetaText, type Duplicate, duplicateItems, isBlockedMarker, ownerFacing, pastFacts } from "./plan-checks";
+import { briefMetaText, distinctTopics, type Duplicate, dropDuplicates, duplicateItems, factSourceOf, isBlockedMarker, ownerFacing, pastFacts, withTrackedLink } from "./plan-checks";
 import { fixMixedScript } from "../postguard";
+import { channelFactsKb, stalePriceLines } from "./channel-facts";
+export { channelFactsKb, stalePriceLines };
 
 /* ------------------------------------------------------------------ D0 facts */
 
@@ -68,14 +74,8 @@ async function extractFactsUncached(kb: string): Promise<Fact[]> {
     .map((f, i) => ({ id: `F${i + 1}`, ...f }));
 }
 
-/** The owner's own recent posts (≤45 days, not forwards, not ads) as knowledge-base text. */
-export function postsAsKb(data: ChannelData, now: number, max = 12): string {
-  const recent = data.posts
-    .filter((p) => !p.isForward && !features(p).isAd && p.text.trim().length > 40 && now - Date.parse(p.postedAt) <= 45 * 86_400_000)
-    .slice(0, max);
-  // Each post carries its date so the planner can tell a standing fact (price, address) from an old event.
-  return recent.length ? `Kanal postlari (@${data.channel}):\n${recent.map((p) => `[${p.postedAt.slice(0, 10)}] ${p.text.trim()}`).join("\n\n")}` : "";
-}
+/** @deprecated name kept for callers: the channel's posts as facts (now all of them, see channelFactsKb). */
+export const postsAsKb = (data: ChannelData, now: number) => channelFactsKb(data, now);
 
 const factLedger = (facts: Fact[]): LedgerEntry[] =>
   facts.map((f) => ({ id: f.id, label: `${f.type}: ${f.text}`, value: f.text, display: f.quote, quote: f.quote, source: "kb" }));
@@ -130,10 +130,26 @@ const StrategySchema = z.object({
   audiences: z.array(z.object({ name: z.string(), job: z.string(), pains: z.array(z.string()), triggers: z.array(z.string()), whereTheyAre: z.array(z.string()) })),
   offer: z.string(),
   proofPoints: z.array(z.string()),
-  pillars: z.array(z.object({ goal: z.enum(["reach", "trust", "sale"]), name: z.string(), examples: z.array(z.string()) })),
+  pillars: z.array(z.object({ goal: z.enum(["reach", "trust", "sale", "engage", "grow"]), name: z.string(), examples: z.array(z.string()) })),
   risks: z.array(z.string()),
   rationale: z.array(z.string()),
 });
+
+const LANG_NAME: Record<Lang, string> = { uz: "Uzbek (Latin script)", ru: "Russian", en: "English" };
+
+/** The owner's goal in the plan's language (the strategist's input), when the owner wrote none. */
+const GOAL_TEXT: Record<Lang, { sale: string; grow: string }> = {
+  uz: { sale: "ko'proq buyurtma", grow: "ko'proq obunachi va o'quvchi" },
+  ru: { sale: "больше заказов", grow: "больше подписчиков и читателей" },
+  en: { sale: "more orders", grow: "more subscribers and readers" },
+};
+
+const GROWTH_D2 = (type: string) => `
+THIS IS A ${type.toUpperCase()} CHANNEL, NOT A SHOP: a person, an expert, a media digest or a community. Its goal is more readers who come back, answer and share, and more subscribers.
+- offer: write "" (empty). Never mention prices, orders, delivery, "how to order", contacts or discounts anywhere.
+- pillars: goals reach (posts that earn views and forwards), engage (questions, polls and takes readers answer), grow (a series or rubric people come back for, a post swap with a similar channel).
+- audiences: readers by interest and situation; their "job" is what they want from reading this channel.
+- proofPoints: only F or W ids (can be empty). risks and rationale: about readers, rhythm, formats and subscribers.`;
 
 const PlanSchema = z.object({
   items: z.array(z.object({ slot: z.number(), hookType: z.string(), hook: z.string(), cta: z.string(), brief: z.string(), factIds: z.array(z.string()) })),
@@ -143,9 +159,10 @@ const CriticSchema = z.object({
   items: z.array(z.object({ slot: z.number(), fails: z.array(z.object({ check: z.string(), quote: z.string(), reason: z.string() })) })),
 });
 
-export const D2 = (brand: string, category: string, cycle: string, goal: string) => `You are the Strateg of Mercat, an AI marketing department, for ${brand} (${category}, buying cycle: ${cycle}), Tashkent. Owner's goal: "${goal}".
+export const D2 = (brand: string, category: string, cycle: string, goal: string, opts: { lang?: Lang; growthType?: string } = {}) => `You are the Strateg of Mercat, an AI marketing department, for ${brand} (${category}, buying cycle: ${cycle}), Tashkent. Owner's goal: "${goal}".
+OUTPUT LANGUAGE: ${LANG_NAME[opts.lang ?? "uz"]}. Every string you write is in this language, whatever language the input labels, rule names or facts are in; only quoted product names and ids stay as they are.
 INPUT: facts F#, selected stats S.* (S.bench.* = medians of other Uzbek channels in the niche, S.learn.* = results of our own past plans), firedRules, competitorClaims [{phrase, ids}], web W# (cited web sources), pillarGoals [{goal, share}] (FIXED, do not change), voice summary, ownerQuestions, learnChanges (what last weeks' results changed).
-
+${opts.growthType ? GROWTH_D2(opts.growthType) : ""}
 Produce a Strategy (no KPIs; code adds them):
 Write every string in the output language (uz = Uzbek Latin, ru = Russian, en = English); ids stay as they are.
 1 positioning — one sentence with this structure, in the output language:
@@ -164,19 +181,20 @@ Write every string in the output language (uz = Uzbek Latin, ru = Russian, en = 
 Keep it compact: at most 2 audiences, 2 examples per pillar, 3–4 risks, 3–4 rationale lines; every string ≤ 220 characters.
 Return JSON matching the schema.`;
 
-export const D3 = `You are the content planner of Mercat, an AI marketing department. Code already fixed each slot's day, time, goal, format, link and approval, and chose which facts each slot is about. You write the hook, the CTA and the brief for each slot.
-INPUT: slots [{slot, day, time, goal, format, lang, hookOptions, focus:[F ids], exp?, calendarEvent?}], facts F#, voice {fingerprint, anchors[3]}, recentHooks (own, last 30), competitorHooks, lexicon, firedRules.
+export const D3 = `You are the content planner of Mercat, an AI marketing department. Code already fixed each slot's day, time, goal, format, link and approval, and chose which facts each slot is about. You write the hook, the CTA and the brief for each slot, in slot.lang.
+INPUT: slots [{slot, day, time, goal, format, lang, link (true when code adds a tracked link), hookOptions, focus:[F ids], exp?, calendarEvent?, calendarKind?}], facts F#, voice {fingerprint, anchors[3]}, ending {pattern, contact?} (how the channel's own posts end), recentHooks (own, last 30), competitorHooks, lexicon, firedRules.
 
 FOR EACH SLOT:
 - hookType: pick the one from slot.hookOptions that sounds most natural for these facts (the first is a suggestion; for exp="hookType" stay inside the options). Build the post around the focus facts; use at least one of them unless it would sound forced, then use another F fact.
   number = a number from F up front; price = product + F price; question = the customer's real question (pain from F); local = district/landmark from F; behind_scenes = how it is made/done at the business (from F); myth_fact = a common belief vs an F fact; product_spotlight = one product from F, concrete detail; before_after = needs customer consent.
 - hook = the first line, ≤90 chars (aim for ≤70), in slot.lang. It must contain at least one specific from F (number, price, product name, district/landmark, real question). No greetings ("Assalomu alaykum", "Hurmatli mijozlar", "Здравствуйте", "Dear"). No hype. Never mention the bot, the link or "write to us" in the hook: the hook is about the customer and the product. Never invent a fact that is not in F.
   Bad: "Sizni ajoyib takliflarimiz kutmoqda!" (no specific, cliché, would fit anyone).
-- cta: one short action, the way the owner would say it. sale/trust: the link opens our Telegram bot, which passes the customer's message to the owner, who answers personally; so a short verb + reason tied to this post + the token {{LINK}} exactly once. Never promise that the bot itself sends menus or prices. reach: one short forward or save line, no link. Keep CTAs short (≤ 12 words before the link), vary them across slots, and never use the stock line "shu yerga yozing — o'zimiz javob beramiz".
-- brief (for Kopirayter and Dizayner): 1 sentence of angle and which audience pain; the facts to use [F..]; what to photograph or film AT THE BUSINESS (real, never stock; for video, a ≤60-second phone shot list in 3 steps). The owner reads the brief: write it in slot.lang, labels included (never English labels like "Angle:", "Facts:" in a uz or ru brief, never the word "ledger").
+- cta: one short action, the way this channel itself asks its readers (see ending). sale/trust: a short verb + a reason tied to this post; if ending.contact exists, end with that contact exactly as written there; if slot.link is true, end with the token {{LINK}} exactly once (code puts the link there) and keep the channel's contact too. If the channel's posts end with nothing (ending.pattern "none") and slot.link is false, the cta is a short natural line with no contact and no link, or "". reach: one short forward or save line, no link. engage: one question or poll the reader answers in one tap, no link. grow: ask to forward the post or to wait for the next part of the series, no link. Never add a link or a "write to the bot" line on your own, never promise that a bot sends menus or prices. Keep CTAs short (≤ 12 words), vary them across slots, and never use the stock line "shu yerga yozing — o'zimiz javob beramiz".
+- brief (for Kopirayter and Dizayner): 1 sentence of angle and which audience pain; the facts to use, named by what they say; what to photograph or film AT THE BUSINESS (real, never stock; for video, a ≤60-second phone shot list in 3 steps). The owner reads the brief: write it in slot.lang, labels included (never English labels like "Angle:", "Facts:" in a uz or ru brief, never the word "ledger").
 - sale slot: include the product's F price in the hook or brief. Urgency only with an F deadline or capacity fact.
-- factIds: every F id you used. hook and cta are the customer-facing post: never put ids, brackets or ledger codes in them (ids go only in factIds and the brief).
-- Facts quoted from the channel's own posts carry the post date [YYYY-MM-DD]. Prices, products, addresses, hours and processes are standing facts. Dated events, promotions, deadlines and "new branch" announcements older than 14 days are history: never present them as current, and never tie a fact to a calendar event unless the fact itself names that event.
+- engage and grow slots (a blog, expert, media or community channel): never prices, orders, delivery or contacts.
+- factIds: every F id you used. Ids go ONLY in factIds: never in the hook, the cta or the brief (no "F16", no brackets, no ledger codes anywhere in the text).
+- Facts quoted from the channel's own posts carry the post date [YYYY-MM-DD]. Prices, products, addresses, hours and processes are standing facts. Dated events, promotions, deadlines and "new branch" announcements older than 14 days are history: never present them as current, and never tie a fact to a calendar event unless the fact itself names that event. One exception: a slot with calendarKind "preorder" (a holiday people order ahead for: New Year, 8 March) presents the standing product and price facts for the holiday ("Yangi yil uchun Medovik — 180 000 so'm"), with no invented deadline, discount or gift: the order deadline comes from the owner.
 - A fact with past:true is already over on the slot's day (an opening, a promotion, an event): never announce it as coming or happening now ("ochilmoqda", "скоро", "opening soon"), never build a hook on it, never write a date before slot.day as upcoming. A standing detail inside it (the branch address, the product) may be used in the present tense.
 VOICE: match the fingerprint — address form, words per sentence, emoji ≤ min(3, fingerprint emojiPer100 +50%), exclamations only if the owner uses them. Copy the anchors' manner, never their sentences. Never reuse competitor wording.
 Return JSON {items:[{slot, hookType, hook, cta, brief, factIds}]}.`;
@@ -207,6 +225,18 @@ export interface StrategyInput {
   /** The caller is the verified Telegram owner of brandId (custom brand) and `channel` is the brand's channel. */
   ownerVerified?: boolean;
   approvedPosts?: number;
+  /** The brand's stored channel type (brands.channel_type); missing = detected from the channel's posts. */
+  channelType?: ChannelType;
+  /** The owner's confirmed main goal (answers.goal or brands.goal): "sale" or "grow"; missing = from the type. */
+  mainGoal?: "sale" | "grow";
+  /** The owner's saved answers (questions already answered are not asked again; the opt-in for tracked links). */
+  answers?: OwnerAnswers | null;
+  /** The brand's owner (receives the leads of tracked links); tracked links never go on a brand without one. */
+  brandOwnerTelegramId?: number | null;
+  /** How the channel's posts end (BrandDNA.postEnding): the CTA follows it. */
+  postEnding?: PostEnding;
+  /** Product names from the brand DNA (to pre-fill the prices question). */
+  products?: string[];
   now?: number;
   onStage?: OnStage;
   /** Eval harness: frozen channels, no web, no memory writes. */
@@ -222,6 +252,8 @@ const OQ: Record<Lang, Record<string, string>> = {
     proof: "3 ta haqiqiy mijoz fikri (ism bilan, ruxsat bilan) va raqamlar (yillar, mijozlar soni) bormi?",
     offer: "Raqobatchilar {offer} taklifini qayta-qayta ishlatmoqda. Siz ham shunday taklif bera olasizmi? Shartlari va muddati?",
     diff: "Raqobatchilardan nimangiz bilan farq qilasiz? Bitta aniq misol yozing.",
+    stale: "Bu narxlar hali amaldami: {prices}?",
+    notice: "{event} — dam olish kuni. O‘sha kuni ishlaysizmi, ish vaqtingiz qanday?",
   },
   ru: {
     price: "Какие цены на основные товары/услуги? (продающие посты без цены не выходят)",
@@ -229,6 +261,8 @@ const OQ: Record<Lang, Record<string, string>> = {
     proof: "Есть 3 настоящих отзыва (с именем и разрешением) и цифры (годы, число клиентов)?",
     offer: "Конкуренты повторяют предложение {offer}. Готовы протестировать похожее? Условия и срок?",
     diff: "Чем вы отличаетесь от конкурентов? Один конкретный пример.",
+    stale: "Эти цены ещё действуют: {prices}?",
+    notice: "{event} — выходной день. Вы работаете в этот день, какие часы?",
   },
   en: {
     price: "What are the prices of your main products/services? (sale posts never go out without a price)",
@@ -236,6 +270,8 @@ const OQ: Record<Lang, Record<string, string>> = {
     proof: "Do you have 3 real customer reviews (named, with consent) and numbers (years, customer count)?",
     offer: "Competitors keep repeating a {offer} offer. Would you test a similar one? Terms and deadline?",
     diff: "What do you do that competitors don't? One concrete example.",
+    stale: "Are these prices still current: {prices}?",
+    notice: "{event} is a public holiday. Are you open that day, and what are the hours?",
   },
 };
 
@@ -318,16 +354,27 @@ export async function buildStrategy(inp: StrategyInput) {
   const analysisP =
     channel || inp.preloaded
       ? ownP.then(() =>
-          analyzeDeterministic({ channel: channel as string, competitors: inp.competitors, category, now, lang, brandId: inp.brandId, ownerVerified: inp.ownerVerified, preloaded: inp.preloaded, onStage: emit }),
+          analyzeDeterministic({
+            channel: channel as string,
+            competitors: inp.competitors,
+            category,
+            now,
+            lang,
+            brandId: inp.brandId,
+            ownerVerified: inp.ownerVerified,
+            channelType: inp.channelType,
+            preloaded: inp.preloaded,
+            onStage: emit,
+          }),
         )
       : Promise.resolve(null);
-  // A thin knowledge base ("just a channel link") is topped up with the owner's own recent posts:
-  // facts are still quote-checked against that text, so nothing outside the owner's words gets in.
-  const thinKb = inp.knowledge.trim().length < 300 && Boolean(channel || inp.preloaded);
+  // The channel's own posts are always in the facts, after the owner's text (answers, documents, price lists): ALL
+  // collected posts, price posts first. Facts are quote-checked against this text, so nothing outside it gets in.
   let knowledge = inp.knowledge;
-  const factsP = thinKb
+  const fromChannel = Boolean(channel || inp.preloaded);
+  const factsP = fromChannel
     ? ownP.then((own) => {
-        knowledge = [inp.knowledge.trim(), own ? postsAsKb(own, now) : ""].filter(Boolean).join("\n\n");
+        knowledge = [inp.knowledge.trim(), own ? channelFactsKb(own, now) : ""].filter(Boolean).join("\n\n");
         return extractFacts(knowledge);
       })
     : extractFacts(inp.knowledge);
@@ -338,8 +385,14 @@ export async function buildStrategy(inp: StrategyInput) {
     }),
     analysisP,
   ]);
-  if (thinKb && facts.length) emit({ stage: "facts", source: "channel_posts" });
+  if (fromChannel && facts.length) emit({ stage: "facts", source: "channel_posts" });
   emit({ stage: "facts", facts: facts.map((f) => ({ id: f.id, type: f.type, quote: f.quote })), elapsedMs: elapsed() });
+
+  // What kind of channel this is and the goal the week is planned for (owner correction 2).
+  const channelType: ChannelType = analysis?.channelType ?? inp.channelType ?? "business";
+  const mainGoal = inp.answers?.goal ?? inp.mainGoal ?? (defaultGoalFor(channelType) === "sale" ? "sale" : "grow");
+  const planType = planTypeFor(channelType, mainGoal);
+  const growthPlan = planType !== "business";
 
   // Facts about an event that is over by the plan's first day (the plan starts tomorrow, Tashkent time).
   const firstDay = new Date(now + 5 * 3600_000 + 86_400_000).toISOString().slice(0, 10);
@@ -352,13 +405,38 @@ export async function buildStrategy(inp: StrategyInput) {
   const proof = has("year", "number", "review", "certificate");
   const kb: KbSignals = { hasPrices: priceFacts.length > 0, hasProducts: has("product").length > 0 || priceFacts.length > 0, hasOffer: offerFacts.length > 0, proofFacts: proof.length };
 
+  // The owner's questions, as early as possible (the Studio and the Mini App ask them while the plan is written).
+  const stalePrices = stalePriceLines(priceFacts, knowledge, now);
+  const questions: OwnerQuestion[] = runQuestions({
+    lang,
+    channelType,
+    answers: inp.answers,
+    contact: inp.postEnding?.contact ?? answeredContact(inp.answers),
+    priceFacts: priceFacts.length - stalePrices.length,
+    stalePrices,
+    products: inp.products,
+  });
+  emit({ stage: "questions", questions, channelType, goal: mainGoal });
+
   // 2. rules with KB signals, niche benchmark and funnel data
   const stats = analysis?.stats;
   const compStats = analysis?.competitors.map((c) => c.stats) ?? [];
-  const cal = upcomingEvents(category, now).map((e) => ({ id: e.id, name: e.name[lang], daysAway: e.daysAway }));
+  const events = upcomingEvents(category, now);
+  const cal = events.map((e) => ({ id: e.id, name: e.name[lang], daysAway: e.daysAway, kind: e.kind }));
   const rules: RuleResult[] = stats
-    ? runRules(stats, { category, competitors: compStats, kb, calendar: cal, bench: analysis?.bench, funnel: analysis?.learn?.funnel })
-    : coldRules(kb, cal);
+    ? runRules(stats, {
+        category,
+        competitors: compStats,
+        kb,
+        calendar: cal,
+        bench: analysis?.bench,
+        funnel: analysis?.learn?.funnel,
+        channelType,
+        posts: analysis?.data.posts,
+        subscriberTrend: analysis?.subscriberTrend,
+        similar: compStats.map((c) => `@${c.channel}`),
+      })
+    : coldRules(kb, cal.filter((e) => e.kind !== "notice"));
   const firedRules = rules.filter((r) => r.status === "fired");
   const ledger: LedgerEntry[] = [
     ...(analysis?.ledger.filter((e) => e.source !== "rule" || e.id.startsWith("S.")) ?? []),
@@ -368,22 +446,38 @@ export async function buildStrategy(inp: StrategyInput) {
   ];
   const ledgerMap = new Map(ledger.map((e) => [e.id, e]));
 
-  // 3. owner questions (code gate)
+  // 3. owner questions (code gate). A growth plan never asks for prices, an address or reviews.
   const q = OQ[lang];
   const ownerQuestions: string[] = [];
-  if (!priceFacts.length) ownerQuestions.push(q.price);
-  if (!has("address", "district", "landmark").length || !has("hours").length) ownerQuestions.push(q.address);
-  if (proof.length < 2) ownerQuestions.push(q.proof);
-  const vo = rules.find((r) => r.id === "R.VALIDATED_OFFER" && r.status === "fired");
-  const voOffers = (vo?.data?.offers as { offer: string }[] | undefined) ?? [];
-  if (voOffers.length) ownerQuestions.push(q.offer.replace("{offer}", voOffers[0].offer));
+  if (!growthPlan) {
+    if (!priceFacts.length) ownerQuestions.push(q.price);
+    else if (stalePrices.length) ownerQuestions.push(q.stale.replace("{prices}", stalePrices.slice(0, 3).join("; ")));
+    if (!has("address", "district", "landmark").length || !has("hours").length) ownerQuestions.push(q.address);
+    if (proof.length < 2) ownerQuestions.push(q.proof);
+    const vo = rules.find((r) => r.id === "R.VALIDATED_OFFER" && r.status === "fired");
+    const voOffers = (vo?.data?.offers as { offer: string }[] | undefined) ?? [];
+    if (voOffers.length) ownerQuestions.push(q.offer.replace("{offer}", voOffers[0].offer));
+    // A day off (Constitution Day, a Hayit) is a question about opening hours, never a post.
+    for (const e of events.filter((x) => x.kind === "notice" && x.daysAway <= 14).slice(0, 1)) ownerQuestions.push(q.notice.replace("{event}", `${e.name[lang]} (${dotted(e.date)})`));
+  }
 
   // 4. code computes shares, skeleton (time, goal, format, link, forecast, hook type, fact focus), KPIs, claims, voice
   const cycle = cycleOf(category, knowledge);
-  const pillar = pillarShares(cycle, rules);
-  const bot = getEnv().BOT_USERNAME?.replace(/^@/, "");
+  const pillar = pillarShares(cycle, rules, planType);
+  // Mercat's tracked link is opt-in (answers.trackLinks or "orders through the Mercat link"), only for a sales plan,
+  // and never while the brand has no owner to receive the leads (owner correction 1).
+  const leadOwner = inp.ownerTelegramId ?? inp.brandOwnerTelegramId ?? null;
+  const trackLinks = !growthPlan && leadOwner != null && Boolean(inp.answers?.trackLinks || inp.answers?.orderHow === "mercat_link");
+  const bot = trackLinks ? getEnv().BOT_USERNAME?.replace(/^@/, "") : undefined;
   const planTag = newPlanTag();
   const learned = analysis?.learn?.hints;
+  // One topic at most once a week: a sales week has at most (distinct topics + 1) slots.
+  const factSource = new Map<string, string>();
+  for (const f of facts) {
+    const src = factSourceOf(f.quote, knowledge);
+    if (src) factSource.set(f.id, src);
+  }
+  const maxSlots = growthPlan || !facts.length ? undefined : distinctTopics(current(facts), factSource) + 1;
   const sk = buildSkeleton({
     now,
     stats,
@@ -400,6 +494,8 @@ export async function buildStrategy(inp: StrategyInput) {
     planTag,
     bench: analysis?.bench,
     learned,
+    channelType: planType,
+    maxSlots,
   });
   const recentHooks = (analysis?.data.posts ?? []).slice(0, 30).map((p) => features(p).firstLine);
   assignHookTypes(sk.slots, {
@@ -409,7 +505,7 @@ export async function buildStrategy(inp: StrategyInput) {
     dropped: learned?.dropped.filter((x) => x.tag === "hookType").map((x) => x.value),
   });
   assignFocus(sk.slots, current(facts), rules);
-  const kpis = buildKpis(stats, rules, sk.slots.length, sk.slots, lang);
+  let kpis = buildKpis(stats, rules, sk.slots.length, sk.slots, lang, { channelType: planType });
   const claims = competitorClaims(analysis?.competitors ?? []);
   const voice = voiceFingerprint(stats, knowledge);
   const usedLangs = new Set(Object.keys(stats?.langShares ?? {}));
@@ -423,9 +519,24 @@ export async function buildStrategy(inp: StrategyInput) {
   const slotsForLlm = new Map(
     sk.slots.map((s) => [
       s.slot,
-      { slot: s.slot, day: s.day, time: s.time, goal: s.goal, format: s.format, lang: slotLang, hookOptions: s.hookOptions, focus: s.focus, exp: s.exp, calendarEvent: s.calendarEvent },
+      {
+        slot: s.slot,
+        day: s.day,
+        time: s.time,
+        goal: s.goal,
+        format: s.format,
+        lang: slotLang,
+        link: Boolean(s.link),
+        hookOptions: s.hookOptions,
+        focus: s.focus,
+        exp: s.exp,
+        calendarEvent: s.calendarEvent,
+        calendarKind: s.calendarKind,
+      },
     ]),
   );
+  // How the channel's posts end: the CTA follows it (owner correction 1). Never on a growth plan's slots.
+  const endingForLlm = inp.postEnding ? { pattern: inp.postEnding.pattern, ...(inp.postEnding.contact ? { contact: inp.postEnding.contact } : {}) } : undefined;
 
   // 5. strategist: waits for the web context (≤12 s), runs in parallel with the slot writers
   const strategistP = Promise.race([webP, sleep(Math.max(0, WEB_UNTIL - elapsed())).then(() => [] as LedgerEntry[])]).then(async (web) => {
@@ -439,14 +550,15 @@ export async function buildStrategy(inp: StrategyInput) {
       effort: "low",
       maxTokens: 6000,
       timeoutMs: Math.max(8_000, DEADLINE - 1_000 - elapsed()),
-      system: `${common}\n\n${D2(brandName, category || "biznes", cycle, inp.goal ?? "ko'proq buyurtma")}`,
+      system: `${common}\n\n${D2(brandName, category || (growthPlan ? channelType : "biznes"), cycle, inp.goal ?? GOAL_TEXT[lang][growthPlan ? "grow" : "sale"], { lang, growthType: growthPlan ? channelType : undefined })}`,
       prompt: JSON.stringify({
+        outputLanguage: LANG_NAME[lang],
         facts: factsForLlm,
         stats: statsForLlm,
         firedRules: firedRules.map(({ id, name, trigger, effects }) => ({ id, name, trigger, effects })),
         competitorClaims: claims,
         web: web.map(({ id, label, display, url }) => ({ id, label, display, url })),
-        pillarGoals: (["reach", "trust", "sale"] as Goal[]).map((g) => ({ goal: g, share: pillar.final[g] })),
+        pillarGoals: planGoals(planType).map((g) => ({ goal: g, share: pillar.final[g] })),
         voice: { address: voice.address, primaryLang: voice.primaryLang },
         calendar: cal,
         ownerQuestions,
@@ -473,7 +585,7 @@ export async function buildStrategy(inp: StrategyInput) {
   const status = new Map<number, CriticStatus>();
   const asLint = (s: Slot): LintItem => {
     const it = drafts.get(s.slot);
-    return { slot: s.slot, goal: s.goal, hook: it?.hook ?? "", cta: it?.cta ?? "", brief: it?.brief ?? "", factIds: it?.factIds ?? [] };
+    return { slot: s.slot, goal: s.goal, hook: it?.hook ?? "", cta: it?.cta ?? "", brief: it?.brief ?? "", factIds: it?.factIds ?? [], link: Boolean(s.link) };
   };
   const failsOf = (slot: number) => [...(codeFails.get(slot) ?? []), ...(criticFails.get(slot) ?? [])];
   // Code checks per item: the shared lint, plus a date that is already history on the slot's day.
@@ -517,11 +629,18 @@ export async function buildStrategy(inp: StrategyInput) {
       system: `${common}\n\n${D3}${repair ? `\n\n${REPAIR}` : ""}`,
       prompt: JSON.stringify(
         repair
-          ? { slots: slots.map((s) => ({ ...slotsForLlm.get(s.slot), current: drafts.get(s.slot), fails: failsOf(s.slot) })), facts: factsForLlm, voice: { address: voice.address, emojiPer100: voice.emojiPer100 }, lexicon: LEXICON }
+          ? {
+              slots: slots.map((s) => ({ ...slotsForLlm.get(s.slot), current: drafts.get(s.slot), fails: failsOf(s.slot) })),
+              facts: factsForLlm,
+              voice: { address: voice.address, emojiPer100: voice.emojiPer100 },
+              ending: endingForLlm,
+              lexicon: LEXICON,
+            }
           : {
               slots: slots.map((s) => slotsForLlm.get(s.slot)),
               facts: factsForLlm,
               voice: { ...voice, anchors: voice.anchors },
+              ending: endingForLlm,
               recentHooks,
               competitorHooks: (analysis?.competitors ?? []).flatMap((c) => c.data.posts.slice(0, 10).map((p) => features(p).firstLine)),
               lexicon: LEXICON,
@@ -603,9 +722,9 @@ export async function buildStrategy(inp: StrategyInput) {
       cta = fixMixedScript(cta);
       brief = fixMixedScript(brief);
     }
-    const link = s.link ?? "";
-    // No tracked link (reach slot, or no BOT_USERNAME): the placeholder never reaches the owner.
-    cta = s.goal !== "reach" && link ? cta.replaceAll("{{LINK}}", link) : cta.replace(/\s*\{\{LINK\}\}/g, "").replace(/[\s:–—-]+$/, "").trim();
+    // The opt-in tracked link is put in by code: where the writer left {{LINK}}, else at the end of the CTA. Without a
+    // link (not opted in, no owner, a reach or growth slot) the token never reaches the owner.
+    cta = withTrackedLink(cta, s.link);
     const evIds = [...new Set([...s.evidence, ...(it?.factIds ?? [])])];
     const meta = briefMetaText({ timeSource: s.timeSource, reasons: [...new Set(reasons)], exp: s.exp }, lang);
     return {
@@ -636,6 +755,7 @@ export async function buildStrategy(inp: StrategyInput) {
       link: s.link,
       src: s.src,
       calendarEvent: s.calendarEvent,
+      calendarKind: s.calendarKind,
       forecast: s.forecast,
       critic: status.get(s.slot) ?? "owner_input",
       fails,
@@ -657,7 +777,7 @@ export async function buildStrategy(inp: StrategyInput) {
   // hook) are one post twice: the later one is rewritten once about another fact; if that fails, it waits for the owner.
   let items = [...finished].sort((a, b) => (a.slot as number) - (b.slot as number));
   const factType = new Map(facts.map((f) => [f.id, f.type]));
-  const dups = duplicateItems(items, factType);
+  const dups = duplicateItems(items, factType, factSource);
   if (dups.size && elapsed() < DEADLINE - 15_000) {
     const redo = sk.slots.filter((s) => dups.has(s.slot) && drafts.has(s.slot));
     for (const s of redo) {
@@ -685,12 +805,16 @@ export async function buildStrategy(inp: StrategyInput) {
       emit({ stage: "dedupe", status: "failed", slots: redo.map((s) => s.slot) });
     }
   }
-  for (const [slot] of duplicateItems(items, factType)) {
-    const it = items.find((x) => x.slot === slot);
-    if (!it) continue;
-    (it.approvalReasons as string[]).push("critic:HOOK");
-    it.needsApproval = true;
+  // One topic at most once a week: what the single repair could not make different leaves the plan (slot numbers stay;
+  // the stored plan, the KPIs and the forecasts count only what is left).
+  const { kept, dropped } = dropDuplicates(items, duplicateItems(items, factType, factSource));
+  if (dropped.length) {
+    items = kept;
+    emit({ stage: "dedupe", dropped });
+    const left = sk.slots.filter((s) => !dropped.includes(s.slot));
+    kpis = buildKpis(stats, rules, left.length, left, lang, { channelType: planType });
   }
+  const keptSlots = sk.slots.filter((s) => !dropped.includes(s.slot));
   const ctaHead = (c: string) => normApos(c).toLowerCase().split(/\s+/).slice(0, 3).join(" ");
   for (let i = 1; i < items.length; i++)
     if (items[i].cta && items.slice(0, i).some((x) => x.cta && ctaHead(x.cta) === ctaHead(items[i].cta))) {
@@ -706,10 +830,13 @@ export async function buildStrategy(inp: StrategyInput) {
     console.warn("[brain/strategy] strategist failed", err instanceof Error ? err.message : err);
   }
   const d2 = strategyOut?.d2;
+  // The strategy is in the UI language (the strategist's input is full of Uzbek labels).
+  if (d2) await keepLanguage(d2, lang, () => DEADLINE - elapsed());
   const nameByGoal = new Map<string, string>(d2?.pillars.map((p) => [p.goal, p.name]) ?? []);
   for (const it of items) it.pillar = nameByGoal.get(it.goal) ?? it.goal;
   const risks = [...(d2?.risks ?? [])];
-  if (d2) {
+  // "How do you differ from competitors" is a shop question: a blog or a digest is not asked it.
+  if (d2 && !growthPlan) {
     const posIds = extractIds(d2.positioning);
     if (!posIds.some((i) => /^F\d+$/.test(i)) || claims.some((c) => ws(d2.positioning).includes(c.phrase))) {
       risks.unshift(OWNER_TEXT[lang].weakDiff);
@@ -717,9 +844,9 @@ export async function buildStrategy(inp: StrategyInput) {
     }
   }
   // "BLOCKED — price needed" is the strategist's internal marker, never an offer the owner reads: the offer stays
-  // empty and the owner is asked for the price in their language.
+  // empty and the owner is asked for the price in their language. A growth plan has no offer and no price question.
   const offerBlocked = isBlockedMarker(d2?.offer ?? "");
-  if (offerBlocked) ownerQuestions.push(q.price);
+  if (offerBlocked && !growthPlan) ownerQuestions.push(q.price);
   const strategy: Strategy = {
     positioning: d2?.positioning ?? "",
     audiences: (d2?.audiences ?? []).slice(0, 3).map((a) => ({
@@ -729,9 +856,9 @@ export async function buildStrategy(inp: StrategyInput) {
         ? a.whereTheyAre.filter((w) => extractIds(w).length > 0 || w.startsWith("UNKNOWN"))
         : [OWNER_TEXT[lang].unknownWhere],
     })),
-    offer: !priceFacts.length ? OWNER_TEXT[lang].blocked : offerBlocked ? "" : (d2?.offer ?? ""),
+    offer: growthPlan ? "" : !priceFacts.length ? OWNER_TEXT[lang].blocked : offerBlocked ? "" : (d2?.offer ?? ""),
     proofPoints: (d2?.proofPoints ?? []).filter((p) => extractIds(p).some((i) => /^[FW]\d+$/.test(i))),
-    pillars: (["reach", "trust", "sale"] as Goal[])
+    pillars: planGoals(planType)
       .filter((g) => pillar.final[g] > 0)
       .map((g) => ({ name: nameByGoal.get(g) ?? g, goal: g, share: pillar.final[g] / 100, examples: d2?.pillars.find((p) => p.goal === g)?.examples ?? [] })),
     kpis,
@@ -746,7 +873,7 @@ export async function buildStrategy(inp: StrategyInput) {
   // 9. remember the plan: its tracked links join next week's results back to each slot
   let planId: string | null = null;
   if (live && inp.save !== false && (channel || inp.brandId)) {
-    const stored: StoredPlanItem[] = sk.slots.map((s) => ({
+    const stored: StoredPlanItem[] = keptSlots.map((s) => ({
       slot: s.slot,
       day: s.day,
       time: s.time,
@@ -780,6 +907,11 @@ export async function buildStrategy(inp: StrategyInput) {
     firedRules,
     rules,
     ownerQuestions: [...new Set(ownerQuestions)].slice(0, 8),
+    /** Structured questions (goal, how customers order, prices / what the channel is about) for POST /answers. */
+    questions,
+    channelType,
+    goal: mainGoal,
+    trackLinks,
     criticReport,
     pillar,
     facts,
@@ -790,10 +922,71 @@ export async function buildStrategy(inp: StrategyInput) {
     bench: analysis?.bench ? { ...analysis.bench, channels: undefined, channelCount: analysis.bench.channels.length } : null,
     learn: analysis?.learn ? { plans: analysis.learn.plans, scores: analysis.learn.scores, experiments: analysis.learn.experiments, calibration: analysis.learn.calibration, changes: analysis.learn.changes } : null,
     web: strategyOut?.web ?? [],
-    sufficiency: sufficiency({ stats, bench: analysis?.bench, competitors: compStats.length, learn: analysis?.learn, facts: { prices: priceFacts.length, proof: proof.length } }, lang),
+    // A growth plan needs no prices or reviews: those lines are left out.
+    sufficiency: sufficiency({ stats, bench: analysis?.bench, competitors: compStats.length, learn: analysis?.learn, facts: growthPlan ? undefined : { prices: priceFacts.length, proof: proof.length } }, lang),
     promptVersion: PROMPT_VERSION,
     elapsedMs: elapsed(),
   };
+}
+
+const TranslateSchema = z.object({ items: z.array(z.object({ id: z.string(), text: z.string() })) });
+
+/**
+ * The strategy in the UI language: strings the strategist wrote in another language (Uzbek rule names leaking into a
+ * Russian plan) get one fast translation pass while there is time; if that fails or there is no time, list entries in
+ * the wrong language are dropped (the positioning and offer stay rather than leave the owner nothing).
+ */
+async function keepLanguage(d2: z.infer<typeof StrategySchema>, lang: Lang, left: () => number): Promise<void> {
+  type Ref = { id: string; get: () => string; set: (v: string) => void; list?: { arr: string[]; i: number } };
+  const refs: Ref[] = [];
+  const add = (id: string, get: () => string, set: (v: string) => void, list?: { arr: string[]; i: number }) => refs.push({ id, get, set, list });
+  add("positioning", () => d2.positioning, (v) => (d2.positioning = v));
+  add("offer", () => d2.offer, (v) => (d2.offer = v));
+  const lists: [string, string[]][] = [
+    ["risk", d2.risks],
+    ["rationale", d2.rationale],
+    ["proof", d2.proofPoints],
+    ...d2.audiences.flatMap((a, k): [string, string[]][] => [
+      [`a${k}.pains`, a.pains],
+      [`a${k}.triggers`, a.triggers],
+    ]),
+    ...d2.pillars.map((p, k): [string, string[]] => [`p${k}.examples`, p.examples]),
+  ];
+  for (const [name, arr] of lists) arr.forEach((_, i) => add(`${name}.${i}`, () => arr[i], (v) => (arr[i] = v), { arr, i }));
+  d2.audiences.forEach((a, k) => {
+    add(`a${k}.name`, () => a.name, (v) => (a.name = v));
+    add(`a${k}.job`, () => a.job, (v) => (a.job = v));
+  });
+  d2.pillars.forEach((p, k) => add(`p${k}.name`, () => p.name, (v) => (p.name = v)));
+  const wrong = refs.filter((r) => !isBlockedMarker(r.get()) && wrongLanguage(stripIdsAll(r.get()), lang));
+  if (!wrong.length) return;
+  let done = false;
+  if (left() > 7_000) {
+    try {
+      const res = await brainJson({
+        schema: TranslateSchema,
+        purpose: "strategy_language",
+        model: HAIKU,
+        effort: "low",
+        maxTokens: 4000,
+        timeoutMs: Math.min(8_000, left() - 2_000),
+        maxRetries: 0,
+        system: `Translate each text into ${LANG_NAME[lang]} for a small-business owner. Keep every id in square brackets ([F3], [S.reachRate]) exactly where it is, keep numbers, names and prices. Plain words. Return every id.`,
+        prompt: JSON.stringify({ items: wrong.map((r) => ({ id: r.id, text: r.get() })) }),
+      });
+      const byId = new Map(res.items.map((i) => [i.id, i.text.trim()]));
+      for (const r of wrong) {
+        const t = byId.get(r.id);
+        if (t && !wrongLanguage(stripIdsAll(t), lang)) r.set(t);
+      }
+      done = true;
+    } catch (err) {
+      console.warn("[brain/strategy] language pass failed", err instanceof Error ? err.message : err);
+    }
+  }
+  // Still in the wrong language: list entries go (from the end, so indexes stay valid).
+  const still = wrong.filter((r) => r.list && wrongLanguage(stripIdsAll(r.get()), lang)).sort((a, b) => (b.list?.i ?? 0) - (a.list?.i ?? 0));
+  if (!done || still.length) for (const r of still) r.list?.arr.splice(r.list.i, 1);
 }
 
 /** Rules for a brand with no channel history. */

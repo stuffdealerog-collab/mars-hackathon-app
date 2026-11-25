@@ -3,7 +3,7 @@
  * GROUNDED: every "fact number" must match the display/value of an id cited in the same string.
  */
 import { lexiconHits, normApos } from "./stats";
-import { ID_RE, type LedgerEntry } from "./types";
+import { ID_RE, type Goal, type LedgerEntry } from "./types";
 import { clip } from "../text";
 
 export function extractIds(text: string): string[] {
@@ -93,11 +93,13 @@ export function jaccard(a: Set<string>, b: Set<string>): number {
 
 export interface LintItem {
   slot: number;
-  goal: "reach" | "trust" | "sale";
+  goal: Goal;
   hook: string;
   cta: string;
   brief: string;
   factIds: string[];
+  /** The slot carries the opt-in tracked link (code puts it where {{LINK}} is, or at the end). Missing = false. */
+  link?: boolean;
 }
 
 export interface LintCtx {
@@ -124,9 +126,11 @@ export function lintItem(item: LintItem, ctx: LintCtx): CheckFail[] {
   const urg = normApos(all).match(URGENCY_RE);
   if (urg && ctx.deadlineFacts === 0) fails.push({ check: "URGENCY", quote: urg[0], reason: "urgency without a deadline/capacity fact" });
 
-  const links = (item.cta.match(/\{\{LINK\}\}/g) ?? []).length + (all.match(/https?:\/\//g) ?? []).length;
-  if (item.goal !== "reach" && (item.cta.match(/\{\{LINK\}\}/g) ?? []).length !== 1) fails.push({ check: "ONE_CTA", quote: item.cta, reason: "sale/trust CTA needs {{LINK}} exactly once" });
-  if (item.goal === "reach" && links > 0) fails.push({ check: "ONE_CTA", quote: item.cta, reason: "reach item must not carry a link" });
+  const tokens = (item.cta.match(/\{\{LINK\}\}/g) ?? []).length;
+  const links = tokens + (all.match(/https?:\/\//g) ?? []).length;
+  // The tracked link is opt-in and put in by code (owner correction 1): a token where there is no link, or twice, fails.
+  if (tokens > 1 || (tokens > 0 && !item.link)) fails.push({ check: "ONE_CTA", quote: item.cta, reason: item.link ? "{{LINK}} more than once" : "this slot has no tracked link: remove {{LINK}}" });
+  if ((item.goal === "reach" || item.goal === "engage" || item.goal === "grow") && links > 0) fails.push({ check: "ONE_CTA", quote: item.cta, reason: `${item.goal} item must not carry a link` });
   if ((item.cta.match(/\+?998[\s-]?\d{2}/g) ?? []).length + (item.cta.match(/@\w{4,}/g) ?? []).length > 1)
     fails.push({ check: "ONE_CTA", quote: item.cta, reason: "more than one contact in the CTA" });
 

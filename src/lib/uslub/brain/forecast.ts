@@ -54,7 +54,7 @@ export const baseViews = (stats: Pick<ChannelStats, "recentMedianViews" | "media
 export const steadyBase = (stats: Pick<ChannelStats, "coldStart" | "recentMedianN"> | undefined) => !stats || stats.coldStart || stats.recentMedianN < MIN_RECENT_N;
 
 export function forecastSlot(
-  slot: { goal: Goal; format: string; time: string; weekday: number },
+  slot: { goal: Goal; format: string; time: string; weekday: number; link?: string },
   stats: ChannelStats | undefined,
   bench: Benchmark | undefined,
   opts: { lang?: Lang; ctr?: { low: number; high: number; n: number } } = {},
@@ -100,7 +100,8 @@ export function forecastSlot(
   if (!views) return { status: "insufficient", basis, confidence: "none", display: w.none };
 
   let starts: Forecast["starts"];
-  if (slot.goal === "sale") {
+  // Bot starts only for a sale post that carries the opt-in tracked link: nothing else could count them.
+  if (slot.goal === "sale" && slot.link) {
     const c = opts.ctr && opts.ctr.n >= 3 ? { ...opts.ctr, source: "measured" as const } : { ...PRIOR_CTR, source: "prior" as const };
     starts = { low: Math.max(0, Math.round(views.mid * c.low)), high: Math.max(1, Math.round(views.mid * c.high)), source: c.source };
   }

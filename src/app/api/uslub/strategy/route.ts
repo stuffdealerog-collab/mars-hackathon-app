@@ -1,5 +1,10 @@
 import { z } from "zod";
+import type { OwnerAnswers } from "@/lib/uslub/brain/answers";
+import { loadAnswers } from "@/lib/uslub/brain/answers-store";
+import { defaultGoalFor } from "@/lib/uslub/brain/channel-type";
 import { loadKnowledge } from "@/lib/uslub/brain/kbstore";
+import type { ChannelType } from "@/lib/uslub/contract";
+import { setBrandTypeGoal, type StoredBrand } from "@/lib/uslub/store";
 import { buildLaunchStrategy } from "@/lib/uslub/brain/launch";
 import { loadPlanView, savePlanView } from "@/lib/uslub/brain/memory";
 import { respond } from "@/lib/uslub/brain/route-utils";
@@ -48,12 +53,17 @@ export const POST = handle(async (req) => {
   let brandId: string | undefined;
   let ownerVerified = false;
   let fresh = body.mode === "fresh";
+  let stored: StoredBrand | undefined;
+  let answers: OwnerAnswers | null = null;
   if (body.brandId) {
     try {
       const brand = await loadBrandFor(body.brandId, userId);
       // An owned brand's plan is private (GET below): only someone who may read its drafts may replace it.
       if (brand.ownerTelegramId != null) await assertDraftAccess(brand, userId);
       brandId = brand.id;
+      stored = brand;
+      // The owner's answers (goal, how customers order, prices) are reused every week; their text is in loadKnowledge.
+      answers = await loadAnswers(brand.id).catch(() => null);
       const requested = (body.channel ?? body.audit?.channel)?.replace(/^@/, "").toLowerCase();
       ownerVerified =
         brand.source === "custom" && brand.ownerTelegramId != null && brand.ownerTelegramId === userId && (!requested || !brand.channel || requested === brand.channel.toLowerCase());
@@ -76,18 +86,27 @@ export const POST = handle(async (req) => {
   await spendClaude(req, userId, "strategy");
   const lang = body.lang ?? "uz";
   // The brand's latest plan is kept as the owner saw it, so a reload can show it again (GET below).
-  const remember = async <R extends { plan: unknown; strategy: unknown; ownerQuestions: string[]; planTag: string | null; launch?: unknown }>(r: R): Promise<R> => {
+  const remember = async <
+    R extends { plan: unknown; strategy: unknown; ownerQuestions: string[]; planTag: string | null; launch?: unknown; questions?: unknown; channelType?: ChannelType; goal?: string },
+  >(
+    r: R,
+  ): Promise<R> => {
     if (brandId) {
       await savePlanView(brandId, {
         mode: fresh ? "fresh" : "channel",
         plan: r.plan,
         strategy: r.strategy,
         ownerQuestions: r.ownerQuestions,
+        ...(r.questions ? { questions: r.questions } : {}),
+        ...(r.channelType ? { channelType: r.channelType, goal: r.goal } : {}),
         planTag: r.planTag,
         ...(r.launch ? { launch: r.launch } : {}),
         lang,
         createdAt: new Date().toISOString(),
       }).catch(() => {});
+      // A brand made before type detection learns its type now (the goal stays the owner's once they answered).
+      if (stored && r.channelType && !stored.channelType)
+        await setBrandTypeGoal(stored.id, { channelType: r.channelType, ...(stored.goal ? {} : { goal: defaultGoalFor(r.channelType) }) }).catch(() => {});
     }
     return r;
   };
@@ -110,6 +129,13 @@ export const POST = handle(async (req) => {
       ownerTelegramId: userId,
       ownerVerified,
       approvedPosts: body.approvedPosts,
+      // What kind of channel, the confirmed goal, the answers, how its posts end (owner corrections 1 and 2).
+      channelType: stored?.channelType,
+      mainGoal: answers?.goal ?? (stored?.goal === "sale" || stored?.goal === "grow" ? stored.goal : undefined),
+      answers,
+      brandOwnerTelegramId: stored?.ownerTelegramId ?? null,
+      postEnding: stored?.dna?.postEnding,
+      products: stored?.dna?.products,
       onStage,
     }).then(remember),
   );

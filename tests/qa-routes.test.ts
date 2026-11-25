@@ -25,6 +25,11 @@ vi.mock("@/lib/uslub/postguard", async () => await import("../src/lib/uslub/post
 vi.mock("@/lib/uslub/slots", async () => await import("../src/lib/uslub/slots"));
 vi.mock("@/lib/uslub/sensitivity", async () => await import("../src/lib/uslub/sensitivity"));
 vi.mock("@/lib/uslub/copywriter", async () => await import("../src/lib/uslub/copywriter"));
+// Owner answers and documents the posts route loads for the writer (none here), and the ending/link helpers.
+vi.mock("@/lib/uslub/brain/answers", async () => await import("../src/lib/uslub/brain/answers"));
+vi.mock("@/lib/uslub/brain/answers-store", () => ({ loadAnswers: async () => null }));
+vi.mock("@/lib/uslub/brain/kbstore", () => ({ loadKnowledge: async () => ({ text: "", sources: [] }) }));
+vi.mock("@/lib/uslub/ending", async () => await import("../src/lib/uslub/ending"));
 
 const llmJson = vi.fn();
 vi.mock("../src/lib/uslub/llm", () => ({

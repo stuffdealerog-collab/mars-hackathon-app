@@ -102,7 +102,7 @@ describe("bench", () => {
 describe("forecast", () => {
   const stats = computeStats(safia(), NOW);
   it("uses the channel median and shrunk lifts, with a p25–p75 range", () => {
-    const f = forecastSlot({ goal: "sale", format: "photo", time: "11:20", weekday: 3 }, stats, undefined, { lang: "uz" });
+    const f = forecastSlot({ goal: "sale", format: "photo", time: "11:20", weekday: 3, link: "https://t.me/mercatai?start=src_ab12cd_1" }, stats, undefined, { lang: "uz" });
     expect(f.status).toBe("ok");
     expect(f.confidence).toBe("data");
     expect(f.views!.low).toBeLessThan(f.views!.mid);

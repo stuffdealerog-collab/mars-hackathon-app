@@ -1,14 +1,34 @@
 import "server-only";
+import { getEnv } from "../env";
 import { safeLogEvent } from "@/lib/track";
 import { brandSourceFor, canReuseBrandRow, isDnaStale, isReusableBrand, mayRewriteBrandRow } from "./access";
-import type { BrandMode } from "./contract";
+import { defaultGoalFor, detectChannelType } from "./brain/channel-type";
+import type { BrandDNA, BrandMode, ChannelType, Goal } from "./contract";
 import { extractBrandDNA } from "./dna";
+import { extractPostEnding } from "./ending";
 import type { ApiLang } from "./errors";
 import { MIN_CHANNEL_POSTS, parseChannelUsername, scrapeChannel, ScrapeError, type ScrapedChannel } from "./scrape";
-import { dnaProseLang, findChannelOnlyBrand, findOwnBrand, getBrand, isUuid, saveBrand, updateBrandProfile, wasClaimed, type StoredBrand } from "./store";
+import { dnaProseLang, findChannelOnlyBrand, findOwnBrand, getBrand, isUuid, saveBrand, setBrandTypeGoal, updateBrandProfile, wasClaimed, type StoredBrand } from "./store";
 
 /** A DNA just written, with the time it was written: kept inside the dna jsonb (no schema change), read by isDnaStale. */
 const stamped = <T extends object>(dna: T): T & { builtAt: string } => ({ ...dna, builtAt: new Date().toISOString() });
+
+/**
+ * What the channel's own posts say without an LLM: how its posts end (owner correction 1) and what kind of channel
+ * it is, with the goal that type starts with (owner correction 2). `samplePosts` are oldest first (as stored).
+ */
+export function channelProfile(input: { samplePosts: string[]; channel?: string; scraped?: Pick<ScrapedChannel, "username" | "title" | "description" | "posts"> }): {
+  postEnding: BrandDNA["postEnding"];
+  channelType: ChannelType;
+  goal: Goal;
+} {
+  const posts = input.scraped?.posts.map((p) => p.text) ?? input.samplePosts;
+  const newestFirst = [...posts].reverse();
+  const bot = getEnv().BOT_USERNAME?.replace(/^@/, "");
+  const postEnding = extractPostEnding(newestFirst, { channel: input.scraped?.username ?? input.channel, bot });
+  const channelType = detectChannelType({ posts: newestFirst.map((text) => ({ text })), title: input.scraped?.title, description: input.scraped?.description }).type;
+  return { postEnding, channelType, goal: defaultGoalFor(channelType) };
+}
 
 export interface BuildBrandInput {
   channel?: string;
@@ -82,14 +102,33 @@ async function reuseBrand(found: EarlierBrand, scraped: ScrapedChannel, input: {
     await input.beforeLlm?.();
     const fresh = brand.source === "channel_only" ? scraped.posts.map((p) => p.text).slice(-30) : [];
     const samplePosts = fresh.length ? fresh : brand.samplePosts;
-    const dna = stamped(
-      await extractBrandDNA({ samplePosts, knowledge: brand.knowledge, channelTitle: scraped.title, channelDescription: scraped.description, lang: input.lang }),
-    );
+    const profile = channelProfile({ samplePosts, channel: brand.channel, scraped: fresh.length ? scraped : undefined });
+    const dna = stamped({
+      ...(await extractBrandDNA({ samplePosts, knowledge: brand.knowledge, channelTitle: scraped.title, channelDescription: scraped.description, lang: input.lang })),
+      postEnding: profile.postEnding,
+    });
     brand = (await updateBrandProfile(brand.id, { dna, samplePosts })) ?? { ...brand, dna, samplePosts };
+    brand = await withTypeGoal(brand, profile);
+  } else if (!brand.dna.postEnding || !brand.channelType) {
+    // A row made before 2026-11-25: its ending and type come from its posts, no LLM call.
+    const profile = channelProfile({ samplePosts: brand.samplePosts, channel: brand.channel, scraped: brand.source === "channel_only" ? scraped : undefined });
+    if (!brand.dna.postEnding && mayRewriteBrandRow(brand, input.owner)) {
+      const dna = { ...brand.dna, postEnding: profile.postEnding };
+      brand = (await updateBrandProfile(brand.id, { dna })) ?? { ...brand, dna };
+    }
+    if (mayRewriteBrandRow(brand, input.owner)) brand = await withTypeGoal(brand, profile);
   }
   // brand_created no longer fires for a re-run, so the funnel counts the reuse instead of seeing a drop.
   await safeLogEvent(input.owner, "brand_reused", { brand_id: brand.id, channel: brand.channel ?? null, via: found.via, dna_rewritten: rebuild });
   return { brand, cached: !rebuild, reused: true, channel: scraped };
+}
+
+/** Stores the detected type and its default goal on a row that has none yet (a stored type or goal is kept). */
+async function withTypeGoal(brand: StoredBrand, profile: { channelType: ChannelType; goal: Goal }): Promise<StoredBrand> {
+  const patch = { ...(brand.channelType ? {} : { channelType: profile.channelType }), ...(brand.goal ? {} : { goal: profile.goal }) };
+  if (!patch.channelType && !patch.goal) return brand;
+  await setBrandTypeGoal(brand.id, patch).catch((err) => console.warn("[uslub/brand] type not saved", err instanceof Error ? err.message : err));
+  return { ...brand, ...patch };
 }
 
 /**
@@ -146,8 +185,17 @@ export async function buildBrand(input: BuildBrandInput): Promise<BuildBrandResu
       // their capability for its posts (GET /posts), so a competitor pasting the same channel can't see drafts.
       if (owner != null && cached.ownerTelegramId === owner) return { brand: cached, cached: true, channel: scraped };
       // Same public DNA (no new Claude call), but a separate row for this caller.
+      const profile = cached.dna.postEnding && cached.channelType ? null : channelProfile({ samplePosts: cached.samplePosts, scraped });
       const copy = await saveBrand(
-        { channel: scraped.username, knowledge: "", samplePosts: cached.samplePosts, dna: cached.dna, mode: "channel" },
+        {
+          channel: scraped.username,
+          knowledge: "",
+          samplePosts: cached.samplePosts,
+          dna: profile && !cached.dna.postEnding ? { ...cached.dna, postEnding: profile.postEnding } : cached.dna,
+          mode: "channel",
+          channelType: cached.channelType ?? profile?.channelType,
+          goal: defaultGoalFor(cached.channelType ?? profile?.channelType),
+        },
         owner,
         "channel_only",
       );
@@ -163,8 +211,14 @@ export async function buildBrand(input: BuildBrandInput): Promise<BuildBrandResu
   }
 
   await input.beforeLlm?.();
-  const dna = stamped(await extractBrandDNA({ samplePosts, knowledge, channelTitle: scraped?.title, channelDescription: scraped?.description, lang }));
-  const brand = await saveBrand({ channel: scraped?.username, knowledge, samplePosts, dna, mode: "channel" }, owner, source);
+  // How the channel's posts end and what kind of channel it is come from the posts themselves (owner samples
+  // included), never from the LLM.
+  const profile = channelProfile({ samplePosts, channel: scraped?.username, scraped: given.length ? undefined : scraped });
+  const dna = stamped({
+    ...(await extractBrandDNA({ samplePosts, knowledge, channelTitle: scraped?.title, channelDescription: scraped?.description, lang })),
+    postEnding: profile.postEnding,
+  });
+  const brand = await saveBrand({ channel: scraped?.username, knowledge, samplePosts, dna, mode: "channel", channelType: profile.channelType, goal: profile.goal }, owner, source);
   return { brand, cached: false, channel: scraped };
 }
 

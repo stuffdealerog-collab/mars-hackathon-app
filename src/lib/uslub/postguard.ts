@@ -5,6 +5,7 @@
  */
 import type { Script } from "./contract";
 import { dotted, pastDatesIn } from "./dates";
+import { contactsIn } from "./ending";
 import { splitSentences } from "./text";
 
 const VIDEO_RE = /(?<!\p{L})(video|видео|ролик|reels?)\p{L}*/iu;
@@ -124,14 +125,18 @@ const PHONE_RE = /(\+?998[\s-]?\(?\d{2}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2})|(\(
 const TRACKED_RE = /t\.me\/\w+\?start=src_[\w-]+/i;
 
 /**
- * One way to reach the business per post. With the plan's tracked link in the post, other "write to / call"
- * sentences (an @admin, a phone, Direct) go; "Direct" never stays. The address and hours stay as they are.
+ * "Direct" (Instagram's inbox) never stays in a Telegram post. With the plan's opt-in tracked link in the post, a
+ * "write to / call" sentence naming some other route goes, but never one that carries the channel's own contact or the
+ * owner's answered contact (`keep`: contact keys from ending.ts contactsIn): the tracked link is an extra line, never a
+ * replacement for the owner's phone or manager (owner correction 1). The address and hours stay as they are.
  */
-export function oneContactRoute(text: string): string {
+export function oneContactRoute(text: string, keep: readonly string[] = []): string {
   const tracked = TRACKED_RE.test(text);
+  const keepSet = new Set(keep);
   return mapSentences(text, (sentence) => {
     if (DIRECT_RE.test(sentence) && !TRACKED_RE.test(sentence)) return null;
     if (!tracked || TRACKED_RE.test(sentence)) return sentence;
+    if (keepSet.size && contactsIn(sentence).some((c) => keepSet.has(c.key))) return sentence;
     const otherRoute = /(?<![\w/])@\w{4,}/.test(sentence) || PHONE_RE.test(sentence);
     return otherRoute && CONTACT_VERB_RE.test(sentence) ? null : sentence;
   });

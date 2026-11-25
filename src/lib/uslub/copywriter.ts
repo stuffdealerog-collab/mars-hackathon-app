@@ -1,9 +1,12 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { BrandProfile, NeuroHit, PlanSlot, PostDraft, Script } from "./contract";
+import { getEnv } from "../env";
+import { answeredContact, type OwnerAnswers } from "./brain/answers";
+import type { BrandProfile, NeuroHit, PlanSlot, PostDraft, PostEnding, Script } from "./contract";
+import { applyPostEnding, dropTrackedLinks, endingBrief, ensureTrackedLink, extractPostEnding, ownContactKeys } from "./ending";
 import { rewriteNeuroBatch, type EditJob } from "./editor";
-import { llmJson, MODEL_QUALITY, type Effort } from "./llm";
+import { llmJson, MODEL_FAST, MODEL_QUALITY, type Effort } from "./llm";
 import { analyzeNeuro, inventedFacts } from "./neuro";
 import { findPlaceholders } from "./placeholders";
 import { alignProductNames, contactBlankIfNone, dropVideoMentions, fixMixedScript, hasContact, oneContactRoute, replaceHiddenPrice, ruFirstPersonGender } from "./postguard";
@@ -36,24 +39,50 @@ Hard rules:
 7. Make each post a different angle (product, behind the scenes, customer question, offer, useful tip…) unless the brief asks otherwise.
 8. LENGTH: keep every version under 950 characters, even if the brand's older posts are longer — the post goes out as a photo caption (Telegram's limit is 1024).
 9. PHOTOS ARE NOT IN THE TEXT: a brief may say which photo or video to shoot — that note is for the owner, never write it into the post. Never describe a picture ("on the photo you can see…") and never claim the business did, tested or showed something unless the knowledge says so.
-10. ONE WAY TO ORDER: if the call to action has a link, that link is the only way to contact or order in the post: no extra phone number, @admin or "write to us" line. Without a link, use the brand's own order contact from the knowledge. Never say "Direct" (that is Instagram's inbox, not Telegram). If the knowledge has no contact at all, write [kontakt] (uz), [контакт] (ru), [contact] (en) where it goes, never a bare "write to the admin".
+10. THE ENDING FOLLOWS THE CHANNEL: end each post the way the channel's own posts end (HOW THE CHANNEL'S POSTS END below). If they end with a contact, end with that exact contact, written the same way. If they end with hashtags, end with their hashtags. If they just end, add nothing: no contact line, no link, no hashtags, no "write to the admin". Never add a link the channel does not use and never put another link in place of the channel's contact; copy a link from the plan's call to action exactly, as an extra line. Never say "Direct" (that is Instagram's inbox, not Telegram). Only when there is no ending to follow (a new channel) and a sale post needs a way to order: use the contact from the knowledge, or write [kontakt] (uz), [контакт] (ru), [contact] (en) where it goes if the knowledge has none.
 11. NO OFFER NOBODY GAVE: never hint at a discount, gift, promo or "special offer" unless the knowledge states it.
 12. PRICES AND NAMES: write a price as "12 000 so‘m" (uz_latn), "12 000 сум" (ru), "12,000 UZS" (en). Write each product name the way BRAND DNA "products" writes it, the same way every time in a post.`;
 
-function brandContext(brand: BrandProfile): string {
-  const { dna } = brand;
+/**
+ * How the brand's posts end: learned at brand creation (dna.postEnding), else read from its stored posts now (rows
+ * made before 2026-11-25). A new channel with no posts has no ending to follow.
+ */
+export function brandEnding(brand: BrandProfile): PostEnding | undefined {
+  if (brand.dna.postEnding) return brand.dna.postEnding;
+  if (brand.mode === "fresh" || brand.samplePosts.length < 3) return undefined;
+  return extractPostEnding([...brand.samplePosts].reverse(), { channel: brand.channel, bot: getEnv().BOT_USERNAME?.replace(/^@/, "") });
+}
+
+const FACT_POST_RE = /\d[\d\s.,]*\s?(so['‘’ʻ]?m|сўм|сум|sum\b|uzs|ming\b|минг|тыс)|\+?998[\s-]?\(?\d{2}\)?[\s-]?\d{3}/i;
+
+/** Channel posts that carry a price or a phone (newest first, at most 6, each clipped): facts for the writer. */
+export function channelFactPosts(samplePosts: string[]): string[] {
+  return [...samplePosts]
+    .reverse()
+    .filter((p) => FACT_POST_RE.test(p))
+    .slice(0, 6)
+    .map((p) => clip(p.trim(), 500));
+}
+
+function brandContext(brand: BrandProfile, knowledge: string, ending: PostEnding | undefined): string {
+  // The ending goes in its own block below (with real examples), not inside the DNA dump.
+  const dna = { ...brand.dna, postEnding: undefined };
   const examples = brand.samplePosts
     .slice(-8)
     .map((p, i) => `--- example ${i + 1} ---\n${p.slice(0, 700)}`)
     .join("\n");
   const gender = ruFirstPersonGender(brand.samplePosts);
+  // Older channel posts with prices or contacts are facts too (a 4-month-old price card): never only the 8 newest.
+  const older = channelFactPosts(brand.samplePosts.slice(0, -8));
   return [
     `BRAND DNA:\n${JSON.stringify(dna, null, 1)}`,
     gender
       ? `THE OWNER'S VOICE IN RUSSIAN: the owner writes about themself as a ${gender === "f" ? "woman (я приготовила, сама, рада)" : "man (я приготовил, сам, рад)"}. In the ru version, first-person verbs and adjectives take that gender; "мы" stays "мы".`
       : "",
-    brand.knowledge ? `BRAND KNOWLEDGE (the only source of facts):\n${clip(brand.knowledge, 6000)}` : "BRAND KNOWLEDGE: none beyond the posts.",
+    knowledge ? `BRAND KNOWLEDGE (the only source of facts):\n${clip(knowledge, 6000)}` : "BRAND KNOWLEDGE: none beyond the posts.",
+    older.length ? `FACTS FROM THE CHANNEL'S OLDER POSTS (prices, products, contacts; facts only, not the voice):\n${older.join("\n---\n")}` : "",
     examples ? `THE BRAND'S REAL POSTS (match this voice):\n${examples}` : "",
+    endingBrief(ending),
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -171,16 +200,29 @@ export interface GenerateOptions {
   deadline?: number;
   /** The plan slot's format. Anything but "video" goes out with a picture: no sentence may mention a video. */
   format?: string;
+  /**
+   * The facts the writer may use, when the caller loaded more than brand.knowledge: the owner's answers, the brand's
+   * documents and the channel's own posts (posts route). Defaults to brand.knowledge.
+   */
+  knowledge?: string;
+  /** The owner's saved answers: their contact fills a contact blank when the channel's posts show none. */
+  answers?: OwnerAnswers | null;
+  /**
+   * Mercat's tracked link for this slot (opt-in, brand with an owner; the route checks both). Put in by code after
+   * writing (ensureTrackedLink), never left to the prompt; the channel's own contact stays.
+   */
+  trackedLink?: string;
 }
 
 /** Generates `count` posts in 4 scripts, then runs the editor (neuro-word) pass. */
 export async function generatePosts(brand: BrandProfile, brief: string, count = 3, opts: GenerateOptions = {}): Promise<PostDraft[]> {
   const n = Math.max(1, Math.min(5, Math.round(count)));
   const left = () => (opts.deadline ? opts.deadline - Date.now() : 120_000);
+  const ending = brandEnding(brand);
   const result = await llmJson({
     schema: PostsSchema,
     system: SYSTEM,
-    prompt: `${brandContext(brand)}\n\n${opts.slot ? "PLAN SLOT" : "BRIEF FROM THE OWNER"}:\n${clip(brief, 2400)}\n\nWrite exactly ${n} post${n > 1 ? "s" : ""}.`,
+    prompt: `${brandContext(brand, opts.knowledge ?? brand.knowledge, ending)}\n\n${opts.slot ? "PLAN SLOT" : "BRIEF FROM THE OWNER"}:\n${clip(brief, 2400)}\n\nWrite exactly ${n} post${n > 1 ? "s" : ""}.`,
     model: MODEL_QUALITY,
     effort: opts.effort ?? "low",
     maxTokens: 12000,
@@ -237,13 +279,24 @@ export async function generatePosts(brand: BrandProfile, brief: string, count = 
   // Whatever is still left keeps the post out of the channel (approve / publish refuse it, the Studio shows a note).
   await fixPlaceholders(drafts, { left, keep, deadline: opts.deadline });
 
-  // Content rules the model sometimes breaks: a hidden price becomes a price blank, one way to order per post
-  // (no "Direct"), and a new channel with no known contact gets a contact blank instead of "write to the admin".
-  const noContact = brand.mode === "fresh" && !hasContact(`${brand.knowledge}\n${brand.samplePosts.join("\n")}`);
+  // Content rules the model sometimes breaks, and the ending (owner correction 1), all by code:
+  // - a hidden price becomes a price blank; "Direct" goes;
+  // - the channel's own contact and the owner's answered contact are never deleted (not even next to a tracked link);
+  // - a new channel with no known contact gets a contact blank instead of "write to the admin";
+  // - the post ends the way the channel's posts end (its contact in its own form, its hashtags, or nothing at all);
+  // - the opt-in tracked link is put in by code, as an extra line.
+  const answered = answeredContact(opts.answers);
+  const endingOpts = { channel: brand.channel, bot: getEnv().BOT_USERNAME?.replace(/^@/, "") };
+  const keepKeys = ownContactKeys(ending, [answered], endingOpts);
+  // No habit to follow (a new channel): the owner's answered contact only fills a [kontakt] blank.
+  const effective: PostEnding | undefined = ending ?? (answered ? { pattern: "mixed", contact: answered, examples: [] } : undefined);
+  const noContact = brand.mode === "fresh" && !answered && !hasContact(`${opts.knowledge ?? brand.knowledge}\n${brand.samplePosts.join("\n")}`);
   for (const d of drafts) {
     for (const script of ["uz_latn", "ru", "en"] as const) {
-      let text = oneContactRoute(replaceHiddenPrice(d.variants[script], script));
+      let text = oneContactRoute(replaceHiddenPrice(d.variants[script], script), keepKeys);
       if (noContact) text = contactBlankIfNone(text, script);
+      text = applyPostEnding(text, effective, script, endingOpts);
+      text = opts.trackedLink ? ensureTrackedLink(text, opts.trackedLink, script) : dropTrackedLinks(text, endingOpts.bot);
       // One price format per script (12 000 soʻm · 12 000 сум · 12,000 UZS) and the DNA's spelling of each product.
       // English takes whole words only: "choice" or "choir" never become a product called "Choy".
       text = alignProductNames(normalizePrices(text, script), brand.dna.products, { wholeWord: script === "en" });
@@ -272,4 +325,68 @@ export async function generatePosts(brand: BrandProfile, brief: string, count = 
       createdAt,
     };
   });
+}
+
+/* ------------------------------------------------------------ rewrite from one phrase */
+
+const RewriteSchema = z.object({ uz_latn: z.string(), ru: z.string(), en: z.string() });
+
+const REWRITE_SYSTEM = `You change a ready Telegram post the way its owner asks in one short phrase ("qisqaroq", "короче", "без ссылки", "narxi 210 000", "add that we deliver on Sundays").
+Rules:
+- Change only what the request asks. Everything else stays: the facts, the voice, emoji, line breaks, links, the contact line and the ending, unless the request is about them.
+- Never invent a fact. A new price, date, number or name may come only from the request itself, word for word.
+- The same request applies to all three versions: uz_latn (Uzbek, Latin script, o‘ and g‘ with the ‘ sign), ru and en. One language per version.
+- Plain text, no Markdown, under 950 characters. No AI clichés, no hype.
+Return JSON {uz_latn, ru, en}.`;
+
+export interface RewriteResult {
+  variants: Record<Script, string>;
+  neuroHits: Partial<Record<Script, NeuroHit[]>>;
+  humanScore: number;
+  /** Versions left as they were because the rewrite added a fact the post and the request never had. */
+  kept: Script[];
+}
+
+/**
+ * Rewrites a post from one phrase of the owner: one fast-model pass over the three versions, then the same code
+ * post-pass as a new post (a hidden price becomes a price blank sentence by sentence, one price format per script,
+ * the DNA's product names, mixed letters fixed, no video talk under a picture). A version that gained a number, price
+ * or date that neither the post nor the request had keeps its old text.
+ */
+export async function rewritePost(brand: BrandProfile, post: Pick<PostDraft, "variants" | "slot">, instruction: string, opts: { timeoutMs?: number } = {}): Promise<RewriteResult> {
+  const res = await llmJson({
+    schema: RewriteSchema,
+    system: REWRITE_SYSTEM,
+    prompt: `OWNER'S REQUEST: ${clip(instruction.trim(), 300)}\n\nPRODUCT NAMES (write them this way): ${brand.dna.products.join(", ") || "-"}\n\nuz_latn:\n${post.variants.uz_latn}\n\nru:\n${post.variants.ru}\n\nen:\n${post.variants.en}`,
+    model: MODEL_FAST,
+    effort: "low",
+    maxTokens: 4000,
+    timeoutMs: opts.timeoutMs ?? 30_000,
+    purpose: "rewrite",
+    maxRetries: 0,
+  });
+  const keep = brandWords(brand);
+  const variants = { ...post.variants };
+  const kept: Script[] = [];
+  for (const script of ["uz_latn", "ru", "en"] as const) {
+    let text = res[script].trim();
+    if (text.length < 10 || inventedFacts(`${post.variants[script]}\n${instruction}`.repeat(8), text).length) {
+      kept.push(script);
+      continue;
+    }
+    if (script === "uz_latn") text = fixMixedScript(text);
+    text = replaceHiddenPrice(text, script);
+    if (post.slot?.format && post.slot.format !== "video") text = dropVideoMentions(text);
+    text = alignProductNames(normalizePrices(text, script), brand.dna.products, { wholeWord: script === "en" });
+    variants[script] = script === "uz_latn" ? polishUzLatin(text) : text;
+  }
+  variants.uz_cyrl = latinToCyrillic(variants.uz_latn, keep);
+  const neuroHits: Partial<Record<Script, NeuroHit[]>> = {};
+  let sum = 0;
+  for (const script of SCRIPTS) {
+    const a = analyzeNeuro(variants[script], script);
+    if (a.hits.length) neuroHits[script] = a.hits;
+    sum += a.humanScore;
+  }
+  return { variants, neuroHits, humanScore: Math.round(sum / SCRIPTS.length), kept };
 }

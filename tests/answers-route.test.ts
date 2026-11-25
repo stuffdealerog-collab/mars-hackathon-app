@@ -1,0 +1,74 @@
+import { describe, expect, it, vi } from "vitest";
+
+// POST/GET /api/uslub/answers against the in-memory store and the in-memory answers store (no DB, no Claude).
+vi.mock("server-only", () => ({}));
+vi.mock("next/server", () => ({ after: () => { throw new Error("outside a request"); } }));
+vi.mock("@/lib/db", () => ({ isDbConfigured: () => false, getSql: () => { throw new Error("no db in tests"); }, pgErrorCode: () => undefined }));
+vi.mock("@/lib/track", () => ({ safeLogEvent: async () => {} }));
+vi.mock("@/lib/env", () => ({ getEnv: () => ({ TELEGRAM_BOT_TOKEN: "test-token", BOT_USERNAME: "mercatai" }), getPublicUrl: () => undefined }));
+vi.mock("@/lib/telegram-auth", () => ({
+  authenticateRequest: (req: Request) => {
+    const m = /^tma (\d+)$/.exec(req.headers.get("authorization") ?? "");
+    return m ? { id: Number(m[1]) } : null;
+  },
+  validateInitData: () => ({ ok: false }),
+}));
+vi.mock("@/lib/uslub/http", async () => await import("../src/lib/uslub/http"));
+vi.mock("@/lib/uslub/context", async () => await import("../src/lib/uslub/context"));
+vi.mock("@/lib/uslub/store", async () => await import("../src/lib/uslub/store"));
+vi.mock("@/lib/uslub/brain/answers", async () => await import("../src/lib/uslub/brain/answers"));
+vi.mock("@/lib/uslub/brain/answers-store", async () => await import("../src/lib/uslub/brain/answers-store"));
+vi.mock("@/lib/uslub/brain/brand-questions", async () => await import("../src/lib/uslub/brain/brand-questions"));
+const spendClaude = vi.fn(async () => {});
+vi.mock("@/lib/uslub/budget", () => ({ spendClaude }));
+
+const store = await import("../src/lib/uslub/store");
+const route = await import("../src/app/api/uslub/answers/route");
+import type { BrandDNA } from "../src/lib/uslub/contract";
+
+let ip = 0;
+const call = (method: "GET" | "POST", url: string, body?: unknown, auth?: string) =>
+  (method === "GET" ? route.GET : route.POST)(
+    new Request(`http://localhost${url}`, {
+      method,
+      headers: { "content-type": "application/json", "x-forwarded-for": `10.2.0.${++ip}`, ...(auth ? { authorization: auth } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    }),
+  );
+
+const DNA = { name: "Safia", products: ["Medovik", "Napoleon"], postEnding: { pattern: "contact", contact: "📞 +998 90 123 45 67", examples: [] } } as unknown as BrandDNA;
+
+describe("POST/GET /api/uslub/answers", () => {
+  it("open questions come from the brand: goal first, then a confirm of the channel's own contact", async () => {
+    const b = await store.saveBrand({ channel: "safiabakery", knowledge: "", samplePosts: ["a", "b", "c"], dna: DNA, mode: "channel", channelType: "business", goal: "sale" }, null, "channel_only");
+    const r = await (await call("GET", `/api/uslub/answers?brandId=${b.id}&lang=ru`)).json();
+    expect(r.channelType).toBe("business");
+    expect(r.questions.map((q: { key: string }) => q.key)).toEqual(["goal", "order", "prices"]);
+    expect(r.questions[1].text).toContain("+998 90 123 45 67");
+    expect(r.trackLinksActive).toBe(false);
+  });
+
+  it("saving answers spends no Claude budget, makes a channel_only brand the caller's own, and the newest answers win", async () => {
+    const b = await store.saveBrand({ channel: "safiabakery", knowledge: "", samplePosts: ["a"], dna: DNA, mode: "channel", channelType: "business" }, null, "channel_only");
+    const first = await call("POST", "/api/uslub/answers", { brandId: b.id, goal: "sale", orderHow: "phone", contact: "+998 90 123 45 67" });
+    expect(first.status).toBe(200);
+    expect(spendClaude).not.toHaveBeenCalled();
+    expect((await store.getBrand(b.id))?.source).toBe("custom");
+    expect((await store.getBrand(b.id))?.goal).toBe("sale");
+    const second = await (await call("POST", "/api/uslub/answers", { brandId: b.id, prices: [{ name: "Medovik", price: 180000 }], trackLinks: true })).json();
+    expect(second.answers).toMatchObject({ goal: "sale", orderHow: "phone", contact: "+998 90 123 45 67", prices: [{ name: "Medovik", price: "180000" }], trackLinks: true });
+    // Opted in, but the brand has no owner in Telegram yet: no tracked links until it is claimed.
+    expect(second.trackLinksActive).toBe(false);
+    expect(second.questions).toEqual([]);
+  });
+
+  it("an owned brand's answers are private, and an empty answer is refused", async () => {
+    const b = await store.saveBrand({ channel: "safiabakery", knowledge: "", samplePosts: ["a"], dna: DNA, mode: "channel" }, 5150, "custom");
+    expect((await call("POST", "/api/uslub/answers", { brandId: b.id, goal: "grow" })).status).toBe(403);
+    expect((await call("GET", `/api/uslub/answers?brandId=${b.id}`)).status).toBe(403);
+    expect((await call("POST", "/api/uslub/answers", { brandId: b.id }, "tma 5150")).status).toBe(400);
+    const ok = await (await call("POST", "/api/uslub/answers", { brandId: b.id, goal: "grow", trackLinks: true }, "tma 5150")).json();
+    expect(ok.trackLinksActive).toBe(true);
+    expect(ok.questions.map((q: { key: string }) => q.key)).toEqual(["about"]);
+  });
+});

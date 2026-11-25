@@ -4,7 +4,7 @@ import { getSql, isDbConfigured } from "@/lib/db";
 import { safeLogEvent } from "@/lib/track";
 import { BRAND_CACHE_MAX_AGE_HOURS, type BrandSource } from "./access";
 import { adoptBrandPlans } from "./brain/memory";
-import type { BrandDNA, BrandMode, BrandProfile, Flow, NeuroHit, PlanSlot, PostDraft, PostImage, Script, VisualStyle } from "./contract";
+import type { BrandDNA, BrandMode, BrandProfile, ChannelType, Flow, Goal, NeuroHit, PlanSlot, PostDraft, PostImage, Script, VisualStyle } from "./contract";
 
 /**
  * Persistence for brands, posts and flows (Neon Postgres). Falls back to an
@@ -22,6 +22,8 @@ export const publicBrand = (b: StoredBrand): BrandProfile => ({
   dna: b.dna,
   mode: b.mode ?? "channel",
   ...(b.visual ? { visual: b.visual } : {}),
+  ...(b.channelType ? { channelType: b.channelType } : {}),
+  ...(b.goal ? { goal: b.goal } : {}),
   createdAt: b.createdAt,
 });
 
@@ -46,8 +48,13 @@ type BrandRow = {
   dna: BrandDNA;
   mode?: string | null;
   visual?: VisualStyle | null;
+  channel_type?: string | null;
+  goal?: string | null;
   created_at: Date | string;
 };
+
+const CHANNEL_TYPES = new Set<ChannelType>(["business", "blog", "expert", "media", "community"]);
+const GOALS = new Set<Goal>(["reach", "trust", "sale", "engage", "grow"]);
 
 const toBrand = (r: BrandRow): StoredBrand => ({
   id: r.id,
@@ -57,6 +64,8 @@ const toBrand = (r: BrandRow): StoredBrand => ({
   dna: r.dna,
   mode: r.mode === "fresh" ? "fresh" : "channel",
   ...(r.visual ? { visual: r.visual } : {}),
+  ...(r.channel_type && CHANNEL_TYPES.has(r.channel_type as ChannelType) ? { channelType: r.channel_type as ChannelType } : {}),
+  ...(r.goal && GOALS.has(r.goal as Goal) ? { goal: r.goal as Goal } : {}),
   createdAt: iso(r.created_at),
   ownerTelegramId: r.owner_telegram_id == null ? null : Number(r.owner_telegram_id),
   source: r.source === "channel_only" ? "channel_only" : "custom",
@@ -109,10 +118,11 @@ export async function saveBrand(
     mem.brands.set(brand.id, brand);
   } else {
     const rows = (await getSql()`
-      INSERT INTO brands (owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode)
+      INSERT INTO brands (owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, channel_type, goal)
       VALUES (${ownerTelegramId}, ${source}, ${channel}, ${input.knowledge},
-              ${JSON.stringify(input.samplePosts)}::jsonb, ${JSON.stringify(input.dna)}::jsonb, ${mode})
-      RETURNING id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, visual, created_at
+              ${JSON.stringify(input.samplePosts)}::jsonb, ${JSON.stringify(input.dna)}::jsonb, ${mode},
+              ${input.channelType ?? null}, ${input.goal ?? null})
+      RETURNING id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, visual, channel_type, goal, created_at
     `) as BrandRow[];
     brand = toBrand(rows[0]);
   }
@@ -124,7 +134,7 @@ export async function getBrand(id: string): Promise<StoredBrand | null> {
   if (!isUuid(id)) return null;
   if (!isDbConfigured()) return mem.brands.get(id) ?? null;
   const rows = (await getSql()`
-    SELECT id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, visual, created_at FROM brands WHERE id = ${id}
+    SELECT id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, visual, channel_type, goal, created_at FROM brands WHERE id = ${id}
   `) as BrandRow[];
   return rows[0] ? toBrand(rows[0]) : null;
 }
@@ -141,7 +151,7 @@ export async function findChannelOnlyBrand(channel: string): Promise<StoredBrand
     return hits.at(-1) ?? null;
   }
   const rows = (await getSql()`
-    SELECT id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, visual, created_at FROM brands
+    SELECT id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, visual, channel_type, goal, created_at FROM brands
     WHERE channel = ${key} AND source = 'channel_only' AND mode = 'channel' AND created_at >= ${since.toISOString()}
     ORDER BY created_at DESC LIMIT 1
   `) as BrandRow[];
@@ -167,7 +177,7 @@ export async function findOwnBrand(ownerTelegramId: number, channel: string, lan
     return hits.at(-1) ?? null;
   }
   const rows = (await getSql()`
-    SELECT id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, visual, created_at FROM brands
+    SELECT id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, visual, channel_type, goal, created_at FROM brands
     WHERE owner_telegram_id = ${ownerTelegramId} AND channel = ${key} AND mode = 'channel'
       AND COALESCE(dna->>'proseLang', 'uz') = ${lang}
     ORDER BY created_at DESC LIMIT 1
@@ -190,7 +200,7 @@ export async function updateBrandProfile(brandId: string, patch: { dna?: BrandDN
       dna = COALESCE(${patch.dna ? JSON.stringify(patch.dna) : null}::jsonb, dna),
       sample_posts = COALESCE(${patch.samplePosts ? JSON.stringify(patch.samplePosts) : null}::jsonb, sample_posts)
     WHERE id = ${brandId}
-    RETURNING id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, visual, created_at
+    RETURNING id, owner_telegram_id, source, channel, knowledge, sample_posts, dna, mode, visual, channel_type, goal, created_at
   `) as BrandRow[];
   return rows[0] ? toBrand(rows[0]) : null;
 }
@@ -259,6 +269,37 @@ export async function claimBrand(brandId: string, telegramId: number): Promise<n
   return owner == null ? null : Number(owner);
 }
 
+/**
+ * What kind of channel the brand is and its main goal (owner correction 2): brands.channel_type / brands.goal.
+ * Only the fields given change; the goal is the owner's confirmed one once they answered (answers.goal).
+ */
+export async function setBrandTypeGoal(brandId: string, patch: { channelType?: ChannelType; goal?: Goal }): Promise<void> {
+  if (!isUuid(brandId) || (!patch.channelType && !patch.goal)) return;
+  if (!isDbConfigured()) {
+    const b = mem.brands.get(brandId);
+    if (b) mem.brands.set(brandId, { ...b, ...(patch.channelType ? { channelType: patch.channelType } : {}), ...(patch.goal ? { goal: patch.goal } : {}) });
+    return;
+  }
+  await getSql()`
+    UPDATE brands SET channel_type = COALESCE(${patch.channelType ?? null}, channel_type), goal = COALESCE(${patch.goal ?? null}, goal)
+    WHERE id = ${brandId}
+  `;
+}
+
+/**
+ * A channel_only brand the owner gave private answers to (prices, contact) becomes their own custom row, so private
+ * facts never sit on a row that serves as a public DNA cache.
+ */
+export async function setBrandSource(brandId: string, source: BrandSource): Promise<void> {
+  if (!isUuid(brandId)) return;
+  if (!isDbConfigured()) {
+    const b = mem.brands.get(brandId);
+    if (b) mem.brands.set(brandId, { ...b, source });
+    return;
+  }
+  await getSql()`UPDATE brands SET source = ${source} WHERE id = ${brandId}`;
+}
+
 /** Stores the brand's learned visual style (used by the images session). */
 export async function setBrandVisual(brandId: string, visual: VisualStyle): Promise<void> {
   if (!isUuid(brandId)) return;
@@ -291,6 +332,31 @@ export async function savePosts(posts: PostDraft[], telegramId: number | null = 
     );
   }
   await safeLogEvent(telegramId, "posts_generated", { brand_id: posts[0].brandId, count: posts.length });
+}
+
+/**
+ * A post's text after the owner asked for a rewrite ("shorter", "price 210 000"): new variants, neuro hits and score.
+ * A published post is never rewritten (the channel already has it). Returns the updated post, or null.
+ */
+export async function updatePostText(
+  id: string,
+  patch: { variants: Record<Script, string>; neuroHits: PostDraft["neuroHits"]; humanScore: number },
+): Promise<PostDraft | null> {
+  if (!isUuid(id)) return null;
+  if (!isDbConfigured()) {
+    const p = mem.posts.get(id);
+    if (!p || p.status === "published") return null;
+    const next = { ...p, variants: patch.variants, neuroHits: patch.neuroHits, humanScore: patch.humanScore };
+    mem.posts.set(id, next);
+    return next;
+  }
+  const rows = (await getSql()`
+    UPDATE posts SET variants = ${JSON.stringify(patch.variants)}::jsonb, neuro_hits = ${JSON.stringify(patch.neuroHits)}::jsonb,
+                     human_score = ${patch.humanScore}
+    WHERE id = ${id} AND status <> 'published' AND status NOT LIKE 'publishing:%'
+    RETURNING id
+  `) as { id: string }[];
+  return rows.length ? getPost(id) : null;
 }
 
 export async function getPost(id: string): Promise<PostDraft | null> {

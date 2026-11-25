@@ -27,6 +27,18 @@ export function factPostedAt(quote: string, kb: string): string | undefined {
 }
 
 /**
+ * Which channel post a fact was quoted from, as a key ("post:3" = the 4th dated block of the KB), or undefined for a
+ * fact from the owner's own text. Two facts from one post (a promotion's offer and its date) are one topic.
+ */
+export function factSourceOf(quote: string, kb: string): string | undefined {
+  const q = ws(quote);
+  if (!q) return undefined;
+  const blocks = kb.split(/\n(?=\[\d{4}-\d{2}-\d{2}\] )/);
+  for (let i = 0; i < blocks.length; i++) if (/^\[\d{4}-\d{2}-\d{2}\] /.test(blocks[i].trim()) && ws(blocks[i]).includes(q)) return `post:${i}`;
+  return undefined;
+}
+
+/**
  * Facts about something that is over by the plan's first day: an opening, a promotion or an event with a date before
  * it, or event wording in a channel post older than 14 days. They stay in the ledger (the address of a branch that
  * opened is still true) but never drive a slot, an offer or a deadline.
@@ -54,19 +66,53 @@ const CONTACT_FACTS = new Set(["address", "district", "landmark", "hours", "cont
 
 export type Duplicate = { of: number; hook: string; facts: string[] };
 
+/** Fact types that are one piece of content (two of them from one channel post are one topic). */
+const SOURCE_TOPIC = new Set(["offer", "deadline", "story", "number", "review", "guarantee"]);
+
 /**
- * Later plan items that repeat an earlier one: the same topic fact (a product, a tip, a number…), exactly the same
- * facts, or a near-identical hook. Keyed by the later slot.
+ * Plan items left after dropping the later duplicates the repair could not fix: one topic at most once a week. The
+ * first item of each topic stays; slot numbers are kept as they were.
  */
-export function duplicateItems(items: { slot?: unknown; hook: string; factIds?: unknown }[], factType: Map<string, string>): Map<number, Duplicate> {
+export function dropDuplicates<T extends object>(items: T[], dups: Map<number, Duplicate>): { kept: T[]; dropped: number[] } {
+  const slotOf = (it: T) => (it as { slot?: unknown }).slot as number;
+  const dropped = items.filter((it) => dups.has(slotOf(it))).map(slotOf);
+  return { kept: items.filter((it) => !dups.has(slotOf(it))), dropped };
+}
+
+/** Distinct topics among facts (contact facts are not topics; one-off facts from one channel post are one topic). */
+export function distinctTopics(facts: { id: string; type: string }[], factSource: Map<string, string> = new Map()): number {
+  const keys = new Set<string>();
+  for (const f of facts) {
+    if (CONTACT_FACTS.has(f.type)) continue;
+    const src = SOURCE_TOPIC.has(f.type) ? factSource.get(f.id) : undefined;
+    keys.add(src ?? f.id);
+  }
+  return keys.size;
+}
+
+/**
+ * Later plan items that repeat an earlier one: the same topic fact (a product, a tip, a number…), a topic fact quoted
+ * from the same channel post (`factSource`: one promotion cited through its offer in one slot and its date in
+ * another), exactly the same facts, or a near-identical hook. Keyed by the later slot.
+ */
+export function duplicateItems(
+  items: { slot?: unknown; hook: string; factIds?: unknown }[],
+  factType: Map<string, string>,
+  factSource: Map<string, string> = new Map(),
+): Map<number, Duplicate> {
   const out = new Map<number, Duplicate>();
   const ids = (x: { factIds?: unknown }) => [...new Set((x.factIds as string[] | undefined) ?? [])];
   const topic = (x: { factIds?: unknown }) => ids(x).filter((id) => factType.has(id) && !CONTACT_FACTS.has(factType.get(id) as string));
+  // Only one-off content shares a source topic (a promotion, a story, a number): a price list post names many products,
+  // and each product is its own topic.
+  const sourced = (id: string) => (SOURCE_TOPIC.has(factType.get(id) as string) ? factSource.get(id) : undefined);
+  const sources = (x: { factIds?: unknown }) => new Set(topic(x).map(sourced).filter((s): s is string => Boolean(s)));
   for (let i = 1; i < items.length; i++)
     for (let j = 0; j < i; j++) {
       const a = items[i];
       const b = items[j];
-      const shared = topic(a).filter((id) => topic(b).includes(id));
+      const bSources = sources(b);
+      const shared = topic(a).filter((id) => topic(b).includes(id) || (sourced(id) != null && bSources.has(sourced(id) as string)));
       const sameFacts = ids(a).length > 0 && ids(a).length === ids(b).length && ids(a).every((id) => ids(b).includes(id));
       const sameHook = Boolean(a.hook && b.hook) && (jaccard(trigrams(a.hook), trigrams(b.hook)) >= 0.5 || jaccard(words(a.hook), words(b.hook)) >= 0.5);
       if (shared.length || sameFacts || sameHook) {
@@ -136,4 +182,12 @@ export function briefMetaText(s: { timeSource: string; reasons: string[]; exp?: 
   const parts = [`${L.time}: ${TIME_SOURCE[lang][s.timeSource] ?? TIME_SOURCE[lang].prior}`, `${L.approve}: ${reasons.join(", ") || L.none}`];
   if (s.exp) parts.push(`${EXP[lang].label}: ${EXP[lang].v[s.exp] ?? s.exp}`);
   return parts.join(" · ");
+}
+
+/** The opt-in tracked link in a CTA: where the writer put {{LINK}}, else appended once; no link -> no token. */
+export function withTrackedLink(cta: string, link: string | undefined): string {
+  if (!link) return cta.replace(/\s*\{\{LINK\}\}/g, "").replace(/[\s:–—-]+$/, "").trim();
+  if (cta.includes("{{LINK}}")) return cta.replace("{{LINK}}", link).replace(/\s*\{\{LINK\}\}/g, "").trim();
+  if (cta.includes(link)) return cta;
+  return `${cta.trim()} ${link}`.trim();
 }

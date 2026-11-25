@@ -6,7 +6,8 @@
  */
 import { stripIdsAll } from "./copy";
 import { features, reachBand } from "./stats";
-import type { ChannelStats, Lang, LedgerEntry, RawPost, RuleResult } from "./types";
+import { isGrowthType } from "./channel-type";
+import type { ChannelStats, ChannelType, Lang, LedgerEntry, RawPost, RuleResult } from "./types";
 
 type T3 = { uz: string; ru: string; en: string };
 const pick = (lang: Lang, t: T3) => t[lang];
@@ -111,6 +112,8 @@ export interface PlainCtx {
   calendar?: { id: string; name: T3; daysAway: number }[];
   hasOffer?: boolean;
   proofFacts?: number;
+  /** A blog, expert, media or community channel: the texts talk about readers, never orders or prices. */
+  channelType?: ChannelType;
 }
 
 /** Plain two-sentence finding for a fired rule, or null for rules we never show as a finding. */
@@ -121,6 +124,11 @@ export function templateFinding(rule: RuleResult, s: ChannelStats, lang: Lang, c
   const L = (t: T3) => pick(lang, t);
   const subs = s.subscribers;
   const views = s.medianViews;
+  const growth = isGrowthType(ctx.channelType);
+  if (growth) {
+    const g = growthFinding(rule, s, lang, ctx);
+    if (g !== undefined) return g;
+  }
 
   switch (rule.id) {
     case "R.COLD_START": {
@@ -223,9 +231,9 @@ export function templateFinding(rule: RuleResult, s: ChannelStats, lang: Lang, c
     }
     case "R.NEVER_ASKS":
       return L({
-        uz: `Postlarning atigi ${P(s.saleShare)} qismi mahsulot yoki xizmatni sotishga qaratilgan. Bu hafta kamida 2 ta sotuv posti qo‘shamiz — narxi va buyurtma havolasi bilan.`,
-        ru: `Только ${P(s.saleShare)} постов предлагают что-то купить. На этой неделе добавим минимум 2 продающих поста — с ценой и ссылкой для заказа.`,
-        en: `Only ${P(s.saleShare)} of posts ask people to buy something. This week we add at least 2 sale posts with a price and an order link.`,
+        uz: `Postlarning atigi ${P(s.saleShare)} qismi mahsulot yoki xizmatni sotishga qaratilgan. Bu hafta kamida 2 ta sotuv posti qo‘shamiz — narxi va buyurtma berish yo‘li bilan.`,
+        ru: `Только ${P(s.saleShare)} постов предлагают что-то купить. На этой неделе добавим минимум 2 продающих поста — с ценой и тем, как заказать.`,
+        en: `Only ${P(s.saleShare)} of posts ask people to buy something. This week we add at least 2 sale posts with the price and how to order.`,
       });
     case "R.OVERSELLING": {
       const share = P(Math.max(s.saleShare, s.promoShare));
@@ -420,6 +428,101 @@ export function templateFinding(rule: RuleResult, s: ChannelStats, lang: Lang, c
     }
     default:
       return null;
+  }
+}
+
+/**
+ * Findings for a growth channel (blog, expert, media, community): the growth rules, and the shared rules whose sales
+ * wording ("sale posts", "address and hours") does not fit. undefined = use the shared text.
+ */
+function growthFinding(rule: RuleResult, s: ChannelStats, lang: Lang, ctx: PlainCtx): string | null | undefined {
+  const P = (x: number) => pctText(x, lang);
+  const N = (x: number, d = 0) => numText(x, lang, d);
+  const L = (t: T3) => pick(lang, t);
+  switch (rule.id) {
+    case "R.SERIES": {
+      const rubrics = (rule.data?.rubrics as { label: string; n: number; lift: number | null }[] | undefined) ?? [];
+      const keep = rule.data?.keep as string | undefined;
+      const r = rubrics.find((x) => x.label === keep);
+      if (r && r.lift != null)
+        return L({
+          uz: `«${r.label}» rubrikasidagi ${r.n} ta post boshqalaridan ${morePct(r.lift)}% ko‘proq ko‘riladi — o‘quvchilar uni kutadi. Uni har hafta bir kunda chiqaramiz; bu haftaning bitta posti — uning davomi.`,
+          ru: `${r.n} постов рубрики «${r.label}» набирают на ${morePct(r.lift)}% больше просмотров, чем остальные: её ждут. Ставим её на один и тот же день каждую неделю; один пост этой недели — её продолжение.`,
+          en: `The ${r.n} posts of your «${r.label}» series get ${morePct(r.lift)}% more views than the rest: readers wait for it. We put it on the same day every week; one post this week is its next part.`,
+        });
+      return L({
+        uz: `Kanalda takrorlanadigan rubrika yo‘q: har bir post alohida chiqadi, odamlar kutadigan seriya yo‘q. Bitta rubrika boshlaymiz — har hafta bir kunda, bir xil boshlanish bilan.`,
+        ru: `В канале нет рубрики, которая повторяется: посты выходят по одному, нет серии, которую ждут. Запускаем одну рубрику — каждую неделю в один день и с одинаковым началом.`,
+        en: `The channel has no recurring series: every post stands alone, nothing readers come back for. We start one series, on the same day every week with the same opening.`,
+      });
+    }
+    case "R.NO_ENGAGEMENT": {
+      const share = ctx.value?.("S.questionShare");
+      return L({
+        uz: `Postlarning ${share != null ? P(share) : "juda oz"} qismigina o‘quvchidan nimadir so‘raydi — savol yoki so‘rovnoma deyarli yo‘q. Bu hafta 1–2 ta post bir bosishda javob beriladigan savol yoki so‘rovnoma bilan tugaydi.`,
+        ru: `Только ${share != null ? P(share) : "немногие"} постов о чём-то спрашивают читателя — вопросов и опросов почти нет. На этой неделе 1–2 поста закончатся вопросом или опросом, на который отвечают в одно касание.`,
+        en: `Only ${share != null ? P(share) : "a few"} of posts ask the reader anything; there are almost no questions or polls. This week 1–2 posts end with a question or a poll readers answer in one tap.`,
+      });
+    }
+    case "R.CROSS_PROMO": {
+      const similar = ((rule.data?.similar as string[] | undefined) ?? []).slice(0, 2).join(", ");
+      return L({
+        uz: `Kanal boshqa kanallar bilan deyarli hamkorlik qilmaydi: o‘xshash kanallarni eslatish yoki post almashish yo‘q. Mavzusi yaqin, hajmi o‘xshash bitta kanal bilan post almashishni kelishamiz${similar ? ` (masalan, ${similar})` : ""}.`,
+        ru: `Канал почти не пересекается с другими: нет упоминаний похожих каналов и обмена постами. Договоримся об обмене постами с одним каналом близкой темы и похожего размера${similar ? ` (например, ${similar})` : ""}.`,
+        en: `The channel hardly ever crosses paths with others: no mentions of similar channels, no post swaps. We arrange a post swap with one channel on a close topic and of a similar size${similar ? ` (for example ${similar})` : ""}.`,
+      });
+    }
+    case "R.SUBS_TREND": {
+      const d = rule.data as { from?: number; to?: number; days?: number; change?: number } | undefined;
+      if (d?.from == null || d.to == null || d.days == null || d.change == null) return null;
+      const ch = `${d.change >= 0 ? "+" : "−"}${P(Math.abs(d.change))}`;
+      return d.change < 0
+        ? L({
+            uz: `${d.days} kunda obunachilar ${N(d.from)} tadan ${N(d.to)} taga tushdi (${ch}). Shu haftalarda nima o‘zgarganini (mavzular, ritm, reklama) ko‘rib chiqamiz va eng ko‘p ulashilgan post turlarini qaytaramiz.`,
+            ru: `За ${d.days} дн. подписчиков стало меньше: с ${N(d.from)} до ${N(d.to)} (${ch}). Смотрим, что изменилось за эти недели (темы, ритм, реклама), и возвращаем посты, которые чаще всего пересылали.`,
+            en: `In ${d.days} days subscribers went from ${N(d.from)} to ${N(d.to)} (${ch}). We look at what changed in those weeks (topics, rhythm, ads) and bring back the kind of posts people forwarded most.`,
+          })
+        : L({
+            uz: `${d.days} kunda obunachilar ${N(d.from)} tadan ${N(d.to)} taga o‘sdi (${ch}). Shu ritm va rubrikani saqlaymiz; yangi o‘quvchilardan keyin nima o‘qishni xohlashlarini so‘raymiz.`,
+            ru: `За ${d.days} дн. подписчиков стало больше: с ${N(d.from)} до ${N(d.to)} (${ch}). Сохраняем ритм и рубрику; спрашиваем новых читателей, о чём писать дальше.`,
+            en: `In ${d.days} days subscribers grew from ${N(d.from)} to ${N(d.to)} (${ch}). We keep the rhythm and the series, and ask new readers what they want to read next.`,
+          });
+    }
+    case "R.INCONSISTENT": {
+      const ppw = N(s.postsPerWeek, 1);
+      const gap = s.maxGapDays != null ? Math.round(s.maxGapDays) : undefined;
+      return L({
+        uz: `Kanalga haftasiga o‘rtacha ${ppw} ta post chiqadi${gap ? `, eng uzun tanaffus — ${gap} kun` : ""}: o‘quvchilar qachon yangi post bo‘lishini bilmaydi. Bu hafta 3–4 ta postni har hafta bir xil kun va soatga qo‘yamiz; birinchisi to‘xtagan joyidan davom etadi.`,
+        ru: `Постов в неделю в среднем: ${ppw}${gap ? ` (самый долгий перерыв — ${gap} дн.)` : ""} — читатели не знают, когда ждать нового. Ставим 3–4 поста на одни и те же дни и часы каждую неделю; первый продолжает с того места, где канал остановился.`,
+        en: `The channel posts ${ppw} times a week on average${gap ? ` (longest gap: ${gap} days)` : ""}, so readers don't know when to expect the next one. We put 3–4 posts on the same days and hours every week; the first picks up where the channel stopped.`,
+      });
+    }
+    case "R.TIME_WINNER": {
+      const bucket = rule.data?.bucket as string | undefined;
+      if (!bucket) return undefined;
+      const ratio = ctx.value?.(`S.hourLift.${bucket}`);
+      const n = s.hourLift[bucket]?.n;
+      if (ratio == null || n == null) return null;
+      const t = timeRange(bucket);
+      return L({
+        uz: `${t} oralig‘ida chiqqan postlar boshqa vaqtdagilardan ${morePct(ratio)}% ko‘proq ko‘riladi (${n} ta post). Asosiy postlarni — rubrika va savolni — shu vaqtga qo‘yamiz.`,
+        ru: `Посты, вышедшие в ${t}, набирают на ${morePct(ratio)}% больше просмотров, чем в другое время (по ${n} постам). Главные посты — рубрику и вопрос — ставим на это время.`,
+        en: `Posts published ${t} get ${morePct(ratio)}% more views than at other times (${n} posts). The main posts (the series, the question) go into this window.`,
+      });
+    }
+    case "R.CALENDAR": {
+      const events = ((rule.data?.events as { id: string; name: string; daysAway: number }[] | undefined) ?? []).slice(0, 1);
+      if (!events.length) return null;
+      const e = events[0];
+      const local = ctx.calendar?.find((c) => c.id === e.id)?.name ?? { uz: e.name, ru: e.name, en: e.name };
+      return L({
+        uz: `${local.uz} — ${e.daysAway} kundan keyin. Shu kunga mavzuga mos bitta post tayyorlaymiz (sizning tasdig‘ingiz bilan).`,
+        ru: `${local.ru} — через ${e.daysAway} дн. К этому дню подготовим один пост по теме канала (с вашего одобрения).`,
+        en: `${local.en} is ${e.daysAway} days away. We prepare one post on the channel's topic for the day (with your approval).`,
+      });
+    }
+    default:
+      return undefined;
   }
 }
 

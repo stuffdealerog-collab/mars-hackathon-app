@@ -40,7 +40,7 @@ const StrategySchema = z.object({
   audiences: z.array(z.object({ name: z.string(), job: z.string(), pains: z.array(z.string()), triggers: z.array(z.string()), whereTheyAre: z.array(z.string()) })),
   offer: z.string(),
   proofPoints: z.array(z.string()),
-  pillars: z.array(z.object({ goal: z.enum(["reach", "trust", "sale"]), name: z.string(), examples: z.array(z.string()) })),
+  pillars: z.array(z.object({ goal: z.enum(["reach", "trust", "sale", "engage", "grow"]), name: z.string(), examples: z.array(z.string()) })),
   risks: z.array(z.string()),
   tactics: z.array(z.object({ title: z.string(), how: z.string(), why: z.string() })),
 });

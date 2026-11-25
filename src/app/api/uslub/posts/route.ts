@@ -1,6 +1,12 @@
 import { z } from "zod";
+import { getEnv } from "@/lib/env";
+import { mayTrackLinks, type OwnerAnswers } from "@/lib/uslub/brain/answers";
+import { loadAnswers } from "@/lib/uslub/brain/answers-store";
+import { loadKnowledge } from "@/lib/uslub/brain/kbstore";
 import type { PostDraft } from "@/lib/uslub/contract";
 import { generatePosts } from "@/lib/uslub/copywriter";
+import { planTrackedLink, withoutTrackedLinks } from "@/lib/uslub/ending";
+import type { StoredBrand } from "@/lib/uslub/store";
 import { spendClaude } from "@/lib/uslub/budget";
 import { assertDraftAccess, errorBody, handle, HttpError, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import { classifySensitivity } from "@/lib/uslub/sensitivity";
@@ -20,12 +26,15 @@ const REUSE_MINUTES = 10;
 const Slot = z.object({
   day: z.string().trim().min(4).max(40),
   time: z.string().trim().max(10).default(""),
-  goal: z.enum(["reach", "trust", "sale"]),
+  /** Sales plans: reach | trust | sale; growth plans (blog, expert, media, community): reach | engage | grow. */
+  goal: z.enum(["reach", "trust", "sale", "engage", "grow"]),
   hook: z.string().max(400).default(""),
   cta: z.string().max(600).default(""),
   brief: z.string().max(2000).default(""),
   /** The plan item's format (text | photo | album | video): a post that is not a video never mentions one. */
   format: z.string().trim().max(20).optional(),
+  /** The plan item's tracked link (PlanItem extra `link`), used only when the owner opted in and the brand has an owner. */
+  link: z.string().trim().max(200).optional(),
 });
 
 const Body = z.union([
@@ -60,6 +69,15 @@ function withBlanks<P extends PostDraft>(p: P) {
   return { ...p, needsApproval: true, ...(left.length ? { placeholders: left } : {}), note };
 }
 
+/**
+ * What the writer may use as facts every week: the owner's answers and documents (brand_knowledge, newest answers
+ * row only) plus the brand's own knowledge text. Never fails the request: a read error means fewer facts.
+ */
+async function writerFacts(brand: StoredBrand): Promise<{ knowledge: string; answers: OwnerAnswers | null }> {
+  const [answers, kb] = await Promise.all([loadAnswers(brand.id).catch(() => null), loadKnowledge(brand.id).catch(() => ({ text: "" }))]);
+  return { answers, knowledge: [kb.text, brand.knowledge].filter((t) => t.trim()).join("\n\n") };
+}
+
 const withSensitivity = (p: PostDraft, brief: string, published: number) =>
   withBlanks({
     ...p,
@@ -81,11 +99,12 @@ export const POST = handle(async (req) => {
   const brand = await loadBrandFor(body.brandId, userId);
   // An owned brand's queue takes drafts only from someone who may read them: a public channel_only id is not enough.
   if (brand.ownerTelegramId != null) await assertDraftAccess(brand, userId);
-  const published = await countPublished(brand.id);
+  const [published, facts] = await Promise.all([countPublished(brand.id), writerFacts(brand)]);
+  const { knowledge, answers } = facts;
 
   if ("brief" in body) {
     await spendClaude(req, userId, "posts");
-    const posts = await generatePosts(brand, body.brief, body.count ?? 3, { deadline: started + BUDGET_MS });
+    const posts = await generatePosts(brand, body.brief, body.count ?? 3, { deadline: started + BUDGET_MS, knowledge, answers });
     await savePosts(posts);
     return json({ posts: posts.map((p) => withSensitivity(p, body.brief, published)) });
   }
@@ -112,6 +131,10 @@ export const POST = handle(async (req) => {
   // A retry that only hands back posts already written costs nothing; anything new takes today's budget
   // (an anonymous "write them all again" counts double).
   if (existing.some((e) => !e)) await spendClaude(req, userId, "posts", { weight: body.regenerate && userId == null ? 2 : 1 });
+  // Mercat's tracked link only when the owner opted in and the brand has an owner who gets the leads; otherwise a
+  // link left in an older plan's CTA is taken out before writing (it would answer customers "not active").
+  const tracking = mayTrackLinks(answers, brand.ownerTelegramId);
+  const bot = getEnv().BOT_USERNAME?.replace(/^@/, "");
   const settled = await Promise.allSettled(
     slots.map(async ({ s }, i) => {
       const planSlot = toPlanSlot(s);
@@ -121,7 +144,9 @@ export const POST = handle(async (req) => {
         reused.push(found.id);
         return [found];
       }
-      const [post] = await generatePosts(brand, slotBrief(s), 1, { slot: planSlot, storedBrief, deadline, format: s.format });
+      const trackedLink = tracking ? planTrackedLink(s, bot) : undefined;
+      const slotForWriter = trackedLink ? s : { ...s, cta: withoutTrackedLinks(s.cta) };
+      const [post] = await generatePosts(brand, slotBrief(slotForWriter), 1, { slot: planSlot, storedBrief, deadline, format: s.format, knowledge, answers, trackedLink });
       if (!post) return [];
       post.createdAt = batchAt;
       await savePosts([post]);

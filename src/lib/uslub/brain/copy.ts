@@ -38,18 +38,48 @@ export function ownerText(t: string, lang: "uz" | "ru" | "en"): string {
     .trim();
 }
 
+/* Bare ids the model writes outside brackets: "Faktlar F16, F7 va F14 dan…", "Use facts F16, F7, F14, F10",
+ * "по фактам F16 и F10". Only in owner text (briefs, strategy), never in a hook: "F1 poygasi" may be a real name. */
+const BARE = String.raw`(?<![\p{L}\d.\/])(?:[FW]\d{1,3}|S\.[A-Za-z_][\w-]*(?:\.[\w-]+)*|R\.[A-Z_]{3,}|P\.\w+\/\d+)(?![\p{L}\d])`;
+const SEP = String.raw`\s*(?:,|;|va|и|and|&)\s*`;
+const LEAD = String.raw`(?:(?:use|using|from|based on|with)\s+(?:the\s+)?facts?|(?:по|из|на основе)\s+факт\p{L}*|(?:используй\p{L}*|используя)\s+факт\p{L}*|faktlar\p{L}*|fakt\p{L}*|факт\p{L}*|facts?)\s*:?\s*`;
+const SUFFIX = String.raw`(?:\s*(?:dan|da|ga|ni|lardan|larga)(?!\p{L}))?`;
+// A list of ids, one id after "facts", one id right before punctuation, or any S./R. code. A lone "F1" before a word
+// ("F1 poygasi") stays: it may be a real name.
+const BARE_RE = new RegExp(
+  String.raw`(?:${LEAD})?${BARE}(?:${SEP}${BARE})+${SUFFIX}|${LEAD}${BARE}${SUFFIX}|${BARE}${SUFFIX}(?=\s*(?:[,.;:)]|$))`,
+  "giu",
+);
+// Case-sensitive: "S.reachRate", "R.LOW_REACH" are codes; "S.Rahimov" is a name.
+const CODE_RE = /(?<![\p{L}\d])(?:S\.[a-z][\w-]*(?:\.[\w-]+)*|R\.[A-Z][A-Z_]{2,})(?![\p{L}\d])/gu;
+
+/** Removes bare ledger ids and the "facts:" words around them, then tidies the punctuation they leave (":,;" → ":"). */
+export function stripBareIds(t: string): string {
+  return t
+    .replace(BARE_RE, "")
+    .replace(CODE_RE, "")
+    .replace(/[ \t]+([,.;:!?])/g, "$1")
+    .replace(/([,;:])(?:\s*[,;:])+/g, "$1")
+    .replace(/[,;:]\s*\./g, ".")
+    .replace(/(^|\n)[ \t]*[,.;:]+[ \t]*/g, "$1")
+    .replace(/\(\s*\)|\[\s*\]/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+$/gm, "")
+    .trim();
+}
+
 /**
  * stripIds for owner text of any length: line by line (line breaks kept), a very long line in 500-char pieces,
- * so nothing is cut off and the regex never sees more than 600 characters at once.
+ * so nothing is cut off and the regex never sees more than 600 characters at once. Bare ids ("F16, F7 va F14") go too.
  */
 export function stripIdsAll(t: string): string {
   return t
     .split("\n")
     .map((line) => {
       const chars = Array.from(line);
-      if (chars.length <= 600) return stripIds(line);
+      if (chars.length <= 600) return stripBareIds(stripIds(line));
       const parts: string[] = [];
-      for (let i = 0; i < chars.length; i += 500) parts.push(stripIds(chars.slice(i, i + 500).join("")));
+      for (let i = 0; i < chars.length; i += 500) parts.push(stripBareIds(stripIds(chars.slice(i, i + 500).join(""))));
       return parts.filter(Boolean).join(" ");
     })
     .join("\n")

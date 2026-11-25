@@ -3,8 +3,10 @@
  * Fully deterministic: code decides which rules fire; the LLM only explains them.
  */
 import { type Benchmark, MIN_BENCH_N } from "./bench";
+import { isGrowthType } from "./channel-type";
+import { growthRules, growthSignals, type SubscriberTrend } from "./growth";
 import { features, fmtNum, isLoser, isWinner, median, pct, reachBand, whyLine } from "./stats";
-import { LOSE, MIN_N, WIN, type ChannelStats, type Goal, type LedgerEntry, type RuleResult } from "./types";
+import { LOSE, MIN_N, WIN, type ChannelStats, type ChannelType, type Goal, type LedgerEntry, type RawPost, type RuleResult, type SalesGoal } from "./types";
 
 export type Cycle = "impulse" | "considered" | "high-trust";
 
@@ -19,12 +21,27 @@ export interface RuleCtx {
   category: string;
   competitors: ChannelStats[];
   kb?: KbSignals;
-  calendar?: { id: string; name: string; daysAway: number }[];
+  calendar?: { id: string; name: string; daysAway: number; kind?: "event" | "preorder" | "notice" }[];
   /** Niche benchmark; replaces the prior reach bands when competitors are missing. */
   bench?: Benchmark;
   /** Tracked sale posts from the learn loop (views at 72h, unique bot starts, owner-reported sales). */
   funnel?: FunnelData;
+  /**
+   * What kind of channel this is (owner correction 2). A blog, expert, media or community channel never gets the sales
+   * rules (price, how to order, contact, offers, funnel): they read "inactive", and the growth rules run instead.
+   * Missing = business (today's behaviour).
+   */
+  channelType?: ChannelType;
+  /** The channel's own posts (newest first), for the growth rules; defaults to the posts behind `lifts`. */
+  posts?: RawPost[];
+  /** Subscribers over the days Mercat measured them (channel_snapshots), for R.SUBS_TREND. */
+  subscriberTrend?: SubscriberTrend;
+  /** Similar channels the owner named (competitors), suggested for a post swap (R.CROSS_PROMO). */
+  similar?: string[];
 }
+
+/** Rules about selling: never for a growth channel (owner correction 2). */
+export const SALES_RULES = ["R.NEVER_ASKS", "R.OVERSELLING", "R.HIDDEN_PRICE", "R.DEAD_ENDS", "R.TRUST_GAP", "R.VALIDATED_OFFER", "R.FUNNEL_LEAK"];
 
 export interface FunnelData {
   posts: { slot: number; planTag: string; views72: number; starts: number; sold?: number }[];
@@ -75,7 +92,7 @@ export function cycleOf(category: string, kbText = ""): Cycle {
   return "considered";
 }
 
-const BASE: Record<Cycle, Record<Goal, number>> = {
+const BASE: Record<Cycle, Record<SalesGoal, number>> = {
   impulse: { reach: 35, trust: 25, sale: 40 },
   considered: { reach: 30, trust: 40, sale: 30 },
   "high-trust": { reach: 25, trust: 50, sale: 25 },
@@ -104,20 +121,43 @@ export function largestRemainder(values: number[], total: number): number[] {
   return floor;
 }
 
+/** Growth channels: posts that earn views and forwards (reach), answers (engage) and new subscribers (grow). */
+const GROWTH_BASE: Record<"reach" | "engage" | "grow", number> = { reach: 40, engage: 30, grow: 30 };
+const GROWTH_DELTAS: Record<string, Partial<Record<Goal, number>>> = {
+  "R.LOW_REACH": { reach: 10, grow: -10 },
+  "R.NO_ENGAGEMENT": { engage: 10, reach: -10 },
+  "R.SERIES": { grow: 10, reach: -10 },
+  "R.CROSS_PROMO": { grow: 5, reach: -5 },
+  "R.SUBS_TREND": { grow: 10, engage: -10 },
+};
+
 export type PillarStep = { rule: string; delta: Partial<Record<Goal, number>>; shares: Record<Goal, number> };
 
-export function pillarShares(cycle: Cycle, fired: RuleResult[]): { base: Record<Goal, number>; steps: PillarStep[]; final: Record<Goal, number> } {
-  const base = { ...BASE[cycle] };
+const zero: Record<Goal, number> = { reach: 0, trust: 0, sale: 0, engage: 0, grow: 0 };
+
+/** The goals a channel type plans with: sales channels reach/trust/sale, growth channels reach/engage/grow. */
+export const planGoals = (type?: ChannelType | null): Goal[] => (isGrowthType(type) ? ["reach", "engage", "grow"] : ["reach", "trust", "sale"]);
+
+export function pillarShares(cycle: Cycle, fired: RuleResult[], channelType?: ChannelType | null): { base: Record<Goal, number>; steps: PillarStep[]; final: Record<Goal, number> } {
+  const growth = isGrowthType(channelType);
+  const goals = planGoals(channelType);
+  const base: Record<Goal, number> = { ...zero, ...(growth ? GROWTH_BASE : BASE[cycle]) };
   const cur = { ...base };
   const steps: PillarStep[] = [];
-  for (const id of Object.keys(DELTAS)) {
-    if (!fired.some((r) => r.id === id && r.status === "fired")) continue;
-    const d = DELTAS[id];
-    for (const g of ["reach", "trust", "sale"] as Goal[]) cur[g] = Math.min(55, Math.max(15, cur[g] + (d[g] ?? 0)));
+  const deltas = growth ? GROWTH_DELTAS : DELTAS;
+  for (const id of Object.keys(deltas)) {
+    const rule = fired.find((r) => r.id === id && r.status === "fired");
+    if (!rule) continue;
+    // A series that already works is kept, not pushed harder; a growing channel needs no rescue.
+    if (growth && rule.kind === "strength") continue;
+    const d = deltas[id];
+    for (const g of goals) cur[g] = Math.min(55, Math.max(15, cur[g] + (d[g] ?? 0)));
     steps.push({ rule: id, delta: d, shares: { ...cur } });
   }
-  const [reach, trust, sale] = largestRemainder([cur.reach, cur.trust, cur.sale], 100);
-  return { base, steps, final: { reach, trust, sale } };
+  const rounded = largestRemainder(goals.map((g) => cur[g]), 100);
+  const final: Record<Goal, number> = { ...zero };
+  goals.forEach((g, i) => (final[g] = rounded[i]));
+  return { base, steps, final };
 }
 
 /* ------------------------------------------------------------------ rules */
@@ -237,7 +277,7 @@ export function runRules(s: ChannelStats, ctx: RuleCtx): RuleResult[] {
       severity: 2,
       trigger: `saleShare ${pct(s.saleShare)} < 15%`,
       ids: ["S.saleShare"],
-      effects: "sale +10, trust −10; at least 2 sale slots with tracked links.",
+      effects: "sale +10, trust −10; at least 2 sale slots, each with the price and the way this channel takes orders.",
     },
     s.postsInWindow > 0 && s.saleShare < 0.15 && !lowReach && Boolean(kb?.hasProducts && kb?.hasPrices),
   );
@@ -279,7 +319,7 @@ export function runRules(s: ChannelStats, ctx: RuleCtx): RuleResult[] {
       severity: 2,
       trigger: `ctaRate ${pct(s.ctaRate)} < 50%`,
       ids: ["S.ctaRate"],
-      effects: "Every non-reach item gets exactly 1 tracked link; sale posts put the CTA within the first 3 lines.",
+      effects: "Every non-reach item ends with one clear next step, the way the channel itself asks (its own contact; the tracked link only when the owner opted in); sale posts put it within the first 3 lines.",
     },
     s.postsInWindow > 0 && s.ctaRate < 0.5,
   );
@@ -414,7 +454,8 @@ export function runRules(s: ChannelStats, ctx: RuleCtx): RuleResult[] {
     ctx.competitors.length === 0 ? "insufficient" : validated.length > 0,
   );
 
-  const cal = (ctx.calendar ?? []).filter((e) => e.daysAway <= 14);
+  // A day off (kind "notice", e.g. Constitution Day) is an owner question about hours, never a post.
+  const cal = (ctx.calendar ?? []).filter((e) => e.daysAway <= 14 && e.kind !== "notice");
   add(
     {
       id: "R.CALENDAR",
@@ -445,6 +486,19 @@ export function runRules(s: ChannelStats, ctx: RuleCtx): RuleResult[] {
 
   out.push(funnelRule(ctx.funnel));
 
+  // Growth channels (blog, expert, media, community): no sales rules; the growth rules run; effects read for growth.
+  if (isGrowthType(ctx.channelType)) {
+    for (const r of out)
+      if (SALES_RULES.includes(r.id)) {
+        r.status = "inactive";
+        r.trigger = `not a sales channel (${ctx.channelType})`;
+      }
+    for (const r of out) if (GROWTH_EFFECTS[r.id]) r.effects = GROWTH_EFFECTS[r.id];
+    const posts = ctx.posts ?? s.lifts.map((x) => x.post);
+    const lifts = new Map(s.lifts.map((x) => [x.post.id, x.lift]));
+    out.push(...growthRules(growthSignals(posts, lifts, s.channel), { subscriberTrend: ctx.subscriberTrend, similar: ctx.similar }));
+  }
+
   // COLD_START suppresses internal hour/format/language findings
   if (s.coldStart) {
     for (const r of out)
@@ -453,6 +507,16 @@ export function runRules(s: ChannelStats, ctx: RuleCtx): RuleResult[] {
   }
   return out;
 }
+
+/** What the shared rules do on a growth channel (no trust posts with address and hours, no sale slots). */
+const GROWTH_EFFECTS: Record<string, string> = {
+  "R.COLD_START": "Hour/format/language from priors; first 5 posts need approval; no internal hour/format findings.",
+  "R.LOW_REACH": "reach +10, grow −10. KPI = median views, not subscribers. No giveaways, no bought subscribers. +1 slot of the top-lift format.",
+  "R.INCONSISTENT": "N = 3–4 on fixed days and hours, the same every week. Item 1 picks up where the channel stopped (what's new, no apology).",
+  "R.TIME_WINNER": "Main posts (the rubric, the question) go into this window.",
+  "R.CALENDAR": "One topical post for the day (no sale wording), needs approval.",
+  "R.NOISE": "Lint caps: ≤3 emoji, ≤2 hashtags. Own words over forwards.",
+};
 
 function featureTags(p: import("./types").RawPost): string[] {
   const f = features(p);

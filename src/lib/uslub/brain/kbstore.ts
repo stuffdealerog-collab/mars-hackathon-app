@@ -88,6 +88,9 @@ export async function loadKnowledge(brandId: string): Promise<{ text: string; so
       rows = mem.get(brandId) ?? [];
     }
   }
-  const text = capText(rows.map((r) => `${header(r)}\n${r.text}`).join("\n\n"), KB_CAP);
+  // Answers are saved whole on every change (answers-store.ts): only the newest answers row is current.
+  const firstAnswers = rows.findIndex((r) => r.kind === "answers");
+  rows = rows.filter((r, i) => r.kind !== "answers" || i === firstAnswers);
+  const text = capText(rows.filter((r) => r.text.trim()).map((r) => `${header(r)}\n${r.text}`).join("\n\n"), KB_CAP);
   return { text, sources: rows.map(toSource) };
 }

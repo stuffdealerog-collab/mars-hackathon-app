@@ -15,7 +15,8 @@ export const NEIGHBOURS = 10;
 export type Lang = "uz" | "ru" | "en";
 export type PostLang = "uz-Latn" | "uz-Cyrl" | "ru" | "en" | "mixed" | "unknown";
 export type Media = "text" | "photo" | "album" | "video" | "other";
-export type Goal = "reach" | "trust" | "sale";
+/** What a plan slot is for: sales channels use reach/trust/sale, growth channels reach/engage/grow (contract Goal). */
+export type { ChannelType, Goal, GrowthGoal, SalesGoal } from "../contract";
 
 export interface LedgerEntry {
   id: string; // "S.reachRate" | "S.formatLift.video" | "F7" | "W2" | "P.kafe_uz/812" | "R.HIDDEN_PRICE"

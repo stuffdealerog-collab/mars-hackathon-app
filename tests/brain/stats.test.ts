@@ -154,8 +154,8 @@ describe("rules", () => {
     expect(cycleOf("clothing shop")).toBe("considered");
     const fired = (ids: string[]) => ids.map((id) => ({ id, status: "fired" }) as RuleResult);
     const p = pillarShares("impulse", fired(["R.LOW_REACH", "R.TRUST_GAP"]));
-    expect(p.base).toEqual({ reach: 35, trust: 25, sale: 40 });
-    expect(p.final).toEqual({ reach: 35, trust: 35, sale: 30 });
+    expect(p.base).toEqual({ reach: 35, trust: 25, sale: 40, engage: 0, grow: 0 });
+    expect(p.final).toEqual({ reach: 35, trust: 35, sale: 30, engage: 0, grow: 0 });
     expect(p.steps).toHaveLength(2);
     expect(largestRemainder([1, 1, 1], 100)).toEqual([34, 33, 33]);
   });
@@ -234,9 +234,12 @@ describe("lint", () => {
 
   it("plan item checks: CTA link count, greeting hook, urgency, hidden price", () => {
     const ctx = { ledger, priceFacts: [ledger.get("F1") as LedgerEntry], deadlineFacts: 0, recentHooks: [], competitorTexts: [], emojiCap: 2, address: "siz" as const };
-    const ok = lintItem({ slot: 1, goal: "sale", hook: "Somsa — 12 000 so'm. Nega aynan shu narx?", cta: "Botga yozing: {{LINK}}", brief: "Tandirni suratga oling [F1]", factIds: ["F1"] }, ctx);
+    const ok = lintItem({ slot: 1, goal: "sale", hook: "Somsa — 12 000 so'm. Nega aynan shu narx?", cta: "Botga yozing: {{LINK}}", brief: "Tandirni suratga oling [F1]", factIds: ["F1"], link: true }, ctx);
     expect(ok).toEqual([]);
-    const bad = lintItem({ slot: 2, goal: "sale", hook: "Assalomu alaykum! Shoshiling, faqat bugun", cta: "Narxi lichkada", brief: "", factIds: [] }, ctx);
+    // The tracked link is opt-in (owner correction 1): a sale item with no link and no token is fine.
+    const noLink = lintItem({ slot: 3, goal: "sale", hook: "Somsa — 12 000 so'm. Nega aynan shu narx?", cta: "Buyurtma: +998 90 123 45 67", brief: "Tandirni suratga oling [F1]", factIds: ["F1"] }, ctx);
+    expect(noLink.filter((f) => f.check === "ONE_CTA")).toEqual([]);
+    const bad = lintItem({ slot: 2, goal: "sale", hook: "Assalomu alaykum! Shoshiling, faqat bugun", cta: "Narxi lichkada {{LINK}}", brief: "", factIds: [] }, ctx);
     const checks = new Set(bad.map((f) => f.check));
     expect(checks.has("HOOK")).toBe(true);
     expect(checks.has("URGENCY")).toBe(true);
