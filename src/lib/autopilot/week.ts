@@ -8,8 +8,10 @@
  * - no blank left in the variant that will go out ([narx], XXX…);
  * - its slot is ahead (or earlier today, then it goes out in 10 minutes), and the text names no date that will be
  *   over by then;
- * - its picture is not still being made (the picture could change after the approval);
- * - a video slot has the owner's video.
+ * - its picture is not still being made (the picture could change after the approval), unless it goes out as the
+ *   owner's video (the picture is not sent then);
+ * - a video slot has the owner's video (sent to the bot: post.video.fileId); a video idea without a slot has no time
+ *   to go out (no_slot) and is never part of the latest batch.
  */
 import type { PostImage, Script } from "../uslub/contract";
 import type { WeekSkipReason } from "./types";
@@ -24,8 +26,8 @@ export interface WeekPost {
   variants: Record<Script, string>;
   slot?: { day: string; time: string; format?: string };
   image?: Pick<PostImage, "status" | "url">;
-  /** The owner's video for a video slot (not in the contract yet: video slots stay out until it is). */
-  video?: { url?: string };
+  /** The owner's video for a video slot (PostVideo): its Telegram file id once the owner sent it to the bot. */
+  video?: { fileId?: string };
   publishedUrl?: string;
 }
 
@@ -75,9 +77,15 @@ const createdMs = (p: { createdAt: string }) => {
   return Number.isFinite(t) ? t : 0;
 };
 
-/** The posts of the latest run: the newest post and the ones written up to 15 minutes before it, 7 at most. */
-export function latestWeekBatch<P extends { createdAt: string }>(posts: readonly P[]): P[] {
-  const newest = [...posts].sort((a, b) => createdMs(b) - createdMs(a));
+/** A video idea from the Video tab (a script, no plan slot): written on its own, never part of a run's batch. */
+const isIdea = (p: { slot?: unknown; video?: unknown }) => !p.slot && !!p.video;
+
+/**
+ * The posts of the latest run: the newest post and the ones written up to 15 minutes before it, 7 at most. Video ideas
+ * are left out: a new idea written today must not hide the week's posts.
+ */
+export function latestWeekBatch<P extends { createdAt: string; slot?: unknown; video?: unknown }>(posts: readonly P[]): P[] {
+  const newest = posts.filter((p) => !isIdea(p)).sort((a, b) => createdMs(b) - createdMs(a));
   if (!newest.length) return [];
   const from = createdMs(newest[0]) - BATCH_WINDOW_MS;
   return newest.filter((p) => createdMs(p) >= from).slice(0, WEEK_BATCH_MAX);
@@ -88,8 +96,9 @@ function check(p: WeekPost, input: WeekBatchInput): WeekSkip | WeekReady {
   const skip = (reason: WeekSkipReason, extra: Partial<WeekSkip> = {}): WeekSkip => ({ postId: p.id, reason, ...extra });
   if (p.status === "published") return skip("published");
   if (!input.channel?.trim()) return skip("no_channel");
-  if (p.slot?.format === "video" && !p.video?.url) return skip("video_missing");
-  if (p.image && (p.image.status === "queued" || p.image.status === "running")) return skip("picture_rendering");
+  if ((p.slot?.format === "video" || (!p.slot && p.video)) && !p.video?.fileId) return skip("video_missing");
+  // A post with the owner's video goes out as that video: the run's picture is never sent, so it never holds it back.
+  if (!p.video?.fileId && p.image && (p.image.status === "queued" || p.image.status === "running")) return skip("picture_rendering");
   const script = weekPickScript(p.variants, input.languages);
   const text = p.variants[script]?.trim() || p.variants.uz_latn || "";
   const tokens = findPlaceholders(text);

@@ -199,6 +199,14 @@ export function lampsFrom(snap: LampSnapshot, c: ReturnType<typeof useCopy>, lan
       words.publisher = say(c.lampResult.published, published);
     } else if (written) state.publisher = "you";
 
+    // The Videographer holds its scripts (its own tab lights it while it writes one).
+    const scripts = posts.filter((p) => p.video?.plan).length;
+    if (scripts) {
+      state.video = "on";
+      result.video = count(c.lampResult.scripts, scripts);
+      words.video = say(c.lampResult.scripts, scripts);
+    }
+
     return withOutcomes({ state, result, words, quiet }, outcomes);
   }
 }

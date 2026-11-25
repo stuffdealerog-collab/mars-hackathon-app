@@ -13,6 +13,7 @@ import {
   shownHash,
   shownPhoto,
   shownText,
+  shownVideo,
   splitForPhoto,
   type ClaimDecision,
 } from "./botpublish-core";
@@ -34,6 +35,17 @@ import {
   type StoredBrand,
 } from "./store";
 import { clip } from "./text";
+import { isVideoPost } from "./video-core";
+
+/** "vdw:<postId>": the bot starts waiting for the video of a video post (botflow/video.ts handles it). */
+export const videoWaitData = (postId: string) => `vdw:${postId}`;
+
+/** A video post without the owner's video cannot go out: ask for the video instead of showing a publish button. */
+async function needsVideo(api: Api, chatId: number, locale: Locale, post: PostDraft): Promise<boolean> {
+  if (!isVideoPost(post) || shownVideo(post)) return false;
+  await api.sendMessage(chatId, t(locale, "vid.publish_needs_video"), { reply_markup: new InlineKeyboard().text(t(locale, "vid.send_now"), videoWaitData(post.id)) });
+  return true;
+}
 
 /**
  * Publishing from the bot — the last step of the demo: the Studio sends the owner to
@@ -107,6 +119,22 @@ async function sendPreview(api: Api, chatId: number, locale: Locale, post: PostD
 async function sendPreviewOnly(api: Api, chatId: number, locale: Locale, post: PostDraft, script: Script, channel?: string) {
   const text = shownText(post, script);
   const kb = publishKeyboard(locale, post, script, channel);
+  const video = shownVideo(post);
+  if (video) {
+    // The owner's own video, by its file id, exactly as it goes out (a file stays a file).
+    const { caption, rest } = splitForPhoto(text);
+    const opts = caption ? { caption, reply_markup: kb } : {};
+    try {
+      if (post.video?.as === "document") await api.sendDocument(chatId, video, opts);
+      else await api.sendVideo(chatId, video, opts);
+      if (rest) await api.sendMessage(chatId, rest, { reply_markup: kb, link_preview_options: { is_disabled: true } });
+      return;
+    } catch (err) {
+      console.warn("[botpublish] video preview failed, sending the text", err instanceof Error ? err.message : err);
+      await api.sendMessage(chatId, `🎬 ${clip(text, 4000)}`, { reply_markup: kb, link_preview_options: { is_disabled: true } });
+      return;
+    }
+  }
   const photo = shownPhoto(post);
   if (photo) {
     const { caption, rest } = splitForPhoto(text);
@@ -173,6 +201,7 @@ export async function startPublish(api: Api, chatId: number, user: User, locale:
   }
   const script = pickScript(post.variants, parsed.script, brand.dna?.languages);
   await safeLogEvent(user.id, "publish_link_opened", { post_id: post.id, brand_id: brand.id, script });
+  if (await needsVideo(api, chatId, locale, post)) return true;
   await api.sendMessage(chatId, t(locale, "pub.preview"));
   await sendPreview(api, chatId, locale, post, script, brand.channel);
   if (!brand.channel) {
@@ -220,6 +249,7 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
   }
   const blanks = findPlaceholders(shownText(post, script));
   if (blanks.length) return void (await api.sendMessage(chatId, placeholderNote(blanks, locale)));
+  if (await needsVideo(api, chatId, locale, post)) return;
   if (seenHash !== shownHash(post, script)) {
     // Never publish a text or picture the owner has not seen in Telegram.
     await api.sendMessage(chatId, t(locale, "pub.changed"));
@@ -239,7 +269,15 @@ export async function publishFromButton(api: Api, chatId: number, user: User, lo
   // expectedText / expectedImageUrl: publish.ts (images) re-checks them right before sending and answers 409 when
   // they changed. A direct object literal, so every field name is type-checked against publishPost.
   // publishOnce: a second press (or Telegram delivering this one twice) never sends the post again.
-  const res = await publishOnce({ postId: post.id, script, chat: brand.channel, userId: user.id, expectedText: shownText(fresh, script), expectedImageUrl: shownPhoto(fresh) });
+  const res = await publishOnce({
+    postId: post.id,
+    script,
+    chat: brand.channel,
+    userId: user.id,
+    expectedText: shownText(fresh, script),
+    expectedImageUrl: shownPhoto(fresh),
+    expectedVideoFileId: shownVideo(fresh),
+  });
   if (res.ok) {
     await api.sendMessage(chatId, t(locale, res.already ? "pub.already" : "pub.done", { url: res.url ?? "" }), { link_preview_options: { is_disabled: true } });
     return;

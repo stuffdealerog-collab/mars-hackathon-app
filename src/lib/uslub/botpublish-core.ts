@@ -74,7 +74,7 @@ export function claimDecision(args: { ownerTelegramId: number | null; userId: nu
   return { ok: false, reason: "user_cannot_post" };
 }
 
-export { shownPhoto, shownText } from "./botpublish-shown";
+export { shownPhoto, shownText, shownVideo } from "./botpublish-shown";
 
 /** What the owner saw — the text and the picture. The "Kanalga joylash" button is bound to this hash. */
 export const shownHash = (post: Shown, script: Script) => textHash(shownSource(post, script));

@@ -9,6 +9,7 @@ import { findLeads } from "@/lib/uslub/radar";
 import { classifySensitivity } from "@/lib/uslub/sensitivity";
 import { countPublished, publicBrand, savePosts } from "@/lib/uslub/store";
 import { planVideo } from "@/lib/uslub/video";
+import { videoLang, videoMode } from "@/lib/uslub/video-core";
 import { labsGate } from "@/lib/ops/labs";
 
 export const maxDuration = 90;
@@ -69,7 +70,14 @@ export const POST = handle(async (req) => {
   const [postsR, leadsR, videoR, publishedR] = await Promise.allSettled([
     include.has("posts") ? withDeadline(generatePosts(brand, brief, body.count ?? 3), deadline) : Promise.resolve([]),
     include.has("radar") ? withDeadline(findLeads(brand), deadline) : Promise.resolve({ leads: [] }),
-    include.has("video") ? withDeadline(planVideo(brand, `${brief}. 20 soniyalik Reels`), deadline) : Promise.resolve(null),
+    include.has("video") ? withDeadline(
+          planVideo(brand, {
+            brief: `${brief}. 20 soniyalik Reels`,
+            lang: videoLang({ languages: brand.dna.languages }),
+            mode: videoMode({ channelType: brand.channelType, brandGoal: brand.goal }),
+          }),
+          deadline,
+        ) : Promise.resolve(null),
     countPublished(brand.id),
   ]);
   const pending = {

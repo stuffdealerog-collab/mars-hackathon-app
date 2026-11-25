@@ -6,8 +6,10 @@ import { getEnv } from "@/lib/env";
 import { checkChatRights, checkPublishAccess, type MemberInfo } from "./access";
 import type { PostDraft, Script } from "./contract";
 import { publishImageUrl } from "./media/post-image-service";
-import { changedSincePreview, planPostMessages, type PlannedMessage } from "./media/telegram-post";
+import { changedSincePreview, planPostMessages, planVideoMessages, type PlannedMessage } from "./media/telegram-post";
+import { VIDEO_MISSING_ERROR } from "./publish-errors";
 import { getBrand, getPost, linkBrandChannel, markPublished } from "./store";
+import { isVideoPost } from "./video-core";
 
 const BOT_USERNAME_FALLBACK = "mercatai";
 
@@ -63,6 +65,15 @@ async function sendPhoto(chat: string, photo: string, caption?: string) {
 }
 
 /**
+ * The owner's video by its Telegram file_id (no copy is kept or uploaded). A file id cannot change its type: a video
+ * the owner sent as a file goes out as a file (sendDocument).
+ */
+async function sendVideo(chat: string, m: Extract<PlannedMessage, { kind: "video" }>) {
+  const opts = m.caption ? { caption: m.caption } : {};
+  return m.as === "document" ? getBot().api.sendDocument(chat, m.fileId, opts) : getBot().api.sendVideo(chat, m.fileId, { ...opts, supports_streaming: true });
+}
+
+/**
  * Sends the planned messages in order and returns the first one's id (the post link).
  * If a later message fails, the earlier ones are deleted so the channel never shows half a post.
  */
@@ -73,7 +84,9 @@ async function sendPlanned(chat: string, plan: PlannedMessage[]): Promise<number
       const msg =
         m.kind === "photo"
           ? await sendPhoto(chat, m.photo, m.caption)
-          : await getBot().api.sendMessage(chat, m.text, { link_preview_options: { is_disabled: true } });
+          : m.kind === "video"
+            ? await sendVideo(chat, m)
+            : await getBot().api.sendMessage(chat, m.text, { link_preview_options: { is_disabled: true } });
       sent.push(msg.message_id);
     }
   } catch (err) {
@@ -116,6 +129,8 @@ export async function publishPost(args: {
   userId: number | null;
   expectedText?: string;
   expectedImageUrl?: string | null;
+  /** The owner's video file id the preview showed (null or "" = none); checked like the picture. */
+  expectedVideoFileId?: string | null;
   /** Send the text alone even when the post has a picture now (the autopilot: approved before any picture). */
   textOnly?: boolean;
 }): Promise<PublishResult> {
@@ -156,9 +171,13 @@ export async function publishPost(args: {
     const latest = (await getPost(post!.id)) ?? post!;
     slot = latest.slot ?? post!.slot;
     const sendText = textOf(latest) || text;
-    // `textOnly`: the owner approved this post without a picture; one drawn later is not sent.
-    const imageUrl = args.textOnly ? undefined : await publishImageUrl(post!.id);
-    const changed = changedSincePreview({ text: sendText, imageUrl }, args);
+    // A video post goes out only as the owner's video: never a text that talks about a video nobody sent.
+    const video = latest.video?.fileId ? { fileId: latest.video.fileId, as: latest.video.as } : null;
+    if (!video && isVideoPost(latest)) return { ok: false, status: 422, error: VIDEO_MISSING_ERROR, sent: false };
+    // `textOnly`: the owner approved this post without a picture; one drawn later is not sent. The video wins over a
+    // picture (botpublish-shown shownPhoto shows none for a post with a video).
+    const imageUrl = args.textOnly || video ? undefined : await publishImageUrl(post!.id);
+    const changed = changedSincePreview({ text: sendText, imageUrl, videoFileId: video?.fileId }, args);
     if (changed) {
       return {
         ok: false,
@@ -167,11 +186,13 @@ export async function publishPost(args: {
         error:
           changed === "text"
             ? "Post matni o‘zgargan. Yangi variantni ko‘rib, qayta tasdiqlang. / Текст поста изменился — проверьте и подтвердите снова."
-            : "Post rasmi o‘zgargan. Yangi rasmni ko‘rib, qayta tasdiqlang. / Картинка поста изменилась — проверьте и подтвердите снова.",
+            : changed === "video"
+              ? "Post videosi o‘zgargan. Yangi videoni ko‘rib, qayta tasdiqlang. / Видео поста изменилось — проверьте и подтвердите снова."
+              : "Post rasmi o‘zgargan. Yangi rasmni ko‘rib, qayta tasdiqlang. / Картинка поста изменилась — проверьте и подтвердите снова.",
       };
     }
     try {
-      messageId = await sendPlanned(target, planPostMessages(sendText, imageUrl));
+      messageId = await sendPlanned(target, video ? planVideoMessages(sendText, video) : planPostMessages(sendText, imageUrl));
     } catch (err) {
       if (err instanceof GrammyError && err.error_code < 500) {
         // Telegram refused the send (400, 403, 429): this post is not in the channel (sendPlanned took back any

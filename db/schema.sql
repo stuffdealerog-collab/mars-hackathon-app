@@ -235,6 +235,11 @@ ALTER TABLE posts ADD COLUMN IF NOT EXISTS published_chat text;
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS published_at timestamptz;
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS generated_variants jsonb;     -- variants as first written, to diff the owner's edits
 
+-- Video posts (2026-11-25, Video tab): PostVideo {plan, plannedAt, fileId, fileUniqueId, as, duration, width, height,
+-- size, mime, thumbFileId, receivedAt}. The owner's video stays in Telegram (file_id only, no copy). A claim
+-- {writingAt} sits here while the script is written, so two taps never pay for it twice.
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS video jsonb;
+
 CREATE INDEX IF NOT EXISTS posts_plan_idx ON posts (plan_tag, plan_slot) WHERE plan_tag IS NOT NULL;
 CREATE INDEX IF NOT EXISTS posts_published_at_idx ON posts (published_at) WHERE published_at IS NOT NULL;
 

@@ -75,10 +75,32 @@ describe("selectWeekBatch: which posts «approve the week» queues", () => {
 
   it("a video slot without the owner's video is left out", () => {
     const p = post({ slot: { day: "2026-12-01", time: "12:40", format: "video" } });
-    const withVideo = post({ slot: { day: "2026-12-02", time: "12:40", format: "video" }, video: { url: "https://example.com/v.mp4" } });
-    const r = selectWeekBatch({ posts: [p, withVideo], channel: "nonvoy", now });
-    expect(r.skipped).toEqual([{ postId: p.id, reason: "video_missing" }]);
+    const scripted = post({ slot: { day: "2026-12-02", time: "12:40", format: "video" }, video: {} });
+    const withVideo = post({ slot: { day: "2026-12-02", time: "12:40", format: "video" }, video: { fileId: "BAACAgIAAxkBAAIB" } });
+    const r = selectWeekBatch({ posts: [p, scripted, withVideo], channel: "nonvoy", now });
+    expect(r.skipped).toEqual([
+      { postId: p.id, reason: "video_missing" },
+      { postId: scripted.id, reason: "video_missing" },
+    ]);
     expect(ids(r.ready)).toEqual([withVideo.id]);
+  });
+
+  it("a video post whose video came is not held back by the run's picture still drawing (that picture is never sent)", () => {
+    const drawing = { status: "running" as const };
+    const withVideo = post({ slot: { day: "2026-12-02", time: "12:40", format: "video" }, video: { fileId: "BAACAgIAAxkBAAIB" }, image: drawing });
+    const photo = post({ slot: { day: "2026-12-02", time: "13:40", format: "photo" }, image: drawing });
+    const r = selectWeekBatch({ posts: [withVideo, photo], channel: "nonvoy", now });
+    expect(ids(r.ready)).toEqual([withVideo.id]);
+    expect(r.skipped).toEqual([{ postId: photo.id, reason: "picture_rendering" }]);
+  });
+
+  it("a video idea (a script, no slot) is never part of the latest batch, and has no time to go out", () => {
+    const week = [post(), post()];
+    const idea = post({ createdAt: new Date(now + 60_000).toISOString(), video: { fileId: "BAACAgIAAxkBAAIC" } });
+    delete (idea as { slot?: unknown }).slot;
+    const r = selectWeekBatch({ posts: [...week, idea], channel: "nonvoy", now });
+    expect(ids(r.ready)).toEqual(week.map((p) => p.id));
+    expect(selectWeekBatch({ posts: [idea], channel: "nonvoy", now, postIds: [idea.id] }).skipped).toEqual([{ postId: idea.id, reason: "no_slot" }]);
   });
 
   it("no channel: nothing can go out", () => {

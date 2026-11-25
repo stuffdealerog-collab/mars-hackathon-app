@@ -17,6 +17,7 @@ import { Hub, HUB_W, RAIL_W, StageLight, useDesktop, useHub, useHubRestore } fro
 import { PostsSplit, PostsTab } from "./Posts";
 import { QuestionsCard } from "./Questions";
 import { useQueuePoll } from "./WeekCard";
+import { VideoBoard } from "../video";
 import { SpectrumIntro } from "./SpectrumIntro";
 import { Start } from "./Start";
 import { Toasts } from "./Toasts";
@@ -603,13 +604,11 @@ function DeptTab() {
   );
 }
 
-/** «Video»: what the Videographer will do. Its lamp stays dark until it does real work. */
+/** «Video»: the Videographer's scripts for this week's video posts; the owner sends the video to the bot. */
 function VideoTab() {
-  const c = useCopy();
   return (
-    <div className="card p-5">
-      <h2 className="text-[18px] font-semibold">{c.video.title}</h2>
-      <p className="mt-2 max-w-[60ch] text-[16px] leading-relaxed text-ink-2">{c.video.text}</p>
+    <div className="w-full max-w-[720px]">
+      <VideoBoard variant="studio" />
     </div>
   );
 }

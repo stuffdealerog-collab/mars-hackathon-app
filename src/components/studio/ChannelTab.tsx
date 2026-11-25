@@ -5,6 +5,7 @@ import { Led } from "../lamp/Led";
 import { useCopy, useLang, fmt, num } from "../ui/lang";
 import { isMachineEvidence, ownerText, plural, weekday } from "../ui/format";
 import { copyFor as mediaCopy, StyleRefs } from "@/components/media";
+import { ConnectionsCard } from "@/components/connections";
 import { authHeader, type PlanItemExtra } from "./api";
 import { useDesk, type RefsHandle } from "./desk";
 import { topFindings } from "./findings";
@@ -22,6 +23,15 @@ const PlanRowDetails = dynamic(() => import("./pro/ProDetails").then((m) => m.Pl
  * voice) on the right. Simple keeps to the findings, the picture style and the plan.
  * Every section sizes itself from its own container.
  */
+/** Other platforms, read-only (src/components/connections): nothing at all until a provider is set up for this owner. */
+function Connections() {
+  const lang = useLang((s) => s.lang);
+  const brandId = useStudio((s) => s.brand?.id);
+  const sample = useStudio((s) => s.sample);
+  if (!brandId || sample) return null;
+  return <ConnectionsCard brandId={brandId} lang={lang} authorization={authHeader()} />;
+}
+
 export function ChannelTab({ wide = false }: { wide?: boolean }) {
   const c = useCopy();
   const mode = useStudio((s) => s.mode);
@@ -47,6 +57,7 @@ export function ChannelTab({ wide = false }: { wide?: boolean }) {
         {/* «Qanday yozasiz» is a marketer's table: Pro only. The posts already speak the voice. */}
         {pro && <Voice />}
         <Plan />
+        <Connections />
         {pro && <StrategyDetails />}
         {pro && <SufficiencyPanel items={sufficiency} />}
         {pro && mode === "channel" && <AuditFull audit={audit} />}
@@ -65,6 +76,7 @@ export function ChannelTab({ wide = false }: { wide?: boolean }) {
         <QuestionsCard />
         {mode === "fresh" && <Launch />}
         <Plan />
+        <Connections />
         <StrategyDetails />
         <PictureStyle />
         <Voice />

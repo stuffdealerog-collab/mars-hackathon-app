@@ -1,9 +1,20 @@
 import "server-only";
 import { z } from "zod";
-import type { BrandProfile, VideoPlan } from "./contract";
-import { llmJson, MODEL_QUALITY } from "./llm";
-import { polishUzLatin } from "./translit";
+import { getEnv } from "../env";
+import { answeredContact, type OwnerAnswers } from "./brain/answers";
+import type { BrandProfile, NeuroHit, PostDraft, PostEnding, Script, VideoPlan } from "./contract";
+import { brandEnding } from "./copywriter";
+import { ownContactKeys } from "./ending";
+import { llmJson, MODEL_FAST, MODEL_QUALITY } from "./llm";
+import { analyzeNeuro } from "./neuro";
 import { clip } from "./text";
+import { CAPTION_SYSTEM, captionPrompt, finishCaption, finishPlan, type VideoMode, videoPrompt, videoSystem } from "./video-core";
+
+/**
+ * The Videographer (Videograf): a phone-shot script for a video post, and the copywriter's short caption for it. The
+ * rules (language, growth or sales, the channel's ending, facts only from the brand) live in video-core.ts, pure and
+ * tested; this file makes the two Claude calls.
+ */
 
 const PlanSchema = z.object({
   hook: z.string(),
@@ -11,33 +22,118 @@ const PlanSchema = z.object({
   musicMood: z.string(),
 });
 
-const SYSTEM = `You are the "Videograf" of an AI marketing department for a small business in Uzbekistan.
-Write a vertical Reels/TikTok plan (15-30 s total) that the owner can shoot on a phone.
-Rules:
-- hook: what is seen and said in the first 2 seconds; it must stop the scroll (a question, a surprising close-up, a number).
-- 4-6 scenes; seconds = duration of each scene (2-6 s). visual = concrete shot description in Uzbek (Latin).
-- voiceover: natural spoken Uzbek (Latin, o‘ g‘ with ‘), short sentences, like a real person, no AI clichés.
-- caption: on-screen text, max 5 words, Uzbek (Latin).
-- Use only facts from the brand data (no invented prices or addresses). Last scene = clear call to action.
-- musicMood: one short phrase.`;
+const CaptionSchema = z.object({ uz_latn: z.string(), ru: z.string(), en: z.string() });
 
-export async function planVideo(brand: BrandProfile, brief: string): Promise<VideoPlan> {
-  const plan = await llmJson({
+export interface PlanVideoOptions {
+  brief: string;
+  /** The brand's post language (video-core videoLang). */
+  lang: Script;
+  mode: VideoMode;
+  /** Facts the script may use: the owner's answers and documents plus the brand's knowledge. Defaults to brand.knowledge. */
+  knowledge?: string;
+  /** The plan slot's idea and call to action, and the post already written for it. */
+  hook?: string;
+  cta?: string;
+  postText?: string;
+}
+
+/** How the brand's posts end (dna.postEnding, else read from its posts); undefined for a new channel. */
+export const videoEnding = (brand: BrandProfile): PostEnding | undefined => brandEnding(brand);
+
+export async function planVideo(brand: BrandProfile, o: PlanVideoOptions): Promise<VideoPlan> {
+  const knowledge = o.knowledge ?? brand.knowledge;
+  const raw = await llmJson({
     schema: PlanSchema,
-    system: SYSTEM,
-    prompt: `BRAND DNA:\n${JSON.stringify(brand.dna)}\n\nKNOWLEDGE:\n${clip(brand.knowledge, 3000) || "(only the channel posts)"}\n\nRecent post example:\n${clip(brand.samplePosts.at(-1) ?? "", 600)}\n\nVIDEO BRIEF: ${clip(brief, 1000)}`,
+    system: videoSystem(o.lang, o.mode),
+    prompt: videoPrompt({
+      dna: brand.dna as unknown as Record<string, unknown>,
+      knowledge,
+      samplePost: brand.samplePosts.at(-1),
+      ending: videoEnding(brand),
+      hook: o.hook,
+      cta: o.cta,
+      brief: o.brief,
+      postText: o.postText,
+    }),
     model: MODEL_QUALITY,
     effort: "low",
     maxTokens: 4000,
+    // The route stores the script before the caption runs; the caption gets what is left of the 60 s.
+    timeoutMs: 35_000,
+    purpose: "video",
+    maxRetries: 0,
   });
-  return {
-    hook: polishUzLatin(plan.hook),
-    scenes: plan.scenes.slice(0, 6).map((s) => ({
-      seconds: Math.max(1, Math.min(10, Math.round(s.seconds))),
-      visual: polishUzLatin(s.visual),
-      voiceover: polishUzLatin(s.voiceover),
-      caption: polishUzLatin(s.caption),
-    })),
-    musicMood: plan.musicMood,
-  };
+  // Facts the script may repeat: the brand's, the post's and the owner's own brief.
+  const facts = [knowledge, brand.samplePosts.join("\n"), o.postText ?? "", o.brief, o.hook ?? "", o.cta ?? "", brand.dna.products.join(", ")].join("\n");
+  return finishPlan(raw, o.lang, facts);
 }
+
+export interface CaptionResult {
+  variants: Record<Script, string>;
+  neuroHits: Partial<Record<Script, NeuroHit[]>>;
+  humanScore: number;
+}
+
+/**
+ * The copywriter's caption for a video post: short, in the channel's voice, ending the way its posts end, under the
+ * 1024-character caption limit, then the same code pass as a post (video-core finishCaption).
+ */
+export async function writeVideoCaption(
+  brand: BrandProfile,
+  o: {
+    plan: VideoPlan;
+    /** Growth or sales (video-core videoMode): a growth channel's caption never leans toward ordering. */
+    mode: VideoMode;
+    post?: Pick<PostDraft, "variants"> | null;
+    knowledge?: string;
+    answers?: OwnerAnswers | null;
+    /** The time the route has left for it (25 s at most). */
+    timeoutMs?: number;
+  },
+): Promise<CaptionResult> {
+  const ending = videoEnding(brand);
+  const knowledge = o.knowledge ?? brand.knowledge;
+  const postText = o.post ? [o.post.variants.uz_latn, o.post.variants.ru].filter(Boolean).join("\n\n") : "";
+  const raw = await llmJson({
+    schema: CaptionSchema,
+    system: CAPTION_SYSTEM,
+    prompt: captionPrompt({ postText, plan: o.plan, mode: o.mode, knowledge, ending, products: brand.dna.products }),
+    model: MODEL_FAST,
+    effort: "low",
+    maxTokens: 3000,
+    timeoutMs: Math.min(25_000, o.timeoutMs ?? 25_000),
+    purpose: "video_caption",
+    maxRetries: 0,
+  });
+  const bot = getEnv().BOT_USERNAME?.replace(/^@/, "");
+  const answered = answeredContact(o.answers);
+  const endingOptions = { channel: brand.channel, bot };
+  const variants = finishCaption(raw, {
+    facts: [knowledge, postText, o.post?.variants.en ?? "", brand.samplePosts.join("\n"), o.plan.hook, ...o.plan.scenes.map((s) => s.voiceover)].join("\n"),
+    products: brand.dna.products,
+    // No habit to follow (a new channel): the owner's answered contact only.
+    ending: ending ?? (answered ? { pattern: "mixed", contact: answered, examples: [] } : undefined),
+    endingOptions,
+    keepKeys: ownContactKeys(ending, [answered], endingOptions),
+    keep: brandWords(brand),
+    fallback: o.post?.variants ?? {},
+  });
+  const neuroHits: Partial<Record<Script, NeuroHit[]>> = {};
+  let sum = 0;
+  const scripts: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
+  for (const s of scripts) {
+    const a = analyzeNeuro(variants[s], s);
+    if (a.hits.length) neuroHits[s] = a.hits;
+    sum += a.humanScore;
+  }
+  return { variants, neuroHits, humanScore: Math.round(sum / scripts.length) };
+}
+
+/** Brand words kept in Latin inside the Cyrillic version (the copywriter's rule). */
+function brandWords(brand: BrandProfile): string[] {
+  const words = `${brand.dna.name} ${brand.channel ?? ""}`.match(/[A-Za-z][A-Za-z0-9]{2,}/g) ?? [];
+  return [...new Set(words.filter((w) => /^[A-Z]/.test(w) || w === brand.channel))];
+}
+
+/** A short owner-readable brief for a slot's video (the slot's brief without its internal notes). */
+export const slotVideoBrief = (post: Pick<PostDraft, "brief" | "slot">): string => clip(post.slot?.hook ? `${post.slot.hook}. ${post.brief}` : post.brief, 1000);

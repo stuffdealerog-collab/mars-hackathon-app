@@ -186,7 +186,37 @@ export interface PostDraft {
   note?: string; // owner-readable, in the request's language: which fact to add
   /** Set once the approved post is queued to go out on its own at its slot (autopilot); missing = not queued. */
   schedule?: PostSchedule;
+  /**
+   * A video post (db: posts.video): the Videographer's script and, once the owner sent it to the bot, their video.
+   * Present on a plan slot with format "video" after its script was written, or on a video idea (no slot). A post
+   * with a video goes out as that video with the text as its caption; a video post without one never goes out.
+   */
+  video?: PostVideo;
   createdAt: string;
+}
+
+/**
+ * The owner's video for a post and the script it was shot from. Mercat keeps no copy of the file: Telegram's file_id
+ * (from the owner's message to the bot) is sent to the channel as is.
+ */
+export interface PostVideo {
+  /** The Videographer's script (written once on request, then reused: never paid twice). */
+  plan?: VideoPlan;
+  /** When the script was written (ISO). */
+  plannedAt?: string;
+  /** Telegram file_id of the owner's video; missing = no video yet. */
+  fileId?: string;
+  fileUniqueId?: string;
+  /** "video": a video message (sendVideo); "document": a video sent as a file (sendDocument, the same file_id). */
+  as?: "video" | "document";
+  duration?: number; // seconds
+  width?: number;
+  height?: number;
+  size?: number; // bytes
+  mime?: string;
+  /** Telegram file_id of the video's thumbnail (GET /api/uslub/video/thumb serves it to the owner). */
+  thumbFileId?: string;
+  receivedAt?: string; // ISO
 }
 
 /**
@@ -228,6 +258,8 @@ export interface VideoPlan {
   scenes: { seconds: number; visual: string; voiceover: string; caption: string }[];
   musicMood: string;
   videoUrl?: string; // filled when a provider renders it
+  /** The language the script is written in (the brand's post language); missing on plans made before 2026-11-25. */
+  lang?: Script;
 }
 
 /* ------------------------------------------- marketing brain (analysis) */
@@ -351,7 +383,15 @@ export type NodeStatus = "idle" | "running" | "done" | "error" | "needs_approval
  * POST /api/uslub/neuro    { text: string; script: Script }
  *                          -> { text: string; hits: NeuroHit[]; humanScore: number }
  * POST /api/uslub/radar    { brandId: string; goal?: string } -> { leads: RadarLead[] }
- * POST /api/uslub/video    { brandId: string; brief: string } -> { plan: VideoPlan }
+ * POST /api/uslub/video    { brandId: string; postId?: string; brief?: string; lang? }
+ *                          -> { plan: VideoPlan; post: PostDraft; reused?: boolean }
+ *                          postId: the script for that video post (a plan slot with format "video"), stored on
+ *                          post.video.plan with a short caption as the post's text; a post that has a script gets it
+ *                          back (reused: true), never written twice. No postId: a new video idea (optional brief),
+ *                          saved as a draft post without a slot. Owner or the id holder of an unowned brand.
+ * GET  /api/uslub/video/thumb?postId= -> image/jpeg   the thumbnail of the owner's video (same access as drafts)
+ * Bot deep link t.me/<bot>?start=video_<postId>: the post's owner sends the video to the bot; it is stored on
+ *                          post.video (Telegram file_id, no copy) and published with sendVideo, text as the caption.
  * POST /api/uslub/publish  { postId: string; script: Script; chat: string }  (chat = @channel)
  *                          -> { ok: boolean; url?: string; error?: string; already?: boolean }
  *                          idempotent: an already published post returns its link with already:true and is

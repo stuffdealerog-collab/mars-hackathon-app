@@ -94,6 +94,7 @@ describe("publish from the bot (t.me/<bot>?start=publish_<postId>)", () => {
       // publish.ts re-checks exactly what the owner saw right before sending.
       expectedText: "Бенто-торт от 150 000 сум.",
       expectedImageUrl: "https://v3b.fal.media/files/p.jpg",
+      expectedVideoFileId: null,
     });
     expect(sent.at(-1)?.text).toContain("https://t.me/tortlar_uz/42");
 
