@@ -1,4 +1,5 @@
 import "server-only";
+import { logTrialStarted } from "../stats-events";
 import { safeLogEvent } from "../track";
 import type { AutopilotState, BotAdminStatus, PostSchedule } from "../uslub/contract";
 import type { Locale } from "../i18n";
@@ -37,6 +38,6 @@ export async function setAutopilot(brandId: string, on: boolean, actor: number, 
   const next = switchAutopilot(prev, on, now);
   await writeAutopilot(brandId, next);
   await safeLogEvent(actor, on ? "autopilot_on" : "autopilot_off", { brand_id: brandId });
-  if (on && !prev.since) await safeLogEvent(actor, "trial_started", { brand_id: brandId, trial_ends_at: next.trialEndsAt });
+  if (on && !prev.since && next.since && next.trialEndsAt) await logTrialStarted(actor, { brandId, since: next.since, trialEndsAt: next.trialEndsAt });
   return next;
 }
