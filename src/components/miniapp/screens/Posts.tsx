@@ -9,6 +9,8 @@ import { fmt, useCopy, useLang, type Lang } from "../../ui/lang";
 import { useBlank } from "../use-blank";
 import { WeekCard } from "../../studio/WeekCard";
 import { postPhase } from "../../studio/week";
+import { VideoPostTile } from "../../video/PostLine";
+import { isVideoPost } from "../../video/model";
 import { useMiniCopy } from "../copy";
 import { useNav } from "../nav";
 import { TopBar, useCompact } from "../Shell";
@@ -176,7 +178,9 @@ function PostRow({ post, script, onOpen }: { post: PostDraft; script: Script; on
   const when = useWhen()(post);
   // The picture slot stays reserved while pictures are on their way, so rows never shift.
   const expected = useStudio((s) => !s.sample && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")));
-  const thumb = !!post.image || expected;
+  // A video post goes out as the owner's video: its row shows the clapperboard, never the run's picture.
+  const video = isVideoPost(post);
+  const thumb = video || !!post.image || expected;
   const blank = useBlank(post);
   const text = (post.variants[script] ?? "").trim();
   const status = post.status === "published" ? "published" : post.status === "approved" ? "approved" : "draft";
@@ -191,7 +195,7 @@ function PostRow({ post, script, onOpen }: { post: PostDraft; script: Script; on
         onOpen();
       }}
     >
-      {thumb && <Thumb post={post} />}
+      {thumb && (video ? <VideoPostTile className="ma-thumb" /> : <Thumb post={post} />)}
       <span className="flex min-w-0 flex-1 flex-col py-0.5">
         <span className="flex items-center justify-between gap-2">
           <span className="truncate text-[13px] text-ink-2">{when}</span>

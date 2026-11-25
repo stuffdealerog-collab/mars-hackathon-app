@@ -6,6 +6,7 @@
  * post there, so the Posts tab, the week and the queue see the same post.
  */
 import type { PostDraft } from "@/lib/uslub/contract";
+import { weekPickScript } from "../../lib/autopilot/week";
 import { useEffect, useMemo } from "react";
 import { create } from "zustand";
 import * as api from "../studio/api";
@@ -20,7 +21,8 @@ import { sampleCaption, sampleIdeaPlan, sampleVideo, sampleVideoPlan } from "./s
 /** "idea" while a new idea is written; a post id while that post's script is. */
 export const IDEA = "idea";
 
-type Note = { text: string; tone: "ok" | "bad"; link?: string };
+/** `link` opens in Telegram; `linkLabel` names it (the week's «Continue in Telegram» when missing). */
+type Note = { text: string; tone: "ok" | "bad"; link?: string; linkLabel?: string };
 
 interface VideoStore {
   writing: Record<string, true | undefined>;
@@ -149,18 +151,25 @@ export const useVideo = create<VideoStore>((set, get) => {
       }
       if (get().writing[postId]) return;
       const c = COPY[lang()];
+      // Its slot has passed: it can still go out now, through the bot's publish preview (as the bot's [Approve] does).
+      const said = (r: Parameters<typeof reasonText>[1]): Note => {
+        if (r.reason !== "slot_passed") return { text: reasonText(c, r), tone: "bad" };
+        const p = useStudio.getState().posts.find((x) => x.id === postId);
+        const script = p ? weekPickScript(p.variants, useStudio.getState().brand?.dna.languages) : undefined;
+        return { text: reasonText(c, r), tone: "bad", link: api.botPublishUrl(useStudio.getState().bot, postId, script), linkLabel: c.video.publish };
+      };
       // Why it cannot be queued now (its slot passed, a blank left…), said before anything is sent.
       const plan = st.weekNow([postId]);
       const left = plan.batch.ready.length ? undefined : plan.batch.skipped[0];
       if (left) {
-        note(postId, { text: reasonText(c, left), tone: "bad" });
+        note(postId, said(left));
         return;
       }
       busy(postId, true);
       try {
         const w = await st.approveWeek([postId]);
         const skip = w.state === "done" && w.queued === 0 ? w.skipped[0] : undefined;
-        if (skip) note(postId, { text: reasonText(c, skip), tone: "bad" });
+        if (skip) note(postId, said(skip));
         else if (w.state === "changed") note(postId, { text: c.week.changed, tone: "bad" });
         else if (w.state === "failed") note(postId, { text: w.message, tone: "bad" });
         else if (w.state === "continue") note(postId, { text: w.code === "brand_unowned" ? c.week.continueUnowned : c.week.continueText, tone: "bad", link: w.continueUrl });

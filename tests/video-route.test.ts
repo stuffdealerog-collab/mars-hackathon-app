@@ -25,6 +25,7 @@ vi.mock("@/lib/uslub/context", async () => await import("../src/lib/uslub/contex
 vi.mock("@/lib/uslub/placeholders", async () => await import("../src/lib/uslub/placeholders"));
 vi.mock("@/lib/uslub/video", async () => await import("../src/lib/uslub/video"));
 vi.mock("@/lib/uslub/video-core", async () => await import("../src/lib/uslub/video-core"));
+vi.mock("@/lib/uslub/translit", async () => await import("../src/lib/uslub/translit"));
 vi.mock("@/lib/uslub/brain/answers-store", () => ({ loadAnswers: async () => null }));
 vi.mock("@/lib/uslub/brain/kbstore", () => ({ loadKnowledge: async () => ({ text: "Katta patir 12 000 so‘m.", sources: [] }) }));
 const spendClaude = vi.fn<(req: Request, user: number | null, route: string, opts?: { weight?: number }) => Promise<void>>(async () => {});
@@ -189,6 +190,90 @@ describe("POST /api/uslub/video", () => {
     const all = await store.listPosts(brand.id);
     expect(all.map((p) => p.id)).toContain(post.id);
     expect(latestWeekBatch(all).map((p) => p.id)).toEqual([week]);
+  });
+
+  it("the script is stored before the caption: a caption that fails keeps the paid script and the post's text", async () => {
+    llmJson.mockImplementation(async (o: { purpose: string }) => {
+      if (o.purpose === "video_caption") throw new Error("caption timeout");
+      return RAW_PLAN;
+    });
+    const brand = await brandWith(571);
+    const id = await videoSlot(brand.id);
+    const res = await call({ brandId: brand.id, postId: id }, "tma 571");
+    expect(res.status).toBe(200);
+    const saved = await store.getPost(id);
+    expect(saved?.video?.plan?.scenes).toHaveLength(2);
+    // The claim went with the script: another tap is never told "busy" for a script that is already there.
+    expect((saved?.video as { writingAt?: string } | undefined)?.writingAt).toBeUndefined();
+    expect(saved?.variants.uz_latn).toBe("Ertalab birinchi non. Videoda ko‘ring!");
+    expect(events.find((e) => e.type === "video_planned")?.props).toMatchObject({ caption: false });
+    // A retry gets it back: nothing paid twice.
+    spendClaude.mockClear();
+    llmJson.mockClear();
+    expect(((await (await call({ brandId: brand.id, postId: id }, "tma 571")).json()) as { reused?: boolean }).reused).toBe(true);
+    expect(spendClaude).not.toHaveBeenCalled();
+    expect(llmJson).not.toHaveBeenCalled();
+  });
+
+  it("a slow script leaves no time for the caption: the script is stored, the caption is not started, nothing is lost", async () => {
+    const realNow = Date.now.bind(Date);
+    let skew = 0;
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => realNow() + skew);
+    try {
+      llmJson.mockImplementation(async (o: { purpose: string }) => {
+        // The script took 50 s of the function's 60.
+        if (o.purpose === "video") skew = 50_000;
+        return o.purpose === "video_caption" ? RAW_CAPTION : RAW_PLAN;
+      });
+      const brand = await brandWith(581);
+      const id = await videoSlot(brand.id);
+      expect((await call({ brandId: brand.id, postId: id }, "tma 581")).status).toBe(200);
+      expect(llmJson.mock.calls.map((c) => (c[0] as { purpose: string }).purpose)).toEqual(["video"]);
+      expect((await store.getPost(id))?.video?.plan?.scenes).toHaveLength(2);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("the caption gets only the time left (25 s at most) and the channel's mode", async () => {
+    const realNow = Date.now.bind(Date);
+    let skew = 0;
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => realNow() + skew);
+    try {
+      llmJson.mockImplementation(async (o: { purpose: string }) => {
+        if (o.purpose === "video") skew = 40_000;
+        return o.purpose === "video_caption" ? RAW_CAPTION : RAW_PLAN;
+      });
+      const brand = await brandWith(591, { channelType: "blog" });
+      const id = await videoSlot(brand.id);
+      expect((await call({ brandId: brand.id, postId: id }, "tma 591")).status).toBe(200);
+      const plan = llmJson.mock.calls.find((c) => (c[0] as { purpose: string }).purpose === "video")?.[0] as { timeoutMs: number };
+      const cap = llmJson.mock.calls.find((c) => (c[0] as { purpose: string }).purpose === "video_caption")?.[0] as { timeoutMs: number; prompt: string };
+      expect(plan.timeoutMs).toBe(35_000);
+      expect(cap.timeoutMs).toBeGreaterThanOrEqual(8_000);
+      expect(cap.timeoutMs).toBeLessThanOrEqual(15_000);
+      expect(cap.prompt).toMatch(/GOAL: This channel grows an audience/);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("a new idea whose caption fails is still saved (the script's hook as its text), never paid twice", async () => {
+    llmJson.mockImplementation(async (o: { purpose: string }) => {
+      if (o.purpose === "video_caption") throw new Error("refused");
+      return RAW_PLAN;
+    });
+    const brand = await brandWith(601);
+    const res = await call({ brandId: brand.id, brief: "Tong", lang: "uz" }, "tma 601");
+    expect(res.status).toBe(200);
+    const { post } = (await res.json()) as { post: PostDraft };
+    const saved = await store.getPost(post.id);
+    expect(saved?.video?.plan?.hook).toBe("Tandir ochiladi.");
+    expect(saved?.variants.uz_latn).toBe("Tandir ochiladi.");
+    expect(saved?.variants.uz_cyrl).toBe("Тандир очилади.");
+    expect(saved?.variants.ru).toBe("");
+    expect(saved?.humanScore).toBe(0);
+    expect(events.find((e) => e.type === "video_planned")?.props).toMatchObject({ idea: true, caption: false });
   });
 
   it("an unowned web brand's id holder may write scripts (like drafts)", async () => {

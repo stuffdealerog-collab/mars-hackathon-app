@@ -7,6 +7,7 @@ import { approveWithUndo, useDesk } from "./desk";
 import { queueOrder } from "./Queue";
 import { useStudio } from "./store";
 import { noHandPublish } from "./week";
+import { needsVideo } from "../video/model";
 
 const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
 const CONTROLS = "button, a, input, textarea, select, [contenteditable], [contenteditable=''], [role=menuitem]";
@@ -52,7 +53,8 @@ export function useHotkeys(enabled: boolean) {
         case "Enter":
         case "NumpadEnter":
           // Held Enter approves one post, never a run of them; nothing while a request is out.
-          if (e.repeat || st.busy[cur.id] || st.pendingApprove[cur.id]) break;
+          // A video post waiting for its video: nothing to approve or publish yet (the Video tab).
+          if (e.repeat || st.busy[cur.id] || st.pendingApprove[cur.id] || needsVideo(cur)) break;
           if (cur.status === "draft") void approveWithUndo(cur.id, true);
           // The queue holds it (or its send was cut off): it goes out by itself, never a second time by hand.
           else if (cur.status === "approved" && !st.sample && !noHandPublish(cur, st.schedule[cur.id])) publishStep(cur, st.postScript);

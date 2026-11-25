@@ -188,12 +188,19 @@ Rules:
 - Three versions of the same caption: uz_latn (Uzbek, Latin script, o‘ and g‘ with the ‘ sign), ru, en. One language per version.
 Return JSON {uz_latn, ru, en}.`;
 
-/** The caption writer's prompt: the post as it is, the script, the facts and how the channel's posts end. */
-export function captionPrompt(i: { postText: string; plan: VideoPlan; knowledge: string; ending?: PostEnding; products: readonly string[] }): string {
+/** What the caption is for: a growth channel's caption never leans toward ordering (owner correction 2). */
+const CAPTION_GOAL: Record<VideoMode, string> = {
+  growth: "This channel grows an audience: give a reason to watch, share or comment; no price, no 'order now'.",
+  sales: "One clear reason to buy or come, using the channel's ending.",
+};
+
+/** The caption writer's prompt: the post as it is, the script, what the channel is for, the facts and its ending. */
+export function captionPrompt(i: { postText: string; plan: VideoPlan; mode: VideoMode; knowledge: string; ending?: PostEnding; products: readonly string[] }): string {
   const ending = endingBrief(i.ending);
   return [
     `THE POST (its voice and facts):\n${clip(i.postText, 1500) || "(none yet)"}`,
     `THE VIDEO: ${clip(i.plan.hook, 200)} / ${i.plan.scenes.map((s) => clip(s.voiceover, 160)).join(" / ")}`,
+    `GOAL: ${CAPTION_GOAL[i.mode]}`,
     `BRAND FACTS:\n${clip(i.knowledge, 2000) || "(only the post)"}`,
     `PRODUCT NAMES (write them this way): ${i.products.join(", ") || "-"}`,
     ending,

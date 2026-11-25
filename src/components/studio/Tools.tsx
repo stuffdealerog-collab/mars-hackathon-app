@@ -5,6 +5,7 @@
  */
 import { ClipboardList, Copy, Download, ImagePlus, Package, PenLine, RefreshCw, ShieldCheck } from "lucide-react";
 import { instagramFor } from "./PostTools";
+import { isVideoPost } from "../video/model";
 import type { ContentPlan, PostDraft, Script } from "@/lib/uslub/contract";
 import type { Copy as CopyText } from "../ui/copy";
 import { weekday } from "../ui/format";
@@ -55,7 +56,9 @@ export function Tools({ collapsed }: { collapsed: boolean }) {
     // Off while this post's picture is being started or drawn: a second start would be a second paid one.
     const waiting = !post.image && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait"));
     const drawing = pictureBusy(post.id, post.image) || waiting;
-    const draftOnly = notInSample ?? (post.status !== "draft" || drawing || !desk.imageHandle ? true : undefined);
+    // A video post goes out as the owner's video: its picture tools stay off (that picture is never sent).
+    const video = isVideoPost(post);
+    const draftOnly = notInSample ?? (video || post.status !== "draft" || drawing || !desk.imageHandle ? true : undefined);
     tools = [
       { key: "img", icon: RefreshCw, label: c.tools.otherImage, run: () => desk.imageHandle?.regenerate(), off: draftOnly },
       { key: "photo", icon: Package, label: c.tools.productPhoto, run: () => desk.imageHandle?.pickPhoto(), off: draftOnly },
@@ -66,6 +69,7 @@ export function Tools({ collapsed }: { collapsed: boolean }) {
         icon: Download,
         label: c.instagram.btn,
         run: () => void instagramFor(post, script).then((r) => desk.toast({ text: c.instagram[r], tone: r === "failed" ? "bad" : "ok", ms: 3600 })),
+        off: video ? true : undefined,
       },
     ];
   } else {

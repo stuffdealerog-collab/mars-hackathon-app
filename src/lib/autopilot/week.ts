@@ -8,7 +8,8 @@
  * - no blank left in the variant that will go out ([narx], XXX…);
  * - its slot is ahead (or earlier today, then it goes out in 10 minutes), and the text names no date that will be
  *   over by then;
- * - its picture is not still being made (the picture could change after the approval);
+ * - its picture is not still being made (the picture could change after the approval), unless it goes out as the
+ *   owner's video (the picture is not sent then);
  * - a video slot has the owner's video (sent to the bot: post.video.fileId); a video idea without a slot has no time
  *   to go out (no_slot) and is never part of the latest batch.
  */
@@ -96,7 +97,8 @@ function check(p: WeekPost, input: WeekBatchInput): WeekSkip | WeekReady {
   if (p.status === "published") return skip("published");
   if (!input.channel?.trim()) return skip("no_channel");
   if ((p.slot?.format === "video" || (!p.slot && p.video)) && !p.video?.fileId) return skip("video_missing");
-  if (p.image && (p.image.status === "queued" || p.image.status === "running")) return skip("picture_rendering");
+  // A post with the owner's video goes out as that video: the run's picture is never sent, so it never holds it back.
+  if (!p.video?.fileId && p.image && (p.image.status === "queued" || p.image.status === "running")) return skip("picture_rendering");
   const script = weekPickScript(p.variants, input.languages);
   const text = p.variants[script]?.trim() || p.variants.uz_latn || "";
   const tokens = findPlaceholders(text);

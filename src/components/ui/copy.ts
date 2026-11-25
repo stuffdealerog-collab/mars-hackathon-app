@@ -136,6 +136,9 @@ const uz = {
     generate: "AI bilan video yaratish",
     soon: "tez orada",
     generateNote: "Videoni AI o‘zi yaratishi hali tayyor emas. Hozircha ssenariy bo‘yicha telefonda olasiz, bu jonliroq chiqadi.",
+    postTag: "Video post",
+    toTab: "«Video» bo‘limida ochish",
+    toTabShort: "«Video»ga o‘tish",
     retry: "Qayta urinish",
   },
 
@@ -595,6 +598,9 @@ const ru: Copy = {
     generate: "Создать видео с AI",
     soon: "скоро",
     generateNote: "Создание видео силами AI ещё не готово. Пока снимаете на телефон по сценарию, так выходит живее.",
+    postTag: "Видеопост",
+    toTab: "Открыть в разделе «Видео»",
+    toTabShort: "К разделу «Видео»",
     retry: "Попробовать снова",
   },
 
@@ -1052,6 +1058,9 @@ const en: Copy = {
     generate: "Make the video with AI",
     soon: "soon",
     generateNote: "Making the video with AI is not ready yet. For now you film it on your phone from the script, which looks more real anyway.",
+    postTag: "Video post",
+    toTab: "Open in the Video tab",
+    toTabShort: "Go to Video",
     retry: "Try again",
   },
 

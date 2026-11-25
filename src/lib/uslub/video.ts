@@ -58,7 +58,8 @@ export async function planVideo(brand: BrandProfile, o: PlanVideoOptions): Promi
     model: MODEL_QUALITY,
     effort: "low",
     maxTokens: 4000,
-    timeoutMs: 40_000,
+    // The route stores the script before the caption runs; the caption gets what is left of the 60 s.
+    timeoutMs: 35_000,
     purpose: "video",
     maxRetries: 0,
   });
@@ -79,7 +80,16 @@ export interface CaptionResult {
  */
 export async function writeVideoCaption(
   brand: BrandProfile,
-  o: { plan: VideoPlan; post?: Pick<PostDraft, "variants"> | null; knowledge?: string; answers?: OwnerAnswers | null },
+  o: {
+    plan: VideoPlan;
+    /** Growth or sales (video-core videoMode): a growth channel's caption never leans toward ordering. */
+    mode: VideoMode;
+    post?: Pick<PostDraft, "variants"> | null;
+    knowledge?: string;
+    answers?: OwnerAnswers | null;
+    /** The time the route has left for it (25 s at most). */
+    timeoutMs?: number;
+  },
 ): Promise<CaptionResult> {
   const ending = videoEnding(brand);
   const knowledge = o.knowledge ?? brand.knowledge;
@@ -87,11 +97,11 @@ export async function writeVideoCaption(
   const raw = await llmJson({
     schema: CaptionSchema,
     system: CAPTION_SYSTEM,
-    prompt: captionPrompt({ postText, plan: o.plan, knowledge, ending, products: brand.dna.products }),
+    prompt: captionPrompt({ postText, plan: o.plan, mode: o.mode, knowledge, ending, products: brand.dna.products }),
     model: MODEL_FAST,
     effort: "low",
     maxTokens: 3000,
-    timeoutMs: 25_000,
+    timeoutMs: Math.min(25_000, o.timeoutMs ?? 25_000),
     purpose: "video_caption",
     maxRetries: 0,
   });

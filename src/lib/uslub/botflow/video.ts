@@ -126,8 +126,12 @@ async function confirmVideo(api: Api, chatId: number, locale: Locale, brand: Sto
 
 const handleVideo: VideoHandler = async (api, chatId, user, locale, pending, input) => {
   if (input.type === "text") {
-    // A channel link or a business description is a new run (it ends this wait); anything short gets a reminder.
-    if (isNewRunText(input.text)) return false;
+    // A channel link or a business description is a new run: this wait ends here, so a later video never lands on
+    // this post unasked. Anything short gets a reminder.
+    if (isNewRunText(input.text)) {
+      await clearPending(user.id);
+      return false;
+    }
     await api.sendMessage(chatId, t(locale, "vid.waiting"), { reply_markup: new InlineKeyboard().text(t(locale, "vid.cancel"), videoCancelData(pending.postId)) });
     return true;
   }

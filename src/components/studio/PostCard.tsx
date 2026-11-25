@@ -8,6 +8,8 @@ import { ownerText, weekday } from "../ui/format";
 import { parseChannel } from "../ui/parts";
 import { PostImage } from "@/components/media";
 import { lampVars } from "../lamp/lamps";
+import { VideoPostLine } from "../video/PostLine";
+import { isVideoPost, needsVideo } from "../video/model";
 import { authHeader, botPublishUrl, handoffKey } from "./api";
 import { approveWithUndo, refsWording, useDesk, type ImageHandle } from "./desk";
 import { useDesktop } from "./Hub";
@@ -62,6 +64,10 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
   // The queue's view of this post (GET /api/uslub/autopilot): goes out by itself, out, stopped, changed.
   const schedule = useStudio((s) => s.schedule[post.id]);
   const phase = postPhase(post, schedule);
+  // A video post goes out as the owner's video with this text: no picture here, and nothing to approve or publish
+  // until the video has come (what the owner approves is what is sent).
+  const video = isVideoPost(post);
+  const noVideo = needsVideo(post);
   // Where the slot's time comes from (PlanItem.timeLabel): guidance from the strategist, said as given.
   const timeLabel = useStudio((s) => (post.slot ? s.plan?.items.find((it) => slotKey(it) === slotKey(post.slot!))?.timeLabel : undefined));
   // Switching posts in the queue while this one is open for editing: let the edit go with the
@@ -164,7 +170,9 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
             />
           )}
         </AnimatePresence>
-        {sample && desktop ? (
+        {video ? (
+          <VideoPostLine post={post} schedule={schedule} onOpenTab={() => useStudio.getState().setTab("video")} className="px-4 pt-2.5" />
+        ) : sample && desktop ? (
           // Computers: the sample's picture slot is a short strip of the Dizayner's lamp, its
           // ember lit and a little of its light, with why there is no picture.
           <div className="sample-strip" style={lampVars("designer")}>
@@ -272,6 +280,15 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
               {c.posts.openPost}
               <ExternalLink className="h-4 w-4" aria-hidden />
             </a>
+          )
+        ) : noVideo ? (
+          // Waiting for the owner's video (the Video tab has the bot's link): only the caption can be edited here.
+          post.status === "draft" && (
+            <div className="flex gap-2.5">
+              <button type="button" className="btn-2 flex-1 @md:flex-none" aria-keyshortcuts="E" onClick={startEdit}>
+                {c.posts.edit}
+              </button>
+            </div>
           )
         ) : approved && noHandPublish(post, schedule) ? (
           // The queue holds it (or its send was cut off): it goes out by itself, never a second time by hand.

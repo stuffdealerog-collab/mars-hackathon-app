@@ -195,7 +195,7 @@ function VideoCard({
             <>
               {" "}
               <Out href={note.link} onOpen={onOpen} className="link text-ink">
-                {c.week.continueBtn}
+                {note.linkLabel ?? c.week.continueBtn}
               </Out>
             </>
           )}

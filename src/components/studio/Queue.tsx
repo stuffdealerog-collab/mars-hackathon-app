@@ -3,6 +3,8 @@ import { LampTile } from "../lamp/LampTile";
 import { fmt, useCopy } from "../ui/lang";
 import { useDesk, whenOf } from "./desk";
 import { pictureBusy, useStudio } from "./store";
+import { VideoPostTile } from "../video/PostLine";
+import { isVideoPost } from "../video/model";
 
 type Group = { key: "draft" | "approved" | "scheduled" | "published"; title: string; posts: PostDraft[] };
 
@@ -98,7 +100,10 @@ function Row({ post, script, active, onPick }: { post: PostDraft; script: Script
         active ? "bg-glass-3" : "hover:bg-glass-2"
       }`}
     >
-      {url ? (
+      {isVideoPost(post) ? (
+        // A video post goes out as the owner's video: the clapperboard, never the run's picture.
+        <VideoPostTile className="h-14 w-14 shrink-0 rounded-[12px] bg-glass-2 shadow-[inset_0_0_0_1px_var(--hair)]" />
+      ) : url ? (
         <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[12px] bg-glass-2 shadow-[inset_0_0_0_1px_var(--hair)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />

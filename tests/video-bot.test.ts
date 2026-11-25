@@ -36,6 +36,7 @@ const { t } = await import("../src/lib/i18n");
 const store = await import("../src/lib/uslub/store");
 const { getPending, resetPendingMemory } = await import("../src/lib/uslub/botflow/pending");
 const { shownHash } = await import("../src/lib/uslub/botpublish-core");
+const { onboardGate } = await import("../src/lib/uslub/onboard");
 import type { BrandDNA, PostDraft } from "../src/lib/uslub/contract";
 
 type Call = { method: string; payload: Record<string, unknown> };
@@ -206,6 +207,23 @@ describe("the video arrives", () => {
     await send(message(user, { document: { file_id: "BQACdoc", file_unique_id: "d1", file_name: "v.mp4", mime_type: "video/mp4", file_size: 5_000_000 } }));
     expect((await store.getPost(post.id))?.video).toMatchObject({ fileId: "BQACdoc", as: "document", mime: "video/mp4" });
     expect(lastText()).toContain(t("uz", "vid.as_file"));
+  });
+
+  it("a channel link ends the wait even when the new run does not start: a later video is not put on the old post", async () => {
+    const user = ++nextUser;
+    const { post } = await setup(user);
+    await send(start(user, `video_${post.id}`));
+    expect(await getPending(user)).toMatchObject({ kind: "video" });
+    // A run of this user is already in flight: the new one is refused before it would clear any wait itself.
+    const gate = onboardGate.enter(user);
+    try {
+      await send(text(user, "@boshqakanal"));
+    } finally {
+      if (gate.ok) onboardGate.leave(user);
+    }
+    expect(await getPending(user)).toBeNull();
+    await send(video(user));
+    expect((await store.getPost(post.id))?.video?.fileId).toBeUndefined();
   });
 
   it("[Cancel] ends the wait", async () => {

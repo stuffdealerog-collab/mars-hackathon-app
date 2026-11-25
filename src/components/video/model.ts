@@ -35,6 +35,18 @@ export function videoState(post: Pick<PostDraft, "status" | "video">, schedule?:
   return post.status === "approved" ? "approved" : "received";
 }
 
+/**
+ * A video post still waiting for the owner's video: the Posts tab offers no Approve and no Publish for it (the channel
+ * gets the video, so there is nothing to approve yet; the server refuses it anyway, 422 video_missing).
+ */
+export const needsVideo = (p: Pick<PostDraft, "status" | "slot" | "video">): boolean => p.status !== "published" && isVideoPost(p) && !p.video?.fileId;
+
+/** The video post's word for the Posts tab line: where it stands, said without a time (the post shows its own). */
+export const postLineState = (post: Pick<PostDraft, "status" | "video">, schedule?: PostSchedule | null): Exclude<VideoState, "queued"> | "queuedAtSlot" => {
+  const s = videoState(post, schedule);
+  return s === "queued" ? "queuedAtSlot" : s;
+};
+
 const DAY_MS = 86_400_000;
 const at = (iso?: string) => {
   const t = Date.parse(iso ?? "");

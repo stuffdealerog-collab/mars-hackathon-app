@@ -6,6 +6,8 @@ import * as api from "../../studio/api";
 import { pictureBusy, useStudio } from "../../studio/store";
 import { RewriteForm } from "../../studio/PostTools";
 import { noHandPublish, postPhase } from "../../studio/week";
+import { VideoPostLine } from "../../video/PostLine";
+import { isVideoPost, needsVideo } from "../../video/model";
 import { ScheduleLine, usePicturesComing, useWeek, useWhenLabel } from "../../studio/WeekCard";
 import { approveWeekNow, instagramNow } from "../actions";
 import { fmt, keepNumbers, useCopy, useLang } from "../../ui/lang";
@@ -125,6 +127,12 @@ async function wasPublished(id: string, tries = 2): Promise<{ url?: string } | n
   return null;
 }
 
+/** Back to the tabs, on «Video» (a video post's script, its bot link and its approval live there). */
+function openVideoTab() {
+  useNav.getState().pop();
+  useStudio.getState().setTab("video");
+}
+
 /** One post, full size, as subscribers will see it; swipe sideways for the next one. */
 export function PostScreen({ id, active }: { id: string; active: boolean }) {
   const c = useCopy();
@@ -221,6 +229,10 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
     haptic.tap();
     openSheet({ name: "edit", postId: post.id });
   };
+  const toVideoTab = () => {
+    haptic.tap();
+    openVideoTab();
+  };
 
   let main: BtnSpec | null = null;
   let secondary: BtnSpec | null = null;
@@ -229,6 +241,10 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
     const queueable = status === "approved" && phase.kind === "none" && one.batch.ready[0]?.postId === post.id ? one.batch.ready[0] : null;
     if (status !== "published" && blank) {
       main = { text: m.post.fill, onClick: edit, active: !moving };
+    } else if (needsVideo(post)) {
+      // A video post waiting for the owner's video: nothing to approve or publish yet; the Video tab has the bot's link.
+      main = { text: c.video.toTabShort, onClick: toVideoTab, active: !moving };
+      if (status === "draft") secondary = { text: c.posts.edit, onClick: edit, active: !moving };
     } else if (status === "draft" && phase.kind === "changed") {
       // Approved and queued, then rewritten: approving again puts this version back in the queue.
       main = { text: weekBusy ? c.week.sending : c.schedule.reapprove, onClick: () => settled(post.id) && void approveWeekNow([post.id]), progress: weekBusy, active: !moving };
@@ -316,6 +332,7 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
   const fresh = useStudio((s) => s.mode === "fresh");
   const edited = useStudio((s) => !!s.edited[post.id]?.[script]);
   const note = useStudio((s) => s.postNote[post.id]);
+  const schedule = useStudio((s) => s.schedule[post.id]);
   const blank = useBlank(post);
   // Reserve the picture slot while pictures are on their way, so the post never jumps when one lands.
   const picturesExpected = useStudio((s) => !s.sample && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")));
@@ -356,8 +373,11 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
               {status === "published" ? m.posts.published : m.posts.approved}
             </span>
           )}
-          {/* The sample bakery has no pictures: no empty frame for it. */}
-          {(!sample || post.image) && (
+          {/* A video post goes out as the owner's video: no picture, the line to the Video tab instead. The sample
+              bakery has no pictures: no empty frame for it. */}
+          {isVideoPost(post) ? (
+            <VideoPostLine post={post} schedule={schedule} onOpenTab={() => (haptic.tap(), openVideoTab())} className={`px-4 pt-2.5 ${status !== "draft" ? "pr-32" : ""}`} />
+          ) : (!sample || post.image) && (
             <PostImage
               key={post.id}
               postId={post.id}
@@ -414,17 +434,20 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
         {/* Two quiet tools, in Simple too: change it in one phrase; the post for Instagram (4:5 + caption). */}
         <div className="ma-group mt-4">
           {status !== "published" && <RewriteForm post={post} className="px-4 pb-3 pt-3" />}
-          <button
-            type="button"
-            className="ma-row ma-press"
-            onClick={() => {
-              haptic.tap();
-              void instagramNow(post, script);
-            }}
-          >
-            <span className="min-w-0 flex-1 text-[15.5px] font-medium">{c.instagram.btn}</span>
-            <ChevronRight className="h-5 w-5 shrink-0 text-ink-3" aria-hidden />
-          </button>
+          {/* «Instagram uchun» exports the picture: a video post has none that goes out. */}
+          {!isVideoPost(post) && (
+            <button
+              type="button"
+              className="ma-row ma-press"
+              onClick={() => {
+                haptic.tap();
+                void instagramNow(post, script);
+              }}
+            >
+              <span className="min-w-0 flex-1 text-[15.5px] font-medium">{c.instagram.btn}</span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-ink-3" aria-hidden />
+            </button>
+          )}
         </div>
 
         {pro && (

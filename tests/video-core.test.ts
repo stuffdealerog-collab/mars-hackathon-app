@@ -183,10 +183,18 @@ describe("the caption: the channel's voice and ending, under Telegram's 1024 cha
   });
 
   it("the prompt has the post, the video and the ending", () => {
-    const p = captionPrompt({ postText: "Patir tayyor", plan, knowledge: "", ending, products: ["patir"] });
+    const p = captionPrompt({ postText: "Patir tayyor", plan, mode: "sales", knowledge: "", ending, products: ["patir"] });
     expect(p).toMatch(/THE POST/);
     expect(p).toMatch(/Patir tayyor\./);
     expect(p).toMatch(/HOW THE CHANNEL'S POSTS END/);
+    expect(p).toMatch(/GOAL: One clear reason to buy or come/);
+  });
+
+  it("a growth channel's caption is told not to sell (owner correction 2)", () => {
+    const p = captionPrompt({ postText: "Patir tayyor", plan, mode: "growth", knowledge: "", products: [] });
+    expect(p).toMatch(/GOAL: This channel grows an audience/);
+    expect(p).toMatch(/no price, no 'order now'/);
+    expect(p).not.toMatch(/reason to buy/);
   });
 });
 

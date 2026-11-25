@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PostDraft, PostSchedule } from "@/lib/uslub/contract";
-import { sceneRanges, videoLamp, videoLink, videoList, videoState } from "./model";
+import { needsVideo, postLineState, sceneRanges, videoLamp, videoLink, videoList, videoState } from "./model";
 
 // The Video tab's pure helpers: where a video post stands, which posts the tab lists, the lamp, the bot link.
 
@@ -59,6 +59,24 @@ describe("videoList", () => {
   it("at most `max`", () => {
     const many = Array.from({ length: 20 }, () => post());
     expect(videoList(many, NOW, 5)).toHaveLength(5);
+  });
+});
+
+describe("a video post in the Posts tab", () => {
+  it("no Approve or Publish until the owner's video came; a photo post or one already out is never held", () => {
+    expect(needsVideo(post())).toBe(true);
+    expect(needsVideo(post({ video: { plan } }))).toBe(true);
+    expect(needsVideo(post({ video: { plan, fileId: "BAAC" } }))).toBe(false);
+    expect(needsVideo(post({ slot: { day: "2026-11-27", time: "19:00", goal: "reach", hook: "Non", cta: "", format: "photo" } }))).toBe(false);
+    expect(needsVideo(post({ slot: undefined, video: { plan } }))).toBe(true);
+    expect(needsVideo(post({ status: "published" }))).toBe(false);
+  });
+
+  it("the line says where the video stands, a queued one without its time", () => {
+    expect(postLineState(post({ video: { plan } }))).toBe("waiting");
+    expect(postLineState(post({ video: { plan, fileId: "BAAC" } }))).toBe("received");
+    const queued: PostSchedule = { dueAt: "2026-11-27T14:00:00.000Z", status: "queued" };
+    expect(postLineState(post({ status: "approved", video: { plan, fileId: "BAAC" } }), queued)).toBe("queuedAtSlot");
   });
 });
 

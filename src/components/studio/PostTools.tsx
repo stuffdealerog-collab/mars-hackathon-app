@@ -10,6 +10,7 @@ import { useId, useState } from "react";
 import { exportForInstagram, type ExportOutcome } from "../ui/instagram-export";
 import { instagramCaption, instagramFileName, ownHashtags } from "../ui/instagram";
 import { useCopy } from "../ui/lang";
+import { isVideoPost } from "../video/model";
 import { authHeader } from "./api";
 import { rewriteLocked, useStudio } from "./store";
 
@@ -87,9 +88,12 @@ export function PostTools({ post, script, onSay }: { post: PostDraft; script: Sc
             {c.rewrite.label}
           </button>
         )}
-        <button type="button" className="link min-h-9 text-[14px] text-ink-2" disabled={exporting} onClick={() => void ig()}>
-          {exporting ? <span className="breathe">{c.instagram.working}</span> : c.instagram.btn}
-        </button>
+        {/* «Instagram uchun» exports the picture: a video post has none that goes out. */}
+        {!isVideoPost(post) && (
+          <button type="button" className="link min-h-9 text-[14px] text-ink-2" disabled={exporting} onClick={() => void ig()}>
+            {exporting ? <span className="breathe">{c.instagram.working}</span> : c.instagram.btn}
+          </button>
+        )}
       </div>
       {open && canRewrite && <RewriteForm post={post} onDone={() => setOpen(false)} />}
     </div>
