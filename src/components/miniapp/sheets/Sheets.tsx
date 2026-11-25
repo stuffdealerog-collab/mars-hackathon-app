@@ -182,12 +182,15 @@ function LangSheet({ leaving }: { leaving: boolean }) {
   const c = useCopy();
   const setPostScript = useStudio((s) => s.setPostScript);
   const close = useNav((s) => s.closeSheet);
-  const { script, available } = usePostScript();
+  const { script, main, more } = usePostScript();
+  // English waits under «Yana» unless the channel writes it, or it is the one on screen.
+  const [revealed, setRevealed] = useState(() => more.includes(script));
+  const list = revealed ? [...main, ...more] : main;
   useBottomButtons("sheet", PRIORITY.sheet, !leaving, null);
   return (
     <Sheet title={c.posts.langLabel} leaving={leaving}>
       <div className="ma-group mt-3" role="radiogroup" aria-label={c.posts.langLabel}>
-        {available.map((s) => (
+        {list.map((s) => (
           <button
             key={s}
             type="button"
@@ -204,6 +207,19 @@ function LangSheet({ leaving }: { leaving: boolean }) {
             {script === s && <Check className="h-5 w-5 shrink-0 text-ink" aria-hidden />}
           </button>
         ))}
+        {!revealed && more.length > 0 && (
+          <button
+            type="button"
+            className="ma-row ma-press"
+            onClick={() => {
+              haptic.tap();
+              setRevealed(true);
+            }}
+          >
+            <span className="min-w-0 flex-1 text-[16px] text-ink-2">{c.posts.moreLangs}</span>
+            <span className="truncate text-[13.5px] text-ink-3">{more.map((s) => c.posts.scriptNames[s]).join(", ")}</span>
+          </button>
+        )}
       </div>
     </Sheet>
   );
@@ -325,7 +341,9 @@ function DetailsSheet({ leaving, postId }: { leaving: boolean; postId: string })
     if (slot.hook) rows.push([m.details.hook, ownerText(slot.hook, lang)]);
     if (slot.cta) rows.push([m.details.cta, ownerText(slot.cta, lang)]);
   }
-  if (post.brief && post.brief !== slot?.hook) rows.push([m.details.brief, ownerText(post.brief, lang)]);
+  // The brief only when it says something the hook does not (the first line is the hook again).
+  const brief = post.brief?.split("\n")[0]?.trim();
+  if (brief && brief !== slot?.hook?.trim() && !slot?.hook?.includes(brief)) rows.push([m.details.brief, ownerText(post.brief, lang)]);
   const flagged = [...new Set(scripts.flatMap((s) => (post.neuroHits[s] ?? []).map((h) => h.phrase)))];
 
   return (
@@ -341,15 +359,13 @@ function DetailsSheet({ leaving, postId }: { leaving: boolean; postId: string })
         </dl>
       )}
 
-      <p className="mt-4 px-1 text-[13.5px]">
-        <span className="tnum font-medium">{fmt(c.pro.natural, { n: post.humanScore })}</span>
-        {flagged.length > 0 && (
-          <>
-            <span className="text-ink-2"> · {c.pro.flagged}: </span>
-            <span className="text-bad">{flagged.slice(0, 6).join(", ")}</span>
-          </>
-        )}
-      </p>
+      {/* Only what the editor caught: a naturalness score that is always 98 says nothing. */}
+      {flagged.length > 0 && (
+        <p className="mt-4 px-1 text-[13.5px]">
+          <span className="text-ink-2">{c.pro.flagged}: </span>
+          <span className="text-bad">{flagged.slice(0, 6).join(", ")}</span>
+        </p>
+      )}
 
       <p className="mb-2 mt-6 px-1 text-[13px] font-medium text-ink-2">{m.details.texts}</p>
       <div className="ma-group">
@@ -426,6 +442,11 @@ function ChannelSheet({ leaving, postId }: { leaving: boolean; postId: string })
     }
     haptic.error();
     close();
+    // The bot is not an admin there: the add-the-bot card, naming this channel (MiniIntro).
+    if (useStudio.getState().adminAsk?.postId === post.id) {
+      useNav.getState().openIntro("admin", "over");
+      return;
+    }
     const text = r.message || c.error.generic;
     const admin = r.adminUrl;
     if (!popup(text, admin ? { text: m.admin.open, onPress: () => openLink(admin) } : undefined)) say(text, "bad");

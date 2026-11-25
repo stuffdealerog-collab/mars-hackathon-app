@@ -695,7 +695,7 @@ html.ma-html body {
 @keyframes ma-fade-in-to {
   to { opacity: 1; }
 }
-/* Ten small lights, one per employee, come on in pipeline order. */
+/* Small lights, one per employee (OWNER_LAMPS), come on in pipeline order. */
 .ma-launch__ten {
   display: flex;
   justify-content: center;

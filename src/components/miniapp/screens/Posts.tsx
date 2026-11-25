@@ -2,6 +2,7 @@ import type { PostDraft, Script } from "@/lib/uslub/contract";
 import { Check, ChevronDown, ChevronRight, ImageOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { lampVars } from "../../lamp/lamps";
+import { SCRIPT_ORDER, splitScripts } from "../../studio/scripts";
 import { slotKey, useStudio } from "../../studio/store";
 import { plural, weekday } from "../../ui/format";
 import { fmt, useCopy, useLang, type Lang } from "../../ui/lang";
@@ -11,24 +12,26 @@ import { useNav } from "../nav";
 import { TopBar, useCompact } from "../Shell";
 import { haptic } from "../tg";
 
-const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
 const SCRIPT_FOR: Record<Lang, Script> = { uz: "uz_latn", ru: "ru", en: "en" };
 
 /**
  * One post language for the whole list, and the one that gets published: the channel's own (the
  * brand's languages), never the Telegram UI language. The UI language is only a fallback when the
  * brand has none. The switch shows only when the channel itself writes in two languages or more.
+ * `main` / `more`: English waits under «Yana» unless the channel writes it (studio/scripts.ts).
  */
-export function usePostScript(): { script: Script; available: Script[] } {
+export function usePostScript(): { script: Script; available: Script[]; main: Script[]; more: Script[] } {
   const lang = useLang((s) => s.lang);
   const posts = useStudio((s) => s.posts);
   const picked = useStudio((s) => s.postScript);
   const channelLangs = useStudio((s) => s.brand?.dna.languages) ?? [];
-  const all = SCRIPTS.filter((s) => posts.some((p) => p.variants[s]?.trim()));
+  const all = SCRIPT_ORDER.filter((s) => posts.some((p) => p.variants[s]?.trim()));
   const own = channelLangs.find((s) => all.includes(s));
   const fallback = own ?? (all.includes(SCRIPT_FOR[lang]) ? SCRIPT_FOR[lang] : (all[0] ?? "uz_latn"));
   const script = picked && all.includes(picked) ? picked : fallback;
-  return { script, available: all.length > 1 && channelLangs.length > 1 ? all : [] };
+  const available = all.length > 1 && channelLangs.length > 1 ? all : [];
+  const { main, more } = splitScripts(available, channelLangs);
+  return { script, available, main, more };
 }
 
 /** The script a single post shows: the list's choice when the post has it, else Uzbek Latin. */

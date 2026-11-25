@@ -93,6 +93,13 @@ export function usePostActions() {
         return;
       }
     }
+    // The bot is not an admin of the owner's channel: not a popup with a bare link, but the
+    // add-the-bot card naming that channel; it publishes again when the owner comes back.
+    if (useStudio.getState().adminAsk?.postId === id) {
+      haptic.warn();
+      useNav.getState().openIntro("admin", "over");
+      return;
+    }
     refuse(r.message || c.error.generic, r.adminUrl);
   };
 
@@ -329,7 +336,10 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
               expected={picturesExpected}
               // Only a draft's picture can change: a redrawn approved post would no longer match the bot's preview.
               locked={status !== "draft" || sample}
-              pro={pro}
+              // Never the model name, the English prompt or the sample count for an owner; Pro keeps
+              // the product photo button.
+              pro={false}
+              allowProductPhoto={pro}
               lang={lang}
               authorization={api.authHeader()}
               refs={refs}

@@ -27,6 +27,38 @@ export const LAMP_ORDER: AgentRole[] = [
   "publisher",
 ];
 
+/**
+ * The lamps an owner sees: every employee that does real work for them today, in pipeline order.
+ * Videograf and Mijozlar radari have no screen yet, so they are not on any owner surface (a dark
+ * "coming soon" lamp is a promise, not a result). LAMPS below keeps all of them.
+ */
+export const OWNER_LAMPS: readonly AgentRole[] = LAMP_ORDER.filter((r) => r !== "video" && r !== "radar");
+
+/**
+ * Measured results on the lamps ("3 ta post vaqtida chiqdi", "+120 medianaga"), when the data
+ * gives one. A lamp with an outcome reads it as its result and as its words; a dark lamp lights
+ * (a measured result is held work); a lamp that is working or failed keeps its state. Pure.
+ */
+export function withOutcomes<T extends { state: Record<AgentRole, LampState>; words: Partial<Record<AgentRole, string>>; outcome?: Partial<Record<AgentRole, string>> }>(
+  lamps: T,
+  outcomes?: Partial<Record<AgentRole, string | null | undefined>> | null,
+): T {
+  if (!outcomes) return lamps;
+  const state = { ...lamps.state };
+  const words = { ...lamps.words };
+  const outcome = { ...lamps.outcome };
+  let changed = false;
+  for (const [role, raw] of Object.entries(outcomes) as [AgentRole, string | null | undefined][]) {
+    const text = raw?.trim();
+    if (!text || !(role in state)) continue;
+    changed = true;
+    outcome[role] = text;
+    words[role] = text;
+    if (state[role] === "off") state[role] = "on";
+  }
+  return changed ? { ...lamps, state, words, outcome } : lamps;
+}
+
 export const LAMPS: Record<AgentRole, Lamp> = {
   brand: { role: "brand", hue: "#FFD6A0", core: "#FFF7EA", deep: "#B8642F" },
   analyst: { role: "analyst", hue: "#FFB547", core: "#FFEBC2", deep: "#A8501A" },

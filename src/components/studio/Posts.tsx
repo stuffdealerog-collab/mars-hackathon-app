@@ -8,47 +8,61 @@ import { useDesk } from "./desk";
 import { Inspector } from "./Inspector";
 import { PostCard } from "./PostCard";
 import { Queue, queueOrder } from "./Queue";
+import { SCRIPT_ORDER, shownScripts, splitScripts } from "./scripts";
 import { slotKey, useStudio } from "./store";
 import { useHotkeys } from "./useHotkeys";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
-const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
 const SCRIPT_FOR: Record<Lang, Script> = { uz: "uz_latn", ru: "ru", en: "en" };
 
 /**
  * One post language for the whole list. It is the channel's own (from the brand), not the page
- * language; the page language is only a fallback when the brand has none.
+ * language; the page language is only a fallback when the brand has none. `shown`: the languages
+ * the switch draws (English waits under «Yana» unless the channel writes it, scripts.ts).
  */
 function usePostScript() {
   const lang = useLang((s) => s.lang);
   const posts = useStudio((s) => s.posts);
   const picked = useStudio((s) => s.postScript);
   const channelLangs = useStudio((s) => s.brand?.dna.languages) ?? [];
-  const available = SCRIPTS.filter((s) => posts.some((p) => p.variants[s]?.trim()));
+  const revealed = useDesk((s) => s.moreScripts);
+  const available = SCRIPT_ORDER.filter((s) => posts.some((p) => p.variants[s]?.trim()));
   const own = channelLangs.find((s) => available.includes(s));
   const fallback = own ?? (available.includes(SCRIPT_FOR[lang]) ? SCRIPT_FOR[lang] : (available[0] ?? "uz_latn"));
   const script = picked && available.includes(picked) ? picked : fallback;
   // Every post has a Cyrillic version, so "more than one available" is always true: the switch is
   // shown only when the channel itself writes in two languages or more (spec §3.4).
   const show = available.length > 1 && channelLangs.length > 1;
-  return { available: show ? available : [], script, scriptOf: (p: PostDraft): Script => (p.variants[script]?.trim() ? script : "uz_latn") };
+  const split = splitScripts(show ? available : [], channelLangs);
+  return {
+    shown: shownScripts(split, revealed, script),
+    more: revealed || split.more.includes(script) ? [] : split.more,
+    script,
+    scriptOf: (p: PostDraft): Script => (p.variants[script]?.trim() ? script : "uz_latn"),
+  };
 }
 
-function ScriptSwitch({ available, script }: { available: Script[]; script: Script }) {
+function ScriptSwitch({ shown, more, script }: { shown: Script[]; more: Script[]; script: Script }) {
   const c = useCopy();
   const setPostScript = useStudio((s) => s.setPostScript);
-  if (available.length < 2) return null;
+  const setMore = useDesk((s) => s.setMoreScripts);
+  if (shown.length + more.length < 2) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <span className="text-[14px] text-ink-2" id="post-lang">
         {c.posts.langLabel}
       </span>
       <div className="seg" role="group" aria-labelledby="post-lang">
-        {available.map((s) => (
+        {shown.map((s) => (
           <button key={s} type="button" aria-pressed={script === s} title={c.posts.scriptNames[s]} onClick={() => setPostScript(s)}>
             {c.posts.scripts[s]}
           </button>
         ))}
+        {more.length > 0 && (
+          <button type="button" className="text-ink-2" title={more.map((s) => c.posts.scriptNames[s]).join(", ")} onClick={() => setMore(true)}>
+            {c.posts.moreLangs}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -94,7 +108,7 @@ function EmptyQueue() {
  */
 export function PostsTab({ inTelegram, column = false }: { inTelegram: boolean; column?: boolean }) {
   const posts = useStudio((s) => s.posts);
-  const { available, script, scriptOf } = usePostScript();
+  const { shown, more, script, scriptOf } = usePostScript();
   const reduce = useReducedMotion() ?? false;
   const list = useRef<HTMLDivElement>(null);
 
@@ -117,7 +131,7 @@ export function PostsTab({ inTelegram, column = false }: { inTelegram: boolean; 
   if (!posts.length) return <EmptyQueue />;
   return (
     <div ref={list} className={`flex flex-col gap-6 ${column ? "max-w-[640px]" : ""}`}>
-      <ScriptSwitch available={available} script={script} />
+      <ScriptSwitch shown={shown} more={more} script={script} />
       <MissedNote />
       {/* Cards are dealt in one after another, once; later state changes do not replay it. */}
       {posts.map((p, i) => (

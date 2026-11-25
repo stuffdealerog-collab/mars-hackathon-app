@@ -1,5 +1,5 @@
-import { BarChart3, Clapperboard, Newspaper } from "lucide-react";
-import { LAMP_ORDER, LAMPS } from "../lamp/lamps";
+import { BarChart3, Newspaper } from "lucide-react";
+import { LAMPS, OWNER_LAMPS } from "../lamp/lamps";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudio, type Tab } from "../studio/store";
 import { fmt, isLang, useInitLang, useLang } from "../ui/lang";
@@ -13,7 +13,6 @@ import { PostScreen } from "./screens/Post";
 import { PostsScreen } from "./screens/Posts";
 import { RunScreen } from "./screens/Run";
 import { FreshScreen, StartScreen } from "./screens/Start";
-import { VideoScreen } from "./screens/Video";
 import { EdgeBack, Layer, Skel, Toast } from "./Shell";
 import { SheetHost } from "./sheets/Sheets";
 import { MiniIntro } from "./Intro";
@@ -79,8 +78,9 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
       // The link the app was opened with comes first (bot button, startapp=brand_<id> from the
       // desktop Studio), then the brand this owner worked on last.
       const target = launchTarget(window.location.search, tg()?.initDataUnsafe?.start_param);
-      // The intro on an ordinary open only (someone who knows the product: just its add-the-bot
-      // card); it opens under the launch moment, which reveals it.
+      // The intro opens by itself only for ?intro=1 / ?intro=admin (previews, the demo): the start
+      // screen's one line says what Mercat does, and the add-the-bot card waits for the first
+      // publish that needs it. Settings replays the tour.
       const intro = decideIntro({
         seen: Math.max(seenVersion(saved[INTRO_CLOUD_KEY]), localIntro.version()),
         returning: !!saved.brand,
@@ -198,10 +198,10 @@ function Pushed({ route, active }: { route: Route; active: boolean }) {
 
 /* -------------------------------------------------------------------- tabs */
 
-/** The phone has three tabs; the desktop's "Bo‘lim" lives in the Strip and Panel here. */
+/** The phone has two tabs; the desktop's "Bo‘lim" lives in the Strip and Panel here. */
 type PhoneTab = Exclude<Tab, "dept">;
-const TAB_ICONS: Record<PhoneTab, typeof BarChart3> = { channel: BarChart3, posts: Newspaper, video: Clapperboard };
-const TABS: PhoneTab[] = ["channel", "posts", "video"];
+const TAB_ICONS: Record<PhoneTab, typeof BarChart3> = { channel: BarChart3, posts: Newspaper };
+const TABS: PhoneTab[] = ["channel", "posts"];
 
 function Tabs({ active }: { active: boolean }) {
   const m = useMiniCopy();
@@ -256,7 +256,6 @@ function Tabs({ active }: { active: boolean }) {
           <div key={t} className="ma-tabpanel" data-active={tab === t ? "true" : "false"} role="tabpanel" id={`ma-panel-${t}`} aria-labelledby={`ma-tab-${t}`} inert={tab !== t ? true : undefined}>
             {t === "channel" && <ChannelScreen onOpenPost={openPost} />}
             {t === "posts" && <PostsScreen onOpen={openPost} active={active && tab === "posts"} />}
-            {t === "video" && <VideoScreen />}
           </div>
         ))}
       </div>
@@ -342,7 +341,7 @@ function Launch({ done, onLeave }: { done: boolean; onLeave: () => void }) {
           <span className="ma-launch__filament" />
         </div>
         <div className="ma-launch__ten" aria-hidden>
-          {LAMP_ORDER.map((r, i) => (
+          {OWNER_LAMPS.map((r, i) => (
             <span key={r} style={{ background: LAMPS[r].hue, boxShadow: `0 0 8px ${LAMPS[r].hue}`, animationDelay: `${520 + i * 45}ms` }} />
           ))}
         </div>

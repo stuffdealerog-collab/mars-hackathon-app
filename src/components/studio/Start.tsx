@@ -3,7 +3,7 @@
 import { ArrowLeft, ImagePlus, Sprout, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { LampTile } from "../lamp/LampTile";
-import { LAMP_ORDER } from "../lamp/lamps";
+import { OWNER_LAMPS } from "../lamp/lamps";
 import { ChannelField } from "../ui/ChannelField";
 import { keepNumbers, useCopy, fmt } from "../ui/lang";
 import { parseChannel, Steps, StepsLine } from "../ui/parts";
@@ -133,7 +133,7 @@ function HowItWorks() {
 }
 
 /**
- * Computer screens: the department before any work, ten lamps in their housing, each ready
+ * Computer screens: the department before any work, its lamps in their housing, each ready
  * role's ember in its filament. A valid link arms them: hot filaments, still no light. Nothing
  * moves while the owner reads. The tiles are short here: they never light on this screen.
  */
@@ -170,10 +170,10 @@ function LinkForm({ initialChannel, onEmpty, onTyped }: { initialChannel: string
 
   return (
     <>
-      {/* Phones: the department, still dark: ten lights that come on once there is a channel to
-          read. On a computer the housing under the field takes this role. */}
-      <ul aria-hidden className="mb-7 grid max-w-[460px] grid-cols-10 gap-1.5 lg:hidden">
-        {LAMP_ORDER.map((r) => (
+      {/* Phones: the department, still dark: a light per employee that comes on once there is a
+          channel to read. On a computer the housing under the field takes this role. */}
+      <ul aria-hidden className="mb-7 grid max-w-[460px] grid-cols-8 gap-1.5 lg:hidden">
+        {OWNER_LAMPS.map((r) => (
           <LampTile key={r} as="li" role={r} size="xs" state={typed ? "warming" : "off"} />
         ))}
       </ul>

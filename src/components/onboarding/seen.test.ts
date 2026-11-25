@@ -29,18 +29,18 @@ describe("seenVersion / introSeen", () => {
 
 describe("decideIntro", () => {
   const base = { seen: 0, returning: false, withIntent: false };
-  it("shows the whole intro on an ordinary first open", () => {
-    expect(decideIntro(base)).toEqual({ show: true });
+  it("never opens by itself on an ordinary first open: the start screen's one line says it", () => {
+    expect(decideIntro(base)).toEqual({ show: false });
   });
   it("never shows this version twice", () => {
     expect(decideIntro({ ...base, seen: INTRO_VERSION })).toEqual({ show: false });
     expect(decideIntro({ ...base, seen: INTRO_VERSION, returning: true })).toEqual({ show: false });
   });
-  it("someone who saw the old intro gets only the add-the-bot card", () => {
-    expect(decideIntro({ ...base, seen: 1 })).toEqual({ show: true, only: "admin" });
+  it("someone who saw the old intro is not asked for the bot up front (that waits for a publish)", () => {
+    expect(decideIntro({ ...base, seen: 1 })).toEqual({ show: false });
   });
-  it("a returning owner gets only the add-the-bot card", () => {
-    expect(decideIntro({ ...base, returning: true })).toEqual({ show: true, only: "admin" });
+  it("a returning owner is not asked for the bot up front either", () => {
+    expect(decideIntro({ ...base, returning: true })).toEqual({ show: false });
   });
   it("waits when the app was opened with a channel or brand link", () => {
     expect(decideIntro({ ...base, withIntent: true })).toEqual({ show: false });

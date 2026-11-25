@@ -171,7 +171,9 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
             {c.sample.noImage}
           </p>
         ) : (
-          // Develops the picture, "Boshqa variant", and in Pro the product photo, refs and prompt.
+          // Develops the picture, "Boshqa variant", and in Pro the product photo button. The model
+          // name, the English prompt and the sample count are never shown to an owner (pro={false});
+          // the refs line below the picture says what it was modelled on.
           // The run starts every picture itself; this card follows it and polls while it renders.
           <FailedStrip on={!!desktop && post.image?.status === "failed"}>
           <PostImage
@@ -180,7 +182,8 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
             postId={post.id}
             initial={post.image ?? null}
             lang={lang}
-            pro={pro}
+            pro={false}
+            allowProductPhoto={pro}
             autoStart={false}
             expected={waiting}
             // A redrawn approved post would fail publishing (the bot checks what the owner saw).
@@ -240,7 +243,10 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
         </p>
       )}
 
-      <footer className="flex flex-col gap-3 px-1 pt-3">
+      {/* Desktop, Simple: the 4:5 picture is taller than most laptop windows, so the buttons of the
+          post most in view stay at the window's bottom edge (sticky within the card). One card at
+          a time: never two rows of buttons on screen. */}
+      <footer className={`flex flex-col gap-3 pt-3 ${desktop && !pro && !inspector && focused ? "sticky bottom-0 z-10 -mx-1 bg-stage px-2 pb-3" : "px-1"}`}>
         {editing ? (
           <div className="flex gap-2.5">
             <button type="button" className="btn-2 flex-1 @md:flex-none" onClick={() => setEditing(false)}>

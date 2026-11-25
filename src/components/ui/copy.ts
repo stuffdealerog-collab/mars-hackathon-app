@@ -21,18 +21,18 @@ const uz = {
     exampleFix: "Narxni postning o‘zida yozing. «Narxi qancha?» degan savollar kamayadi, buyurtma tezlashadi.",
     examplePostLabel: "Tayyor post",
     examplePostName: "Tandir non",
+    examplePicture: "Namuna rasm: tandirdan uzilgan patir",
     examplePost:
       "Ertalab 7:00 dan issiq patir bor 🫓\n\nKatta patir — 12 000 so‘m, kichigi — 7 000 so‘m. Chilonzor 9-kvartal, bozor yonida.\n\nOldindan buyurtma uchun adminga yozing, soat 7 ga tayyorlab qo‘yamiz.",
-    price: "7 kun bepul, keyin 149 000 so‘m/oy",
+    price: "Hozircha bepul",
     beta: "beta",
-    ledSample: "namuna",
     ledOff: "LED o‘chiq: hali havola yo‘q",
     footer: "Mercat · Toshkent, 2026",
   },
 
   start: {
     title: "Kanalingiz uchun bir haftalik postlar",
-    sub: "Havolani qo‘ying. 2 daqiqada reja va rasmli postlar tayyor bo‘ladi, siz faqat tasdiqlaysiz.",
+    sub: "Havolani qo‘ying: 2 daqiqada kanal tahlili va haftalik postlar. Siz faqat «ha» deysiz.",
     linkLabel: "Telegram kanal havolasi",
     linkPh: "t.me/kanal_nomi",
     linkExample: "Ochiq kanal, masalan t.me/kanal_nomi. Parol kerak emas.",
@@ -93,7 +93,7 @@ const uz = {
     openBot: "Botda ochish",
   },
 
-  tabs: { channel: "Kanal", posts: "Postlar", video: "Video", dept: "Bo‘lim" },
+  tabs: { channel: "Kanal", posts: "Postlar", dept: "Bo‘lim" },
 
   channel: {
     subscribers: "obunachi",
@@ -130,6 +130,7 @@ const uz = {
     when: "Eng yaxshi vaqt: {when}",
     untimed: "Post",
     langLabel: "Post tili",
+    moreLangs: "Yana",
     edit: "Tahrirlash",
     save: "Saqlash",
     cancel: "Bekor qilish",
@@ -163,11 +164,6 @@ const uz = {
     },
   },
 
-  video: {
-    title: "Video",
-    text: "Hozircha ishlab chiqilmoqda… (video yaratish uchun API kalitlar kerak)",
-  },
-
   sample: {
     banner: "Namuna: o‘ylab topilgan non do‘koni, sizning kanalingiz emas.",
     cta: "Kanalimni tekshirish",
@@ -199,7 +195,7 @@ const uz = {
     radar: { name: "Mijozlar radari", job: "Mijozlaringiz qayerda" },
     publisher: { name: "SMM-menejer", job: "Kanalga joylaydi" },
   },
-  lampState: { off: "kutmoqda", warming: "ishlayapti", on: "tayyor", you: "sizni kutmoqda", error: "xato", soon: "tez orada", noPicturesSample: "namunada rasmsiz" },
+  lampState: { off: "kutmoqda", warming: "ishlayapti", on: "tayyor", you: "sizni kutmoqda", error: "xato", noPicturesSample: "namunada rasmsiz" },
   /** Counted captions: [one, few, many]. Uzbek and English need fewer forms, Russian needs all three. */
   lampResult: {
     postsRead: ["post o‘qildi", "post o‘qildi", "post o‘qildi"],
@@ -234,7 +230,6 @@ const uz = {
     label: "Bo‘lim xodimlari",
     working: "Bo‘lim ishlayapti",
     ready: "Bo‘lim tayyor",
-    staff: "{n} xodim ishladi",
     title: "Bo‘lim",
     log: "Ish jurnali",
   },
@@ -257,13 +252,12 @@ const uz = {
     topPosts: "Eng ko‘p ko‘rilgan postlar",
     views: "ko‘rish",
     benchmark: "O‘xshash kanallar",
-    evidence: "Asos",
+    moreFindings: "Boshqa topilmalar",
     sufficiencyTitle: "Reja nimaga tayanadi",
     basis: { data: "kanal ma’lumoti", benchmark: "o‘xshash kanallar", prior: "umumiy qoida", insufficient: "ma’lumot kam" },
     forecast: "Prognoz: {low}–{high} ko‘rish",
     audiences: "Kimlar uchun",
     scriptsTitle: "Barcha tillar",
-    natural: "Tabiiylik: {n}/100",
     flagged: "Shablon iboralar",
     none: "topilmadi",
     goal: "Maqsad",
@@ -320,7 +314,6 @@ const uz = {
     lang: "Til",
     image: "Rasm",
     brief: "Topshiriq",
-    natural: "Tabiiylik {n}/100",
     cyrlStale: "Kirill matni tasdiqlanganda yangilanadi",
   },
   refs: {
@@ -358,18 +351,18 @@ const ru: Copy = {
     exampleFix: "Пишите цену прямо в посте. Вопросов «сколько стоит?» станет меньше, заказы пойдут быстрее.",
     examplePostLabel: "Готовый пост",
     examplePostName: "Тандыр нон",
+    examplePicture: "Пример картинки: патыр из тандыра",
     examplePost:
       "С 7:00 утра горячие лепёшки 🫓\n\nБольшой патыр — 12 000 сум, маленький — 7 000 сум. Чиланзар, 9-й квартал, рядом с базаром.\n\nЗаказ заранее: напишите админу, приготовим к 7 утра.",
-    price: "7 дней бесплатно, затем 149 000 сум/мес",
+    price: "Пока бесплатно",
     beta: "бета",
-    ledSample: "sample",
     ledOff: "Табло выключено: ссылки ещё нет",
     footer: "Mercat · Ташкент, 2026",
   },
 
   start: {
     title: "Посты на неделю для вашего канала",
-    sub: "Вставьте ссылку. Через 2 минуты будут план и посты с картинками, а утверждаете вы.",
+    sub: "Вставьте ссылку: через 2 минуты разбор канала и посты на неделю. От вас только «да».",
     linkLabel: "Ссылка на Telegram-канал",
     linkPh: "t.me/kanal",
     linkExample: "Открытый канал, например t.me/kanal. Пароль не нужен.",
@@ -429,7 +422,7 @@ const ru: Copy = {
     openBot: "Открыть в боте",
   },
 
-  tabs: { channel: "Канал", posts: "Посты", video: "Видео", dept: "Отдел" },
+  tabs: { channel: "Канал", posts: "Посты", dept: "Отдел" },
 
   channel: {
     subscribers: "подписчиков",
@@ -467,6 +460,7 @@ const ru: Copy = {
     when: "Лучшее время: {when}",
     untimed: "Пост",
     langLabel: "Язык поста",
+    moreLangs: "Ещё",
     edit: "Изменить",
     save: "Сохранить",
     cancel: "Отмена",
@@ -500,11 +494,6 @@ const ru: Copy = {
     },
   },
 
-  video: {
-    title: "Видео",
-    text: "Пока в разработке… (нам нужны API-ключи для генерации видео)",
-  },
-
   sample: {
     banner: "Пример: выдуманная пекарня, а не ваш канал.",
     cta: "Проверить мой канал",
@@ -536,7 +525,7 @@ const ru: Copy = {
     radar: { name: "Радар клиентов", job: "Где ваши клиенты" },
     publisher: { name: "SMM-менеджер", job: "Публикует в канал" },
   },
-  lampState: { off: "ждёт", warming: "работает", on: "готово", you: "ждёт вас", error: "ошибка", soon: "скоро", noPicturesSample: "в образце без картинок" },
+  lampState: { off: "ждёт", warming: "работает", on: "готово", you: "ждёт вас", error: "ошибка", noPicturesSample: "в образце без картинок" },
   lampResult: {
     postsRead: ["пост прочитан", "поста прочитано", "постов прочитано"],
     described: "описание прочитано",
@@ -570,7 +559,6 @@ const ru: Copy = {
     label: "Сотрудники отдела",
     working: "Отдел работает",
     ready: "Отдел готов",
-    staff: "Отработали: {n}",
     title: "Отдел",
     log: "Журнал работы",
   },
@@ -593,13 +581,12 @@ const ru: Copy = {
     topPosts: "Самые просматриваемые посты",
     views: "просм.",
     benchmark: "Похожие каналы",
-    evidence: "Основание",
+    moreFindings: "Другие находки",
     sufficiencyTitle: "На чём основан план",
     basis: { data: "данные канала", benchmark: "похожие каналы", prior: "общее правило", insufficient: "мало данных" },
     forecast: "Прогноз: {low}–{high} просм.",
     audiences: "Для кого",
     scriptsTitle: "Все языки",
-    natural: "Естественность: {n}/100",
     flagged: "Шаблонные фразы",
     none: "не найдено",
     goal: "Цель",
@@ -656,7 +643,6 @@ const ru: Copy = {
     lang: "Язык",
     image: "Картинка",
     brief: "Задание",
-    natural: "Естественность {n}/100",
     cyrlStale: "Кириллица обновится при утверждении",
   },
   refs: {
@@ -692,18 +678,18 @@ const en: Copy = {
     exampleFix: "Put the price in the post itself. You get fewer “how much?” questions and faster orders.",
     examplePostLabel: "Ready post",
     examplePostName: "Tandir non",
+    examplePicture: "Sample picture: patir flatbread from the tandir",
     examplePost:
       "Hot flatbread from 7:00 in the morning 🫓\n\nLarge patir — 12,000 UZS, small — 7,000 UZS. Chilonzor, block 9, next to the bazaar.\n\nOrder ahead: message the admin and we’ll have it ready by 7.",
-    price: "7 days free, then 149,000 UZS a month",
+    price: "Free for now",
     beta: "beta",
-    ledSample: "sample",
     ledOff: "The sign is off: no link yet",
     footer: "Mercat · Tashkent, 2026",
   },
 
   start: {
     title: "A week of posts for your channel",
-    sub: "Paste the link. In 2 minutes you get a plan and posts with pictures, and you approve them.",
+    sub: "Paste the link: in 2 minutes, a review of your channel and a week of posts. You just say yes.",
     linkLabel: "Telegram channel link",
     linkPh: "t.me/channel",
     linkExample: "A public channel, e.g. t.me/channel. No password.",
@@ -763,7 +749,7 @@ const en: Copy = {
     openBot: "Open in the bot",
   },
 
-  tabs: { channel: "Channel", posts: "Posts", video: "Video", dept: "Department" },
+  tabs: { channel: "Channel", posts: "Posts", dept: "Department" },
 
   channel: {
     subscribers: "subscribers",
@@ -778,7 +764,7 @@ const en: Copy = {
     kind: { problem: "Problem", opportunity: "Opportunity", strength: "Strength" },
     voiceTitle: "How you write",
     voice: { address: "Address", tone: "Tone", length: "Post length", emoji: "Emoji", cta: "Post ending" },
-    address: { siz: "formal «siz»", sen: "informal «sen»", mixed: "«siz» and «sen»", "n/a": "—" },
+    address: { siz: "formal “siz”", sen: "informal “sen”", mixed: "“siz” and “sen”", "n/a": "—" },
     emoji: { none: "none", low: "few", medium: "some", high: "many" },
     length: "~{n} characters",
     planTitle: "This week’s plan",
@@ -800,6 +786,7 @@ const en: Copy = {
     when: "Best time: {when}",
     untimed: "Post",
     langLabel: "Post language",
+    moreLangs: "More",
     edit: "Edit",
     save: "Save",
     cancel: "Cancel",
@@ -833,11 +820,6 @@ const en: Copy = {
     },
   },
 
-  video: {
-    title: "Video",
-    text: "In development… (we need API keys for video generation)",
-  },
-
   sample: {
     banner: "Example: a made-up bakery, not your channel.",
     cta: "Check my channel",
@@ -869,7 +851,7 @@ const en: Copy = {
     radar: { name: "Customer radar", job: "Where your customers are" },
     publisher: { name: "SMM manager", job: "Publishes to your channel" },
   },
-  lampState: { off: "waiting", warming: "working", on: "done", you: "waiting for you", error: "error", soon: "soon", noPicturesSample: "no pictures in the sample" },
+  lampState: { off: "waiting", warming: "working", on: "done", you: "waiting for you", error: "error", noPicturesSample: "no pictures in the sample" },
   lampResult: {
     postsRead: ["post read", "posts read", "posts read"],
     described: "description read",
@@ -903,7 +885,6 @@ const en: Copy = {
     label: "The department",
     working: "The department is working",
     ready: "The department is done",
-    staff: "Worked: {n}",
     title: "Department",
     log: "Work log",
   },
@@ -926,13 +907,12 @@ const en: Copy = {
     topPosts: "Most viewed posts",
     views: "views",
     benchmark: "Similar channels",
-    evidence: "Basis",
+    moreFindings: "Other findings",
     sufficiencyTitle: "What the plan rests on",
     basis: { data: "channel data", benchmark: "similar channels", prior: "rule of thumb", insufficient: "not enough data" },
     forecast: "Forecast: {low}–{high} views",
     audiences: "Who it’s for",
     scriptsTitle: "All languages",
-    natural: "Natural: {n}/100",
     flagged: "Stock phrases",
     none: "none found",
     goal: "Goal",
@@ -989,7 +969,6 @@ const en: Copy = {
     lang: "Language",
     image: "Picture",
     brief: "Brief",
-    natural: "Natural {n}/100",
     cyrlStale: "The Cyrillic version updates on approval",
   },
   refs: {

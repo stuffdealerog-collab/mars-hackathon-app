@@ -7,7 +7,7 @@ import { useLang } from "../ui/lang";
 
 const uz = {
   start: {
-    sub: "Havolani qo‘ying: Mercat kanalni o‘qiydi va postlarni rasmlari bilan yozadi.",
+    sub: "Havolani qo‘ying: 2 daqiqada kanal tahlili va haftalik postlar. Siz faqat «ha» deysiz.",
   },
   run: {
     note: "Odatda 1–2 daqiqa.",
@@ -81,7 +81,7 @@ const uz = {
     text: "{bot} shu kanalda admin bo‘lishi kerak.",
     go: "Joylash",
   },
-  tabs: { channel: "Kanal", posts: "Postlar", video: "Video" },
+  tabs: { channel: "Kanal", posts: "Postlar" },
   sample: "Namuna",
   settingsLabel: "Sozlamalar",
   forbidden: "Bu kanal boshqa Telegram hisobiga tegishli. O‘z kanalingiz havolasini qo‘ying.",
@@ -97,7 +97,7 @@ export type MiniCopy = typeof uz;
 
 const ru: MiniCopy = {
   start: {
-    sub: "Вставьте ссылку: Mercat прочитает канал и напишет посты с картинками.",
+    sub: "Вставьте ссылку: через 2 минуты разбор канала и посты на неделю. От вас только «да».",
   },
   run: {
     note: "Обычно 1–2 минуты.",
@@ -171,7 +171,7 @@ const ru: MiniCopy = {
     text: "{bot} должен быть админом этого канала.",
     go: "Опубликовать",
   },
-  tabs: { channel: "Канал", posts: "Посты", video: "Видео" },
+  tabs: { channel: "Канал", posts: "Посты" },
   sample: "Пример",
   settingsLabel: "Настройки",
   forbidden: "Этот канал привязан к другому аккаунту Telegram. Вставьте ссылку на свой канал.",
@@ -185,7 +185,7 @@ const ru: MiniCopy = {
 
 const en: MiniCopy = {
   start: {
-    sub: "Paste the link: Mercat reads the channel and writes posts with pictures.",
+    sub: "Paste the link: in 2 minutes, a review of your channel and a week of posts. You just say yes.",
   },
   run: {
     note: "Usually 1–2 minutes.",
@@ -259,7 +259,7 @@ const en: MiniCopy = {
     text: "{bot} must be an admin of this channel.",
     go: "Publish",
   },
-  tabs: { channel: "Channel", posts: "Posts", video: "Video" },
+  tabs: { channel: "Channel", posts: "Posts" },
   sample: "Sample",
   settingsLabel: "Settings",
   forbidden: "This channel belongs to another Telegram account. Paste a link to your own channel.",
