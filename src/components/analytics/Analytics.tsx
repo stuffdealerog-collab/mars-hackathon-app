@@ -4,7 +4,7 @@ import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cleanUrl } from "./clean-url";
-import { LANDING_PATH, isCleanLanding, referrerIsClean, staysOnLanding } from "./landing";
+import { LANDING_PATH, isCleanLanding, referrerIsClean, sessionHistoryIsClean, staysOnLanding, type HistoryEntry } from "./landing";
 
 /*
  * Google Analytics 4 and Yandex Metrica, counting visits to the landing page. Production
@@ -13,12 +13,13 @@ import { LANDING_PATH, isCleanLanding, referrerIsClean, staysOnLanding } from ".
  * renders nothing and loads nothing.
  *
  * Landing only (landing.ts says why): the counters start in a document that opened on "/" and has
- * never been anywhere else, with a clean address and referrer, not prerendering. Before either
- * script is injected, that document is locked to "/": a same-origin link to another page and any
- * pushState/replaceState to another page become full page loads, so the Studio, the Mini App and
- * every other page always open in a fresh document without the counters. The history methods are
- * wrapped before gtag.js loads, so its enhanced-measurement wrapper sits outside this one and never
- * sees an address the document did not take. Studio usage is not counted.
+ * never been anywhere else, with a clean address and referrer, no other page in its own session
+ * history (historyIsClean), not prerendering. Before either script is injected, that document is
+ * locked to "/": a same-origin link to another page and any pushState/replaceState to another page
+ * become full page loads, and a Back/Forward onto another page reloads it as its own document, so
+ * the Studio, the Mini App and every other page always open without the counters. The history
+ * methods are wrapped before gtag.js loads, so its enhanced-measurement wrapper sits outside this
+ * one and never sees an address the document did not take. Studio usage is not counted.
  *
  * What the counters are told is cleaned too (cleanUrl: scheme, host, path), once per document:
  * - GA4: no automatic page_view, no Google signals or ad personalisation, the clean address and
@@ -47,8 +48,16 @@ declare global {
   }
 }
 
+const navigationTiming = () => performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+
 /** The address this document was opened with (replaceState does not change it). */
-const firstHref = () => (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined)?.name || window.location.href;
+const firstHref = () => navigationTiming()?.name || window.location.href;
+
+/** The Navigation API, where the browser has it (lib.dom does not type it yet). */
+const sessionEntries = () => (window as Window & { navigation?: { entries(): HistoryEntry[] } }).navigation?.entries() ?? null;
+
+const historyIsClean = (origin: string) =>
+  sessionHistoryIsClean(origin, sessionEntries(), navigationTiming()?.type, window.history.length);
 
 let openedOnLanding: boolean | undefined;
 /** Set once the document has shown any page but the landing: the counters then never start in it. */
@@ -61,6 +70,7 @@ const mayStart = () =>
   !leftLanding &&
   isCleanLanding(window.location.href, window.location.origin) &&
   referrerIsClean(document.referrer, window.location.origin) &&
+  historyIsClean(window.location.origin) &&
   !(document as Document & { prerendering?: boolean }).prerendering;
 
 /** From here on this document never shows another page: such navigations become full page loads. */
@@ -100,6 +110,19 @@ function lockToLanding() {
       inner.call(window.history, data, unused, url);
     };
   }
+
+  // Backstop for Back/Forward onto an entry of this document that is not the landing: load that
+  // address as its own document before Next draws it here or gtag reports it. A capture listener
+  // on window runs before their popstate listeners, and this one stops them.
+  window.addEventListener(
+    "popstate",
+    (e) => {
+      if (staysOnLanding(window.location.href, origin)) return;
+      e.stopImmediatePropagation();
+      window.location.reload();
+    },
+    true,
+  );
 }
 
 function gaPageView(id: string, page: string, referrer: string) {

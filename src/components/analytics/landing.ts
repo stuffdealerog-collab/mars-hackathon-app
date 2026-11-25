@@ -38,6 +38,27 @@ export function staysOnLanding(href: string, origin: string): boolean {
 /** The landing with nothing to hide in its address: staysOnLanding and no fragment at all. */
 export const isCleanLanding = (href: string, origin: string) => staysOnLanding(href, origin) && !href.includes("#");
 
+/** A session history entry as the Navigation API gives it (navigation.entries()). */
+export type HistoryEntry = { url: string | null; sameDocument: boolean };
+
+/**
+ * No page but the landing in this document's own session history, back or forward. A reload, a
+ * restored tab or a Back/Forward that missed the bfcache gives a fresh "/" document that still
+ * owns the earlier entries of the old one (the Studio at /studio?brand=…, then the logo's soft
+ * move to "/"): Back would show the Studio's address inside it. Entries of other documents are a
+ * full load away and do not matter. Without the Navigation API (`entries` null) those entries
+ * cannot be seen, so a reloaded or traversed landing with any history behind it does not count.
+ */
+export function sessionHistoryIsClean(
+  origin: string,
+  entries: HistoryEntry[] | null,
+  navigationType: string | undefined,
+  historyLength: number,
+): boolean {
+  if (entries) return entries.every((e) => !e.sameDocument || (!!e.url && staysOnLanding(e.url, origin)));
+  return !((navigationType === "reload" || navigationType === "back_forward") && historyLength > 1);
+}
+
 /**
  * The referrer the counters would read on their own. Another site's address is that site's
  * business; one of ours must not carry anything but safe query keys (a page opened from

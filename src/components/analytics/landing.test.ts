@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isCleanLanding, isSafeQueryKey, referrerIsClean, staysOnLanding } from "./landing";
+import { isCleanLanding, isSafeQueryKey, referrerIsClean, sessionHistoryIsClean, staysOnLanding } from "./landing";
 
 const O = "https://mercat-ai.vercel.app";
 const BRAND = "00000000-0000-0000-0000-000000000000";
@@ -58,6 +58,49 @@ describe("referrerIsClean", () => {
     expect(referrerIsClean(`${O}/studio?channel=t.me%2Fnon`, O)).toBe(false);
     expect(referrerIsClean(`${O}/tg?tgWebAppStartParam=brand_${BRAND}`, O)).toBe(false);
     expect(referrerIsClean("not a url", O)).toBe(false);
+  });
+});
+
+describe("sessionHistoryIsClean", () => {
+  const studio = `${O}/studio?lang=ru&brand=${BRAND}`;
+
+  it("refuses the reloaded '/' of Studio -> logo -> reload: Back would show the Studio's address in it", () => {
+    const entries = [
+      { url: studio, sameDocument: true },
+      { url: `${O}/`, sameDocument: true },
+    ];
+    expect(sessionHistoryIsClean(O, entries, "reload", 2)).toBe(false);
+    expect(sessionHistoryIsClean(O, entries, "back_forward", 2)).toBe(false);
+  });
+
+  it("refuses a Studio entry ahead of the landing too (Forward)", () => {
+    expect(sessionHistoryIsClean(O, [{ url: `${O}/?lang=ru`, sameDocument: true }, { url: studio, sameDocument: true }], "back_forward", 2)).toBe(false);
+  });
+
+  it("refuses a same-document entry whose address it cannot read", () => {
+    expect(sessionHistoryIsClean(O, [{ url: null, sameDocument: true }, { url: `${O}/`, sameDocument: true }], "navigate", 2)).toBe(false);
+  });
+
+  it("ignores entries of other documents: they are a full load away", () => {
+    const entries = [
+      { url: studio, sameDocument: false },
+      { url: null, sameDocument: false },
+      { url: `${O}/?lang=ru`, sameDocument: true },
+    ];
+    expect(sessionHistoryIsClean(O, entries, "navigate", 3)).toBe(true);
+    expect(sessionHistoryIsClean(O, entries, "reload", 3)).toBe(true);
+  });
+
+  it("accepts landing-only entries in the same document", () => {
+    expect(sessionHistoryIsClean(O, [{ url: `${O}/`, sameDocument: true }, { url: `${O}/?lang=en`, sameDocument: true }], "reload", 2)).toBe(true);
+  });
+
+  it("without the Navigation API, counts only a fresh load or a tab with no history behind it", () => {
+    expect(sessionHistoryIsClean(O, null, "navigate", 5)).toBe(true);
+    expect(sessionHistoryIsClean(O, null, "reload", 1)).toBe(true);
+    expect(sessionHistoryIsClean(O, null, "reload", 2)).toBe(false);
+    expect(sessionHistoryIsClean(O, null, "back_forward", 3)).toBe(false);
+    expect(sessionHistoryIsClean(O, null, undefined, 3)).toBe(true);
   });
 });
 
