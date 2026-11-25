@@ -6,6 +6,7 @@ import { getSql, isDbConfigured } from "./db";
 import { getEnv, getPublicUrl } from "./env";
 import { formatDay, type Locale, pickLocale, t } from "./i18n";
 import { eventStartPayload } from "./source-category";
+import { botEventMeta } from "./stats-meta";
 import { parseSource, safeLogEvent, track } from "./track";
 import { botHandle, botProfile, syncBotProfile } from "./uslub/bot-profile";
 import { spenderKey, takeUnits } from "./uslub/budget-core";
@@ -162,6 +163,8 @@ export function getBot(): Bot {
 }
 
 function registerHandlers(b: Bot) {
+  // /stats: every event logged while handling an update is tagged surface "bot" (stats-meta.ts).
+  b.use(botEventMeta);
   b.use((ctx, next) => {
     syncProfileOnce(ctx.api);
     return next();

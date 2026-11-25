@@ -5,6 +5,7 @@ import { pickScript } from "@/lib/uslub/botpublish-core";
 import type { Script } from "@/lib/uslub/contract";
 import { placeholdersIn } from "@/lib/uslub/placeholders";
 import { approvePost, getPost } from "@/lib/uslub/store";
+import { logPostEdited } from "@/lib/stats-events";
 
 export const maxDuration = 15;
 
@@ -54,5 +55,6 @@ export const POST = handle(async (req) => {
   }
   const approved = await approvePost(post.id, userId, edited);
   if (!approved) throw new HttpError(404, "Post not found", "post_not_found");
+  if (edited) await logPostEdited(userId, post.id, post.variants, edited.variants, edited.changed); // /stats: how much was changed, numbers only
   return json({ post: approved, ...(edited ? { edited: edited.changed } : {}) });
 });

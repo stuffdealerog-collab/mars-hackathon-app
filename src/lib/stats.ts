@@ -1,42 +1,99 @@
 import "server-only";
 import { cacheLife } from "next/cache";
-import { z } from "zod";
-import { getSql, isDbConfigured } from "./db";
-import { bucketSources, type SourceCount } from "./source-category";
+import { getSql, isDbConfigured, type Sql } from "./db";
+import {
+  parseTeamIds,
+  shapeErrors,
+  shapeFeed,
+  shapeFunnel,
+  shapeNorthStar,
+  shapeOverview,
+  shapeQuality,
+  shapeSources,
+  shapeUsers,
+  type Stats,
+  type StatsOptions,
+  type StatsQuery,
+  type StatsResult,
+} from "./stats-model";
+import {
+  errorsQuery,
+  feedQuery,
+  funnelQuery,
+  hasPublishedAtQuery,
+  landingSourcesQuery,
+  northStarQuery,
+  overviewQuery,
+  qualityQuery,
+  telegramSourcesQuery,
+  usersQuery,
+} from "./stats-queries";
 
-const CountsSchema = z.object({
-  total_users: z.number(),
-  users_today: z.number(),
-  active_today: z.number(),
-  total_events: z.number(),
-  events_today: z.number(),
-});
-const BySourceSchema = z.array(z.object({ source: z.string().nullable(), count: z.number() }));
-const ByTypeSchema = z.array(z.object({ type: z.string(), count: z.number() }));
-const RecentSchema = z.array(
-  z.object({
-    // The driver returns timestamptz as a Date; keep an ISO string so it caches cleanly.
-    created_at: z.coerce.date().transform((d) => d.toISOString()),
-  }),
-);
+export { STATS_TIMEZONE } from "./stats-model";
+export type { Stats, StatsResult } from "./stats-model";
 
-export type Stats = z.infer<typeof CountsSchema> & {
-  by_source: SourceCount[];
-  by_type: z.infer<typeof ByTypeSchema>;
-  recent_signups: z.infer<typeof RecentSchema>;
+/** Team members' Telegram ids, hidden from /stats unless asked (server-only env, never shown). */
+export const statsTeamIds = (env: Record<string, string | undefined> = process.env) => parseTeamIds(env.STATS_TEAM_TG_IDS);
+
+/** Once posts.published_at exists it stays: remembered per instance so the check runs once. */
+const publishedAt = { seen: false };
+
+/** Forgets that posts.published_at was seen (tests). */
+export const forgetPublishedAt = () => {
+  publishedAt.seen = false;
 };
-export type StatsResult =
-  | { ok: true; stats: Stats; generatedAt: string }
-  | { ok: false; error: "not_configured" | "query_failed"; generatedAt: string };
-
-export const STATS_TIMEZONE = "Asia/Tashkent";
 
 /**
- * Aggregates for /stats (password-protected, see stats-access.ts; no names or ids leave this function), cached
- * for ~10 s. All queries run in one read-only snapshot over a single HTTP round trip. Nothing polls: the database
- * is read only when someone opens or refreshes the page.
+ * Runs every /stats query in one read-only snapshot (one HTTP round trip), plus the north star once
+ * posts.published_at exists. Pure of the cache so the live check and tests can call it with any client.
+ * The north star runs on its own: if it fails, the tile says so and the rest of the page still loads.
  */
-export async function getStats(): Promise<StatsResult> {
+export async function readStats(sql: Sql, options: StatsOptions): Promise<Stats> {
+  const [overview, funnel, landing, telegram, users, feed, quality, errors, has] = await sql.transaction(
+    [
+      overviewQuery(sql, options),
+      funnelQuery(sql, options),
+      landingSourcesQuery(sql, options),
+      telegramSourcesQuery(sql, options),
+      usersQuery(sql, options),
+      feedQuery(sql, options),
+      qualityQuery(sql, options),
+      errorsQuery(sql, options),
+      hasPublishedAtQuery(sql),
+    ],
+    { readOnly: true, isolationLevel: "RepeatableRead" },
+  );
+  const hasPublishedAt = publishedAt.seen || (has[0] as { has_published_at?: unknown } | undefined)?.has_published_at === true;
+  let northStar: unknown[] | null = null;
+  if (hasPublishedAt) {
+    publishedAt.seen = true;
+    try {
+      [northStar] = await sql.transaction([northStarQuery(sql, options)], { readOnly: true });
+    } catch (err) {
+      console.error("[stats] north star:", err instanceof Error ? err.message : err);
+      northStar = null;
+    }
+  }
+  return {
+    query: { range: options.range, includeDev: options.includeDev, includeTeam: options.includeTeam },
+    teamConfigured: options.teamIds.length > 0,
+    northStar: shapeNorthStar(hasPublishedAt, northStar),
+    overview: shapeOverview(overview),
+    funnel: shapeFunnel(funnel),
+    landingSources: shapeSources(landing),
+    telegramSources: shapeSources(telegram),
+    users: shapeUsers(users),
+    feed: shapeFeed(feed),
+    quality: shapeQuality(quality),
+    errors: shapeErrors(errors),
+  };
+}
+
+/**
+ * Aggregates for /stats (password-protected, see stats-access.ts), cached for ~10 s per option set. Nothing polls:
+ * the database is read only when someone opens the page or presses Refresh.
+ */
+export async function getStats(query: StatsQuery): Promise<StatsResult> {
   "use cache";
   cacheLife({ stale: 30, revalidate: 10, expire: 300 });
 
@@ -44,47 +101,7 @@ export async function getStats(): Promise<StatsResult> {
   if (!isDbConfigured()) return { ok: false, error: "not_configured", generatedAt };
 
   try {
-    const sql = getSql();
-    const [counts, bySource, byType, recent] = await sql.transaction(
-      [
-        sql`
-          WITH day_start AS (
-            SELECT date_trunc('day', now(), ${STATS_TIMEZONE}::text) AS ts
-          )
-          SELECT
-            (SELECT count(*)::int FROM app_users) AS total_users,
-            (SELECT count(*)::int FROM app_users, day_start WHERE created_at >= day_start.ts) AS users_today,
-            (SELECT count(*)::int FROM app_users, day_start WHERE last_seen_at >= day_start.ts) AS active_today,
-            (SELECT count(*)::int FROM events) AS total_events,
-            (SELECT count(*)::int FROM events, day_start WHERE created_at >= day_start.ts) AS events_today
-        `,
-        sql`
-          SELECT source, count(*)::int AS count
-          FROM app_users
-          GROUP BY 1
-        `,
-        sql`
-          SELECT type, count(*)::int AS count
-          FROM events
-          GROUP BY 1
-          ORDER BY 2 DESC, 1
-        `,
-        sql`
-          SELECT created_at
-          FROM app_users
-          ORDER BY created_at DESC
-          LIMIT 10
-        `,
-      ],
-      { readOnly: true, isolationLevel: "RepeatableRead" },
-    );
-
-    const stats: Stats = {
-      ...CountsSchema.parse(counts[0]),
-      by_source: bucketSources(BySourceSchema.parse(bySource)),
-      by_type: ByTypeSchema.parse(byType),
-      recent_signups: RecentSchema.parse(recent),
-    };
+    const stats = await readStats(getSql(), { ...query, teamIds: statsTeamIds() });
     return { ok: true, stats, generatedAt };
   } catch (err) {
     console.error("[stats]", err instanceof Error ? err.message : err);
