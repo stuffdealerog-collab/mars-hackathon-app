@@ -3,7 +3,7 @@
  * time, goal, format, link, metric or approval. Pure.
  */
 import { type Benchmark, benchBestHour } from "./bench";
-import { type Forecast, forecastSlot } from "./forecast";
+import { baseViews, type Forecast, forecastSlot, steadyBase } from "./forecast";
 import type { LearnHints } from "./learn";
 import { largestRemainder } from "./rules";
 import { isWinner, median, WEEKDAYS } from "./stats";
@@ -255,7 +255,9 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
 
   const yw = isoWeek(start);
   const yyww = `${String(yw.year).slice(2)}${pad(yw.week)}`;
-  const med = stats?.medianViews;
+  // 72 h targets come from what the newest posts get, not the 90-day median (old posts keep collecting views).
+  const med = baseViews(stats);
+  const steady = steadyBase(stats);
   const slots: Slot[] = goals.map((g, i) => {
     const goal = g as Goal;
     let time: string;
@@ -292,7 +294,7 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
       }
     }
     time = fixTime(time, weekdays[i]);
-    const metric = metricText(goal, med, inp.lang);
+    const metric = metricText(goal, med, inp.lang, { steady });
     const reasons: string[] = [];
     if (goal === "sale") reasons.push("narx");
     if (formats[i] === "video") reasons.push("video");
@@ -355,10 +357,14 @@ const METRIC: Record<Lang, { first: string; reach: (v: number) => string; trust:
   },
 };
 
-export function metricText(goal: Goal, medianViews: number | undefined, lang: Lang): string {
+/**
+ * `medianViews` is what a new post gets (forecast.baseViews). `steady`: a cold start or only a few recent posts, so a
+ * reach slot aims at today's level instead of +20%.
+ */
+export function metricText(goal: Goal, medianViews: number | undefined, lang: Lang, opts: { steady?: boolean } = {}): string {
   const t = METRIC[lang] ?? METRIC.uz;
   if (medianViews == null) return t.first;
-  if (goal === "reach") return t.reach(Math.round(1.2 * medianViews));
+  if (goal === "reach") return t.reach(Math.round((opts.steady ? 1 : 1.2) * medianViews));
   if (goal === "trust") return t.trust(Math.round(medianViews));
   return t.sale(Math.max(3, Math.round(0.01 * medianViews)));
 }
@@ -456,7 +462,7 @@ const KPI_T: Record<Lang, Record<string, string>> = {
     starts: "Postdagi havola orqali botga yozganlar, haftasiga",
     ctr: "Sotuv postini ko‘rib, havolani bosganlar, % (taxminiy maqsad 1%)",
     weeks: "4 haftada",
-    howScrape: "kanalni har kuni o‘qib hisoblaymiz",
+    howScrape: "kanalning ochiq sahifasidan hisoblaymiz",
     howTags: "post havolalarini bosganlar soni (botda)",
     howCtr: "havolalarni bosganlar va sizning haftalik javobingiz (buyurtmalar)",
   },
@@ -467,7 +473,7 @@ const KPI_T: Record<Lang, Record<string, string>> = {
     starts: "Написали в бота по ссылке из поста, в неделю",
     ctr: "Нажали на ссылку в продающем посте, % (ориентир 1%)",
     weeks: "за 4 недели",
-    howScrape: "считаем по каналу каждый день",
+    howScrape: "считаем по открытой странице канала",
     howTags: "переходы по ссылкам из постов (в боте)",
     howCtr: "переходы по ссылкам и ваш еженедельный ответ (заказы)",
   },
@@ -478,7 +484,7 @@ const KPI_T: Record<Lang, Record<string, string>> = {
     starts: "People who wrote to the bot from a post link, per week",
     ctr: "Clicked the link in a sale post, % (1% rule of thumb)",
     weeks: "in 4 weeks",
-    howScrape: "counted from the channel every day",
+    howScrape: "counted from the channel's public page",
     howTags: "clicks on post links (in the bot)",
     howCtr: "link clicks plus your weekly answer (orders)",
   },
@@ -488,16 +494,19 @@ export function buildKpis(stats: ChannelStats | undefined, rules: RuleResult[], 
   const t = KPI_T[lang];
   const k: { metric: string; baseline?: number; target: number; how: string }[] = [];
   k.push({ metric: t.ppw, baseline: stats ? Math.round(stats.postsPerWeek * 10) / 10 : undefined, target: n, how: t.howScrape });
-  if (stats?.medianViews != null) {
-    const up = fired(rules, "R.LOW_REACH") ? 1.2 : 1.15;
-    k.push({ metric: `${t.views} (+${Math.round((up - 1) * 100)}% ${t.weeks})`, baseline: Math.round(stats.medianViews), target: Math.round(stats.medianViews * up), how: t.howScrape });
+  const views = baseViews(stats);
+  if (views != null) {
+    const up = steadyBase(stats) ? 1 : fired(rules, "R.LOW_REACH") ? 1.2 : 1.15;
+    const metric = up > 1 ? `${t.views} (+${Math.round((up - 1) * 100)}% ${t.weeks})` : t.views;
+    k.push({ metric, baseline: Math.round(views), target: Math.round(views * up), how: t.howScrape });
   }
-  if (stats?.reachRate != null && stats.subscribers) {
+  // Views above the subscriber count: a share of subscribers says nothing (it would read 100% or 194%).
+  if (stats?.reachRate != null && stats.subscribers && !stats.viewsAboveSubs) {
     const lowBand = fired(rules, "R.LOW_REACH");
     const base = Math.round(stats.reachRate * 1000) / 10;
-    k.push({ metric: t.reach, baseline: base, target: lowBand ? Math.round((base + 2) * 10) / 10 : base, how: t.howScrape });
+    k.push({ metric: t.reach, baseline: base, target: lowBand ? Math.min(100, Math.round((base + 2) * 10) / 10) : base, how: t.howScrape });
   }
-  const med = stats?.medianViews;
+  const med = views;
   const starts = slots.reduce((a, s) => a + (s.goal === "trust" ? 3 : s.goal === "sale" ? Math.max(3, Math.round(0.01 * (med ?? 0))) : 0), 0);
   k.push({ metric: t.starts, target: starts, how: t.howTags });
   if (slots.some((s) => s.goal === "sale")) k.push({ metric: t.ctr, target: 1, how: t.howCtr });

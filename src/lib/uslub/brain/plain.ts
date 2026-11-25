@@ -454,6 +454,7 @@ const LABEL: Record<string, T3> = {
   "S.postsAnalyzed": { uz: "o‘qilgan postlar", ru: "прочитано постов", en: "posts read" },
   "S.maturePosts": { uz: "ko‘rishlari to‘plangan postlar", ru: "постов с устоявшимися просмотрами", en: "posts with settled views" },
   "S.medianViews": { uz: "odatdagi ko‘rishlar", ru: "обычно просмотров", en: "typical views" },
+  "S.recentMedianViews": { uz: "yangi post odatda oladigan ko‘rishlar", ru: "обычно просмотров у новых постов", en: "typical views of new posts" },
   "S.reachRate": { uz: "postni ko‘radigan obunachilar", ru: "доля подписчиков, видящих пост", en: "subscribers who see a post" },
   "S.reachBandLow": { uz: "taxminiy me’yor", ru: "ориентир", en: "rule of thumb" },
   "S.postsPerWeek": { uz: "haftasiga postlar", ru: "постов в неделю", en: "posts a week" },

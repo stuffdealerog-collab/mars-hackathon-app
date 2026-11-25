@@ -4,6 +4,7 @@ import type { ContentPlan, Goal, PlanItem, Strategy } from "@/lib/uslub/contract
 import { inventedFacts } from "@/lib/uslub/neuro";
 import type { OnStage } from "./audit";
 import { stripIds, stripIdsAll } from "./copy";
+import { bestTimeLabel } from "./forecast";
 import { GROWTH_IDEAS, KIND_BRIEF, descriptionSignals, launchKpis, launchQuestions, launchSkeleton, launchSufficiency, type LaunchSlot } from "./launch-plan";
 import { brainJson, SONNET } from "./llm";
 import { mondayOf } from "./skeleton";
@@ -60,7 +61,7 @@ const ITEMS_TASK = `TASK: write the 9 launch posts' plan items (one per slot). F
 - hook: the post's first line, ≤ 90 characters, specific to this business (a product, a place, a question). No greetings, no hype.
 - cta: one clear next step. For sale and intro slots: exactly how to order, using the contact from the description or [telefon]. For reach slots: invite a reply or a forward.
 - brief: 2–4 sentences for the copywriter: what the post says, which facts from the description to use, which real photo to attach.
-Follow each slot's "purpose". Slot 1 is the pinned intro post. Every hook must be different. Return JSON { items: [{ slot, hook, cta, brief }] } for all 9 slots.`;
+Follow each slot's "purpose". Slot 1 is the intro post the owner will pin; the post never says it is pinned. Every hook must be different. Return JSON { items: [{ slot, hook, cta, brief }] } for all 9 slots.`;
 
 const METRIC: Record<Lang, Record<Goal, string>> = {
   uz: { reach: "javoblar va ulashishlar", trust: "ko‘rishlar", sale: "buyurtmalar" },
@@ -172,6 +173,8 @@ export async function buildLaunchStrategy(inp: LaunchInput) {
       metric: METRIC[lang][s.goal],
       needsApproval: reasons.length > 0,
       slot: s.slot,
+      // A new channel has no numbers yet: the time is a suggestion, and the label says so.
+      timeLabel: bestTimeLabel({ weekday: (new Date(`${s.day}T00:00:00Z`).getUTCDay() + 6) % 7, time: s.time, timeSource: "prior" }, lang),
       kind: s.kind,
       pinned: s.pinned,
       approvalReasons: reasons,
@@ -213,9 +216,9 @@ export async function buildLaunchStrategy(inp: LaunchInput) {
     weekOf: mondayOf(slots[0].day),
     items,
     rationale: {
-      uz: "Kanal yangi: birinchi post — kimligingiz, nima sotishingiz va qanday buyurtma berish (uni pin qiling). Keyin mahsulot, ishonch va bitta taklif; ikki post o‘quvchilarni javob yozishga chaqiradi. 2 haftada 9 ta post — boshlash uchun yetarli va ushlab turish oson.",
-      ru: "Канал новый: первый пост — кто вы, что продаёте и как заказать (закрепите его). Дальше товар, доверие и одно предложение; два поста зовут читателей ответить. 9 постов за 2 недели — достаточно для старта и реально выдержать.",
-      en: "The channel is new: the first post says who you are, what you sell and how to order (pin it). Then products, trust and one offer; two posts invite replies. 9 posts in 2 weeks is enough to start and easy to keep up.",
+      uz: "Kanal yangi: birinchi post — kimligingiz, nima sotishingiz va qanday buyurtma berish (uni kanalda o‘zingiz pin qiling). Keyin mahsulot, ishonch va bitta taklif; ikki post o‘quvchilarni javob yozishga chaqiradi. 2 haftada 9 ta post — boshlash uchun yetarli va ushlab turish oson.",
+      ru: "Канал новый: первый пост — кто вы, что продаёте и как заказать (закрепите его сами: нажмите на пост → «Закрепить»). Дальше товар, доверие и одно предложение; два поста зовут читателей ответить. 9 постов за 2 недели — достаточно для старта и реально выдержать.",
+      en: "The channel is new: the first post says who you are, what you sell and how to order (pin it yourself: tap the post → “Pin”). Then products, trust and one offer; two posts invite replies. 9 posts in 2 weeks is enough to start and easy to keep up.",
     }[lang],
   };
   emit({ stage: "done", elapsedMs: Date.now() - t0 });

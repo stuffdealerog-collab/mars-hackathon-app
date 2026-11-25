@@ -5,6 +5,7 @@
  */
 import type { Script } from "./contract";
 import { dotted, pastDatesIn } from "./dates";
+import { splitSentences } from "./text";
 
 const VIDEO_RE = /(?<!\p{L})(video|видео|ролик|reels?)\p{L}*/iu;
 
@@ -16,8 +17,7 @@ export function dropVideoMentions(text: string): string {
   if (!VIDEO_RE.test(text)) return text;
   const lines = text.split("\n").map((line) => {
     if (!VIDEO_RE.test(line)) return line;
-    const sentences = line.match(/[^.!?…]+(?:[.!?…]+|$)\s*/gu) ?? [line];
-    const kept = sentences.filter((s) => !VIDEO_RE.test(s)).join("").trim();
+    const kept = splitSentences(line).filter((s) => !VIDEO_RE.test(s)).join("").trim();
     return kept ? kept : null;
   });
   const out = lines.filter((l): l is string => l !== null).join("\n").replace(/\n{3,}/g, "\n\n").trim();
@@ -72,14 +72,16 @@ export function fixMixedScript(text: string): string {
 
 type Lang3 = "uz_latn" | "ru" | "en";
 
-const sentencesOf = (line: string) => line.match(/[^.!?…]+(?:[.!?…]+|$)\s*/gu) ?? [line];
-
-/** Rewrites a text sentence by sentence (line breaks kept); `fn` returns the new sentence, or null to drop it. */
+/**
+ * Rewrites a text sentence by sentence (line breaks kept); `fn` returns the new sentence, or null to drop it.
+ * Sentences come from splitSentences, so "7 a.m.", "1.5 kg" or "t.me/x" are never cut in two: a replaced or dropped
+ * sentence leaves no debris ("[contact].m.").
+ */
 function mapSentences(text: string, fn: (sentence: string) => string | null): string {
   const out = text
     .split("\n")
     .map((line) => {
-      const kept = sentencesOf(line)
+      const kept = splitSentences(line)
         .map((s) => fn(s))
         .filter((s): s is string => s != null)
         .join("")
@@ -153,6 +155,58 @@ export function contactBlankIfNone(text: string, script: Lang3): string {
     if (done) return null;
     done = true;
     return `${CONTACT_BLANK[script]}${/\s$/.test(sentence) ? " " : ""}`;
+  });
+}
+
+/* ------------------------------------------------------------ product names as the brand writes them */
+
+const APOS_CHARS = /['‘’ʻʼ`]/g;
+const isCyr = (w: string) => /[Ѐ-ӿ]/.test(w);
+
+/**
+ * A spelling key that is the same for the ways one name gets transliterated: "patyr" / "patir", "Lag'mon" /
+ * "Lagmon", "xachapuri" / "khachapuri", "самса" / "сaмсa" stays itself. Letters are never dropped, so two different
+ * words keep different keys.
+ */
+function spellKey(word: string): string {
+  const w = word.toLowerCase().replace(APOS_CHARS, "");
+  if (isCyr(w)) return w.replace(/ы/g, "и").replace(/э/g, "е").replace(/ё/g, "е").replace(/ў/g, "у").replace(/қ/g, "к").replace(/ғ/g, "г").replace(/ҳ/g, "х");
+  return w.replace(/kh/g, "x").replace(/y/g, "i").replace(/w/g, "v");
+}
+
+const keepCase = (from: string, to: string) => (/^\p{Lu}/u.test(from) ? to.charAt(0).toUpperCase() + to.slice(1) : to.charAt(0).toLowerCase() + to.slice(1));
+
+/**
+ * Product names written the way the brand DNA writes them, so one post never says "patir" in one line and "patyr" in
+ * the next. Only a word that is the same name spelled another way changes (same spelling key, same script, 4+
+ * letters); an Uzbek suffix stays ("patyrlar" -> "patirlar"). Russian keeps its own spelling of a Latin name
+ * ("патыр"): names are matched within one script only.
+ */
+export function alignProductNames(text: string, products: readonly string[] | undefined): string {
+  const canon = new Map<string, string>(); // spelling key -> the DNA's spelling
+  for (const p of products ?? []) {
+    for (const raw of p.match(/[\p{L}'‘’ʻʼ`]+/gu) ?? []) {
+      const w = raw.replace(/^['‘’ʻʼ`]+|['‘’ʻʼ`]+$/g, "");
+      if (w.replace(APOS_CHARS, "").length >= 4 && !canon.has(spellKey(w))) canon.set(spellKey(w), w);
+    }
+  }
+  if (!canon.size) return text;
+  const bySize = [...canon.entries()].sort((a, b) => b[0].length - a[0].length);
+  // Links, @handles and #hashtags are names: "patyr.uz" or "@patyr_bot" never change.
+  const names = [...text.matchAll(/(?:https?:\/\/|www\.|t\.me\/)\S+|[@#][\p{L}\p{N}_]+|\S+\.(?:uz|ru|com|me|org|net)(?:\/\S*)?/giu)].map((m) => [m.index, m.index + m[0].length] as const);
+  return text.replace(/\p{L}[\p{L}'‘’ʻʼ`]{3,}/gu, (word: string, at: number) => {
+    if (names.some(([a, b]) => at >= a && at < b)) return word;
+    const token = word.replace(/['‘’ʻʼ`]+$/, ""); // a closing quote stays where it is
+    for (const [key, name] of bySize) {
+      if (isCyr(name) !== isCyr(token)) continue;
+      // The whole word, or the name plus a suffix ("patyrlar"): the shortest prefix with the name's key.
+      for (let len = Math.max(4, name.length - 1); len <= Math.min(token.length, name.length + 2); len++) {
+        const stem = token.slice(0, len);
+        if (spellKey(stem) !== key || /['‘’ʻʼ`]/.test(token.charAt(len))) continue;
+        return stem.toLowerCase() === name.toLowerCase() ? word : keepCase(stem, name) + word.slice(len);
+      }
+    }
+    return word;
   });
 }
 

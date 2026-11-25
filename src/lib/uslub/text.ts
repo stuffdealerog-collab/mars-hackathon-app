@@ -68,6 +68,95 @@ export function wellFormedFetch(base?: typeof fetch): typeof fetch {
   };
 }
 
+/* ------------------------------------------------------------ sentences */
+
+/**
+ * Words that end with a period but never end a sentence: they stand before a name or a number ("ул. Навои",
+ * "д. 5", "Toshkent sh. Chilonzor", "Dr. Karimova"). Lowercase, apostrophes as "'", without the final period.
+ * "a.m.", "ч.", "т.д." are not here: a capital letter after them does start a new sentence.
+ */
+const NO_END = new Set([
+  // ru
+  "г", "гг", "ул", "д", "пр", "просп", "пер", "кв", "им", "тел", "мкр", "стр", "корп", "оф", "см", "напр", "т.е", "т.к", "т.н",
+  "обл", "р-н", "пл", "наб", "проф", "доц", "акад", "св", "ок",
+  // uz
+  "ko'ch", "kv", "mkr", "tel", "sh", "tum", "mah", "prof", "dots", "akad",
+  // en
+  "mr", "mrs", "ms", "dr", "st", "no", "approx", "vs", "e.g", "i.e", "apt", "jr", "sr", "mt",
+]);
+
+const TERMINAL_RE = /[.!?…]/;
+const CLOSER_RE = /["»”’')\]]/;
+const SPACE_RE = /\s/;
+const LOWER_RE = /\p{Ll}/u;
+
+/** Does the period-ended word before `end` (exclusive) keep the sentence going ("ул.", "A.", a list number "1.")? */
+function periodContinues(text: string, sentenceStart: number, punctStart: number): boolean {
+  let wordStart = punctStart;
+  while (wordStart > sentenceStart && !SPACE_RE.test(text[wordStart - 1])) wordStart--;
+  const word = text.slice(wordStart, punctStart).replace(/^[^\p{L}\p{N}]+/u, "");
+  const bare = word.toLowerCase().replace(/['‘’ʻʼ`]/g, "'");
+  if (NO_END.has(bare)) return true;
+  if (/^\p{Lu}$/u.test(word)) return true; // an initial: "A. Karimov"
+  // A list number that opens the sentence ("1. Napoleon"), not a number that ends one ("…narxi 50.").
+  return /^\d{1,3}$/.test(word) && !text.slice(sentenceStart, wordStart).trim();
+}
+
+/**
+ * A text cut into sentences; the pieces joined give the text back exactly. A sentence ends at . ! ? … (plus closing
+ * quotes or brackets) only when whitespace follows and the next word does not start with a lowercase letter; a line
+ * break always ends one. So "7 a.m. to 9 p.m.", "1.5 kg", "t.me/somebakery", "23.11.2026", "12.000 so‘m",
+ * "с 9 ч. утра" and "ул. Навои, д. 5" stay whole. Each piece keeps the whitespace that follows it.
+ */
+export function splitSentences(text: string): string[] {
+  if (!text) return [text];
+  const out: string[] = [];
+  let start = 0;
+  let i = 0;
+  const cut = (at: number) => {
+    out.push(text.slice(start, at));
+    start = at;
+  };
+  while (i < text.length) {
+    const ch = text[i];
+    if (ch === "\n") {
+      let k = i;
+      while (k < text.length && SPACE_RE.test(text[k])) k++;
+      cut(k);
+      i = k;
+      continue;
+    }
+    if (!TERMINAL_RE.test(ch)) {
+      i++;
+      continue;
+    }
+    const punctStart = i;
+    let j = i;
+    while (j < text.length && TERMINAL_RE.test(text[j])) j++;
+    const onlyPeriod = j - punctStart === 1 && ch === ".";
+    while (j < text.length && CLOSER_RE.test(text[j])) j++;
+    if (j < text.length && !SPACE_RE.test(text[j])) {
+      i = j; // "a.m", "1.5", "t.me/…", "?start=…": the sentence goes on
+      continue;
+    }
+    let k = j;
+    while (k < text.length && text[k] !== "\n" && SPACE_RE.test(text[k])) k++;
+    if (k >= text.length) break; // only whitespace after it: the last sentence
+    if (text[k] === "\n") {
+      i = k; // the line break ends it (and takes the whitespace)
+      continue;
+    }
+    if (LOWER_RE.test(text[k]) || (onlyPeriod && periodContinues(text, start, punctStart))) {
+      i = k;
+      continue;
+    }
+    cut(k);
+    i = k;
+  }
+  if (start < text.length) out.push(text.slice(start));
+  return out;
+}
+
 /**
  * Post HTML with every line break as "\n", minus the lines that are only link labels ("Сайт | Telegram |
  * Instagram"): once the tags go, those words point nowhere and would teach the writer a dead signature line.

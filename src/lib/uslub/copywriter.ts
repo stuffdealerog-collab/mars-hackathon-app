@@ -6,7 +6,8 @@ import { rewriteNeuroBatch, type EditJob } from "./editor";
 import { llmJson, MODEL_QUALITY, type Effort } from "./llm";
 import { analyzeNeuro, inventedFacts } from "./neuro";
 import { findPlaceholders } from "./placeholders";
-import { contactBlankIfNone, dropVideoMentions, fixMixedScript, hasContact, oneContactRoute, replaceHiddenPrice, ruFirstPersonGender } from "./postguard";
+import { alignProductNames, contactBlankIfNone, dropVideoMentions, fixMixedScript, hasContact, oneContactRoute, replaceHiddenPrice, ruFirstPersonGender } from "./postguard";
+import { normalizePrices } from "./price";
 import { latinToCyrillic, polishUzLatin } from "./translit";
 import { clip } from "./text";
 
@@ -36,7 +37,8 @@ Hard rules:
 8. LENGTH: keep every version under 950 characters, even if the brand's older posts are longer — the post goes out as a photo caption (Telegram's limit is 1024).
 9. PHOTOS ARE NOT IN THE TEXT: a brief may say which photo or video to shoot — that note is for the owner, never write it into the post. Never describe a picture ("on the photo you can see…") and never claim the business did, tested or showed something unless the knowledge says so.
 10. ONE WAY TO ORDER: if the call to action has a link, that link is the only way to contact or order in the post: no extra phone number, @admin or "write to us" line. Without a link, use the brand's own order contact from the knowledge. Never say "Direct" (that is Instagram's inbox, not Telegram). If the knowledge has no contact at all, write [kontakt] (uz), [контакт] (ru), [contact] (en) where it goes, never a bare "write to the admin".
-11. NO OFFER NOBODY GAVE: never hint at a discount, gift, promo or "special offer" unless the knowledge states it.`;
+11. NO OFFER NOBODY GAVE: never hint at a discount, gift, promo or "special offer" unless the knowledge states it.
+12. PRICES AND NAMES: write a price as "12 000 so‘m" (uz_latn), "12 000 сум" (ru), "12,000 UZS" (en). Write each product name the way BRAND DNA "products" writes it, the same way every time in a post.`;
 
 function brandContext(brand: BrandProfile): string {
   const { dna } = brand;
@@ -242,7 +244,9 @@ export async function generatePosts(brand: BrandProfile, brief: string, count = 
     for (const script of ["uz_latn", "ru", "en"] as const) {
       let text = oneContactRoute(replaceHiddenPrice(d.variants[script], script));
       if (noContact) text = contactBlankIfNone(text, script);
-      d.variants[script] = text;
+      // One price format per script (12 000 soʻm · 12 000 сум · 12,000 UZS) and the DNA's spelling of each product.
+      text = alignProductNames(normalizePrices(text, script), brand.dna.products);
+      d.variants[script] = script === "uz_latn" ? polishUzLatin(text) : text;
     }
     d.variants.uz_cyrl = latinToCyrillic(d.variants.uz_latn, keep);
   }

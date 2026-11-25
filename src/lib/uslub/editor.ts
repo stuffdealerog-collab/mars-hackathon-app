@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { NeuroHit, Script } from "./contract";
 import { llmJson, MODEL_QUALITY } from "./llm";
-import { analyzeNeuro, deletionEdit, inventedFacts } from "./neuro";
+import { analyzeNeuro, deletionEdit, inventedFacts, RU_IN_UZ_HINT } from "./neuro";
 
 const LANG: Record<Script, string> = {
   uz_latn: "Uzbek (Latin script, use o‘ g‘ with ‘ and the tutuq ’)",
@@ -19,6 +19,7 @@ Rules:
 - If there is no honest, plain replacement made only of information already in the text, DELETE the phrase (or the whole sentence if nothing meaningful is left).
 - Keep facts, prices, numbers, links, @handles, hashtags, emoji and line breaks that are already there.
 - Keep the same language and script as the input. A shorter text is fine.
+- A Russian word inside Uzbek text (hint «${RU_IN_UZ_HINT}», e.g. "Pereshlite", "Звоните") is replaced by the same word in Uzbek Latin ("Ulashing", "Qo‘ng‘iroq qiling"); never delete the sentence for it.
 - Uzbek: after k / q the dative suffix is -ka / -qa (keshbekka, qishloqqa), not -ga.`;
 
 const RewriteSchema = z.object({ items: z.array(z.object({ id: z.string(), text: z.string() })) });

@@ -493,9 +493,13 @@ export function statsLedger(s: ChannelStats, competitors: ChannelStats[]): Ledge
   push({ id: "S.maturePosts", label: "72 soatdan eski postlar", value: s.maturePosts, display: String(s.maturePosts), n: s.maturePosts, window: w, source: "stats" });
   if (s.medianViews != null)
     push({ id: "S.medianViews", label: "o'rtacha (median) ko'rishlar", value: s.medianViews, display: String(Math.round(s.medianViews)), n: Math.min(30, s.maturePosts), window: w, source: "stats" });
+  if (s.recentMedianViews != null)
+    push({ id: "S.recentMedianViews", label: "yangi postlar odatda oladigan ko'rishlar", value: s.recentMedianViews, display: String(Math.round(s.recentMedianViews)), n: s.recentMedianN, window: "30d", source: "stats" });
   if (s.reachRate != null) {
     const band = reachBand(s.subscribers as number);
-    push({ id: "S.reachRate", label: "qamrov (ko'rishlar / obunachilar)", value: s.reachRate, display: pct(s.reachRate), n: Math.min(30, s.maturePosts), window: w, source: "stats" });
+    // Views above the subscriber count (forwards, search): the share is capped at 100% and says why.
+    const display = s.viewsAboveSubs ? `${pct(s.reachRate)} (ko'rishlar obunachilardan ko'p)` : pct(s.reachRate);
+    push({ id: "S.reachRate", label: "qamrov (ko'rishlar / obunachilar)", value: s.reachRate, display, n: Math.min(30, s.maturePosts), window: w, source: "stats" });
     push({ id: "S.reachBandLow", label: `qamrov quyi chegarasi (${band.label})`, value: band.low, display: pct(band.low, 0), source: "rule", prior: true });
   }
   push({ id: "S.postsPerWeek", label: "haftasiga postlar", value: s.postsPerWeek, display: fmtNum(s.postsPerWeek), window: "28d", source: "stats" });

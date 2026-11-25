@@ -5,6 +5,7 @@
  * the browser and the server. The LLM rewrite pass lives in `editor.ts`.
  */
 import type { NeuroHit, Script } from "./contract";
+import { splitSentences } from "./text";
 import { latinToCyrillic } from "./translit";
 
 type Rule = { re: RegExp; suggestion: string };
@@ -185,11 +186,59 @@ const RULES: Record<Script, Rule[]> = {
 /** Same-length normalization so match indexes map back onto the original text. */
 const normalizeForMatch = (text: string) => text.replace(APOS_RE, "'");
 
+/* ------------------------------------------------- Russian inside Uzbek
+ * An Uzbek Latin post with a Russian word in it ("Pereshlite do‘stlaringizga", "Звоните") reads as a careless
+ * translation. Each such word is a hit, so the editor writes it in Uzbek. Words Uzbek people use every day
+ * ("zakaz", "dostavka", "aksiya") are not flagged: only Russian verb forms, set phrases and whole Cyrillic words. */
+
+export const RU_IN_UZ_HINT = "o‘zbekcha, lotin harflarida yozing";
+
+/** Russian calls to action written in Latin letters (lowercase, apostrophes dropped). */
+const RU_LATIN = new Set([
+  "pereshlite", "pereshli", "podpishites", "podpisyvaytes", "zakazhite", "zakajite", "zakazyvayte", "zvonite", "pozvonite", "pishite",
+  "napishite", "prihodite", "prixodite", "prikhodite", "zahodite", "zaxodite", "zakhodite", "uznayte", "uznaite", "spasibo", "pozhaluysta",
+  "pojaluysta", "pozhalujsta", "kupite", "pokupayte", "zhdite", "jdite", "zhdem", "jdem", "zhdyom", "jdyom", "priglashaem", "speshite",
+  "toropites", "uspeyte", "uspeite", "smotrite", "dobro", "pozhalovat", "pojalovat", "ostavlyayte", "obrashchaytes", "obrashaytes",
+]);
+/** English words in Latin that end like a Russian imperative ("-ite"). */
+const EN_ITE = new Set(["website", "websites", "favorite", "favorites", "favourite", "favourites", "opposite", "definite", "infinite", "satellite", "appetite", "composite", "exquisite", "requisite", "graphite", "granite", "dynamite", "parasite", "parasites"]);
+
+/** Spans of links, @handles and #hashtags: a word inside them is a name, never a Russian word in the text. */
+const NAME_SPAN_RE = /(?:https?:\/\/|www\.|t\.me\/)\S+|[@#][\p{L}\p{N}_]+|\S+\.(?:uz|ru|com|me|org|net)(?:\/\S*)?/giu;
+
+/**
+ * A Latin word that is Russian: a known call to action, or a Russian imperative ending on a long word. A word in
+ * capitals is usually a brand ("AMBRELITE" in the golden corpus), so only the known words count there.
+ */
+function russianInLatin(word: string): boolean {
+  const w = word.toLowerCase().replace(/['‘’ʻʼ`]/g, "");
+  if (RU_LATIN.has(w)) return true;
+  if (word === word.toUpperCase()) return false;
+  if (w.length >= 6 && /(?:ayte|aytes|yte|ytes)$/.test(w)) return true;
+  return w.length >= 8 && /(?:ite|ites)$/.test(w) && !EN_ITE.has(w);
+}
+
+/** Russian words inside Uzbek Latin text: whole Cyrillic words (3+ letters) and Russian written in Latin letters. */
+export function russianInUzbek(text: string): NeuroHit[] {
+  const names = [...text.matchAll(NAME_SPAN_RE)].map((m) => [m.index, m.index + m[0].length] as const);
+  const inName = (i: number) => names.some(([a, b]) => i >= a && i < b);
+  const hits: NeuroHit[] = [];
+  for (const m of text.matchAll(/[\p{L}'‘’ʻʼ`]+/gu)) {
+    const word = m[0].replace(/^['‘’ʻʼ`]+|['‘’ʻʼ`]+$/g, "");
+    const index = m.index + m[0].indexOf(word);
+    if (!word || inName(index)) continue;
+    const cyrillic = /^[Ѐ-ӿ]+$/.test(word);
+    if ((cyrillic && word.length >= 3) || (!cyrillic && /^[A-Za-z'‘’ʻʼ`]+$/.test(word) && russianInLatin(word)))
+      hits.push({ phrase: word, index, suggestion: RU_IN_UZ_HINT });
+  }
+  return hits;
+}
+
 /** Finds neuro-words. Overlapping matches keep the longest one; sorted by index. */
 export function detectNeuro(text: string, script: Script): NeuroHit[] {
   if (!text) return [];
   const haystack = normalizeForMatch(text);
-  const found: NeuroHit[] = [];
+  const found: NeuroHit[] = script === "uz_latn" ? russianInUzbek(text) : [];
   for (const rule of RULES[script]) {
     rule.re.lastIndex = 0;
     for (const m of haystack.matchAll(rule.re)) {
@@ -282,8 +331,6 @@ export function inventedFacts(original: string, rewritten: string): string[] {
   return out;
 }
 
-const SENTENCE_RE = /[^.!?…\n]+[.!?…]*\s*|\n+/g;
-
 /**
  * Minimal deletion-based edit (no new words): a cliché that opens a sentence
  * ("Zamonaviy dunyoda, …") is cut; a sentence with a cliché anywhere else is
@@ -291,7 +338,7 @@ const SENTENCE_RE = /[^.!?…\n]+[.!?…]*\s*|\n+/g;
  */
 export function deletionEdit(text: string, hits: NeuroHit[]): string {
   if (!hits.length) return text;
-  const parts = text.match(SENTENCE_RE) ?? [text];
+  const parts = splitSentences(text);
   let offset = 0;
   const kept: string[] = [];
   for (const part of parts) {
@@ -304,7 +351,8 @@ export function deletionEdit(text: string, hits: NeuroHit[]): string {
       continue;
     }
     const lead = part.length - part.trimStart().length;
-    const onlyLeading = inside.length === 1 && inside[0].index - start === lead;
+    // A Russian word is never cut out of its sentence ("Pereshlite do‘stlaringizga" -> "Do‘stlaringizga"): the sentence goes.
+    const onlyLeading = inside.length === 1 && inside[0].index - start === lead && inside[0].suggestion !== RU_IN_UZ_HINT;
     if (!onlyLeading) continue; // drop the sentence
     const rest = part.slice(lead + inside[0].phrase.length).replace(/^[\s,;:—–-]+/, "");
     if ((rest.match(/\p{L}+/gu) ?? []).length < 2) continue;

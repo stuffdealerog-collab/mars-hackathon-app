@@ -107,12 +107,12 @@ describe("forecast", () => {
     expect(f.confidence).toBe("data");
     expect(f.views!.low).toBeLessThan(f.views!.mid);
     expect(f.views!.high).toBeGreaterThan(f.views!.mid);
-    expect(f.basis[0]).toBe("S.medianViews");
+    expect(f.basis[0]).toBe("S.recentMedianViews"); // what new posts get, not the 90-day median (QA 2026-11-25)
     expect(f.starts?.source).toBe("prior");
     expect(f.display).toMatch(/ko'rish.*botga o'tish \(taxminiy\)/);
   });
   it("falls back to the niche benchmark, then says it cannot forecast", () => {
-    const cold = { ...stats, medianViews: undefined, coldStart: true };
+    const cold = { ...stats, medianViews: undefined, recentMedianViews: undefined, coldStart: true };
     const rows = [0.1, 0.2, 0.3, 0.4, 0.5].map((r, i) => summary(`c${i}`, r));
     const f = forecastSlot({ goal: "reach", format: "photo", time: "20:40", weekday: 0 }, cold, benchmarkFor(rows, "cafe"));
     expect(f.confidence).toBe("benchmark");

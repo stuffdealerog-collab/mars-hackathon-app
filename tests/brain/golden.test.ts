@@ -55,9 +55,13 @@ describe.skipIf(fixtures.length === 0)("golden channels: deterministic invariant
         const v = x.forecast.views!;
         expect(v.low).toBeLessThanOrEqual(v.mid);
         expect(v.mid).toBeLessThanOrEqual(v.high);
-        expect(x.forecast.basis.some((b) => b === "S.medianViews" || b === "S.bench.reachRate")).toBe(true);
+        expect(x.forecast.basis.some((b) => b === "S.recentMedianViews" || b === "S.medianViews" || b === "S.bench.reachRate")).toBe(true);
+        // A forecast that is not the channel's own data is labelled a guide (QA 2026-11-25).
+        if (x.forecast.confidence !== "data") expect(x.forecast.display).toMatch(/^mo'ljal: /);
       } else expect(stats.medianViews).toBeUndefined();
     }
+    // Reach is a share of subscribers: never above 100% (a cake shop showed 194%).
+    if (stats.reachRate != null) expect(stats.reachRate).toBeLessThanOrEqual(1);
     const perType = new Map<string, number>();
     for (const x of s) perType.set(x.hookType!, (perType.get(x.hookType!) ?? 0) + 1);
     expect(Math.max(...perType.values())).toBeLessThanOrEqual(2);

@@ -37,7 +37,9 @@ export function pastFacts(facts: { id: string; type: string; quote: string }[], 
     const postedAt = factPostedAt(f.quote, kb);
     const dates = datesIn(f.quote, postedAt ?? firstDay);
     const allPast = dates.length > 0 && dates.every((d) => d < firstDay);
-    const old = postedAt != null && Date.parse(firstDay) - Date.parse(postedAt) > 14 * 86_400_000;
+    // A promotion that still runs on the first day ("1-noyabrdan 31-dekabrgacha") is current, however old its post.
+    const running = dates.some((d) => d >= firstDay);
+    const old = postedAt != null && !running && Date.parse(firstDay) - Date.parse(postedAt) > 14 * 86_400_000;
     const eventish = EVENT_RE.test(normApos(f.quote)) || f.type === "offer" || f.type === "deadline";
     if ((eventish && (allPast || old)) || (!STANDING.has(f.type) && allPast)) out.set(f.id, postedAt);
   }
