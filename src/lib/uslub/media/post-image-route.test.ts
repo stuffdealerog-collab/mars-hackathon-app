@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * The picture routes (/media/post-image, /visual, /media/jobs) through the real routes, store, quotas
@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from "vitest";
  * configured for vitest, so the routes' aliased imports are pointed at the real files.
  */
 vi.mock("server-only", () => ({}));
-vi.mock("next/server", () => ({ connection: async () => {} }));
+vi.mock("next/server", () => ({ connection: async () => {}, after: () => {} }));
+vi.mock("@/lib/ops/labs", async () => await import("../../ops/labs"));
 vi.mock("@/lib/db", () => ({
   isDbConfigured: () => false,
   getSql: () => {
@@ -60,6 +61,7 @@ const { savePostImage } = await import("./post-repo");
 vi.mock("@/lib/uslub/media/post-image-service", () => ({
   postImageDeps: () => ({ jobs, save: savePostImage, provider: "fal" }),
   ensureVisual: async () => undefined,
+  maybeSweepStuckMediaJobs: async () => null,
 }));
 
 const store = await import("../store");
@@ -118,6 +120,16 @@ describe("POST /api/uslub/media/post-image and claimed web brands", () => {
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: "This brand belongs to another Telegram user.", code: "forbidden" });
     expect(submits.length).toBe(before); // nothing was started or billed
+  });
+
+  it("a picture stuck 'queued' (its job is gone) is brought up to date first, so a new one starts", async () => {
+    const { post } = await makePost(null);
+    await savePostImage(post.id, { status: "queued", jobId: crypto.randomUUID(), refsUsed: 1, attempts: 1, url: "https://v3b.fal.media/files/old.jpg" });
+    const before = submits.length;
+    const res = await anonymousPost(post.id);
+    expect(res.status).toBe(200);
+    expect((await res.json()).image).toMatchObject({ status: "queued", url: "https://v3b.fal.media/files/old.jpg" });
+    expect(submits.length).toBe(before + 1);
   });
 
   it("an unknown post is a localized 404", async () => {
@@ -186,6 +198,9 @@ describe("one guest IP cannot use up the guests' picture pool", () => {
 });
 
 describe("POST /api/uslub/media/jobs with a brandId", () => {
+  // A lab route (no screen calls it): open only when LABS_ROUTES names it.
+  beforeEach(() => vi.stubEnv("LABS_ROUTES", "media/jobs"));
+  afterEach(() => vi.unstubAllEnvs());
   const createJob = (body: Record<string, unknown>, ip: string) =>
     jobsRoute.POST(
       new Request("https://mercat.test/api/uslub/media/jobs", {
@@ -194,6 +209,18 @@ describe("POST /api/uslub/media/jobs with a brandId", () => {
         body: JSON.stringify(body),
       }),
     );
+
+  it("answers 404 and bills nothing while LABS_ROUTES does not name it", async () => {
+    vi.stubEnv("LABS_ROUTES", "radar");
+    const before = submits.length;
+    const { brand } = await makePost(null);
+    const res = await createJob({ kind: "image", brief: "Bento-tort", aspect: "4:5", brandId: brand.id }, "198.51.100.42");
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "Not found", code: "not_found" });
+    expect(submits.length).toBe(before);
+    const poll = await jobsRoute.GET(anonymousGet(`/api/uslub/media/jobs?id=${crypto.randomUUID()}`));
+    expect(poll.status).toBe(404);
+  });
 
   it("a brand that belongs to another Telegram user is refused before anything is billed", async () => {
     const before = submits.length;

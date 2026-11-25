@@ -21,6 +21,8 @@ import type { MediaProviderId } from "./types";
  *   MEDIA_VISUAL_DAILY_LIMIT        style analyses (Claude vision) per rolling 24 h, whole app, default 60
  *   MEDIA_VISUAL_BRAND_DAILY_LIMIT  style analyses per brand per rolling 24 h, default 8
  *   MEDIA_VISUAL_ACTOR_DAILY_LIMIT  style analyses per caller (Telegram user, or hashed IP) per 24 h, default 12
+ *   MEDIA_IMAGE_TIMEOUT_MS  a picture still queued/running after this many ms is failed, default 300000 (5 min),
+ *                           allowed 60000-3600000 (videos keep their 20 min)
  *
  * Pictures (kind "image") have their own pools, so they never eat the video quota (and vice versa):
  *   MEDIA_IMAGE_DAILY_LIMIT         pictures per rolling 24 h, whole app (the spend ceiling), default 150
@@ -45,6 +47,8 @@ export interface MediaConfig {
   visualDailyLimit: number;
   visualBrandDailyLimit: number;
   visualActorDailyLimit: number;
+  /** A picture job still not done after this is failed (ms). */
+  imageTimeoutMs: number;
   demo: boolean;
   /** Names of env vars that were present but malformed (never their values). */
   warnings: string[];
@@ -111,6 +115,17 @@ export function readMediaConfig(env: Env): MediaConfig {
     return Math.min(1000, Math.floor(n));
   };
 
+  const ms = (name: string, fallback: number, min: number, max: number) => {
+    const raw = clean(env[name]);
+    if (raw === undefined) return fallback;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < min || n > max) {
+      warnings.push(name);
+      return fallback;
+    }
+    return Math.floor(n);
+  };
+
   return {
     higgsfield,
     fal,
@@ -129,6 +144,7 @@ export function readMediaConfig(env: Env): MediaConfig {
     visualDailyLimit: limit("MEDIA_VISUAL_DAILY_LIMIT", 60),
     visualBrandDailyLimit: limit("MEDIA_VISUAL_BRAND_DAILY_LIMIT", 8),
     visualActorDailyLimit: limit("MEDIA_VISUAL_ACTOR_DAILY_LIMIT", 12),
+    imageTimeoutMs: ms("MEDIA_IMAGE_TIMEOUT_MS", 5 * 60_000, 60_000, 60 * 60_000),
     demo,
     warnings,
   };

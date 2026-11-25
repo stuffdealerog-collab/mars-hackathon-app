@@ -1,5 +1,6 @@
 import type { PlanSlot, PostImage, Script, VisualStyle } from "../contract";
 import type { Actor, MediaJobs } from "./jobs";
+import { isMedicalBrand, peopleRule, type PeopleRule } from "./people";
 import { NEGATIVE_PROMPT } from "./presets";
 import { isTerminal, type Aspect, type MediaJob, type MediaProviderId } from "./types";
 
@@ -23,6 +24,8 @@ export type StoredPostImage = PostImage & {
   attempts?: number; // jobs started for this post (regenerations are capped)
   productUrl?: string; // the owner's product photo for this post, re-hosted
   scene?: string; // what the picture shows, reused by "another variant"
+  /** The people rule `scene` was written under; a scene from before the rule existed has none. */
+  sceneRule?: PeopleRule;
   model?: string;
   updatedAt?: string;
 };
@@ -51,6 +54,20 @@ export interface SceneInput {
   brandName: string;
   oneLiner: string;
   products: string[];
+  /** "none": the picture must show no people at all (medical businesses, team posts; see people.ts). */
+  people?: PeopleRule;
+}
+
+/** The scene line's instructions (the AI subject line in post-image-service.ts). */
+export function sceneSystem(people: PeopleRule = "default"): string {
+  const who =
+    people === "none"
+      ? "Never people: no faces, bodies, hands or silhouettes. If the post is about a person or the team, show their place, their tools or equipment, or one object close-up instead."
+      : "No people's faces unless the post is about people.";
+  return `You pick the picture for a Telegram post of a small business in Uzbekistan.
+Read the post (Uzbek or Russian) and say in plain English what ONE real photo next to it should show: the product, dish or moment the post is about and what is happening to it.
+Describe only the subject. Do not describe the room, table, surface, background, light or camera: the channel's own photo style decides those.
+Prefer the business's real products. No text, signs, prices or logos. ${who} One concrete subject, no marketing words.`;
 }
 
 export interface PostImageDeps {
@@ -99,7 +116,10 @@ export function buildPostImagePrompt(a: {
   channelRefs: number;
   ownerRefs: number;
   aspect?: Aspect;
+  /** "none": no people at all (people.ts); the default prompt is unchanged. */
+  people?: PeopleRule;
 }): string {
+  const noPeople = a.people === "none";
   const lines: string[] = [];
   // The one-liner is the owner's language and can run long: its first clause is enough context.
   const about = clean(a.oneLiner.split(/[;:.!?\n]/)[0], 90);
@@ -121,7 +141,7 @@ export function buildPostImagePrompt(a: {
           ? "photos from this business's own channel"
           : "photos the owner added";
     lines.push(
-      `${range} ${whose}. Make the new photo look like it belongs next to them: the same kind of light, colours, backgrounds, surfaces, props, camera angle and photo quality. Do not copy any of them; take a new shot.`,
+      `${range} ${whose}. Make the new photo look like it belongs next to them: the same kind of light, colours, backgrounds, surfaces, props, camera angle and photo quality. Do not copy any of them; take a new shot.${noPeople ? " Leave out the people in them." : ""}`,
     );
   }
   if (a.ownerRefs > 0) {
@@ -141,6 +161,14 @@ export function buildPostImagePrompt(a: {
     if (style) lines.push(`Style: ${style}`);
   } else {
     lines.push("Style: an honest, natural photo a good local photographer would take with daylight; real textures, believable setting in Uzbekistan.");
+  }
+  if (noPeople) {
+    // After the scene and the style, so it wins over a style learned from photos of doctors or staff.
+    lines.push(
+      a.product
+        ? "Do not add any people: no faces, bodies, hands or silhouettes, even if the post or the style notes mention people."
+        : "No people at all: no faces, bodies, hands or silhouettes, even if the post or the style notes mention people. Show the place, the equipment, the tools or one object close-up instead.",
+    );
   }
   lines.push(
     "It must look like a real photograph, natural and believable: not a 3D render, illustration, collage or glossy AI art.",
@@ -181,6 +209,13 @@ export function planPostImageStart(prev: StoredPostImage | undefined, wantNew: b
   return "start";
 }
 
+/** The scene when people are ruled out and no AI scene line came back: the business's place, or the owner's product. */
+function noPeopleScene(brand: Pick<BrandForImage, "name" | "oneLiner">, product: boolean): string {
+  if (product) return "the product from image 1 in the place where it is sold or used, no people";
+  const about = clean(brand.oneLiner.split(/[;:.!?\n]/)[0], 80) || clean(brand.name, 60);
+  return about ? `the place, equipment and tools of ${about}, no people` : "the place, equipment and tools of the business, no people";
+}
+
 /** Media job -> post image. Provider details never reach the owner; they stay in media_jobs. */
 export function imageFromJob(job: MediaJob, prev: StoredPostImage): StoredPostImage {
   const base = { ...prev, jobId: job.id, model: job.model, updatedAt: job.updatedAt };
@@ -208,7 +243,11 @@ export async function startPostImage(
   if (plan === "limit") throw new PostImageLimitError();
   const attempts = prev?.attempts ?? 0;
 
-  let scene = !args.productUrl && prev?.scene ? prev.scene : undefined;
+  const who = { brandName: brand.name, oneLiner: brand.oneLiner, products: brand.products };
+  const people = peopleRule({ ...who, brief: post.brief, hook: post.slot?.hook, text: postText(post) });
+  // "Another variant" reuses the scene, unless it was written under a looser people rule (before the
+  // rule existed, team posts got "Dr. Aziza with a patient"): it would contradict "No people at all".
+  let scene = !args.productUrl && prev?.scene && (people !== "none" || prev.sceneRule === "none") ? prev.scene : undefined;
   if (!scene && deps.describeScene) {
     scene = await deps
       .describeScene({
@@ -218,12 +257,18 @@ export async function startPostImage(
         brandName: brand.name,
         oneLiner: brand.oneLiner,
         products: brand.products.slice(0, 12),
+        ...(people === "none" ? { people } : {}),
       })
       .catch(() => undefined);
   }
-  scene ||= clean(post.brief || postText(post), 300);
+  // No AI scene (AI off, or the call failed, e.g. during a credit outage): the brief, unless people are
+  // ruled out: a team post's brief is about the people, so the picture shows their place instead.
+  scene ||= people === "none" ? noPeopleScene(brand, Boolean(productUrl)) : clean(post.brief || postText(post), 300);
 
-  const allRefs = (brand.visual?.refs ?? []).filter((r) => r.url !== productUrl).slice(0, MAX_POST_REFS);
+  // A medical business's own photos are mostly its doctors and patients: as references they pull
+  // (or copy) real faces into the new picture, so it is made from the style notes alone.
+  const refsAllowed = !(people === "none" && isMedicalBrand(who));
+  const allRefs = refsAllowed ? (brand.visual?.refs ?? []).filter((r) => r.url !== productUrl).slice(0, MAX_POST_REFS) : [];
   const prompt = buildPostImagePrompt({
     scene,
     brandName: brand.name,
@@ -232,6 +277,7 @@ export async function startPostImage(
     product: Boolean(productUrl),
     channelRefs: allRefs.filter((r) => r.source === "channel").length,
     ownerRefs: allRefs.filter((r) => r.source === "owner").length,
+    ...(people === "none" ? { people } : {}),
   });
   // The prompt numbers images in this order: product, owner refs, channel refs.
   const ordered = [...allRefs.filter((r) => r.source === "owner"), ...allRefs.filter((r) => r.source === "channel")];
@@ -256,6 +302,7 @@ export async function startPostImage(
     refsUsed: job.refCount ?? ordered.length + (productUrl ? 1 : 0),
     prompt,
     scene,
+    sceneRule: people,
     productUrl,
     attempts: attempts + 1,
     url: prev?.url, // the picture the owner sees stays until a new one is finished
@@ -267,17 +314,65 @@ export async function startPostImage(
 /**
  * Refreshes a picture in progress (the job layer throttles provider polls). The caller has
  * already authorised access to the post, so a job started from another device (Mini App vs web)
- * is refreshed too.
+ * is refreshed too. A picture whose job no longer exists can never finish: it fails with the usual
+ * copy instead of saying "rendering" forever.
  */
-export async function pollPostImage(args: { post: PostForImage; actor: Actor }, deps: PostImageDeps): Promise<StoredPostImage | undefined> {
+export async function pollPostImage(
+  args: { post: PostForImage; actor: Actor },
+  deps: Pick<PostImageDeps, "jobs" | "save" | "now">,
+): Promise<StoredPostImage | undefined> {
   const prev = args.post.image;
-  if (!prev || !prev.jobId || (prev.status !== "queued" && prev.status !== "running")) return prev;
-  const job = await deps.jobs.refresh(prev.jobId, args.actor, { authorized: true });
+  if (!prev || !isPending(prev)) return prev;
+  const gone = async () => {
+    const next: StoredPostImage = { ...prev, status: "failed", error: FAILED_COPY, updatedAt: new Date((deps.now ?? Date.now)()).toISOString() };
+    await deps.save(args.post.id, next);
+    return next;
+  };
+  if (!prev.jobId) return gone();
+  let job: MediaJob;
+  try {
+    job = await deps.jobs.refresh(prev.jobId, args.actor, { authorized: true });
+  } catch (err) {
+    if (isNotFound(err)) return gone();
+    throw err;
+  }
   if (!isTerminal(job.status) && job.status === (prev.status === "running" ? "running" : "queued")) return prev;
   if (job.status === "failed" && job.error) console.warn(`[media/post-image] job ${job.id} failed: ${job.error}`);
   const next = imageFromJob(job, prev);
   await deps.save(args.post.id, next);
   return next;
+}
+
+const isNotFound = (err: unknown) => typeof err === "object" && err !== null && (err as { code?: unknown }).code === "not_found";
+
+export const isPendingImage = isPending;
+
+/**
+ * Brings stuck post pictures up to date (the stuck-job sweep): each post still "queued"/"running" is
+ * polled once, so a job that finished, timed out, never reached the provider or is gone is reflected on
+ * the post and "another variant" works again. Stops at `deadline` (epoch ms, `now` clock).
+ */
+export async function sweepPostImages(
+  args: { ids: string[]; load(id: string): Promise<PostForImage | null>; deadline?: number },
+  deps: Pick<PostImageDeps, "jobs" | "save" | "now">,
+): Promise<{ checked: number; updated: number; stoppedEarly: boolean }> {
+  const now = deps.now ?? Date.now;
+  const out = { checked: 0, updated: 0, stoppedEarly: false };
+  for (const id of args.ids) {
+    if (args.deadline !== undefined && now() >= args.deadline) {
+      out.stoppedEarly = true;
+      break;
+    }
+    const post = await args.load(id).catch(() => null);
+    if (!post || !isPending(post.image)) continue;
+    out.checked++;
+    const next = await pollPostImage({ post, actor: { telegramId: null } }, deps).catch((err: unknown) => {
+      console.warn(`[media/post-image] sweep could not refresh post ${id}:`, err instanceof Error ? err.message : err);
+      return post.image;
+    });
+    if (next !== post.image) out.updated++;
+  }
+  return out;
 }
 
 /**

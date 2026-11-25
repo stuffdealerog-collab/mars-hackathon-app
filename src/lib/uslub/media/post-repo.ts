@@ -33,6 +33,27 @@ export async function getPostForImage(id: string): Promise<PostForImage | null> 
   return { id: r.id, brandId: r.brand_id, brief: r.brief, variants: r.variants ?? {}, slot: r.slot ?? undefined, image: r.image ?? undefined };
 }
 
+/**
+ * Posts whose picture still says queued/running and was last updated before `olderThanIso`, oldest
+ * first: the stuck-picture sweep brings them up to date. (updatedAt is an ISO string set by
+ * imageFromJob, so the text comparison orders correctly; a missing one counts as oldest.)
+ */
+export async function listStalePostImageIds(olderThanIso: string, limit: number): Promise<string[]> {
+  const n = Math.max(1, Math.min(50, Math.floor(limit)));
+  if (!isDbConfigured()) {
+    return [...memImages.entries()]
+      .filter(([, img]) => (img.status === "queued" || img.status === "running") && (img.updatedAt ?? "") < olderThanIso)
+      .sort(([, a], [, b]) => (a.updatedAt ?? "").localeCompare(b.updatedAt ?? ""))
+      .slice(0, n)
+      .map(([id]) => id);
+  }
+  const rows = (await getSql()`SELECT id FROM posts
+    WHERE image->>'status' IN ('queued', 'running') AND COALESCE(image->>'updatedAt', '') COLLATE "C" < ${olderThanIso}
+    ORDER BY COALESCE(image->>'updatedAt', '') COLLATE "C" ASC
+    LIMIT ${n}`) as { id: string }[];
+  return rows.map((r) => r.id);
+}
+
 export async function savePostImage(postId: string, image: StoredPostImage): Promise<void> {
   if (!isDbConfigured()) {
     memImages.set(postId, image);

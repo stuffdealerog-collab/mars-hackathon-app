@@ -2,7 +2,7 @@ import { normalizeCues } from "./captions";
 import { buildPrompt, NEGATIVE_PROMPT } from "./presets";
 import { inputImages, ProviderError, redactSecrets, type MediaProvider, type ProviderRef } from "./provider";
 import type { MediaJobRepo } from "./repo";
-import { isTerminal, type MediaJob, type MediaJobInput, type MediaKind, type MediaResult } from "./types";
+import { isTerminal, type MediaJob, type MediaJobInput, type MediaKind, type MediaProviderId, type MediaResult } from "./types";
 
 /**
  * Job lifecycle: create (validate -> pick provider -> build prompt -> persist ->
@@ -37,11 +37,30 @@ export interface MediaJobsDeps {
   /** Pictures have their own pools (see config.ts); the fields above are for videos. */
   image?: { dailyLimit?: number; anonDailyLimit?: number; anonActorDailyLimit?: number; userDailyLimit?: number; brandDailyLimit?: number };
   pollIntervalMs?: number;
-  timeoutMs?: number; // a job still not done after this is failed
+  timeoutMs?: number; // a video job still not done after this is failed
+  imageTimeoutMs?: number; // the same for pictures (they take seconds, not minutes)
+  /**
+   * A job without a provider request id this long after it was created never reached the provider
+   * (the function was cut off during the submit): it cannot finish by itself, so it is failed.
+   * Longer than the longest route (150 s), so a submit still in flight is never failed.
+   */
+  submitGraceMs?: number;
   /** Copies a finished result to our own storage; return the new result, or undefined to keep the provider URL. */
   archive?: (job: MediaJob) => Promise<MediaResult | undefined>;
   /** Strings to scrub from provider errors (API keys). */
   secrets?: () => (string | undefined)[];
+  /** Told when a provider refuses a submit (e.g. to alert the team when its balance is used up). Must not throw. */
+  onSubmitError?: (provider: MediaProviderId, err: unknown) => Promise<void> | void;
+}
+
+/** What one sweep of open jobs did (see MediaJobs.sweep). */
+export interface MediaSweepReport {
+  checked: number;
+  delivered: number;
+  /** Jobs this sweep ended without a result (timed out, never submitted, refused by the provider). */
+  ended: { id: string; kind: MediaKind; brandId?: string; ageS: number; error?: string }[];
+  /** The sweep stopped at its deadline before every open job was looked at. */
+  stoppedEarly: boolean;
 }
 
 export const MEDIA_DEFAULTS = {
@@ -52,6 +71,8 @@ export const MEDIA_DEFAULTS = {
   image: { dailyLimit: 150, anonDailyLimit: 100, anonActorDailyLimit: 30, userDailyLimit: 60, brandDailyLimit: 24 },
   pollIntervalMs: 4_000,
   timeoutMs: 20 * 60_000,
+  imageTimeoutMs: 5 * 60_000, // successful pictures: median 17 s, slowest 82 s (prod, 2026-11-25)
+  submitGraceMs: 3 * 60_000,
   minSeconds: 3,
   maxSeconds: 12,
 } as const;
@@ -202,6 +223,8 @@ export class MediaJobs {
     } catch (err) {
       job.status = "failed";
       job.error = this.describe(err);
+      const onSubmitError = this.deps.onSubmitError;
+      if (onSubmitError) await (async () => onSubmitError(provider.id, err))().catch(() => undefined);
     }
     job.updatedAt = new Date(this.now()).toISOString();
     await this.deps.repo.update(job);
@@ -247,18 +270,28 @@ export class MediaJobs {
    */
   async refresh(id: string, actor: Actor = ANON, opts: AccessOpts = {}): Promise<MediaJob> {
     const job = await this.get(id, actor, opts);
-    if (isTerminal(job.status) || !job.providerRequestId) return job;
+    if (isTerminal(job.status)) return job;
     const now = this.now();
+    const age = now - Date.parse(job.createdAt);
+    if (!job.providerRequestId) {
+      // Nothing to poll: the submit never came back (the function was cut off). Within the grace the
+      // submit may still be in flight; after it, the job can never finish, so it fails instead of
+      // staying "queued" forever (and blocking the post's "another variant").
+      if (!(age > (this.deps.submitGraceMs ?? MEDIA_DEFAULTS.submitGraceMs))) return job;
+      job.status = "failed";
+      job.error = NEVER_SUBMITTED;
+      return this.save(job);
+    }
     const interval = this.deps.pollIntervalMs ?? MEDIA_DEFAULTS.pollIntervalMs;
     if (job.lastPolledAt && now - Date.parse(job.lastPolledAt) < interval) return job;
 
     const provider = this.deps.providers.find((p) => p.id === job.provider);
     // The timeout is judged AFTER asking the provider: a job that finished while nobody was
     // polling (the owner closed the tab) is still delivered, not failed for being late.
-    const timedOut = now - Date.parse(job.createdAt) > (this.deps.timeoutMs ?? MEDIA_DEFAULTS.timeoutMs);
+    const timedOut = age > this.timeoutFor(job.kind);
     const expire = async () => {
       job.status = "failed";
-      job.error = "Provayder javob bermadi (vaqt tugadi). / Провайдер не ответил вовремя.";
+      job.error = TIMED_OUT;
       if (provider?.cancel) await provider.cancel(refOf(job)).catch(() => undefined);
       return this.save(job);
     };
@@ -267,6 +300,9 @@ export class MediaJobs {
       job.error = `Provider ${job.provider} is no longer available`;
       return this.save(job);
     }
+    // No key for this provider here (a local or preview instance on the shared database): asking it
+    // would come back 401 and end someone else's live job. The instance that has the key decides.
+    if (!provider.isConfigured()) return job;
 
     job.polls += 1;
     job.lastPolledAt = new Date(now).toISOString();
@@ -307,6 +343,60 @@ export class MediaJobs {
     return this.save(job);
   }
 
+  /** How long a job of this kind may stay queued/running before it is failed. */
+  timeoutFor(kind: MediaKind): number {
+    return kind === "image"
+      ? (this.deps.imageTimeoutMs ?? MEDIA_DEFAULTS.imageTimeoutMs)
+      : (this.deps.timeoutMs ?? MEDIA_DEFAULTS.timeoutMs);
+  }
+
+  /**
+   * Looks at open (queued/running) jobs nobody is polling: jobs created more than `olderThanMs` ago
+   * are refreshed once, oldest first. A finished one is delivered, one past its timeout (or never
+   * submitted) fails with a reason. Runs from the cron tick and after picture requests, so a closed
+   * tab no longer leaves a job "queued" forever. Stops at `deadline` (epoch ms, the job clock); a
+   * provider call still running then is left to finish on its own.
+   * A job sent to a provider this instance has no key for is skipped (polling it would answer 401 and
+   * end a live job); one that never reached a provider needs no key and is still ended.
+   */
+  async sweep(opts: { olderThanMs?: number; limit?: number; deadline?: number } = {}): Promise<MediaSweepReport> {
+    const report: MediaSweepReport = { checked: 0, delivered: 0, ended: [], stoppedEarly: false };
+    if (!this.deps.repo.listOpen) return report;
+    const before = new Date(this.now() - (opts.olderThanMs ?? 60_000)).toISOString();
+    const ids = await this.deps.repo.listOpen(before, opts.limit ?? 20);
+    const configured = new Set(this.deps.providers.filter((p) => p.isConfigured()).map((p) => p.id));
+    for (const id of ids) {
+      const left = opts.deadline === undefined ? Infinity : opts.deadline - this.now();
+      if (left <= 0) {
+        report.stoppedEarly = true;
+        break;
+      }
+      const raw = await this.deps.repo.get(id).catch(() => undefined);
+      if (raw?.providerRequestId && !configured.has(raw.provider)) continue;
+      const job = await withDeadline(this.refresh(id, ANON, { authorized: true }), left).catch((err: unknown) => {
+        console.warn(`[media/jobs] sweep could not refresh ${id}:`, err instanceof Error ? err.message : err);
+        return null;
+      });
+      if (job === TIMEOUT) {
+        report.stoppedEarly = true;
+        break;
+      }
+      report.checked++;
+      if (!job) continue;
+      if (job.status === "succeeded") report.delivered++;
+      else if (isTerminal(job.status)) {
+        report.ended.push({
+          id: job.id,
+          kind: job.kind,
+          brandId: job.brandId,
+          ageS: Math.round((this.now() - Date.parse(job.createdAt)) / 1000),
+          error: job.error,
+        });
+      }
+    }
+    return report;
+  }
+
   async cancel(id: string, actor: Actor = ANON): Promise<MediaJob> {
     const job = await this.get(id, actor);
     if (isTerminal(job.status)) return job;
@@ -326,6 +416,29 @@ export class MediaJobs {
     const msg = err instanceof Error ? err.message : String(err);
     return redactSecrets(msg, this.deps.secrets?.() ?? []);
   }
+}
+
+/**
+ * Whether this deployment may sweep open jobs: production, or MEDIA_SWEEP=1. Local and preview
+ * instances share the production database, so a sweep there would end real owners' jobs.
+ */
+export function sweepAllowed(env: Record<string, string | undefined>): boolean {
+  return env.VERCEL_ENV === "production" || env.MEDIA_SWEEP?.trim() === "1";
+}
+
+export const TIMED_OUT = "Provayder javob bermadi (vaqt tugadi). / Провайдер не ответил вовремя.";
+export const NEVER_SUBMITTED = "So‘rov provayderga yetib bormadi (uzilib qoldi). / Запрос не дошёл до провайдера (прервался).";
+
+const TIMEOUT = Symbol("timeout");
+/** Resolves with the task, or with TIMEOUT after `ms` (the task itself keeps running). */
+function withDeadline<T>(task: Promise<T>, ms: number): Promise<T | typeof TIMEOUT> {
+  if (!Number.isFinite(ms)) return task;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<typeof TIMEOUT>((resolve) => {
+    timer = setTimeout(() => resolve(TIMEOUT), ms);
+  });
+  task.catch(() => undefined); // a late failure must not become an unhandled rejection
+  return Promise.race([task, late]).finally(() => clearTimeout(timer));
 }
 
 /**

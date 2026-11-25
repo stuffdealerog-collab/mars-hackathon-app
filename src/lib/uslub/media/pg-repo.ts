@@ -109,6 +109,16 @@ export class PgMediaJobRepo implements MediaJobRepo {
     return rows[0] ?? { total: 0, owner: 0, brand: 0, actor: 0 };
   }
 
+  async listOpen(createdBeforeIso: string, limit: number): Promise<string[]> {
+    const rows = (await withTable(
+      () => getSql()`SELECT id FROM media_jobs
+                     WHERE status IN ('queued', 'running') AND created_at < ${createdBeforeIso}
+                     ORDER BY created_at ASC
+                     LIMIT ${Math.max(1, Math.min(100, Math.floor(limit)))}`,
+    )) as { id: string }[];
+    return rows.map((r) => r.id);
+  }
+
   async update(job: MediaJob): Promise<void> {
     await withTable(
       () => getSql()`UPDATE media_jobs

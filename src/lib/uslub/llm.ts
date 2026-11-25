@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import { getEnv } from "@/lib/env";
+import { watchAnthropicBilling } from "../ops/alert";
 import { recordUsage } from "./context";
 import { wellFormed, wellFormedFetch } from "./text";
 
@@ -36,7 +37,8 @@ export function getAnthropic(): Anthropic {
   if (!apiKey) throw new LlmError("AI is not configured (ANTHROPIC_API_KEY)", 503);
   // wellFormedFetch: every request body leaves without half an emoji (a lone surrogate makes it invalid JSON for
   // the API: "unexpected end of hex escape"), whoever built it — llmJson, brainJson, knowledge, web, visual.
-  client ??= new Anthropic({ apiKey, timeout: 55_000, maxRetries: 1, fetch: wellFormedFetch() });
+  // watchAnthropicBilling: a billing refusal (no credit, spend cap) also alerts the team (src/lib/ops/alert.ts).
+  client ??= new Anthropic({ apiKey, timeout: 55_000, maxRetries: 1, fetch: watchAnthropicBilling(wellFormedFetch()) });
   return client;
 }
 

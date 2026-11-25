@@ -2,6 +2,7 @@ import { z } from "zod";
 import { runAdCheck } from "@/lib/uslub/brain/adcheck-run";
 import { toHttp } from "@/lib/uslub/brain/route-utils";
 import { handle, json, rateLimit, readJson } from "@/lib/uslub/http";
+import { labsGate } from "@/lib/ops/labs";
 
 // Node.js runtime is the default (an explicit `runtime` export is rejected with cacheComponents).
 export const maxDuration = 30;
@@ -20,6 +21,8 @@ const Body = z.object({
  * subscriber jumps), ad load, ad-post reach and price per 1000 views. No LLM.
  */
 export const POST = handle(async (req) => {
+  const closed = labsGate("adcheck"); // no screen calls this route: 404 unless LABS_ROUTES names it
+  if (closed) return closed;
   rateLimit(req, "brain-adcheck", 10);
   const body = await readJson(req, Body);
   try {

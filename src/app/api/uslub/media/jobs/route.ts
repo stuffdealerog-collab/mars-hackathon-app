@@ -7,6 +7,7 @@ import { media } from "@/lib/uslub/media/service";
 import { publicJob, type StylePresetId } from "@/lib/uslub/media/types";
 import { actorKey } from "@/lib/uslub/visual/service";
 import { mediaCall } from "../errors";
+import { labsGate } from "@/lib/ops/labs";
 
 export const maxDuration = 60;
 
@@ -34,6 +35,8 @@ const Body = z.object({
  * 403 when `brandId` names a brand that belongs to another Telegram user.
  */
 export const POST = handle(async (req) => {
+  const closed = labsGate("media/jobs"); // no screen calls this route: 404 unless LABS_ROUTES names it
+  if (closed) return closed;
   rateLimit(req, "media_create", 4);
   const body = await readJson(req, Body);
   // Paid generation: a verified Telegram user spends their own daily quota; anonymous web
@@ -84,5 +87,5 @@ const poll = handle(async (req) => {
 /** GET ?id= -> { job }  Polls the provider when due (at most every few seconds per job). */
 export async function GET(req: Request) {
   await connection(); // outside handle(): its try/catch must not swallow Next's prerender signal
-  return poll(req);
+  return labsGate("media/jobs") ?? poll(req);
 }

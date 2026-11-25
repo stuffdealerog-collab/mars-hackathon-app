@@ -160,27 +160,38 @@ function falUrl(url: string | undefined, fallback: string): string {
   return fallback;
 }
 
+/**
+ * Per-call time limits. A submit that hangs used to run until the route's 150 s maxDuration and leave a
+ * job with no request id; a poll that hangs would stall the stuck-job sweep. A call that runs out of
+ * time is a retryable error: the job stays alive and the next poll (or its timeout) decides.
+ */
+export const FAL_TIMEOUTS = { submitMs: 30_000, pollMs: 15_000 } as const;
+
 export function falProvider(opts: {
   key?: string;
   videoModel?: string;
   imageModel?: string;
   fetch?: FetchLike;
+  timeouts?: { submitMs?: number; pollMs?: number };
 }): MediaProvider {
   const doFetch: FetchLike = opts.fetch ?? ((u, i) => fetch(u, i));
   const models: Record<MediaKind, string> = {
     video: opts.videoModel ?? FAL_DEFAULT_MODELS.video,
     image: opts.imageModel ?? FAL_DEFAULT_MODELS.image,
   };
+  const submitMs = opts.timeouts?.submitMs ?? FAL_TIMEOUTS.submitMs;
+  const pollMs = opts.timeouts?.pollMs ?? FAL_TIMEOUTS.pollMs;
   const headers = () => ({ Authorization: `Key ${opts.key}`, "Content-Type": "application/json" });
 
-  async function call(url: string, init: RequestInit): Promise<unknown> {
+  async function call(url: string, init: RequestInit, timeoutMs: number): Promise<unknown> {
     let res: Response;
+    let body: Awaited<ReturnType<typeof readBody>>;
     try {
-      res = await doFetch(url, { ...init, headers: headers(), cache: "no-store" });
+      res = await doFetch(url, { ...init, headers: headers(), cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
+      body = await readBody(res); // the time limit covers the body too
     } catch {
-      throw new ProviderError("fal.ai is unreachable", undefined, true);
+      throw new ProviderError("fal.ai is unreachable or did not answer in time", undefined, true);
     }
-    const body = await readBody(res);
     if (!res.ok) {
       throw new ProviderError(`fal.ai ${res.status}: ${errorText(body.json, body.text.slice(0, 200))}`, res.status, res.status >= 500 || res.status === 429);
     }
@@ -198,7 +209,7 @@ export function falProvider(opts: {
 
     async submit(req: SubmitRequest): Promise<ProviderRef> {
       const model = falModelFor(models, req);
-      const data = await call(`${QUEUE}/${model}`, { method: "POST", body: JSON.stringify(wellFormedDeep(falInput(model, req))) });
+      const data = await call(`${QUEUE}/${model}`, { method: "POST", body: JSON.stringify(wellFormedDeep(falInput(model, req))) }, submitMs);
       if (!isObj(data) || !str(data.request_id)) throw new ProviderError("fal.ai: no request_id in the submit response");
       return {
         requestId: str(data.request_id)!,
@@ -211,7 +222,7 @@ export function falProvider(opts: {
 
     async poll(ref: ProviderRef): Promise<PollResult> {
       const base = `${QUEUE}/${falBase(ref.model)}/requests/${encodeURIComponent(ref.requestId)}`;
-      const status = await call(falUrl(ref.statusUrl, `${base}/status`), { method: "GET" }); // 202 while running, 200 when done
+      const status = await call(falUrl(ref.statusUrl, `${base}/status`), { method: "GET" }, pollMs); // 202 while running, 200 when done
       const s = isObj(status) ? str(status.status) : undefined;
       if (s === "IN_QUEUE") {
         return { status: "queued", queuePosition: isObj(status) && typeof status.queue_position === "number" ? status.queue_position : undefined };
@@ -223,7 +234,7 @@ export function falProvider(opts: {
         return { status: str(status.error_type) === "client_cancelled" ? "canceled" : "failed", error: str(status.error) };
       }
       try {
-        const result = await call(falUrl(ref.resultUrl, base), { method: "GET" });
+        const result = await call(falUrl(ref.resultUrl, base), { method: "GET" }, pollMs);
         const out = falOutput(result);
         return out.url ? { status: "succeeded", outputUrl: out.url, contentType: out.contentType } : { status: "failed", error: "fal.ai: empty result" };
       } catch (err) {
@@ -234,7 +245,7 @@ export function falProvider(opts: {
 
     async cancel(ref: ProviderRef) {
       const base = `${QUEUE}/${falBase(ref.model)}/requests/${encodeURIComponent(ref.requestId)}`;
-      await call(falUrl(ref.cancelUrl, `${base}/cancel`), { method: "PUT" });
+      await call(falUrl(ref.cancelUrl, `${base}/cancel`), { method: "PUT" }, pollMs);
     },
   };
 }
