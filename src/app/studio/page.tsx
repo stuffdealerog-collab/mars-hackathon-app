@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { Studio } from "@/components/studio/Studio";
 import { botUsername } from "@/components/ui/bot";
-import { langOf, META, ogImage } from "@/components/ui/meta";
+import { langOf, META, ogImage, ogLocale } from "@/components/ui/meta";
 
 // The Studio's own title, description and share card, in the language of ?lang= (uz by default).
 export async function generateMetadata({ searchParams }: PageProps<"/studio">): Promise<Metadata> {
@@ -13,7 +13,7 @@ export async function generateMetadata({ searchParams }: PageProps<"/studio">): 
   return {
     title: m.title,
     description: m.description,
-    openGraph: { title: og, description: m.description, images: [ogImage(lang)], locale: lang },
+    openGraph: { title: og, description: m.description, images: [ogImage(lang)], locale: ogLocale(lang) },
     twitter: { card: "summary_large_image", title: og, description: m.description, images: [ogImage(lang)] },
   };
 }

@@ -47,7 +47,7 @@ Success: the owner understands the page in 5 seconds, pastes a link, watches the
 - **No silent sample data.** A failed call shows an owner-safe message with "Qayta urinish". Sample data exists only behind `?mock=1` and always sits under a "Namuna" banner.
 - Price, shown as beta: 7 days free, then 149 000 so‘m a month. No billing exists yet.
 - UI languages: Uzbek Latin first, Russian, English, switchable on every page (`uz · ru · en`).
-- Pages: `/` landing, `/studio`, `/tg` Mini App, `/qr` (booth QR codes), `/stats` (counts only, no names, not indexed). `/concept` is gone.
+- Pages: `/` landing, `/about` (how it works, opened from the landing's "Batafsil"; a live count of people and channels from `GET /api/public/traction`, counts only), `/studio`, `/tg` Mini App, `/qr` (booth QR codes), `/stats` (counts only, no names, not indexed). `/concept` is gone.
 
 ## Brand Commitments
 

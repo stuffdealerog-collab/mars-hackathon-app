@@ -11,6 +11,7 @@ const isLang = (v: unknown): v is Lang => v === "uz" || v === "ru" || v === "en"
 type PageMeta = { title: string; description: string };
 type LangMeta = {
   landing: PageMeta & { ogTitle: string; ogDescription: string };
+  about: PageMeta;
   studio: PageMeta;
   ogAlt: string;
 };
@@ -23,6 +24,11 @@ export const META: Record<Lang, LangMeta> = {
         "Telegram kanalingiz havolasini qo‘ying: Mercat kanalni o‘qiydi, nimani tuzatish kerakligini raqamlar bilan ko‘rsatadi va bir haftalik postlarni rasmlari bilan tayyorlaydi. Siz faqat tasdiqlaysiz.",
       ogTitle: "Kanalingizga postlarni Mercat yozadi",
       ogDescription: "Havolani qo‘ying: kanal tahlili, haftalik reja va rasmli postlar. Siz faqat tasdiqlaysiz.",
+    },
+    about: {
+      title: "Mercat qanday ishlaydi",
+      description:
+        "Kanal havolasidan kanalingizda chiqqan postgacha: tahlil, haftalik reja, sizning uslubingizdagi postlar, tasdiqlash, o‘z vaqtida chiqish va dushanba hisoboti. Nima tayyor va nima hali tayyor emas.",
     },
     studio: {
       title: "Studiya",
@@ -38,6 +44,11 @@ export const META: Record<Lang, LangMeta> = {
       ogTitle: "Посты для вашего канала пишет Mercat",
       ogDescription: "Вставьте ссылку: разбор канала, план на неделю и посты с картинками. Вы только утверждаете.",
     },
+    about: {
+      title: "Как работает Mercat",
+      description:
+        "От ссылки на канал до поста в вашем канале: разбор, план на неделю, посты в вашем стиле, ваше подтверждение, выход в нужное время и отчёт по понедельникам. Что уже работает и что ещё нет.",
+    },
     studio: {
       title: "Студия",
       description: "Вставьте ссылку на канал: отдел Mercat прочитает его, составит план на неделю и напишет посты с картинками. Каждый утверждаете вы.",
@@ -51,6 +62,11 @@ export const META: Record<Lang, LangMeta> = {
         "Paste your Telegram channel link: Mercat reads the channel, shows in numbers what to fix and prepares a week of posts with pictures. You only approve.",
       ogTitle: "Mercat writes the posts for your channel",
       ogDescription: "Paste the link: a channel review, a week's plan and posts with pictures. You only approve.",
+    },
+    about: {
+      title: "How Mercat works",
+      description:
+        "From your channel link to a post in your channel: the review, the week's plan, posts in your style, your approval, posting on time and the Monday report. What works today and what does not yet.",
     },
     studio: {
       title: "Studio",
@@ -66,7 +82,14 @@ export function langOf(value: string | string[] | undefined): Lang {
   return isLang(v) ? v : "uz";
 }
 
+/** Open Graph wants language_TERRITORY. */
+const OG_LOCALE: Record<Lang, string> = { uz: "uz_UZ", ru: "ru_RU", en: "en_US" };
+export const ogLocale = (lang: Lang) => OG_LOCALE[lang];
+
 export const ogImage = (lang: Lang) => ({ url: `/brand/og-${lang}.png`, width: 1200, height: 630, alt: META[lang].ogAlt });
 
+export type MetaPage = "landing" | "about" | "studio";
+
 /** The browser tab's title, as the server's metadata would give it for this page and language. */
-export const tabTitle = (page: "landing" | "studio", lang: Lang) => (page === "landing" ? META[lang].landing.title : `${META[lang].studio.title} · Mercat`);
+export const tabTitle = (page: MetaPage, lang: Lang) =>
+  page === "landing" ? META[lang].landing.title : `${META[lang][page].title} · Mercat`;

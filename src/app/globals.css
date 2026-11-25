@@ -845,6 +845,157 @@
   }
 }
 
+/* ------------------------------------------------------------ /about */
+/* A chapter's employees: the ember of each lamp's colour, its light kept in the slot (ready, not working). */
+.about-ember {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  flex: none;
+  border-radius: 3px;
+  background: var(--ember);
+}
+/* The sample link field's caret (lime, like every caret here), blinking as a caret does. */
+.about-caret {
+  animation: about-caret 1.06s steps(1) infinite;
+}
+@keyframes about-caret {
+  50% {
+    opacity: 0;
+  }
+}
+/* The sample post's ending: the channel's own way of closing a post. */
+.about-ending {
+  text-decoration: underline;
+  text-decoration-color: var(--ink-3);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 5px;
+}
+/* The department beside the story, held about the middle of the window. */
+.about-sticky {
+  top: clamp(8px, calc(50vh - 360px), 96px);
+}
+.about-panel .lamp__result {
+  min-height: 0;
+}
+/* Two levels of light while the story is read. The employees of the chapter being read burn at full strength (and
+   flicker on when they light); a lamp whose chapter is behind the reader holds its result at a lower level: the
+   filament keeps its hue, the glow cools to about a fifth over the usual 1000 ms ease-in, the spill almost goes and the
+   title returns to the idle weight. So the light moves from employee to employee instead of filling the panel. */
+.lamp.lamp--held .lamp__glow {
+  opacity: 0.22;
+  /* An animation, not a transition: the glow's full light comes from lamp-on, and a transition would
+     start from the base value and jump. Back at work, lamp-on returns and the lamp flickers on again. */
+  animation: lamp-hold var(--t-off) var(--ease-in) both;
+}
+@keyframes lamp-hold {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.22;
+  }
+}
+.lamp.lamp--held .lamp__spill {
+  opacity: 0.04;
+  transition: opacity var(--t-off) var(--ease-in);
+}
+.lamp.lamp--held .lamp__filament {
+  background: var(--hue);
+  box-shadow: 0 0 4px var(--hue-a);
+}
+.lamp.lamp--held .lamp__title {
+  font-weight: 450;
+}
+.about-faq summary:hover {
+  color: var(--ink);
+}
+.about-faq[open] summary {
+  color: var(--ink);
+}
+
+/* The landing's "Batafsil": a quiet pill with one small lamp in it. When "Qanday ishlaydi" comes into view the
+   button rises into place and the lamp's filament comes on with the lamp's own flicker. */
+.learn-lamp {
+  position: relative;
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 7px;
+  background: var(--glass-3);
+  box-shadow: inset 0 0 0 1px var(--hair-2);
+}
+.learn-lamp::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 10px;
+  height: 2px;
+  margin-left: -5px;
+  border-radius: 2px;
+  background: rgb(255 214 160 / 0.45);
+}
+.learn-more[data-lit] .learn-lamp::after {
+  background: #ffd6a0;
+  box-shadow: 0 0 7px 1px #ffd6a0;
+  animation: lamp-on var(--t-on) linear 0.22s both;
+}
+/* The small lamp's own light, kept inside the pill around the lamp: the button warms when it comes on. */
+.learn-more {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.learn-more::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(70px 46px at 24px 18%, rgb(255 214 160 / 0.2), rgb(255 214 160 / 0.06) 55%, transparent 100%);
+  opacity: 0;
+  pointer-events: none;
+}
+.learn-more[data-lit]::before {
+  opacity: 1;
+  animation: lamp-on var(--t-on) linear 0.22s both;
+}
+/* The row (pill and count) rises 18 px into the place held for it over the lamp's own warm-up time and fades in over
+   the first part of it; a keyboard focus shows it at once. Transform and opacity only: nothing around it moves. */
+.learn-row[data-reveal="wait"] {
+  opacity: 0;
+  transform: translateY(18px);
+}
+.learn-row[data-reveal="play"] {
+  transition:
+    opacity 420ms var(--ease-out),
+    transform var(--t-on) var(--ease-out);
+}
+.learn-more .learn-arrow {
+  transition: transform var(--t-state) var(--ease-out);
+}
+.learn-more:hover .learn-arrow {
+  transform: translateX(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-caret,
+  .learn-more[data-lit] .learn-lamp::after,
+  .learn-more[data-lit]::before {
+    animation: none;
+  }
+  .learn-more:hover .learn-arrow {
+    transform: none;
+  }
+  /* useReveal never hides under reduced motion; this keeps a stray state from moving anything. */
+  .learn-row[data-reveal] {
+    transform: none;
+    transition: opacity 150ms linear;
+  }
+}
+
 /* ============================================================ computer screens
  * Everything below hangs on .desk, the root class of DesktopStudio and Landing. Phones, /tg,
  * the Mini App and the light theme keep the look above. Remove "desk" from those two roots
@@ -919,7 +1070,11 @@
     background: var(--ember);
     box-shadow: 0 0 8px var(--ember-glow);
   }
-  /* The work light: static, behind the canvas's content. */
+  /* The work light: static, behind the canvas's content. Its source is above the window, so its
+     box starts at the page's top edge (the Studio's canvas: -24px cancels its padding; the
+     landing hangs it from the page, data-at="page"): a box that starts lower cuts the light at
+     its brightest and leaves a dark strip with a hard line above the headline. The sides fade
+     out with a mask, so no width ever shows the box's edge. */
   .desk .work-light {
     position: absolute;
     left: 50%;
@@ -929,6 +1084,11 @@
     height: 900px;
     transform: translateX(-50%);
     pointer-events: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  }
+  .desk .work-light[data-at="page"] {
+    top: 0;
   }
   /* Only the glass lip on top: no ring around the tile, so no grey frame circles a dark bottom. */
   .desk .lamp:is(.lamp--sm, .lamp--md, .lamp--xs) .lamp__glow::after {
@@ -1135,6 +1295,28 @@
     }
     .desk .lamp--xs {
       border: 1px solid CanvasText;
+    }
+  }
+
+  /* /about: the department beside the story. Tiles print the sample result, the name and the job
+     under the bulb, so the words start where the light has fallen (50 px); the result's line is
+     held while the tile is dark. Short windows keep the result and the name (the job is in the
+     line under the panel). */
+  .desk:not([data-theme="light"]) .about-panel .lamp.lamp--sm {
+    min-height: 132px;
+  }
+  .desk:not([data-theme="light"]) .about-panel .lamp.lamp--sm .lamp__body {
+    padding: 50px 14px 13px;
+  }
+  @media (max-height: 820px) {
+    .desk:not([data-theme="light"]) .about-panel .lamp.lamp--sm {
+      min-height: 100px;
+    }
+    .desk:not([data-theme="light"]) .about-panel .lamp.lamp--sm .lamp__body {
+      padding-top: 46px;
+    }
+    .desk .about-panel .lamp__job {
+      display: none;
     }
   }
 
