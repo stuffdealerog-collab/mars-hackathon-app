@@ -51,6 +51,29 @@ export function weeklyEligibility(b: Pick<WeeklyBrand, "autopilot" | "channel" |
 /** Next week fits in the brand's monthly cap. */
 export const withinCap = (spentUsd: number, nextUsd: number, capUsd: number) => spentUsd + nextUsd <= capUsd + 1e-9;
 
+const round4 = (n: number) => Math.round(n * 1e4) / 1e4;
+
+/**
+ * Runs one try of the week with its Claude spend written as it happens (`autopilot_spend` events, which the cap sums):
+ * the try's expected cost before it starts, since a run cut off when the tick stops waiting never reaches its end;
+ * then, at the end (a throw included), the difference to what its calls really cost (negative when cheaper).
+ */
+export async function withSpend<T>(o: {
+  expectedUsd: number;
+  /** What the calls of this try have cost so far, read once at the end. */
+  actualUsd(): number;
+  log(usd: number, part: "expected" | "correction"): Promise<void>;
+  run(): Promise<T>;
+}): Promise<T> {
+  await o.log(round4(o.expectedUsd), "expected");
+  try {
+    return await o.run();
+  } finally {
+    const diff = round4(o.actualUsd() - o.expectedUsd);
+    if (diff !== 0) await o.log(diff, "correction");
+  }
+}
+
 /** The plan items that become posts: not videos (those wait for the owner's own video), in plan order. */
 export function pickWeekSlots<T extends { format?: string; day: string; time: string }>(items: readonly T[], n: number): T[] {
   const order = (a: T, b: T) => `${a.day} ${a.time}`.localeCompare(`${b.day} ${b.time}`);

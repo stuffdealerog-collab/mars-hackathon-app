@@ -48,11 +48,14 @@ vi.mock("@/lib/uslub/http", async () => await import("../src/lib/uslub/http"));
 vi.mock("@/lib/uslub/store", async () => await import("../src/lib/uslub/store"));
 vi.mock("@/lib/uslub/context", async () => await import("../src/lib/uslub/context"));
 vi.mock("@/lib/autopilot/approve", async () => await import("../src/lib/autopilot/approve"));
+vi.mock("@/lib/autopilot/week-hash", async () => await import("../src/lib/autopilot/week-hash"));
 vi.mock("@/lib/autopilot/service", async () => await import("../src/lib/autopilot/service"));
 
 const store = await import("../src/lib/uslub/store");
 const approveWeekRoute = await import("../src/app/api/uslub/posts/approve-week/route");
 const autopilotRoute = await import("../src/app/api/uslub/autopilot/route");
+import { selectWeekBatch } from "../src/lib/autopilot/week";
+import { weekHashForClient } from "../src/lib/autopilot/week-hash";
 import type { BrandDNA, PostDraft } from "../src/lib/uslub/contract";
 
 const OWNER = 7;
@@ -78,6 +81,13 @@ async function brandWithPosts(owner: number | null, specs: { text: string; day?:
   }));
   await store.savePosts(posts);
   return { brand, posts };
+}
+
+/** What the Studio / Mini App sends: the hash of the week on screen, computed in the client's own way. */
+async function shownWeekHash(brandId: string): Promise<string> {
+  const posts = await store.listPosts(brandId, 50);
+  const batch = selectWeekBatch({ posts, channel: "nonvoy", languages: ["uz_latn"], now: Date.now() });
+  return weekHashForClient(batch, posts);
 }
 
 const post = (body: unknown, user?: number) =>
@@ -165,6 +175,38 @@ describe("POST /api/uslub/posts/approve-week", () => {
     const { brand, posts } = await brandWithPosts(OWNER, [{ text: "Bir." }, { text: "Ikki.", day: "2026-12-02" }]);
     const body = (await (await post({ brandId: brand.id, postIds: [posts[1].id] }, OWNER)).json()) as { queued: { postId: string }[] };
     expect(body.queued.map((q) => q.postId)).toEqual([posts[1].id]);
+  });
+
+  it("hash = the week the owner was shown: approved as usual", async () => {
+    const { brand, posts } = await brandWithPosts(OWNER, [{ text: "Yangi non." }, { text: "Tort narxi: [narx].", day: "2026-12-02" }]);
+    const hash = await shownWeekHash(brand.id);
+    const res = await post({ brandId: brand.id, hash }, OWNER);
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { queued: { postId: string }[] }).queued.map((q) => q.postId)).toEqual([posts[0].id]);
+  });
+
+  it("the week changed after it was shown (an edit, a new batch, a finished picture): 409 batch_changed, nothing approved", async () => {
+    const { brand, posts } = await brandWithPosts(OWNER, [{ text: "Yangi non." }, { text: "Somsa issiq.", day: "2026-12-02" }]);
+    const hash = await shownWeekHash(brand.id);
+    const changes: (() => Promise<unknown>)[] = [
+      () => store.savePosts([{ ...posts[0], variants: { ...posts[0].variants, uz_latn: "Boshqa matn." } }]),
+      () => store.savePosts([{ ...posts[1], image: { status: "ready", url: "https://v3.fal.media/files/x/picture.png", refsUsed: 1 } }]),
+    ];
+    for (const change of changes) {
+      await change();
+      const res = await post({ brandId: brand.id, hash, lang: "en" }, OWNER);
+      expect(res.status).toBe(409);
+      expect(await res.json()).toMatchObject({ code: "batch_changed", error: "The week's posts changed after you opened them. Look at the new list and approve again." });
+      expect(queue.size).toBe(0);
+      expect((await store.getPost(posts[0].id))?.status).toBe("draft");
+    }
+  });
+
+  it("a hash that is not one: 400", async () => {
+    const { brand } = await brandWithPosts(OWNER, [{ text: "Yangi non." }]);
+    const res = await post({ brandId: brand.id, hash: "not a hash" }, OWNER);
+    expect(res.status).toBe(400);
+    expect(queue.size).toBe(0);
   });
 
   it("the bot cannot post in the channel yet: queued, with the admin status and the add-the-bot link", async () => {

@@ -7,11 +7,14 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/env", () => ({ getEnv: () => ({ BOT_USERNAME: "test_bot" }) }));
 const repo = vi.hoisted(() => ({ recordPublication: vi.fn(async () => {}) }));
 vi.mock("@/lib/autopilot/repo", () => repo);
-const tg = vi.hoisted(() => ({ sends: 0, sendError: null as Error | null }));
+const tg = vi.hoisted(() => ({ sends: 0, sendError: null as Error | null, getMeError: null as Error | null }));
 vi.mock("@/lib/bot", () => ({
   getBot: () => ({
     api: {
-      getMe: async () => ({ id: 999 }),
+      getMe: async () => {
+        if (tg.getMeError) throw tg.getMeError;
+        return { id: 999 };
+      },
       getChatMember: async () => ({ status: "administrator", can_post_messages: true }),
       sendMessage: async () => {
         tg.sends++;
@@ -97,6 +100,7 @@ async function tick(attempts = 1) {
 beforeEach(() => {
   tg.sends = 0;
   tg.sendError = null;
+  tg.getMeError = null;
   st.markPublished.mockReset();
   st.markPublished.mockImplementation(async () => {});
   repo.recordPublication.mockReset();
@@ -149,5 +153,34 @@ describe("publishPost: a post Telegram accepted is never reported as failed", ()
     const t = await tick();
     expect(t.finished).toEqual([{ status: "queued", error: "retry" }]);
     expect(t.told).toEqual([]);
+  });
+
+  it("Telegram answered a 5xx to the send: it may have posted it, so no `sent: false`; the queue marks it unknown and never resends", async () => {
+    for (const [code, description] of [
+      [500, "Internal Server Error"],
+      [502, "Bad Gateway"],
+    ] as const) {
+      tg.sendError = new GrammyError("Call to 'sendMessage' failed!", { ok: false, error_code: code, description }, "sendMessage", {});
+      const res = await publishPost({ postId: POST.id, script: "uz_latn", chat: "@nonvoy", userId: 7 });
+      expect(res.ok).toBe(false);
+      expect(res.sent).toBeUndefined();
+
+      tg.sends = 0;
+      const t = await tick();
+      expect(tg.sends).toBe(1);
+      expect(t.finished).toEqual([{ status: "unknown", error: "unknown" }]);
+      expect(t.counts.retried).toBe(0);
+      expect(t.told).toEqual(["unknown"]);
+    }
+  });
+
+  it("a 5xx before the send (checking the channel rights) is still safe to try again: nothing was sent", async () => {
+    tg.getMeError = new GrammyError("Call to 'getMe' failed!", { ok: false, error_code: 502, description: "Bad Gateway" }, "getMe", {});
+    const res = await publishPost({ postId: POST.id, script: "uz_latn", chat: "@nonvoy", userId: 7 });
+    expect(res).toMatchObject({ ok: false, status: 502, sent: false });
+    expect(tg.sends).toBe(0);
+
+    const t = await tick();
+    expect(t.finished).toEqual([{ status: "queued", error: "retry" }]);
   });
 });

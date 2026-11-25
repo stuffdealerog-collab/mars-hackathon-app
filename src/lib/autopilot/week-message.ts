@@ -10,6 +10,7 @@ import type { PostDraft } from "../uslub/contract";
 import { clip } from "../uslub/text";
 import { say, skipReason, whenLabel } from "./copy";
 import type { WeekBatch } from "./week";
+import { weekHashText } from "./week-hash";
 import { slotTime } from "./time";
 
 /** "apw:<brandId>:<hash>" (≤ 64 bytes: 4 + 36 + 1 + 16 = 57). */
@@ -23,14 +24,18 @@ export const GOAL_RE = /^apg:([0-9a-f-]{36}):(sale|grow)$/;
 /** "apo:<brandId>:<bucket>": the weekly orders answer of a brand without last week's plan. */
 export const ORDERS_RE = /^apo:([0-9a-f-]{36}):(0|1|4|10)$/;
 
-/** Binds [Approve all] to the posts shown and their text and picture: any change shows the list again. */
-export function weekHash(batch: WeekBatch, posts: readonly PostDraft[]): string {
+/**
+ * Binds [Approve all] (and the web's approve-week `hash`) to the posts shown and their text and picture: any change
+ * shows the list again. The same value as week-hash.ts weekHashForClient, computed with node:crypto.
+ */
+export function weekHash(batch: Pick<WeekBatch, "ready">, posts: readonly PostDraft[]): string {
   const byId = new Map(posts.map((p) => [p.id, p]));
-  const parts = batch.ready.map((r) => {
-    const p = byId.get(r.postId);
-    return `${r.postId}:${p ? shownHash(p, r.script) : ""}`;
-  });
-  return textHash(parts.join("|") || "empty");
+  return textHash(
+    weekHashText(batch, (id, script) => {
+      const p = byId.get(id);
+      return p ? shownHash(p, script) : "";
+    }),
+  );
 }
 
 const hookOf = (p: PostDraft | undefined) => {

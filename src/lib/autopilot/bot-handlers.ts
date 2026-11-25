@@ -17,7 +17,7 @@ import { chatKey, memberChange, reactionTotals } from "./signals";
 import { botAdminFrom, readAutopilot, trialDaysLeft } from "./state";
 import { isoWeek, weekBounds } from "./time";
 import { selectWeekBatch } from "./week";
-import { APPROVE_WEEK_RE, AUTOPILOT_RE, GOAL_RE, ORDERS_RE, WEEK_RETRY_RE, weekHash, weekMessage } from "./week-message";
+import { APPROVE_WEEK_RE, AUTOPILOT_RE, GOAL_RE, ORDERS_RE, WEEK_RETRY_RE, weekMessage } from "./week-message";
 
 /**
  * The autopilot in the bot (registered once in src/lib/bot.ts with registerAutopilot(bot), before the bot's own
@@ -98,9 +98,9 @@ export function registerAutopilot(b: Bot): void {
     await ctx.answerCallbackQuery().catch(() => undefined);
     const owned = brand as StoredBrand;
     const posts = await listPosts(owned.id, 50);
-    const batch = selectWeekBatch({ posts, channel: owned.channel, languages: owned.dna?.languages, now: Date.now() });
-    if (!batch.ready.length || weekHash(batch, posts) !== hash) return void (await sendWeekView(ctx.api, chatId, locale, owned, "changed"));
-    const res = await approveWeek({ brand: owned, ownerTelegramId: ctx.from.id, api: ctx.api, posts });
+    // Only the week shown (hash): any change, or nothing left to approve, shows the week again.
+    const res = await approveWeek({ brand: owned, ownerTelegramId: ctx.from.id, api: ctx.api, posts, hash });
+    if (res.changed) return void (await sendWeekView(ctx.api, chatId, locale, owned, "changed"));
     await ctx.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => undefined);
     const byId = new Map(posts.map((p) => [p.id, p]));
     const lines = [say(locale, "week_done"), ...res.queued.map((q) => `• ${whenLabel(Date.parse(q.dueAt), locale)} — ${(byId.get(q.postId)?.slot?.hook ?? "").slice(0, 60)}`)];

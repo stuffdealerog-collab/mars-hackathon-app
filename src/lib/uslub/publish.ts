@@ -24,9 +24,10 @@ export function addBotAsAdminLink(): string {
 }
 
 /**
- * `sent` is set on failures only: false = nothing reached the channel (a check refused, Telegram answered with an
- * error, or a step before the send failed), so trying again cannot post twice. A failure without `sent` is a send
- * that may have reached the channel (a network error or timeout while sending): never resend it on its own.
+ * `sent` is set on failures only: false = nothing reached the channel (a check refused, Telegram refused the send
+ * with a 4xx, or a step before the send failed), so trying again cannot post twice. A failure without `sent` is a
+ * send that may have reached the channel (a network error, a timeout or a Telegram 5xx while sending): never resend
+ * it on its own.
  */
 export type PublishResult = { ok: boolean; status: number; url?: string; error?: string; addAdminUrl?: string; sent?: false };
 
@@ -172,11 +173,13 @@ export async function publishPost(args: {
     try {
       messageId = await sendPlanned(target, planPostMessages(sendText, imageUrl));
     } catch (err) {
-      if (err instanceof GrammyError) {
-        // Telegram answered with an error: this post is not in the channel (sendPlanned took back any earlier part).
+      if (err instanceof GrammyError && err.error_code < 500) {
+        // Telegram refused the send (400, 403, 429): this post is not in the channel (sendPlanned took back any
+        // earlier part).
         return { ok: false, status: 502, error: `Telegram xatosi: ${err.description}`, addAdminUrl, sent: false };
       }
-      // A network error or timeout while sending, or part of the post left behind: it may be in the channel.
+      // A network error or timeout while sending, part of the post left behind, or a 5xx from Telegram (its server
+      // failed while handling the send, which may still have posted it): it may be in the channel.
       console.error("[uslub/publish] send interrupted:", err instanceof Error ? err.message : err);
       return { ok: false, status: 502, error: "Telegramga yuborib bo‘lmadi" };
     }

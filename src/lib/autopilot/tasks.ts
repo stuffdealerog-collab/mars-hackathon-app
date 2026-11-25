@@ -60,7 +60,7 @@ import { isoWeek, tashkentDate } from "./time";
 import { latestWeekBatch, selectWeekBatch } from "./week";
 import { weekMessage } from "./week-message";
 import { runWeekMessages } from "./week-ready";
-import { pickWeekSlots, runWeekly, type WeeklyBrand, type WeeklyDeps } from "./weekly";
+import { pickWeekSlots, runWeekly, type WeeklyBrand, type WeeklyDeps, withSpend } from "./weekly";
 
 /**
  * The autopilot's tick tasks (registered in src/lib/cron/tasks.ts, publish-due first). Budgets add up to 220 s, so
@@ -78,6 +78,8 @@ const envNum = (name: string, fallback: number, min = 0, max = Number.MAX_SAFE_I
 const activeDays = () => envNum("AUTOPILOT_ACTIVE_DAYS", 14, 1, 365);
 const postsPerWeek = () => Math.round(envNum("AUTOPILOT_POSTS_PER_WEEK", 3, 1, 5));
 const imageUsd = () => envNum("AUTOPILOT_IMAGE_USD", 0.08, 0, 10);
+/** What one try of a brand's week (plan + posts) is expected to cost in Claude, USD. */
+const weekClaudeUsd = () => envNum("AUTOPILOT_WEEK_USD", 0.4, 0, 100);
 
 /* ------------------------------------------------------------ publish-due */
 
@@ -268,70 +270,80 @@ async function generateWeek(b: WeeklyBrand, deadline: number): Promise<number> {
   const brand = await getBrand(b.id);
   if (!brand?.channel || brand.ownerTelegramId !== b.ownerTelegramId) return 0;
   const owner = b.ownerTelegramId;
-  const lang = b.locale;
-  return runWithContext({ route: "cron/weekly", lang, telegramId: owner }, async () => {
+  const channel = brand.channel;
+  return runWithContext({ route: "cron/weekly", lang: b.locale, telegramId: owner }, async () => {
     const ctx = currentContext();
     try {
       // The app-wide daily Claude ceiling still holds: a plan and its posts are 2 units, as a bot onboarding.
       const budget = await takeUnits({ actor: spenderKey(owner, ""), anonymous: false, weight: 2, route: "cron/weekly" }).catch(() => "ok" as const);
       if (budget !== "ok") throw new Error(`claude budget: ${budget}`);
-      const known = await loadKnowledge(brand.id).catch(() => ({ text: "" }));
-      const knowledge = [known.text, brand.knowledge].filter(Boolean).join("\n\n");
-      const result = await buildStrategy({
-        knowledge,
-        channel: brand.channel,
-        lang,
-        category: brand.dna?.oneLiner?.slice(0, 80),
-        brandName: brand.dna?.name,
-        brandId: brand.id,
-        ownerTelegramId: owner,
-        ownerVerified: brand.source === "custom",
+      const week = isoWeek(Date.now());
+      // The try counts toward the brand's cap before its first Claude call (a run cut off with the tick still counts).
+      return await withSpend({
+        expectedUsd: weekClaudeUsd(),
+        actualUsd: () => (ctx?.usage.length ? summarizeUsage("cron/weekly", ctx.usage).usd : 0),
+        log: (usd, part) => safeLogEvent(owner, "autopilot_spend", { brand_id: b.id, usd, week, part }),
+        run: () => writeWeek(b, { ...brand, channel }, deadline),
       });
-      await savePlanView(brand.id, {
-        mode: "channel",
-        plan: result.plan,
-        strategy: result.strategy,
-        ownerQuestions: result.ownerQuestions,
-        planTag: result.planTag,
-        lang,
-        createdAt: new Date().toISOString(),
-      }).catch(() => undefined);
-
-      const items = result.plan.items.map((it, i) => ({ ...it, n: Number((it as { slot?: unknown }).slot) || i + 1 }));
-      const picked = pickWeekSlots(items, postsPerWeek());
-      const batchAt = new Date().toISOString();
-      const postsDeadline = Math.min(deadline, Date.now() + 60_000);
-      const written = await Promise.allSettled(
-        picked.map(async (it) => {
-          const s = { day: it.day, time: it.time, goal: it.goal, hook: it.hook, cta: it.cta, brief: it.brief, format: it.format };
-          const [post] = await generatePosts(brand, slotBrief(s), 1, {
-            slot: { ...toPlanSlot(s), ...(it.format ? { format: it.format } : {}) },
-            storedBrief: slotSummary(s),
-            deadline: postsDeadline,
-            format: it.format,
-          });
-          if (!post) return null;
-          post.createdAt = batchAt;
-          await savePosts([post], owner);
-          return { post, n: it.n };
-        }),
-      );
-      const done = written.flatMap((r) => (r.status === "fulfilled" && r.value ? [r.value] : []));
-      if (result.planTag) await tagPosts(done.map((d) => ({ postId: d.post.id, tag: result.planTag as string, slot: d.n }))).catch(() => undefined);
-      if (!done.length) return 0;
-      // The owner approves the week with its pictures: the message waits for them (week-ready.ts, the next ticks).
-      const drawing = await startWeekPictures(brand, done.map((d) => d.post), owner, deadline);
-      if (drawing > 0) await queueWeekMessage(`week_msg:${b.id}:${isoWeek(Date.now())}`, b.id);
-      else await sendWeek(b, "ready");
-      return done.length;
     } finally {
-      if (ctx?.usage.length) {
-        const usd = summarizeUsage("cron/weekly", ctx.usage).usd;
-        await safeLogEvent(owner, "autopilot_spend", { brand_id: b.id, usd, week: isoWeek(Date.now()) });
-      }
       await flushUsage(ctx);
     }
   });
+}
+
+/** The plan, the posts and their pictures of one brand's week (generateWeek: within its budget and spend log). */
+async function writeWeek(b: WeeklyBrand, brand: StoredBrand & { channel: string }, deadline: number): Promise<number> {
+  const owner = b.ownerTelegramId;
+  const lang = b.locale;
+  const known = await loadKnowledge(brand.id).catch(() => ({ text: "" }));
+  const knowledge = [known.text, brand.knowledge].filter(Boolean).join("\n\n");
+  const result = await buildStrategy({
+    knowledge,
+    channel: brand.channel,
+    lang,
+    category: brand.dna?.oneLiner?.slice(0, 80),
+    brandName: brand.dna?.name,
+    brandId: brand.id,
+    ownerTelegramId: owner,
+    ownerVerified: brand.source === "custom",
+  });
+  await savePlanView(brand.id, {
+    mode: "channel",
+    plan: result.plan,
+    strategy: result.strategy,
+    ownerQuestions: result.ownerQuestions,
+    planTag: result.planTag,
+    lang,
+    createdAt: new Date().toISOString(),
+  }).catch(() => undefined);
+
+  const items = result.plan.items.map((it, i) => ({ ...it, n: Number((it as { slot?: unknown }).slot) || i + 1 }));
+  const picked = pickWeekSlots(items, postsPerWeek());
+  const batchAt = new Date().toISOString();
+  const postsDeadline = Math.min(deadline, Date.now() + 60_000);
+  const written = await Promise.allSettled(
+    picked.map(async (it) => {
+      const s = { day: it.day, time: it.time, goal: it.goal, hook: it.hook, cta: it.cta, brief: it.brief, format: it.format };
+      const [post] = await generatePosts(brand, slotBrief(s), 1, {
+        slot: { ...toPlanSlot(s), ...(it.format ? { format: it.format } : {}) },
+        storedBrief: slotSummary(s),
+        deadline: postsDeadline,
+        format: it.format,
+      });
+      if (!post) return null;
+      post.createdAt = batchAt;
+      await savePosts([post], owner);
+      return { post, n: it.n };
+    }),
+  );
+  const done = written.flatMap((r) => (r.status === "fulfilled" && r.value ? [r.value] : []));
+  if (result.planTag) await tagPosts(done.map((d) => ({ postId: d.post.id, tag: result.planTag as string, slot: d.n }))).catch(() => undefined);
+  if (!done.length) return 0;
+  // The owner approves the week with its pictures: the message waits for them (week-ready.ts, the next ticks).
+  const drawing = await startWeekPictures(brand, done.map((d) => d.post), owner, deadline);
+  if (drawing > 0) await queueWeekMessage(`week_msg:${b.id}:${isoWeek(Date.now())}`, b.id);
+  else await sendWeek(b, "ready");
+  return done.length;
 }
 
 /** The Monday report's buttons: the orders answer (sales), or the one-time goal question (type and goal unknown). */
@@ -357,7 +369,7 @@ function weeklyDeps(): WeeklyDeps {
     limits: {
       capUsd: brandMonthlyCapUsd(),
       // Plan and posts, plus the posts' pictures (started on the server with the week).
-      weekUsd: envNum("AUTOPILOT_WEEK_USD", 0.4, 0, 100) + postsPerWeek() * imageUsd(),
+      weekUsd: weekClaudeUsd() + postsPerWeek() * imageUsd(),
       activeDays: days,
     },
     async brands() {

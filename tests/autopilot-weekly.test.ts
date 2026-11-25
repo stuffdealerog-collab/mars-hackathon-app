@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { reportInputFrom } from "../src/lib/autopilot/report";
-import { pickWeekSlots, runWeekly, type WeeklyBrand, type WeeklyDeps, weeklyEligibility, withinCap } from "../src/lib/autopilot/weekly";
+import { pickWeekSlots, runWeekly, type WeeklyBrand, type WeeklyDeps, weeklyEligibility, withinCap, withSpend } from "../src/lib/autopilot/weekly";
 import { tashkentClock } from "../src/lib/cron/clock";
 
 const MONDAY_10 = Date.parse("2026-11-30T05:00:00Z"); // Monday 10:00 Tashkent
@@ -164,6 +164,55 @@ describe("runWeekly", () => {
     const h = harness([brand({ autopilot: { on: false } }), brand({ autopilot: { on: true, paused: "blocked" } })]);
     await runWeekly(h.deps, ctl, clock(MONDAY_10));
     expect(h.log).toEqual([]);
+  });
+});
+
+describe("the week's Claude spend is written as it happens (withSpend)", () => {
+  const ledger = () => {
+    const rows: { usd: number; part: string }[] = [];
+    return { rows, log: async (usd: number, part: string) => void rows.push({ usd, part }), sum: () => rows.reduce((s, r) => s + r.usd, 0) };
+  };
+
+  it("the expected cost is counted before the try starts: a run cut off when the tick stops waiting still counts", async () => {
+    const l = ledger();
+    let started = false;
+    const never = withSpend({
+      expectedUsd: 0.4,
+      actualUsd: () => 0.25,
+      log: l.log,
+      run: () => {
+        started = true;
+        return new Promise<number>(() => {}); // the function is frozen mid-run: no finally ever runs
+      },
+    });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(started).toBe(true);
+    expect(l.rows).toEqual([{ usd: 0.4, part: "expected" }]);
+    void never;
+  });
+
+  it("at the end the total is what the calls really cost, cheaper or dearer", async () => {
+    for (const actual of [0.12, 0.4, 0.61]) {
+      const l = ledger();
+      const n = await withSpend({ expectedUsd: 0.4, actualUsd: () => actual, log: l.log, run: async () => 3 });
+      expect(n).toBe(3);
+      expect(l.sum()).toBeCloseTo(actual, 6);
+      expect(l.rows.filter((r) => r.part === "correction")).toHaveLength(actual === 0.4 ? 0 : 1);
+    }
+  });
+
+  it("a try that throws is settled too, and the error goes on to runWeekly", async () => {
+    const l = ledger();
+    const run = withSpend({
+      expectedUsd: 0.4,
+      actualUsd: () => 0.05,
+      log: l.log,
+      run: async () => {
+        throw new Error("ai down");
+      },
+    });
+    await expect(run).rejects.toThrow("ai down");
+    expect(l.sum()).toBeCloseTo(0.05, 6);
   });
 });
 

@@ -154,7 +154,9 @@ export function getBot(): Bot {
   if (bot) return bot;
   const token = getEnv().TELEGRAM_BOT_TOKEN;
   if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not set");
-  const instance = new Bot(token);
+  // No Bot API call may hang for grammY's default 500 s: a send cut off at 60 s ends as "may have reached the
+  // channel" (never resent on its own), long before its publish claim could be taken over (store.ts, 330 s).
+  const instance = new Bot(token, { client: { timeoutSeconds: 60 } });
   // Every Bot API call (bot.api, ctx.api, publish.ts) leaves without half an emoji: Telegram rejects text that is
   // not valid UTF-8. Uploads (InputFile) and keyboards pass through untouched.
   instance.api.config.use((prev, method, payload, signal) => prev(method, wellFormedDeep(payload), signal));
