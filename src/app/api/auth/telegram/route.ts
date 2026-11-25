@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getEnv } from "@/lib/env";
 import { pickLocale } from "@/lib/i18n";
 import { validateInitData } from "@/lib/telegram-auth";
+import { eventStartPayload } from "@/lib/source-category";
 import { parseSource, track } from "@/lib/track";
 
 const BodySchema = z.object({ initData: z.string().min(1).max(8192) });
@@ -30,7 +31,7 @@ export async function POST(req: Request): Promise<Response> {
   await track(
     user,
     "miniapp_open",
-    { start_param: startParam?.slice(0, 64) ?? null, chat_type: result.chatType },
+    { start_param: eventStartPayload(startParam), chat_type: result.chatType },
     { source: parseSource(startParam) },
   );
 

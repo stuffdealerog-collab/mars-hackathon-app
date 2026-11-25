@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Suspense } from "react";
 import { getStats, STATS_TIMEZONE, type Stats } from "@/lib/stats";
-import AutoRefresh from "./auto-refresh";
+import { statsGate } from "@/lib/stats-access";
+import RefreshButton from "./refresh-button";
 
 export const metadata: Metadata = {
   title: "Live stats",
@@ -14,12 +16,11 @@ export default function StatsPage() {
     <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
       <header className="mb-10 flex flex-wrap items-end justify-between gap-4">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Mercat users, live</h1>
-        <p className="text-sm text-muted">Updates every 15 seconds</p>
+        <RefreshButton />
       </header>
       <Suspense fallback={<p className="text-muted">Loading stats…</p>}>
         <StatsContent />
       </Suspense>
-      <AutoRefresh seconds={15} />
     </main>
   );
 }
@@ -34,6 +35,11 @@ const timeFormat = new Intl.DateTimeFormat("en-GB", {
 });
 
 async function StatsContent() {
+  // src/proxy.ts asks for the password; checking again here keeps the data out of any response the proxy did not
+  // gate, and reading the request headers keeps this part out of the build-time prerender.
+  if (statsGate((await headers()).get("authorization")) !== "allow") {
+    return <p className="text-muted">Stats are private.</p>;
+  }
   const result = await getStats();
 
   if (!result.ok) {
@@ -43,7 +49,7 @@ async function StatsContent() {
         <p className="mt-2 text-muted">
           {result.error === "not_configured"
             ? "The database is not connected yet."
-            : "The database did not respond. Retrying automatically."}
+            : "The database did not respond. Press Refresh to try again."}
         </p>
       </div>
     );

@@ -1,5 +1,6 @@
 import "server-only";
 import { getSql, isDbConfigured } from "./db";
+import { sourceCategory } from "./source-category";
 
 export type TrackedUser = {
   id: number;
@@ -9,17 +10,13 @@ export type TrackedUser = {
   language_code?: string | null;
 };
 
-/** Telegram deep-link payloads allow only A-Z a-z 0-9 _ - (max 64 chars). */
-const PAYLOAD_RE = /^[A-Za-z0-9_-]{1,64}$/;
-
 /**
- * Turns a deep-link payload into a traffic source:
- *   "src_booth1" -> "booth1", "ref_42" -> "ref_42", invalid/empty -> null
+ * Turns a deep-link payload into the traffic source stored on the user: a category, never an id
+ * ("src_booth1" -> "booth1", "publish_<postId>" -> "publish", "brand_<id>" -> "brand", empty -> null).
+ * See source-category.ts.
  */
 export function parseSource(payload?: string | null): string | null {
-  const p = payload?.trim();
-  if (!p || !PAYLOAD_RE.test(p)) return null;
-  return p.startsWith("src_") && p.length > 4 ? p.slice(4) : p;
+  return sourceCategory(payload);
 }
 
 const clip = (value: string | null | undefined, max: number) =>

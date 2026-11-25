@@ -5,6 +5,7 @@ import { isAiConfigured } from "./ai";
 import { getSql, isDbConfigured } from "./db";
 import { getEnv, getPublicUrl } from "./env";
 import { formatDay, type Locale, pickLocale, t } from "./i18n";
+import { eventStartPayload } from "./source-category";
 import { parseSource, safeLogEvent, track } from "./track";
 import { botHandle, botProfile, syncBotProfile } from "./uslub/bot-profile";
 import { spenderKey, takeUnits } from "./uslub/budget-core";
@@ -173,7 +174,7 @@ function registerHandlers(b: Bot) {
     if (!from) return;
     const locale = pickLocale(from.language_code);
     const payload = typeof ctx.match === "string" ? ctx.match.trim() : "";
-    await track(from, "start", { payload: payload.slice(0, 64) || null }, { source: parseSource(payload) });
+    await track(from, "start", { payload: eventStartPayload(payload) }, { source: parseSource(payload) });
 
     // The Studio's "Kanalga joylash": t.me/<bot>?start=publish_<postId>[_<script>] — show the post, then publish.
     if (payload.startsWith("publish_")) {

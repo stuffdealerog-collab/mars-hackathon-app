@@ -2,6 +2,7 @@ import "server-only";
 import { cacheLife } from "next/cache";
 import { z } from "zod";
 import { getSql, isDbConfigured } from "./db";
+import { bucketSources, type SourceCount } from "./source-category";
 
 const CountsSchema = z.object({
   total_users: z.number(),
@@ -10,18 +11,17 @@ const CountsSchema = z.object({
   total_events: z.number(),
   events_today: z.number(),
 });
-const BySourceSchema = z.array(z.object({ source: z.string(), count: z.number() }));
+const BySourceSchema = z.array(z.object({ source: z.string().nullable(), count: z.number() }));
 const ByTypeSchema = z.array(z.object({ type: z.string(), count: z.number() }));
 const RecentSchema = z.array(
   z.object({
-    first_name: z.string().nullable(),
     // The driver returns timestamptz as a Date; keep an ISO string so it caches cleanly.
     created_at: z.coerce.date().transform((d) => d.toISOString()),
   }),
 );
 
 export type Stats = z.infer<typeof CountsSchema> & {
-  by_source: z.infer<typeof BySourceSchema>;
+  by_source: SourceCount[];
   by_type: z.infer<typeof ByTypeSchema>;
   recent_signups: z.infer<typeof RecentSchema>;
 };
@@ -32,9 +32,9 @@ export type StatsResult =
 export const STATS_TIMEZONE = "Asia/Tashkent";
 
 /**
- * Public aggregates for /stats (no usernames or ids leave the database), cached
- * and refreshed every ~10 s. All queries run in one read-only snapshot over a
- * single HTTP round trip.
+ * Aggregates for /stats (password-protected, see stats-access.ts; no names or ids leave this function), cached
+ * for ~10 s. All queries run in one read-only snapshot over a single HTTP round trip. Nothing polls: the database
+ * is read only when someone opens or refreshes the page.
  */
 export async function getStats(): Promise<StatsResult> {
   "use cache";
@@ -59,10 +59,9 @@ export async function getStats(): Promise<StatsResult> {
             (SELECT count(*)::int FROM events, day_start WHERE created_at >= day_start.ts) AS events_today
         `,
         sql`
-          SELECT COALESCE(NULLIF(source, ''), 'direct') AS source, count(*)::int AS count
+          SELECT source, count(*)::int AS count
           FROM app_users
           GROUP BY 1
-          ORDER BY 2 DESC, 1
         `,
         sql`
           SELECT type, count(*)::int AS count
@@ -71,7 +70,7 @@ export async function getStats(): Promise<StatsResult> {
           ORDER BY 2 DESC, 1
         `,
         sql`
-          SELECT first_name, created_at
+          SELECT created_at
           FROM app_users
           ORDER BY created_at DESC
           LIMIT 10
@@ -82,7 +81,7 @@ export async function getStats(): Promise<StatsResult> {
 
     const stats: Stats = {
       ...CountsSchema.parse(counts[0]),
-      by_source: BySourceSchema.parse(bySource),
+      by_source: bucketSources(BySourceSchema.parse(bySource)),
       by_type: ByTypeSchema.parse(byType),
       recent_signups: RecentSchema.parse(recent),
     };

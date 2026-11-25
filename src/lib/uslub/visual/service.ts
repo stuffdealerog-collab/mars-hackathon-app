@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash } from "node:crypto";
+import { anonIpKey } from "../../anon-key";
 import { readMediaConfig } from "../media/config";
 import type { VisualStyle } from "../contract";
 import type { StoredBrand } from "../store";
@@ -44,10 +44,10 @@ export function visualDeps(): LearnDeps {
 /** A learned style is reused for this long unless the owner adds photos or asks to refresh. */
 export const VISUAL_TTL_MS = 12 * 3600_000;
 
-/** Who asked, for the per-caller cap: the Telegram user, else a hash of the IP (no raw IPs stored). */
+/** Who asked, for the per-caller cap: the Telegram user, else a keyed hash of the IP (anon-key.ts; no raw IPs stored). */
 export function actorKey(telegramId: number | null, ip: string): string {
   if (telegramId != null) return `tg:${telegramId}`;
-  return `ip:${createHash("sha256").update(ip).digest("hex").slice(0, 16)}`;
+  return anonIpKey(ip, "media");
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

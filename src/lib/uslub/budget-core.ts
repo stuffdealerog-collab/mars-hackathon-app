@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash } from "node:crypto";
+import { anonIpKey } from "../anon-key";
 import { getSql, isDbConfigured, pgErrorCode } from "@/lib/db";
 
 /**
@@ -32,10 +32,10 @@ export function budgetLimits(env: Record<string, string | undefined> = process.e
   return { daily: num(env.CLAUDE_DAILY_LIMIT, 1500), anonDaily: num(env.CLAUDE_ANON_DAILY_LIMIT, 60) };
 }
 
-/** Who spends: the Telegram user, else a hash of the IP (raw IPs are never stored). */
+/** Who spends: the Telegram user, else a keyed hash of the IP (anon-key.ts; raw IPs are never stored). */
 export function spenderKey(telegramId: number | null, ip: string): string {
   if (telegramId != null) return `tg:${telegramId}`;
-  return `ip:${createHash("sha256").update(`claude:${ip}`).digest("hex").slice(0, 16)}`;
+  return anonIpKey(ip, "claude");
 }
 
 export type SpendResult = "ok" | "app" | "anonymous";
