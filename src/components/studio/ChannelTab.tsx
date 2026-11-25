@@ -7,6 +7,7 @@ import { isMachineEvidence, ownerText, plural, weekday } from "../ui/format";
 import { copyFor as mediaCopy, StyleRefs } from "@/components/media";
 import { authHeader, type PlanItemExtra } from "./api";
 import { useDesk, type RefsHandle } from "./desk";
+import { topFindings } from "./findings";
 import { slotKey, useStudio } from "./store";
 
 // Pro rejim only, loaded on demand: simple mode never downloads it.
@@ -14,12 +15,11 @@ const AuditFull = dynamic(() => import("./pro/ProDetails").then((m) => m.AuditFu
 const SufficiencyPanel = dynamic(() => import("./pro/ProDetails").then((m) => m.SufficiencyPanel), { ssr: false });
 const PlanRowDetails = dynamic(() => import("./pro/ProDetails").then((m) => m.PlanRowDetails), { ssr: false });
 
-const KIND_ORDER = { problem: 0, opportunity: 1, strength: 2 } as const;
-
 /**
- * Kanal. On a phone one column; on the desktop canvas (`wide`) what the channel is (numbers,
- * findings, voice) on the left and what to do about it (the week plan) on the right, with the
- * full audit across the bottom in Pro. Every section sizes itself from its own container.
+ * Kanal. On a phone one column; on the desktop canvas in Pro (`wide`) what the channel is
+ * (numbers, findings, the full audit) on the left and what to do about it (the week plan, the
+ * voice) on the right. Simple keeps to the findings, the picture style and the plan.
+ * Every section sizes itself from its own container.
  */
 export function ChannelTab({ wide = false }: { wide?: boolean }) {
   const c = useCopy();
@@ -41,7 +41,8 @@ export function ChannelTab({ wide = false }: { wide?: boolean }) {
         {findings}
         {mode === "fresh" && <Launch />}
         <PictureStyle />
-        <Voice />
+        {/* «Qanday yozasiz» is a marketer's table: Pro only. The posts already speak the voice. */}
+        {pro && <Voice />}
         <Plan />
         {pro && <StrategyDetails />}
         {pro && <SufficiencyPanel items={sufficiency} />}
@@ -249,7 +250,7 @@ function Numbers({ cells: withCells = true }: { cells?: boolean }) {
 function Findings({ audit, brief = false }: { audit: ChannelAudit; brief?: boolean }) {
   const c = useCopy();
   const lang = useLang((s) => s.lang);
-  const list = [...audit.findings].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]).slice(0, 3);
+  const list = topFindings(audit);
   if (!list.length) return <p className="text-[15px] text-ink-2">{c.channel.findingsNone}</p>;
   return (
     <ol className="flex flex-col gap-3">

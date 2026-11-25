@@ -4,12 +4,12 @@ import { LAMPS } from "../lamp/lamps";
 import { ownerText } from "../ui/format";
 import { fmt, useCopy, useLang } from "../ui/lang";
 import type { Lamps } from "./Department";
-import { refsWording, whenOf } from "./desk";
+import { refsWording, useDesk, whenOf } from "./desk";
+import { SCRIPT_ORDER, shownScripts, splitScripts } from "./scripts";
 import { slotKey, useStudio } from "./store";
 
 const PlanRowDetails = dynamic(() => import("./pro/ProDetails").then((m) => m.PlanRowDetails), { ssr: false });
 
-const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
 const SHORT: Record<Script, string> = { uz_latn: "UZ", uz_cyrl: "ЎЗ", ru: "RU", en: "EN" };
 
 /**
@@ -30,6 +30,16 @@ export function Inspector({ post, script, lamps }: { post: PostDraft; script: Sc
   const hits = edited?.[script] ? [] : (post.neuroHits[script] ?? []);
   const img = post.image;
   const sample = useStudio((s) => s.sample);
+  const channelLangs = useStudio((s) => s.brand?.dna.languages);
+  const revealed = useDesk((s) => s.moreScripts);
+  const setMore = useDesk((s) => s.setMoreScripts);
+  // English waits under «Yana» unless the channel writes it (scripts.ts).
+  const split = splitScripts(
+    SCRIPT_ORDER.filter((s) => post.variants[s]?.trim()),
+    channelLangs ?? [],
+  );
+  const shown = shownScripts(split, revealed, script);
+  const hidden = split.more.filter((s) => !shown.includes(s));
   const imgWord = sample ? c.sample.noImage : !img ? c.lampState.off : img.status === "ready" ? c.lampState.on : img.status === "failed" ? c.lampState.error : c.lampState.warming;
 
   return (
@@ -60,22 +70,36 @@ export function Inspector({ post, script, lamps }: { post: PostDraft; script: Sc
 
       <Section role="translator" lamps={lamps} title={c.insp.lang}>
         <div className="seg" role="group" aria-label={c.posts.langLabel}>
-          {SCRIPTS.filter((s) => post.variants[s]?.trim()).map((s, i) => (
-            <button key={s} type="button" aria-pressed={script === s} title={`${c.posts.scriptNames[s]} · ${i + 1}`} aria-keyshortcuts={String(i + 1)} onClick={() => setPostScript(s)}>
+          {shown.map((s) => (
+            <button
+              key={s}
+              type="button"
+              aria-pressed={script === s}
+              title={`${c.posts.scriptNames[s]} · ${SCRIPT_ORDER.indexOf(s) + 1}`}
+              aria-keyshortcuts={String(SCRIPT_ORDER.indexOf(s) + 1)}
+              onClick={() => setPostScript(s)}
+            >
               {SHORT[s]}
             </button>
           ))}
+          {hidden.length > 0 && (
+            <button type="button" className="text-ink-2" title={hidden.map((s) => c.posts.scriptNames[s]).join(", ")} onClick={() => setMore(true)}>
+              {c.posts.moreLangs}
+            </button>
+          )}
         </div>
         {edited && Object.keys(edited).length > 0 && <p className="mt-2 text-[12.5px] text-ink-3">{c.insp.cyrlStale}</p>}
       </Section>
 
-      <Section role="editor" lamps={lamps} title={c.lamps.editor.name}>
-        <p className="tnum text-[13.5px] font-medium">{fmt(c.insp.natural, { n: post.humanScore })}</p>
-        <p className="mt-1 text-[13px] leading-snug">
-          <span className="text-ink-2">{c.pro.flagged}: </span>
-          <span className={hits.length ? "text-bad" : "text-ink-2"}>{hits.length ? [...new Set(hits.map((h) => h.phrase))].slice(0, 6).join(", ") : c.pro.none}</span>
-        </p>
-      </Section>
+      {/* The editor signs only what it caught: a naturalness score that is always 98 says nothing. */}
+      {hits.length > 0 && (
+        <Section role="editor" lamps={lamps} title={c.lamps.editor.name}>
+          <p className="text-[13px] leading-snug">
+            <span className="text-ink-2">{c.pro.flagged}: </span>
+            <span className="text-bad">{[...new Set(hits.map((h) => h.phrase))].slice(0, 6).join(", ")}</span>
+          </p>
+        </Section>
+      )}
 
       <Section role="designer" lamps={lamps} title={c.insp.image}>
         <p className="text-[13.5px]">
@@ -84,10 +108,7 @@ export function Inspector({ post, script, lamps }: { post: PostDraft; script: Sc
         </p>
         {img?.error && <p className="mt-1 text-[12.5px] text-bad">{img.error}</p>}
       </Section>
-
-      <Section role="copywriter" lamps={lamps} title={c.insp.brief}>
-        <p className="text-[13.5px] leading-relaxed text-ink-2">{ownerText(post.brief.split("\n")[0], lang)}</p>
-      </Section>
+      {/* The brief is said once, under Strateg (PlanRowDetails); the copywriter's copy of it is gone. */}
     </aside>
   );
 }

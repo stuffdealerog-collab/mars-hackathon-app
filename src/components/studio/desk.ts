@@ -39,6 +39,9 @@ type Desk = {
   /** Any shortcut used once: the hint line under the preview may show. */
   keysUsed: boolean;
   setKeysUsed: () => void;
+  /** «Yana» was pressed: the post-language switches show the side languages too (scripts.ts). */
+  moreScripts: boolean;
+  setMoreScripts: (v: boolean) => void;
   imageHandle: ImageHandle | null;
   setImageHandle: (h: ImageHandle | null) => void;
   refsHandle: RefsHandle | null;
@@ -81,6 +84,8 @@ export const useDesk = create<Desk>((set, get) => ({
       /* fine */
     }
   },
+  moreScripts: false,
+  setMoreScripts: (moreScripts) => set({ moreScripts }),
   imageHandle: null,
   setImageHandle: (imageHandle) => set({ imageHandle }),
   refsHandle: null,

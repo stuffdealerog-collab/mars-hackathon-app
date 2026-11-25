@@ -25,8 +25,10 @@ export type IntroCopy = {
   steps: { title: string; line: string }[];
   /** «Kanalim hali bo‘sh» row in the link demo */
   empty: string;
-  /** The add-the-bot card. {bot} is the bot's @username. */
+  /** The add-the-bot card. {bot} is the bot's @username, {channel} the owner's channel. */
   admin: {
+    /** the card's title when the owner's channel is known (at a publish) */
+    title: string;
     /** three short steps for doing it by hand in Telegram */
     how: string[];
     /** the lime button: Telegram's channel picker with the post right already on */
@@ -35,12 +37,15 @@ export type IntroCopy = {
     later: string;
     /** quiet, once the link was opened: open it again */
     reopen: string;
-    /** lime, once the link was opened: close the intro */
+    /** lime, once the link was opened: close the intro (at a publish: publish again) */
     done: string;
-    demo: { list: string; you: string; owner: string; bot: string; can: string };
+    /** at a publish: the post is being published again */
+    checking: string;
+    /** at a publish: it came back, the bot is still not an admin */
+    notYet: string;
+    /** `yours`: the channel's name when the host does not know it */
+    demo: { list: string; you: string; owner: string; bot: string; can: string; yours: string };
   };
-  /** the quiet line for marketers, where the switch lives */
-  pro: { phone: string; desktop: string };
   demo: {
     working: string;
     subscribers: string;
@@ -65,7 +70,7 @@ const uz: IntroCopy = {
   again: "Qanday ishlaydi",
   of: "{i} / {n}",
   steps: [
-    { title: "Mercat — sizning marketing bo‘limingiz", line: "O‘nta xodim. Chiroq faqat xodim ishlayotganda yonadi." },
+    { title: "Mercat — sizning marketing bo‘limingiz", line: "Har bir xodimning o‘z chirog‘i bor. Chiroq faqat u ishlayotganda yonadi." },
     { title: "Kanal havolasini yuboring", line: "Kanal hali bo‘sh bo‘lsa, biznesingizni o‘z so‘zlaringiz bilan yozing." },
     { title: "Natijani ko‘ring", line: "Kanal raqamlari, haftalik reja va kanalingiz uslubidagi rasmli postlar." },
     { title: "Tasdiqlang — bot joylaydi", line: "Siz tasdiqlamaguncha kanalga hech narsa chiqmaydi." },
@@ -73,6 +78,7 @@ const uz: IntroCopy = {
   ],
   empty: "Kanalim hali bo‘sh",
   admin: {
+    title: "Botni «{channel}» kanaliga qo‘shing",
     how: [
       "Kanal sozlamalarini oching, «Adminlar» bo‘limiga kiring.",
       "«Admin qo‘shish» tugmasini bosing, qidiruvga {bot} deb yozing.",
@@ -82,11 +88,9 @@ const uz: IntroCopy = {
     later: "Keyinroq qilaman",
     reopen: "Yana ochish",
     done: "Tayyor",
-    demo: { list: "Adminlar", you: "Siz", owner: "kanal egasi", bot: "bot", can: "post joylay oladi" },
-  },
-  pro: {
-    phone: "Marketolog bo‘lsangiz: «Pro» rejim Sozlamalarda.",
-    desktop: "Marketolog bo‘lsangiz: «Pro» rejim panel pastidagi almashtirgichda.",
+    checking: "Postni qayta joylayapmiz…",
+    notYet: "Bot hali admin emas. Kanalingizni tanlang, «Saqlash»ni bosing, keyin «Tayyor»ni.",
+    demo: { list: "Adminlar", you: "Siz", owner: "kanal egasi", bot: "bot", can: "post joylay oladi", yours: "Kanalingiz" },
   },
   demo: {
     working: "ishlayapti",
@@ -104,7 +108,7 @@ const uz: IntroCopy = {
     ],
   },
   alt: [
-    "O‘nta chiroq ketma-ket yonadi: har biri ishlayotgan xodim.",
+    "Chiroqlar ketma-ket yonadi: har biri ishlayotgan xodim.",
     "Havola maydoniga kanal havolasi yoziladi, yuqoridagi tablo kanal nomini ko‘rsatadi.",
     "Tabloda obunachilar soni, haftalik reja va rasmli postlar.",
     "Post tasdiqlanadi, so‘ng bot uni kanalga joylaydi.",
@@ -121,7 +125,7 @@ const ru: IntroCopy = {
   again: "Как это работает",
   of: "{i} / {n}",
   steps: [
-    { title: "Mercat — ваш отдел маркетинга", line: "Десять сотрудников. Лампа горит, только пока сотрудник работает." },
+    { title: "Mercat — ваш отдел маркетинга", line: "У каждого сотрудника своя лампа. Она горит, только пока он работает." },
     { title: "Пришлите ссылку на канал", line: "Канал пока пустой? Опишите бизнес своими словами." },
     { title: "Посмотрите результат", line: "Цифры канала, план на неделю и посты с картинками в стиле вашего канала." },
     { title: "Утвердите — бот опубликует", line: "Без вашего утверждения в канал не выходит ничего." },
@@ -129,6 +133,7 @@ const ru: IntroCopy = {
   ],
   empty: "Мой канал пока пустой",
   admin: {
+    title: "Добавьте бота в «{channel}»",
     how: [
       "Откройте настройки канала → «Администраторы».",
       "Добавьте администратора и найдите {bot}.",
@@ -138,11 +143,9 @@ const ru: IntroCopy = {
     later: "Сделаю позже",
     reopen: "Открыть ещё раз",
     done: "Готово",
-    demo: { list: "Администраторы", you: "Вы", owner: "владелец", bot: "бот", can: "может публиковать" },
-  },
-  pro: {
-    phone: "Для маркетологов: режим «Pro» — в Настройках.",
-    desktop: "Для маркетологов: режим «Pro» — переключатель внизу панели.",
+    checking: "Публикуем пост ещё раз…",
+    notYet: "Бот пока не админ. Выберите свой канал, сохраните и нажмите «Готово».",
+    demo: { list: "Администраторы", you: "Вы", owner: "владелец", bot: "бот", can: "может публиковать", yours: "Ваш канал" },
   },
   demo: {
     working: "работает",
@@ -160,7 +163,7 @@ const ru: IntroCopy = {
     ],
   },
   alt: [
-    "Десять ламп загораются по очереди: каждая — работающий сотрудник.",
+    "Лампы загораются по очереди: каждая — работающий сотрудник.",
     "В поле вводится ссылка на канал, табло сверху показывает имя канала.",
     "На табло число подписчиков, план на неделю и посты с картинками.",
     "Пост утверждается, затем бот публикует его в канале.",
@@ -177,7 +180,7 @@ const en: IntroCopy = {
   again: "How it works",
   of: "{i} / {n}",
   steps: [
-    { title: "Mercat is your marketing department", line: "Ten employees. A lamp is lit only while its employee works." },
+    { title: "Mercat is your marketing department", line: "Each employee has a lamp. It is lit only while they work." },
     { title: "Send your channel link", line: "Channel still empty? Describe your business in your own words." },
     { title: "See the result", line: "Your channel’s numbers, a week plan and posts with pictures in your channel’s style." },
     { title: "Approve, and the bot posts", line: "Nothing goes out without your approval." },
@@ -185,6 +188,7 @@ const en: IntroCopy = {
   ],
   empty: "My channel is still empty",
   admin: {
+    title: "Add the bot to {channel}",
     how: [
       "Open your channel’s settings and go to the admins.",
       "Add an admin and search for {bot}.",
@@ -194,11 +198,9 @@ const en: IntroCopy = {
     later: "I’ll do it later",
     reopen: "Open again",
     done: "Done",
-    demo: { list: "Administrators", you: "You", owner: "owner", bot: "bot", can: "can post" },
-  },
-  pro: {
-    phone: "For marketers: Pro mode is in Settings.",
-    desktop: "For marketers: Pro mode is the switch at the bottom of the panel.",
+    checking: "Publishing the post again…",
+    notYet: "The bot isn’t an admin yet. Pick your channel, save, then press Done.",
+    demo: { list: "Administrators", you: "You", owner: "owner", bot: "bot", can: "can post", yours: "Your channel" },
   },
   demo: {
     working: "working",
@@ -216,7 +218,7 @@ const en: IntroCopy = {
     ],
   },
   alt: [
-    "Ten lamps light one after another: each is an employee at work.",
+    "Lamps light one after another: each is an employee at work.",
     "A channel link is typed into the field; the sign above shows the channel name.",
     "The sign shows the subscriber count, a week plan and posts with pictures.",
     "A post is approved, then the bot posts it to the channel.",

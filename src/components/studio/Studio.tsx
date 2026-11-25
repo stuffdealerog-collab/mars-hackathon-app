@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Led } from "../lamp/Led";
 import { WORK_LIGHT } from "../lamp/lamps";
 import { decideIntro, forcedIntro, localIntro, Onboarding } from "@/components/onboarding";
@@ -9,8 +9,10 @@ import { fmt, useCopy, useInitLang, useLang, useTabTitle } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel, useStageVariant } from "../ui/parts";
 import { ChannelSign } from "./ChannelSign";
 import { CommandPalette } from "./CommandPalette";
+import { AdminAskCard } from "./AdminAskCard";
+import { askChannel } from "./admin-ask";
 import { ChannelTab } from "./ChannelTab";
-import { Panel, SOON_ROLES, Strip, useLamps } from "./Department";
+import { Panel, Strip, useLamps } from "./Department";
 import { Hub, HUB_W, RAIL_W, StageLight, useDesktop, useHub, useHubRestore } from "./Hub";
 import { PostsSplit, PostsTab } from "./Posts";
 import { SpectrumIntro } from "./SpectrumIntro";
@@ -25,7 +27,7 @@ const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
 /**
  * The Studio: one screen that answers "what is this and what do I do", a calm checklist
- * while it works, then three tabs: Kanal · Postlar · Video.
+ * while it works, then two tabs: Kanal · Postlar.
  */
 export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: string; inTelegram?: boolean; theme?: Theme; langHint?: string | null }) {
   useInitLang(langHint);
@@ -108,6 +110,7 @@ export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: stri
       </main>
       {!inTelegram && <DeviceKeyLine />}
       <Toasts />
+      <AdminAskCard variant="phone" />
     </div>
   );
 }
@@ -143,9 +146,14 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
   const pro = useStudio((s) => s.pro);
   const lang = useLang((s) => s.lang);
   const bot = useStudio((s) => s.bot);
-  // The first-run intro: once for a newcomer; an owner with saved channels, or who saw an older
-  // intro, gets only the add-the-bot card; not over a link that already says what to do
-  // (?brand=, ?channel=); always with ?intro=1 (?intro=admin: the card alone). Remembered here.
+  // The add-the-bot card (the hub's tool, the tour's last card) names the owner's channel.
+  const brandName = useStudio((s) => s.brand?.dna.name);
+  const brandChannel = useStudio((s) => s.brand?.channel);
+  const typedChannel = useStudio((s) => s.input.channel);
+  const channel = useMemo(() => askChannel({ name: brandName, channel: brandChannel, typed: typedChannel }), [brandName, brandChannel, typedChannel]);
+  // The intro never opens by itself (the start screen's one line says what Mercat does; the
+  // add-the-bot card comes at the first publish, AdminAskCard). ?intro=1 / ?intro=admin still
+  // open it for previews and the demo; the hub's «Qanday ishlaydi» replays it.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const d = decideIntro({
@@ -193,6 +201,7 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
         lang={lang}
         bot={bot}
         variant="desktop"
+        channel={channel}
         onClose={(how) => {
           localIntro.mark();
           useHub.setState({ intro: false });
@@ -200,6 +209,7 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
           if (how === "done" && useStudio.getState().phase === "start") document.querySelector<HTMLInputElement>("main input")?.focus();
         }}
       />
+      <AdminAskCard variant="desktop" />
     </div>
   );
 }
@@ -293,7 +303,7 @@ function Working() {
   const fixLink = !!problem && ["channel_invalid", "not_found", "invalid_input", "channel_mismatch"].includes(problem.code);
 
   // The first run opens with Spektr: the channel's light drops onto the panel and splits into
-  // ten beams; the lamps stay dark until the beams land. Never under reduced motion.
+  // a beam per lamp; the lamps stay dark until the beams land. Never under reduced motion.
   const [intro, setIntro] = useState<{ gate: boolean } | null>(() => {
     if (spektrPlayed || typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
     spektrPlayed = true;
@@ -363,7 +373,7 @@ function Working() {
       {/* Computer screens: 48 px of air above the housing (its top row lights the wall there). */}
       <div className="relative mt-5 lg:mt-12">
         <Panel ref={panelRef} lamps={lamps} housing={!!desktop} />
-        {intro && <SpectrumIntro fieldRef={ledRef} panelRef={panelRef} onBloom={onBloom} onDone={onDone} dark={SOON_ROLES} />}
+        {intro && <SpectrumIntro fieldRef={ledRef} panelRef={panelRef} onBloom={onBloom} onDone={onDone} />}
       </div>
 
       {problem && (
@@ -431,7 +441,6 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
   const tabs: { key: Tab; name: string }[] = [
     { key: "channel", name: c.tabs.channel },
     { key: "posts", name: c.tabs.posts },
-    { key: "video", name: c.tabs.video },
   ];
   const name = brand?.dna.name || brand?.channel;
 
@@ -458,7 +467,7 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
         )}
       </div>
 
-      {/* The department stays on screen: ten small lights, or the full panel in Professional rejim.
+      {/* The department stays on screen: a row of small lights, or the full panel in Professional rejim.
           On desktop the hub holds the lights; the full panel lives in Bo‘lim. */}
       {desktop ? null : <div className="mt-4">{pro ? <Panel lamps={lamps} /> : <Strip lamps={lamps} />}</div>}
 
@@ -501,7 +510,6 @@ function Ready({ inTelegram, desktop = false }: { inTelegram: boolean; desktop?:
           {tab === "channel" && <ChannelTab wide={desktop} />}
           {tab === "posts" && (desktop && pro ? <PostsSplit lamps={lamps} /> : <PostsTab inTelegram={inTelegram} column={desktop} />)}
           {tab === "dept" && <DeptTab />}
-          {tab === "video" && <VideoTab />}
         </motion.div>
       </AnimatePresence>
     </div>
@@ -578,16 +586,6 @@ function DeptTab() {
           {c.hub.newChannel}
         </button>
       )}
-    </div>
-  );
-}
-
-function VideoTab() {
-  const c = useCopy();
-  return (
-    <div className="card p-5">
-      <h2 className="text-[18px] font-semibold">{c.video.title}</h2>
-      <p className="mt-2 text-[16px] leading-relaxed text-ink-2">{c.video.text}</p>
     </div>
   );
 }

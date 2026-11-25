@@ -15,6 +15,7 @@ import { lampVars } from "../../lamp/lamps";
 import { isMachineEvidence, ownerText, plural } from "../../ui/format";
 import { fmt, num, useCopy, useLang } from "../../ui/lang";
 import { forecastRange, type PlanItemExtra, type Sufficiency } from "../api";
+import { otherFindings } from "../findings";
 import { useStudio, type Step } from "../store";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
@@ -31,11 +32,12 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 
 /* ------------------------------------------------------------------ Kanal */
 
-/** Every measured number, the most viewed posts, every finding with its basis, the benchmark. */
+/** Every measured number, the most viewed posts, the findings Kanal did not show, the benchmark. */
 export function AuditFull({ audit }: { audit: ChannelAudit | null }) {
   const c = useCopy();
   const lang = useLang((s) => s.lang);
   if (!audit) return null;
+  const others = otherFindings(audit);
   const formats = Object.entries(audit.formatMix).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   const fName = (k: string) => (c.pro.formats as Record<string, string>)[k] ?? k;
   return (
@@ -84,10 +86,11 @@ export function AuditFull({ audit }: { audit: ChannelAudit | null }) {
         </Block>
       )}
 
-      {audit.findings.length > 0 && (
-        <Block title={c.pro.evidence}>
+      {/* Kanal already shows the top three in full: only the rest, never the same list twice. */}
+      {others.length > 0 && (
+        <Block title={c.pro.moreFindings}>
           <ul className="flex flex-col gap-3">
-            {audit.findings.map((f, i) => (
+            {others.map((f, i) => (
               <li key={i} className="text-[14px] leading-relaxed">
                 <span className={f.kind === "problem" ? "text-bad" : f.kind === "strength" ? "text-ok" : "text-ink-2"}>{c.channel.kind[f.kind]}</span>
                 <span className="block">{ownerText(f.text, lang)}</span>
@@ -177,7 +180,7 @@ export function PlanRowDetails({ item }: { item: PlanItemExtra & { format?: stri
 
 /* ----------------------------------------------------------------- Postlar */
 
-/** A post's insides: the plan slot it came from, every script side by side, how natural it reads. */
+/** A post's insides: the plan slot it came from, stock phrases the editor caught, every script side by side. */
 export function PostDetails({ post }: { post: PostDraft }) {
   const c = useCopy();
   const lang = useLang((s) => s.lang);
@@ -203,11 +206,13 @@ export function PostDetails({ post }: { post: PostDraft }) {
           )}
         </dl>
       )}
-      <p className="text-[13.5px]">
-        <span className="tnum font-medium">{fmt(c.pro.natural, { n: post.humanScore })}</span>
-        <span className="text-ink-2"> · {c.pro.flagged}: </span>
-        <span className={flagged.length ? "text-bad" : "text-ink-2"}>{flagged.length ? [...new Set(flagged)].slice(0, 6).join(", ") : c.pro.none}</span>
-      </p>
+      {/* Only when the editor caught something: a score that is always 98 tells the owner nothing. */}
+      {flagged.length > 0 && (
+        <p className="text-[13.5px]">
+          <span className="text-ink-2">{c.pro.flagged}: </span>
+          <span className="text-bad">{[...new Set(flagged)].slice(0, 6).join(", ")}</span>
+        </p>
+      )}
       <div>
         <p className="mb-2 text-[13px] text-ink-2">{c.pro.scriptsTitle}</p>
         <div className="grid gap-2.5 @xl:grid-cols-2">
@@ -302,8 +307,8 @@ export function LampDetails({ role, facts: s, fallback }: { role: AgentRole; fac
   if ((role === "copywriter" || role === "editor" || role === "translator") && s.posts.length) {
     rows.push([c.tabs.posts, String(s.posts.length)]);
     if (role === "editor") {
-      const avg = Math.round(s.posts.reduce((x, p) => x + p.humanScore, 0) / s.posts.length);
-      rows.push([fmt(c.pro.natural, { n: avg }), ""]);
+      const caught = new Set(s.posts.flatMap((p) => SCRIPTS.flatMap((k) => (p.neuroHits[k] ?? []).map((h) => h.phrase))));
+      if (caught.size) rows.push([c.pro.flagged, [...caught].slice(0, 4).join(", ")]);
     }
     if (role === "translator") rows.push([c.pro.scriptsTitle, SCRIPTS.filter((k) => s.posts.some((p) => p.variants[k]?.trim())).map((k) => c.posts.scriptNames[k]).join(", ")]);
   }
@@ -343,7 +348,7 @@ export function LampDetails({ role, facts: s, fallback }: { role: AgentRole; fac
             ))}
           </dl>
         ) : (
-          <p className="py-2 text-[15px] text-ink-2">{role === "video" || role === "radar" ? c.lampState.soon : (fallback ?? c.lampState.on)}</p>
+          <p className="py-2 text-[15px] text-ink-2">{fallback ?? c.lampState.on}</p>
         )}
       </div>
     </div>

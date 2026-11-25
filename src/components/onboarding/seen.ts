@@ -39,20 +39,16 @@ export type IntroDecision = {
 
 /**
  * Whether to open the intro on this launch, and how much of it.
- * - `force` (?intro=1, ?intro=admin: a preview) always shows it.
- * - This version seen: never again (it stays reachable from Settings / Help).
- * - Opened with intent (a channel link from the bot, a brand link from the desktop): not now;
- *   the run or the brand comes first, and the intro waits for an ordinary open.
- * - Someone who knows the product (saw an older intro, or has saved work): only the new card,
- *   the bot-admin step, once. The tour itself they have seen or do not need.
- * - Everyone else: the whole intro.
+ * - `force` (?intro=1, ?intro=admin: a preview, the demo) always shows it.
+ * - Otherwise never by itself: the start screen's one line says what Mercat does, the value comes
+ *   first, and the add-the-bot card opens at the first publish that needs it (studio/admin-ask.ts),
+ *   naming the owner's channel. The tour stays one tap away in Help / Settings («Qanday ishlaydi»).
+ * `seen`, `returning` and `withIntent` are kept for the hosts and for a later version that may
+ * show something once again.
  */
 export function decideIntro(o: { seen: number; returning: boolean; withIntent: boolean; force?: "all" | IntroOnly | null }): IntroDecision {
   if (o.force) return o.force === "admin" ? { show: true, only: "admin" } : { show: true };
-  if (o.seen >= INTRO_VERSION) return { show: false };
-  if (o.withIntent) return { show: false };
-  if (o.seen > 0 || o.returning) return { show: true, only: "admin" };
-  return { show: true };
+  return { show: false };
 }
 
 /** The value written when the intro is closed (finished, skipped or «later»: all count as seen). */

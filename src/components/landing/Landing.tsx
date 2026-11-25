@@ -2,19 +2,13 @@
 
 import type { AgentRole } from "@/lib/uslub/contract";
 import Link from "next/link";
-import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { LedStrip } from "../lamp/Led";
 import { LampTile } from "../lamp/LampTile";
-import { LAMP_ORDER, WORK_LIGHT, type LampState } from "../lamp/lamps";
-import { lampsFrom, Panel, sampleSnapshot, type Lamps } from "../studio/Department";
-import { SAMPLE_CHANNEL, sampleBrand } from "../studio/sample";
+import { OWNER_LAMPS, WORK_LIGHT, type LampState } from "../lamp/lamps";
 import { ChannelField } from "../ui/ChannelField";
 import { keepNumbers, useCopy, useInitLang, useLang, useTabTitle } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel, Steps, useStageVariant } from "../ui/parts";
-
-/** Roles that do nothing for the owner yet stay dark with "tez orada" (see Studio/Department). */
-const SOON = new Set<AgentRole>(["video", "radar"]);
-const DARK: Lamps = { state: Object.fromEntries(LAMP_ORDER.map((r) => [r, "off"])) as Record<AgentRole, LampState>, soon: SOON, result: {}, words: {} };
 
 export function Landing({ bot }: { bot: string }) {
   useInitLang();
@@ -23,7 +17,6 @@ export function Landing({ bot }: { bot: string }) {
   const botUrl = `https://t.me/${bot}`;
   // The Studio opens in a fresh document (see Hero's submit), so it takes the language along.
   const studioHref = `/studio?lang=${useLang((s) => s.lang)}`;
-  const [armed, setArmed] = useState(false);
   useStageVariant();
   return (
     <div className="desk flex min-h-dvh flex-col overflow-x-clip bg-stage text-ink">
@@ -38,17 +31,13 @@ export function Landing({ bot }: { bot: string }) {
       </header>
 
       <main className="flex-1">
-        {/* First viewport: the promise and the one field. Phones: the department below, dark.
-            Computers: the department in its housing as the screen's main object, lit with the
-            sample bakery's honest results until the owner types their own channel. */}
+        {/* First viewport: the promise, the one field, and what the owner gets: one real-shaped
+            finding and one ready post, both marked "namuna". */}
         <section className="relative isolate mx-auto w-full max-w-[1180px] px-4 pb-4 pt-8 sm:px-8 sm:pt-14 lg:pt-10">
-          {/* Computers: the work light over the headline and the department. */}
+          {/* Computers: the work light over the headline and the proof. */}
           <div aria-hidden className="work-light hidden lg:block" style={{ background: WORK_LIGHT }} />
-          <Hero onTyped={setArmed} />
-          <div className="mt-12 lg:hidden">
-            <DarkPanel />
-          </div>
-          <SampleDepartment armed={armed} />
+          <Hero />
+          <Proof />
         </section>
 
         <section aria-labelledby="how-h" className="relative mx-auto w-full max-w-[1180px] px-4 pt-16 sm:px-8 sm:pt-24">
@@ -57,8 +46,6 @@ export function Landing({ bot }: { bot: string }) {
           </h2>
           <Steps className="mt-7" />
         </section>
-
-        <Example />
       </main>
 
       <footer className="mx-auto mt-20 flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-line px-4 py-6 text-[14px] text-ink-3 sm:px-8">
@@ -76,33 +63,7 @@ export function Landing({ bot }: { bot: string }) {
   );
 }
 
-/**
- * Computer screens: the sample bakery's department after a finished run, lit with its real
- * sample results and marked "namuna". When the owner types a valid channel the sample goes out
- * (the usual 1000 ms) and the embers of their own department arm; erase it and the sample comes
- * back with a plain fade. Nothing else moves.
- */
-const noop = () => () => {};
-function SampleDepartment({ armed }: { armed: boolean }) {
-  const c = useCopy();
-  const lang = useLang((s) => s.lang);
-  // The sample is built in the browser only: it stamps dates, which must not be frozen into the
-  // prerendered page. The server draws the dark panel; the browser lights it on the first frame.
-  const client = useSyncExternalStore(noop, () => true, () => false);
-  const sample = useMemo(() => (client ? lampsFrom(sampleSnapshot(lang), c, lang) : DARK), [client, c, lang]);
-  const name = useMemo(() => (client ? sampleBrand(lang).dna.name : ""), [client, lang]);
-  return (
-    <div className="mt-12 hidden lg:block">
-      <p className={`mb-3 flex items-center justify-end gap-2.5 text-[13px] text-ink-2 transition-opacity duration-300 ${armed ? "opacity-0" : ""}`} aria-hidden={armed || undefined}>
-        <span className="namuna">{c.sample.chip}</span>
-        {name}
-      </p>
-      <Panel lamps={armed ? DARK : sample} housing armed={armed} calm readOnly />
-    </div>
-  );
-}
-
-function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
+function Hero() {
   const c = useCopy();
   const lang = useLang((s) => s.lang);
   const id = useId();
@@ -110,7 +71,6 @@ function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
   const [bad, setBad] = useState(false);
   const [busy, setBusy] = useState(false);
   const typed = parseChannel(value);
-  useEffect(() => onTyped(!!typed), [typed, onTyped]);
   // Back from the Studio, the browser may show this page from its cache: the button works again.
   useEffect(() => {
     const onShow = (e: PageTransitionEvent) => {
@@ -138,19 +98,15 @@ function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
   // twelve columns); the sign and the field on the right, ending level with the headline's foot.
   return (
     <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-x-10">
-      {/* Phones: the shop sign stays dark until there is a real channel to read, then spells it. */}
-      <LedStrip text={typed ? `@${typed}` : undefined} dot={3} gap={1.5} className="mb-7 max-w-[460px] lg:hidden" label={typed ? `@${typed}` : undefined} offLabel={c.landing.ledOff} />
-      {/* Computers: the department under it is the lit sample, so the sign names the sample's
-          channel (marked "namuna"); a typed channel takes its place. */}
-      <div className="hidden lg:col-span-5 lg:col-start-8 lg:row-start-1 lg:mb-6 lg:block lg:self-end">
-        {/* The full "namuna · @namuna" fits from 1280; narrower, the channel alone. */}
-        <div className="xl:hidden">
-          <LedStrip text={typed ? `@${typed}` : SAMPLE_CHANNEL} dot={3} gap={1.5} label={typed ? `@${typed}` : `${c.sample.chip} · ${SAMPLE_CHANNEL}`} offLabel={c.landing.ledOff} />
-        </div>
-        <div className="hidden xl:block">
-          <LedStrip text={typed ? `@${typed}` : `${c.landing.ledSample} · ${SAMPLE_CHANNEL}`} dot={3} gap={1.5} label={typed ? `@${typed}` : `${c.sample.chip} · ${SAMPLE_CHANNEL}`} offLabel={c.landing.ledOff} />
-        </div>
-      </div>
+      {/* The shop sign stays dark until there is a real channel to read, then spells it. */}
+      <LedStrip
+        text={typed ? `@${typed}` : undefined}
+        dot={3}
+        gap={1.5}
+        className="mb-7 max-w-[460px] lg:col-span-5 lg:col-start-8 lg:row-start-1 lg:mb-6 lg:max-w-none lg:self-end"
+        label={typed ? `@${typed}` : undefined}
+        offLabel={c.landing.ledOff}
+      />
 
       <h1 className="max-w-[18ch] text-balance text-[34px] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-[56px] sm:leading-[1] lg:col-span-7 lg:row-span-2 lg:row-start-1 lg:max-w-[16ch] lg:self-end lg:text-[60px] lg:leading-[0.98] lg:tracking-[-0.038em] [@media(min-width:64rem)_and_(max-height:819px)]:text-[48px]">
         {c.landing.h1}
@@ -179,16 +135,15 @@ function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
       </form>
       </div>
 
-      {/* Computers: under the headline, so the first row ends sooner and the lit department is
-          in the first screen of a laptop window. Phones: under the field, as before. */}
+      {/* Computers: under the headline, so the first row ends sooner and the proof below is in
+          the first screen of a laptop window. Phones: under the field, as before. */}
       <div className="mt-4 flex flex-col gap-2 px-2 sm:flex-row sm:items-center sm:gap-6 lg:col-span-7 lg:col-start-1 lg:row-start-3 lg:mt-6 lg:px-0">
         <Link href={`/studio?mode=fresh&lang=${lang}`} prefetch={false} className="link inline-flex min-h-11 items-center self-start text-[15px] font-medium">
           {c.start.emptyToggle}
         </Link>
+        {/* Until the paid plan exists there is no trial to promise: the line says what is true today. */}
         <p className="text-[15px] text-ink-2">
-          {/* The no-break space keeps the beta tag on the price's last line. */}
-          {keepNumbers(c.landing.price)}
-          {" "}
+          {c.landing.price}{" "}
           <span className="ml-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[12.5px] text-ink-2 shadow-[inset_0_0_0_1px_var(--hair-2)]">{c.landing.beta}</span>
         </p>
       </div>
@@ -196,67 +151,168 @@ function Hero({ onTyped }: { onTyped: (armed: boolean) => void }) {
   );
 }
 
-/** The department before any link: ten dark lamps. Light means work, so nothing glows yet. */
-function DarkPanel() {
-  const c = useCopy();
-  return (
-    <ul aria-label={c.dept.label} className="grid grid-cols-2 gap-2.5">
-      {LAMP_ORDER.map((r) => (
-        <LampTile
-          key={r}
-          as="li"
-          role={r}
-          size="sm"
-          state="off"
-          name={c.lamps[r].name}
-          job={c.lamps[r].job}
-          stateText={SOON.has(r) ? c.lampState.soon : undefined}
-          className={SOON.has(r) ? "opacity-60" : ""}
-        />
-      ))}
-    </ul>
-  );
-}
-
-function Example() {
+/**
+ * What the owner gets, in the first screen: one finding from the channel review and one ready
+ * post with its picture, both the made-up bakery's and marked "namuna". The owner's own come from
+ * their channel.
+ */
+function Proof() {
   const c = useCopy();
   const l = c.landing;
   return (
-    <section aria-labelledby="ex-h" className="relative mx-auto w-full max-w-[1180px] px-4 pt-16 sm:px-8 sm:pt-24">
-      <h2 id="ex-h" className="text-[26px] font-semibold tracking-[-0.025em] sm:text-[34px]">
-        {l.exampleTitle}
-      </h2>
-      <p className="mt-2 max-w-[60ch] text-[15px] leading-relaxed text-ink-2">{l.exampleNote}</p>
+    <section aria-labelledby="proof-h" className="mt-12 lg:mt-14 [@media(min-width:64rem)_and_(max-height:819px)]:mt-10">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 id="proof-h" className="text-[20px] font-semibold tracking-[-0.015em] sm:text-[22px]">
+          {l.exampleTitle}
+        </h2>
+        <p className="max-w-[60ch] text-[14px] leading-relaxed text-ink-3">{l.exampleNote}</p>
+      </div>
 
-      <div className="mt-7 grid gap-4 md:grid-cols-2">
-        <div className="card p-5 sm:p-6">
+      {/* Phones: the finding, the post, then the lamps. Wider: the finding over the lamps on the
+          left, the post beside them. */}
+      <div className="mt-5 grid items-start gap-4 md:grid-cols-2 md:grid-rows-[auto_1fr] lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:gap-x-6">
+        <div className="card p-5 sm:p-6 md:col-start-1 md:row-start-1">
           <div className="flex items-center justify-between gap-3">
             <p className="text-[14px] text-ink-2">{l.exampleFindingLabel}</p>
             <span className="namuna">{c.sample.chip}</span>
           </div>
-          <p className="mt-3 text-[18px] font-semibold leading-snug tracking-[-0.01em]">{l.exampleFinding}</p>
+          <p className="mt-3 text-[20px] font-semibold leading-snug tracking-[-0.01em] sm:text-[22px]">{keepNumbers(l.exampleFinding)}</p>
           <p className="mt-3 text-[15px] leading-relaxed text-ink-2">{l.exampleFix}</p>
         </div>
 
-        <div>
+        <div className="md:col-start-2 md:row-span-2 md:row-start-1">
           <div className="mb-2 flex items-center justify-between gap-3 px-1">
             <p className="text-[14px] text-ink-2">{l.examplePostLabel}</p>
             <span className="namuna">{c.sample.chip}</span>
           </div>
-          <article className="tgpost px-4 pb-2.5 pt-3">
-            <div className="mb-2 flex items-center gap-2.5">
-              <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full text-[14px] font-semibold text-white" style={{ background: "linear-gradient(160deg, #C86B3C, #6b3115)" }}>
-                T
-              </span>
-              <span className="text-[14.5px] font-semibold" style={{ color: "color-mix(in oklab, #E08A55 70%, var(--ink))" }}>
-                {l.examplePostName}
-              </span>
+          <article className="tgpost overflow-hidden">
+            <SamplePicture label={l.examplePicture} />
+            <div className="px-4 pb-2.5 pt-3">
+              <div className="mb-2 flex items-center gap-2.5">
+                <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full text-[14px] font-semibold text-white" style={{ background: "linear-gradient(160deg, #C86B3C, #6b3115)" }}>
+                  {l.examplePostName.slice(0, 1)}
+                </span>
+                <span className="text-[14.5px] font-semibold" style={{ color: "color-mix(in oklab, #E08A55 70%, var(--ink))" }}>
+                  {l.examplePostName}
+                </span>
+              </div>
+              <p className="post-text">{keepNumbers(l.examplePost)}</p>
+              <p className="mt-1.5 text-right text-[12px] text-ink-3">07:30</p>
             </div>
-            <p className="post-text">{keepNumbers(l.examplePost)}</p>
-            <p className="mt-1.5 text-right text-[12px] text-ink-3">07:30</p>
           </article>
         </div>
+
+        <LampRow />
       </div>
     </section>
+  );
+}
+
+/**
+ * The sample post's picture: a drawn tandir patir in the bakery's own warm palette, lit from the
+ * top left like the work light. Drawn, not a photo, and the post above it is marked "namuna".
+ */
+function SamplePicture({ label }: { label: string }) {
+  const id = useId().replace(/:/g, "");
+  // The stamp in the middle of a patir: two rings of pricks and one in the centre.
+  const ring = (r: number, n: number) =>
+    Array.from({ length: n }, (_, i) => {
+      const a = (i / n) * Math.PI * 2;
+      return { x: Math.cos(a) * r, y: Math.sin(a) * r };
+    });
+  // Sesame on the rim, scattered by a fixed rule so the server and the browser draw the same.
+  const sesame = Array.from({ length: 22 }, (_, i) => {
+    const a = (i / 22) * Math.PI * 2 + (i % 3) * 0.09;
+    const r = 82 + ((i * 7) % 13);
+    return { x: Math.cos(a) * r, y: Math.sin(a) * r, rot: (i * 47) % 180 };
+  });
+  return (
+    <svg viewBox="0 20 400 230" role="img" aria-label={label} className="block h-auto w-full">
+      <defs>
+        <radialGradient id={`${id}-bg`} cx="22%" cy="8%" r="95%">
+          <stop offset="0" stopColor="#7a3a17" />
+          <stop offset="0.55" stopColor="#3a1a0c" />
+          <stop offset="1" stopColor="#170a05" />
+        </radialGradient>
+        <radialGradient id={`${id}-crust`} cx="38%" cy="32%" r="72%">
+          <stop offset="0" stopColor="#f7d49a" />
+          <stop offset="0.55" stopColor="#dc9550" />
+          <stop offset="1" stopColor="#8a3f17" />
+        </radialGradient>
+        <radialGradient id={`${id}-crumb`} cx="40%" cy="35%" r="70%">
+          <stop offset="0" stopColor="#f8dcaa" />
+          <stop offset="1" stopColor="#d9a062" />
+        </radialGradient>
+        <radialGradient id={`${id}-shade`} cx="50%" cy="50%" r="50%">
+          <stop offset="0" stopColor="#000" stopOpacity="0.55" />
+          <stop offset="1" stopColor="#000" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <rect width="400" height="260" fill={`url(#${id}-bg)`} />
+      {/* The second, smaller patir behind, in shadow. */}
+      <ellipse cx="96" cy="214" rx="86" ry="30" fill={`url(#${id}-shade)`} />
+      <g transform="translate(96 176)" opacity="0.82">
+        <circle r="68" fill={`url(#${id}-crust)`} />
+        <circle r="36" fill={`url(#${id}-crumb)`} />
+        {ring(22, 10).map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r="2.6" fill="#a8622b" />
+        ))}
+      </g>
+      {/* The patir in front. */}
+      <ellipse cx="246" cy="228" rx="128" ry="30" fill={`url(#${id}-shade)`} />
+      <g transform="translate(246 140)">
+        <circle r="104" fill={`url(#${id}-crust)`} />
+        {sesame.map((s, i) => (
+          <ellipse key={i} cx={s.x} cy={s.y} rx="3.6" ry="1.7" fill="#fff1d2" opacity="0.85" transform={`rotate(${s.rot} ${s.x} ${s.y})`} />
+        ))}
+        <circle r="56" fill={`url(#${id}-crumb)`} stroke="#c07a3c" strokeOpacity="0.55" strokeWidth="3" />
+        {ring(38, 16).map((p, i) => (
+          <circle key={`a${i}`} cx={p.x} cy={p.y} r="3.4" fill="#a8622b" />
+        ))}
+        {ring(20, 8).map((p, i) => (
+          <circle key={`b${i}`} cx={p.x} cy={p.y} r="3" fill="#a8622b" />
+        ))}
+        <circle r="3.4" fill="#a8622b" />
+      </g>
+    </svg>
+  );
+}
+
+/** The owner's lamps lighting one after another (the signature, small): who works on a run. */
+const noop = () => () => {};
+const STEP_MS = 650;
+const HOLD = 4;
+
+function LampRow() {
+  const c = useCopy();
+  // Everything lit on the server and under reduced motion; the browser then plays the sequence.
+  const still = useSyncExternalStore(
+    noop,
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => true,
+  );
+  const [k, setK] = useState(0);
+  useEffect(() => {
+    if (still) return;
+    const t = setInterval(() => setK((v) => (v >= OWNER_LAMPS.length + HOLD ? 0 : v + 1)), STEP_MS);
+    return () => clearInterval(t);
+  }, [still]);
+  const at = still ? OWNER_LAMPS.length : k;
+  const state = (r: AgentRole, i: number): LampState => (i < at ? "on" : i === at ? "warming" : "off");
+  const now = OWNER_LAMPS[Math.min(at, OWNER_LAMPS.length - 1)];
+  return (
+    <div className="mt-4 px-1 md:col-start-1 md:row-start-2 md:mt-2">
+      <p className="mb-3 text-[14px] text-ink-2">{c.dept.label}</p>
+      <ul aria-label={c.dept.label} className="grid grid-cols-8 gap-1.5 sm:gap-2">
+        {OWNER_LAMPS.map((r, i) => (
+          <LampTile key={r} as="li" role={r} size="xs" state={state(r, i)} aria-label={c.lamps[r].name} className="!min-h-10 sm:!min-h-12" />
+        ))}
+      </ul>
+      {/* Which employee is at work right now: its name and its job, in one quiet line. */}
+      <p aria-hidden className="mt-3 flex min-h-6 flex-wrap items-baseline gap-x-2 text-[14px]">
+        <span className="font-semibold">{c.lamps[now].name}</span>
+        <span className="text-ink-2">{c.lamps[now].job}</span>
+      </p>
+    </div>
   );
 }

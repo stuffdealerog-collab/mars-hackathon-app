@@ -28,7 +28,7 @@ export const META: Record<Lang, LangMeta> = {
       title: "Studiya",
       description: "Kanalingiz havolasini qo‘ying: Mercat bo‘limi kanalni o‘qiydi, haftalik reja tuzadi va postlarni rasmlari bilan yozadi. Har birini siz tasdiqlaysiz.",
     },
-    ogAlt: "Mercat: o‘nta chiroqdan iborat marketing bo‘limi yonib turibdi. Kanalingiz uchun haftalik postlar.",
+    ogAlt: "Mercat: marketing bo‘limi chiroqlari yonib turibdi. Kanalingiz uchun haftalik postlar.",
   },
   ru: {
     landing: {
@@ -42,7 +42,7 @@ export const META: Record<Lang, LangMeta> = {
       title: "Студия",
       description: "Вставьте ссылку на канал: отдел Mercat прочитает его, составит план на неделю и напишет посты с картинками. Каждый утверждаете вы.",
     },
-    ogAlt: "Mercat: горит отдел маркетинга из десяти ламп. Посты на неделю для вашего канала.",
+    ogAlt: "Mercat: горят лампы отдела маркетинга. Посты на неделю для вашего канала.",
   },
   en: {
     landing: {
@@ -56,7 +56,7 @@ export const META: Record<Lang, LangMeta> = {
       title: "Studio",
       description: "Paste your channel link: the Mercat department reads it, plans the week and writes posts with pictures. You approve each one.",
     },
-    ogAlt: "Mercat: a marketing department of ten lamps, lit. A week of posts for your channel.",
+    ogAlt: "Mercat: the marketing department's lamps, lit. A week of posts for your channel.",
   },
 };
 

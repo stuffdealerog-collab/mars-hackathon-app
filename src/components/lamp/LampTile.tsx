@@ -13,6 +13,7 @@ export function LampTile({
   name,
   job,
   stateText,
+  result,
   children,
   className = "",
   size = "md",
@@ -25,6 +26,11 @@ export function LampTile({
   job?: string;
   /** the state word under the name; omit for a bare light (size "xs") */
   stateText?: string;
+  /**
+   * A measured result for the owner ("3 ta post vaqtida chiqdi"), when the data gives one: it takes
+   * the place of the work-shaped caption (`children`). Without it the lamp stays as it is.
+   */
+  result?: string;
   children?: React.ReactNode;
   className?: string;
   size?: "xs" | "sm" | "md";
@@ -38,7 +44,7 @@ export function LampTile({
       <span className="lamp__filament" aria-hidden />
       {bare ? null : (
         <span className="lamp__body">
-          <span className="lamp__result">{children}</span>
+          <span className="lamp__result">{result ? <span className="line-clamp-2 text-[14px] font-semibold leading-tight">{result}</span> : children}</span>
           <span className="lamp__name">
             <span className="lamp__title">{name}</span>
             {job && <span className="lamp__job">{job}</span>}

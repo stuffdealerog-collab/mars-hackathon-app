@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Script } from "@/lib/uslub/contract";
 import { detectNeuro } from "../../lib/uslub/neuro";
+import { fmt } from "../ui/format";
 import { INTRO_COPY } from "./copy";
 import { ADMIN_STEP, INTRO_STEPS, introSteps, STEP_KINDS } from "./steps";
 
@@ -50,7 +51,31 @@ describe("the intro's words", () => {
   });
   it.each(LANGS)("%s: the new card passes the anti-cliché filter", (lang) => {
     const t = INTRO_COPY[lang];
-    const words = [t.steps[ADMIN_STEP].title, t.steps[ADMIN_STEP].line, ...t.admin.how, t.admin.add, t.admin.later, t.admin.reopen, t.admin.done, t.alt[ADMIN_STEP]];
+    const words = [
+      t.steps[ADMIN_STEP].title,
+      t.steps[ADMIN_STEP].line,
+      ...t.admin.how,
+      t.admin.add,
+      t.admin.later,
+      t.admin.reopen,
+      t.admin.done,
+      fmt(t.admin.title, { channel: "Shirin Tort" }),
+      t.admin.checking,
+      t.admin.notYet,
+      t.admin.demo.yours,
+      t.alt[ADMIN_STEP],
+    ];
     for (const w of words) expect(detectNeuro(w, SCRIPT[lang])).toEqual([]);
+  });
+  it.each(LANGS)("%s: the add-the-bot card names the owner's channel, never the sample bakery", (lang) => {
+    const a = INTRO_COPY[lang].admin;
+    expect(a.title).toContain("{channel}");
+    expect(fmt(a.title, { channel: "@shirin_tort" })).toContain("@shirin_tort");
+    expect(a.demo.yours.trim()).not.toBe("");
+    expect(JSON.stringify(a)).not.toMatch(/tandir|тандыр/i);
+  });
+  it.each(LANGS)("%s: the tour does not count the lamps (there are fewer than ten now)", (lang) => {
+    const t = INTRO_COPY[lang];
+    expect(`${t.steps[0].line} ${t.alt[0]}`).not.toMatch(/o‘nta|десять|ten /i);
   });
 });

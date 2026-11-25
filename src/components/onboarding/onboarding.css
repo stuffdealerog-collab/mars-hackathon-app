@@ -260,12 +260,13 @@
   width: 100%;
   margin-top: 18px;
 }
-.ob__pro {
-  margin-top: 12px;
+/* The add-the-bot card at a publish: "checking…" / "not an admin yet", one quiet line. */
+.ob__note {
+  margin-top: 14px;
   max-width: 44ch;
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.4;
-  color: var(--ink-3);
+  color: var(--ink-2);
   text-wrap: pretty;
 }
 
@@ -340,7 +341,7 @@
 }
 .ob-lamps__grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 .ob-lamp.lamp--xs {
@@ -350,9 +351,6 @@
 .ob--desktop .ob-lamp.lamp--xs {
   min-height: 72px;
   border-radius: 16px;
-}
-.ob-lamp--soon {
-  opacity: 0.55;
 }
 .ob-lamps__now {
   display: flex;

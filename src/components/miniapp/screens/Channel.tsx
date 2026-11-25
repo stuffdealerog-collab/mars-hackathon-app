@@ -6,6 +6,7 @@ import { Led } from "../../lamp/Led";
 import { StyleRefs } from "../../media";
 import * as api from "../../studio/api";
 import { Strip, useLamps } from "../../studio/Department";
+import { topFindings } from "../../studio/findings";
 import { slotKey, useStudio } from "../../studio/store";
 import type { PlanItemExtra } from "../../studio/api";
 import { isMachineEvidence, ownerText, plural, weekday } from "../../ui/format";
@@ -16,8 +17,6 @@ import { ledFit, useWidth } from "../measure";
 import { useNav } from "../nav";
 import { Skel, TopBar, useCompact } from "../Shell";
 import { haptic } from "../tg";
-
-const KIND_ORDER = { problem: 0, opportunity: 1, strength: 2 } as const;
 
 // Pro rejim depth from the Studio, loaded only when Pro is on.
 const AuditFull = dynamic(() => import("../../studio/pro/ProDetails").then((m) => m.AuditFull), { ssr: false });
@@ -82,7 +81,8 @@ export function ChannelScreen({ onOpenPost }: { onOpenPost: (id: string) => void
           {mode === "channel" ? <Numbers /> : <p className="mt-6 px-1 text-[15px] leading-relaxed text-ink-2">{c.channel.freshNoStats}</p>}
           {mode === "fresh" && <Launch />}
           <Style />
-          <Voice />
+          {/* «Qanday yozasiz» is a marketer's table: Pro only. */}
+          {pro && <Voice />}
           <Plan onOpenPost={onOpenPost} />
           {pro && <StrategyDetails />}
           {pro && (
@@ -177,7 +177,7 @@ function FitLed({ text }: { text: string }) {
 function Findings({ audit }: { audit: ChannelAudit }) {
   const c = useCopy();
   const lang = useLang((s) => s.lang);
-  const list = [...audit.findings].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]).slice(0, 3);
+  const list = topFindings(audit);
   if (!list.length) return <p className="px-1 text-[15px] text-ink-2">{c.channel.findingsNone}</p>;
   return (
     <ol className="ma-group">
@@ -311,7 +311,6 @@ function useBrandVisual() {
 function Voice() {
   const c = useCopy();
   const brand = useStudio((s) => s.brand);
-  const pro = useStudio((s) => s.pro);
   if (!brand) return null;
   const d = brand.dna;
   const rows = (
@@ -323,8 +322,7 @@ function Voice() {
       [c.channel.voice.cta, d.ctaStyle],
     ] as [string, string][]
   ).filter(([, v]) => v && v !== "—");
-  // Simple mode: the one line and the three rows an owner recognises; pro shows all five.
-  const shown = pro ? rows : rows.slice(0, 3);
+  const shown = rows;
   return (
     <section aria-labelledby="ma-voice">
       <H2 id="ma-voice">{c.channel.voiceTitle}</H2>

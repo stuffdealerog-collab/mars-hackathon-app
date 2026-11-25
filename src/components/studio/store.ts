@@ -7,7 +7,7 @@
  * Each step keeps its result, so "Qayta urinish" resumes from the step that failed.
  * No sample data unless the page was opened with ?mock=1.
  */
-import type { BrandProfile, ChannelAudit, ContentPlan, PlanItem, PostDraft, PostImage, Script, Strategy, VisualStyle } from "@/lib/uslub/contract";
+import type { AgentRole, BrandProfile, ChannelAudit, ContentPlan, PlanItem, PostDraft, PostImage, Script, Strategy, VisualStyle } from "@/lib/uslub/contract";
 import { create } from "zustand";
 import { COPY } from "../ui/copy";
 import { fmt } from "../ui/format";
@@ -16,15 +16,19 @@ import * as api from "./api";
 import type { Fail } from "./api";
 import { latestBatch } from "./batch";
 import { keepAudit, keepPlan, keptAudit, keptPlan, pickPlan, type KeptPlan } from "./keep";
+import { askChannel, nextAsk, publishFailKind, retryAsk, type AdminAsk } from "./admin-ask";
+import { defaultPro, safeTab, type Tab } from "./mode";
 import { sampleAudit, sampleBrand, samplePlan, samplePosts } from "./sample";
 
 export type Phase = "start" | "working" | "ready" | "reopening";
 export type Mode = "channel" | "fresh";
-export type Tab = "channel" | "posts" | "dept" | "video";
+export type { Tab } from "./mode";
 export type ApproveResult = { ok: true } | { ok: false; message: string; undone?: boolean };
 /** `code` is the server's stable error code (e.g. "publish_in_progress"), when it sent one. */
 export type PublishResult = { ok: true; url?: string } | { ok: false; message: string; adminUrl?: string; botUrl?: string; code?: string };
 export type RecentBrand = { id: string; name: string; channel?: string };
+/** The add-the-bot card at a publish the bot could not make (admin-ask.ts): which post, which channel, where it stands. */
+export type { AdminAsk } from "./admin-ask";
 /**
  * The line under a post. `missing` (placeholder_left only): the scripts whose text still has a
  * blank, as the server named them, so the editor can open on the one that needs the fact.
@@ -93,6 +97,22 @@ interface StudioState {
   /** Plan slots the run asked for but the writer left empty (partial success of POST /posts). */
   missed: PlanItem[];
 
+  /**
+   * A publish failed because the bot is not an admin of the owner's channel: the add-the-bot card
+   * is open for that post, naming the channel. Null when there is nothing to ask.
+   */
+  adminAsk: AdminAsk | null;
+  /** The owner opened the add-the-bot link from the card: publish again on the way back. */
+  adminAdded: () => void;
+  /** The card is closed («Keyinroq», ✕): the post keeps its note with the same link. */
+  closeAdminAsk: () => void;
+  /** Publishes the card's post once more (the owner is back, or pressed «Tayyor»). */
+  retryAdminAsk: () => Promise<PublishResult | null>;
+  /**
+   * Measured results for the lamps ("3 ta post vaqtida chiqdi"), when the engine or autopilot
+   * supplies them; the lamps show them in place of their work-shaped captions. Empty until then.
+   */
+  outcomes: Partial<Record<AgentRole, string>>;
   /** Professional rejim: the full lamp panel, the strategy and plan details. Off = the simple path. */
   pro: boolean;
   setPro: (v: boolean) => void;
@@ -662,6 +682,8 @@ export const useStudio = create<StudioState>((set, get) => {
     postScript: null,
     writingSlot: {},
     missed: [],
+    adminAsk: null,
+    outcomes: {},
     pro: false,
     approveDelayMs: 0,
     pendingApprove: {},
@@ -681,16 +703,15 @@ export const useStudio = create<StudioState>((set, get) => {
     configure: ({ bot, approveDelayMs = 0 }) => {
       const p = new URLSearchParams(window.location.search);
       const forced = readPageParams().pro;
-      // Desktop is the pro tool: Professional rejim is the default there; phones start simple.
-      let pro = window.matchMedia("(min-width: 1024px)").matches;
+      // Simple everywhere, the desktop too (PRODUCT.md): Pro only when this device chose it or ?ui=pro.
+      let saved: string | null = null;
       try {
-        const saved = localStorage.getItem("mercat.pro");
-        if (saved != null) pro = saved === "1";
+        saved = localStorage.getItem("mercat.pro");
         if (forced != null) localStorage.setItem("mercat.pro", forced ? "1" : "0");
       } catch {
         /* ignore */
       }
-      if (forced != null) pro = forced;
+      const pro = defaultPro({ saved, forced });
       set({ bot, pro, approveDelayMs, deviceKey: api.handoffUser(), sample: api.sampleMode(), entry: { view: p.get("mode") === "fresh" ? "fresh" : "link", channel: "" } });
     },
 
@@ -790,6 +811,8 @@ export const useStudio = create<StudioState>((set, get) => {
         edited: {},
         postNote: {},
         missed: [],
+        adminAsk: null,
+        outcomes: {},
         steps: stepsFor("channel", false),
         startedAt: Date.now(),
       });
@@ -815,6 +838,8 @@ export const useStudio = create<StudioState>((set, get) => {
         edited: {},
         postNote: {},
         missed: [],
+        adminAsk: null,
+        outcomes: {},
         steps: stepsFor("fresh", !!photos?.length),
         startedAt: Date.now(),
       });
@@ -857,6 +882,8 @@ export const useStudio = create<StudioState>((set, get) => {
         busy: {},
         postNote: {},
         missed: [],
+        adminAsk: null,
+        outcomes: {},
       });
     },
 
@@ -893,6 +920,8 @@ export const useStudio = create<StudioState>((set, get) => {
         // Run-scoped facts of the previous channel must not show on this one.
         postsRead: null,
         emptyChannel: null,
+        adminAsk: null,
+        outcomes: {},
       });
       const L = lang();
       const [b, p] = await Promise.all([api.getBrand(brandId, L), api.listPosts(brandId, L)]);
@@ -1008,7 +1037,11 @@ export const useStudio = create<StudioState>((set, get) => {
     },
 
     // The first-look summary is a moment, not a page: it ends once the owner goes to the posts.
-    setTab: (tab) => set({ tab, ...(tab === "posts" ? { justFinished: false } : {}) }),
+    // A tab that no longer exists (the old «Video») opens Postlar.
+    setTab: (t) => {
+      const tab = safeTab(t);
+      set({ tab, ...(tab === "posts" ? { justFinished: false } : {}) });
+    },
 
     editPost: (id, script, text) => {
       const note = get().postNote[id];
@@ -1095,7 +1128,11 @@ export const useStudio = create<StudioState>((set, get) => {
       const r = await api.publishPost(id, script, chat, lang());
       busy(undefined);
       if (r.ok && r.data.ok) {
-        set({ posts: get().posts.map((p) => (p.id === id ? { ...p, status: "published", publishedUrl: r.data.url } : p)), handTick: get().handTick + 1 });
+        set({
+          posts: get().posts.map((p) => (p.id === id ? { ...p, status: "published", publishedUrl: r.data.url } : p)),
+          handTick: get().handTick + 1,
+          adminAsk: nextAsk(get().adminAsk, id, null),
+        });
         // The channel the owner typed is this brand's now (the engine linked it on this publish).
         if (typed && !get().input.channel) set({ input: { ...get().input, channel: typed.replace(/^@/, "") } });
         note({ text: copy().posts.published, href: r.data.url, tone: "ok" });
@@ -1108,11 +1145,33 @@ export const useStudio = create<StudioState>((set, get) => {
       }
       const msg = r.ok ? r.data.error ?? copy().error.generic : problemOf(r).message;
       const admin = r.ok ? r.data.addAdminUrl : r.addAdminUrl;
+      const kind = publishFailKind({ code: r.ok ? r.data.code : r.code, adminUrl: admin });
       // A blank still in the text is the owner's fact to add, not a failure.
-      const blank = (r.ok ? r.data.code : r.code) === BLANK_LEFT;
+      const blank = kind === "blank";
       note(blank ? { text: msg, tone: "hint", missing: r.ok ? r.data.missing : r.missing } : { text: msg, href: admin, tone: "bad" });
+      // The bot is not an admin of the owner's channel: the add-the-bot card opens now, at this
+      // publish, naming that channel. A retry that comes back the same way keeps it open, saying so;
+      // the card keeps `chat`, so the retry goes to the channel this publish went to.
+      const b = get().brand;
+      const open = kind === "admin" ? { script, chat, channel: askChannel({ name: b?.dna.name, channel: b?.channel || chat, typed: get().input.channel }) } : null;
+      set({ adminAsk: nextAsk(get().adminAsk, id, open) });
       return { ok: false, message: msg, adminUrl: blank ? undefined : admin, botUrl, code: r.ok ? r.data.code : r.code };
     },
+
+    adminAdded: () => {
+      const a = get().adminAsk;
+      if (a) set({ adminAsk: { ...a, state: "added" } });
+    },
+    closeAdminAsk: () => set({ adminAsk: null }),
+    // publish() closes the card on success or on any other failure, and keeps it ("notYet") when the
+    // bot is still not an admin; a publish that returns before the server closes it (retryAsk).
+    retryAdminAsk: () =>
+      retryAsk({
+        ask: () => get().adminAsk,
+        setAsk: (adminAsk) => set({ adminAsk }),
+        busy: (id) => !!get().busy[id],
+        publish: (id, script, chat) => get().publish(id, script, chat),
+      }),
 
     setImage: (id, image) => {
       seen.set(id, Date.now());

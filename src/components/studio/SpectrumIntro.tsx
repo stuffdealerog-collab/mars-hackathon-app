@@ -1,12 +1,12 @@
 import type { AgentRole } from "@/lib/uslub/contract";
 import { useLayoutEffect, useRef, useState } from "react";
-import { LAMP_ORDER, LAMPS } from "@/components/lamp/lamps";
+import { LAMPS, OWNER_LAMPS } from "@/components/lamp/lamps";
 
 /**
  * Signature moment B, «Spektr», on real data.
  *
  * The link field squeezes into one white-hot point. The point charges, drops
- * onto the panel and splits into ten beams, one per employee. Every lamp
+ * onto the panel and splits into a beam per employee. Every lamp
  * flashes once as its beam lands (a power-on lamp test), then the panel shows
  * the run's honest state: only the employees who are actually working glow.
  * Everything runs on WAAPI, so React does not re-render per frame.
@@ -17,19 +17,21 @@ type Geo = { w: number; ox: number; oy: number; dx: number; dy: number; tiles: {
 const T = { squeeze: 380, charge: 300, chargeEnd: 700, drop: 980, split: 1000, beamIn: 330, bloom: 1300, end: 1900, back: 1650 };
 const EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
 const EASE_IN = "cubic-bezier(0.7, 0, 0.84, 0)";
+/** One shared empty list: a fresh `[]` default would re-measure (and replay) on every render. */
+const NONE: readonly AgentRole[] = [];
 
 export function SpectrumIntro({
   fieldRef,
   panelRef,
   onBloom,
   onDone,
-  dark = [],
+  dark = NONE,
 }: {
   fieldRef: React.RefObject<HTMLElement | null>;
   panelRef: React.RefObject<HTMLElement | null>;
   onBloom: () => void;
   onDone: () => void;
-  /** Roles that do nothing yet ("tez orada"): no beam, no flash, they stay dark. */
+  /** Roles that stay dark through it: no beam, no flash. */
   dark?: readonly AgentRole[];
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -48,8 +50,10 @@ export function SpectrumIntro({
     const f = field.getBoundingClientRect();
     const tiles = Array.from(panel.children).map((li, i) => {
       const r = li.getBoundingClientRect();
-      const l = LAMPS[LAMP_ORDER[i]];
-      return { x: r.left - b.left, y: r.top - b.top, w: r.width, h: r.height, hue: l.hue, core: l.core, dark: dark.includes(LAMP_ORDER[i]) };
+      // The panel draws OWNER_LAMPS in order: tile i is that list's role i.
+      const role = OWNER_LAMPS[i];
+      const l = LAMPS[role];
+      return { x: r.left - b.left, y: r.top - b.top, w: r.width, h: r.height, hue: l.hue, core: l.core, dark: dark.includes(role) };
     });
     const id = requestAnimationFrame(() =>
       setGeo({ w: b.width, ox: f.left - b.left + f.width / 2, oy: f.top - b.top + f.height / 2, dx: b.width / 2, dy: -18, tiles }),

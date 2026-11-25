@@ -1,9 +1,9 @@
 import type { AgentRole } from "@/lib/uslub/contract";
-import { Check, ChevronRight, Croissant, Link2, ShoppingBasket, Wheat, X } from "lucide-react";
+import { Check, ChevronRight, Croissant, Link2, Megaphone, ShoppingBasket, Wheat, X } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Led } from "../lamp/Led";
 import { LampTile } from "../lamp/LampTile";
-import { LAMP_ORDER, type LampState } from "../lamp/lamps";
+import { OWNER_LAMPS, type LampState } from "../lamp/lamps";
 import { COPY } from "../ui/copy";
 import { fmt, parseChannel, type Lang } from "../ui/format";
 import { addBotToChannelUrl } from "../ui/tme";
@@ -39,6 +39,13 @@ export type OnboardingProps = {
   /** The add-the-bot link was opened (controlled by a host that draws the buttons itself). */
   added?: boolean;
   onAdd?: () => void;
+  /**
+   * The owner's channel, named on the add-the-bot card (its title and the admin list). Without
+   * one the card says «your channel»; it never shows a made-up channel.
+   */
+  channel?: { name: string; handle?: string } | null;
+  /** One line under the add-the-bot card's steps: "checking…", "the bot is not an admin yet". */
+  note?: string | null;
 };
 
 const openInTab = (url: string) => {
@@ -55,9 +62,10 @@ const onReduce = (cb: () => void) => {
 const useReducedMotion = () => useSyncExternalStore(onReduce, () => window.matchMedia(REDUCE).matches, () => false);
 
 /**
- * The first-run intro: short screens in the lamp world, each a small live demo with one headline
- * and one line, ending on the one setup publishing needs: the bot as a channel admin. Shown once
- * by the host (see `seen.ts`); «Skip» on the phone lands on that last card, which can be put off.
+ * «Qanday ishlaydi»: short screens in the lamp world, each a small live demo with one headline and
+ * one line, ending on the one setup publishing needs: the bot as a channel admin. It never opens
+ * by itself (see `seen.ts`): Help / Settings replay it, and the add-the-bot card alone
+ * (`only="admin"`) opens at the first publish the bot could not make, naming the owner's channel.
  */
 export function Onboarding({
   open,
@@ -74,6 +82,8 @@ export function Onboarding({
   openLink = openInTab,
   added: addedProp,
   onAdd,
+  channel = null,
+  note = null,
 }: OnboardingProps) {
   const t = INTRO_COPY[lang];
   const still = useReducedMotion();
@@ -245,17 +255,18 @@ export function Onboarding({
               const on = i === step;
               const at = STEP_KINDS.indexOf(kind);
               const s = t.steps[at];
+              // The add-the-bot card names the owner's channel when the host knows it.
+              const title = kind === "admin" && channel ? fmt(t.admin.title, { channel: channel.name }) : s.title;
               return (
                 <section key={kind} className="ob__pane" data-kind={kind} data-active={on || undefined} aria-hidden={!on} inert={!on ? true : undefined}>
                   <div className="ob__stage" role="img" aria-label={t.alt[at]}>
-                    <Demo key={on ? "on" : "off"} kind={kind} active={on && open} still={still} lang={lang} t={t} bot={bot} />
+                    <Demo key={on ? "on" : "off"} kind={kind} active={on && open} still={still} lang={lang} t={t} bot={bot} channel={channel} />
                   </div>
                   <div className="ob__text">
                     <h2 id={`${titleId}-${i}`} className="ob__title">
-                      {s.title}
+                      {title}
                     </h2>
                     <p className="ob__line">{s.line}</p>
-                    {kind === "approve" && <p className="ob__pro">{variant === "desktop" ? t.pro.desktop : t.pro.phone}</p>}
                     {kind === "admin" && (
                       <>
                         <ol className="ob__how">
@@ -263,6 +274,11 @@ export function Onboarding({
                             <li key={k}>{fmt(h, { bot: `@${bot}` })}</li>
                           ))}
                         </ol>
+                        {note && (
+                          <p className="ob__note" role="status">
+                            {note}
+                          </p>
+                        )}
                         {/* Telegram draws the lime action; the quiet one stays here when it cannot. */}
                         {hostPrimary && !hostSecondary && (
                           <button type="button" className="btn-2 ob__later" onClick={added ? addBot : later}>
@@ -324,7 +340,7 @@ export function Onboarding({
 
 /* ------------------------------------------------------------------ demos */
 
-type DemoProps = { active: boolean; still: boolean; lang: Lang; t: IntroCopy; bot: string };
+type DemoProps = { active: boolean; still: boolean; lang: Lang; t: IntroCopy; bot: string; channel: OnboardingProps["channel"] };
 
 function Demo({ kind, ...p }: DemoProps & { kind: StepKind }) {
   if (kind === "lamps") return <LampsDemo {...p} />;
@@ -345,11 +361,10 @@ function useTicks(active: boolean, still: boolean, ms: number, max: number) {
   return n;
 }
 
-/** Roles that do nothing for the owner yet stay dark here too, as in the product. */
-const SOON: AgentRole[] = ["video", "radar"];
-const WORKING = LAMP_ORDER.filter((r) => !SOON.includes(r));
+/** The owner's lamps, as in the product (lamps.ts OWNER_LAMPS). */
+const WORKING = OWNER_LAMPS;
 
-/** 1 · The ten lamps: each lights while its employee works, one after another. */
+/** 1 · The lamps: each lights while its employee works, one after another. */
 function LampsDemo({ active, still, lang }: DemoProps) {
   const c = COPY[lang];
   // One tick per employee; a pause with everything lit, then the panel goes dark and starts over.
@@ -362,7 +377,6 @@ function LampsDemo({ active, still, lang }: DemoProps) {
   }, [active, still]);
   const now = WORKING[Math.min(k, WORKING.length - 1)];
   const state = (r: AgentRole): LampState => {
-    if (SOON.includes(r)) return "off";
     const at = WORKING.indexOf(r);
     if (at < k) return "on";
     return at === k ? "warming" : "off";
@@ -370,8 +384,8 @@ function LampsDemo({ active, still, lang }: DemoProps) {
   return (
     <div className="ob-lamps">
       <ul className="ob-lamps__grid" aria-hidden>
-        {LAMP_ORDER.map((r) => (
-          <LampTile key={r} as="li" role={r} size="xs" state={state(r)} className={`ob-lamp ${SOON.includes(r) ? "ob-lamp--soon" : ""}`} />
+        {WORKING.map((r) => (
+          <LampTile key={r} as="li" role={r} size="xs" state={state(r)} className="ob-lamp" />
         ))}
       </ul>
       <p className="ob-lamps__now" aria-hidden>
@@ -502,21 +516,22 @@ function ApproveDemo({ active, still, t }: DemoProps) {
 /**
  * 5 · The channel's admin list: the bot joins it, the post right switches on, and the
  * SMM-menejer's lamp (the one that publishes) lights. Every row's place is drawn from the start.
+ * The channel is the owner's own (letter avatar, name, @handle), or a neutral «your channel».
  */
-function AdminDemo({ active, still, t, bot }: DemoProps) {
+function AdminDemo({ active, still, t, bot, channel }: DemoProps) {
   // 0 the owner alone · 1 the bot joins · 2 the right switches on · 3 the lamp lights
   const n = useTicks(active, still, 620, 4);
   const phase = still ? 3 : Math.max(0, n - 1);
   const d = t.admin.demo;
+  const name = channel?.name ?? d.yours;
+  const letter = channel ? channel.name.replace(/^@/, "").slice(0, 1).toUpperCase() : null;
   return (
     <div className="ob-admin" aria-hidden>
       <div className="ob-admin__head">
-        <span className="ob-admin__ava ob-admin__ava--channel">
-          <Wheat className="h-[18px] w-[18px]" strokeWidth={1.6} />
-        </span>
+        <span className="ob-admin__ava ob-admin__ava--channel">{letter ?? <Megaphone className="h-[18px] w-[18px]" strokeWidth={1.6} />}</span>
         <span className="ob-admin__who">
-          <span className="ob-admin__name">Tandir non</span>
-          <span className="ob-admin__meta">{d.list}</span>
+          <span className="ob-admin__name">{name}</span>
+          <span className="ob-admin__meta">{channel?.handle ? `${channel.handle} · ${d.list}` : d.list}</span>
         </span>
       </div>
       <div className="ob-admin__row">

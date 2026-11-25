@@ -1,23 +1,23 @@
 /**
  * Desktop Studio: the HUB. A glass panel floating over the lamp stage: the channel, the
- * sections, the department's ten lights, the tools for the post in focus, Oddiy/Pro and the
+ * sections, the department's lights, the tools for the post in focus, Oddiy/Pro and the
  * language. Dock it left or right (drag it across, or the button), fold it to a rail; both
  * are remembered. The glass shows only what is behind it: the light of working lamps.
  * Phones never render this: they keep the one-column Studio and the Mini App.
  */
 import type { AgentRole } from "@/lib/uslub/contract";
 import { INTRO_COPY } from "@/components/onboarding";
-import { BarChart3, Check, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, Clapperboard, ExternalLink, GripVertical, LogOut, Newspaper, PanelLeft, PanelRight, Plus } from "lucide-react";
+import { BarChart3, Check, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, ExternalLink, GripVertical, LogOut, Newspaper, PanelLeft, PanelRight, Plus } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { create } from "zustand";
 import { LampTile } from "../lamp/LampTile";
-import { LAMP_ORDER, LAMPS, light } from "../lamp/lamps";
+import { LAMPS, light, OWNER_LAMPS } from "../lamp/lamps";
 import { fmt, LANGS, useCopy, useLang } from "../ui/lang";
 import { LangSwitch, Logo } from "../ui/parts";
-import { offWord, type Lamps } from "./Department";
+import { isQuiet, type Lamps } from "./Department";
 import { recentBrands, useStudio, type RecentBrand, type Tab } from "./store";
 import { Tools } from "./Tools";
 
@@ -103,7 +103,6 @@ export const RAIL_W = 76;
 const NAV: { key: Tab; icon: typeof BarChart3 }[] = [
   { key: "posts", icon: Newspaper },
   { key: "channel", icon: BarChart3 },
-  { key: "video", icon: Clapperboard },
 ];
 
 /** In Oddiy a lamp leads to the section its work lives in. */
@@ -116,7 +115,6 @@ const ROLE_TAB: Partial<Record<AgentRole, Tab>> = {
   translator: "posts",
   designer: "posts",
   publisher: "posts",
-  video: "video",
 };
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
@@ -141,7 +139,6 @@ export function Hub({ lamps }: { lamps: Lamps }) {
   const lang = useLang((s) => s.lang);
   const setLang = useLang((s) => s.setLang);
   const ready = phase === "ready";
-  const working = LAMP_ORDER.filter((r) => lamps.state[r] !== "off").length;
   const w = collapsed ? RAIL_W : HUB_W;
   const DockIcon = side === "left" ? PanelRight : PanelLeft;
   const FoldIcon = (side === "left") === collapsed ? ChevronsRight : ChevronsLeft;
@@ -171,7 +168,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
       spots[el.dataset.role as AgentRole] = { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
     });
     const prev = useHub.getState().spots;
-    const moved = LAMP_ORDER.some((r) => prev[r]?.x !== spots[r]?.x || prev[r]?.y !== spots[r]?.y);
+    const moved = OWNER_LAMPS.some((r) => prev[r]?.x !== spots[r]?.x || prev[r]?.y !== spots[r]?.y);
     if (moved) useHub.setState({ spots });
     const el = aside.current;
     if (el) setScrolls(el.scrollHeight > el.clientHeight + 1);
@@ -304,7 +301,6 @@ export function Hub({ lamps }: { lamps: Lamps }) {
           {NAV.map(({ key, icon: Icon }) => {
             const active = ready && tab === key;
             const waiting = key === "posts" && ready && drafts > 0;
-            const soon = key === "video";
             return (
               <button
                 key={key}
@@ -318,7 +314,6 @@ export function Hub({ lamps }: { lamps: Lamps }) {
               >
                 <Icon className="h-[19px] w-[19px] shrink-0" strokeWidth={1.75} aria-hidden />
                 {!collapsed && <span className="flex-1 text-left">{c.tabs[key]}</span>}
-                {!collapsed && soon && <span className="text-[12.5px] text-ink-3">{c.lampState.soon}</span>}
                 {!collapsed && key === "posts" && drafts > 0 && <span className="tnum text-[13px] text-ink-2">{drafts}</span>}
                 {/* The only lime in the hub, and it is not a button: posts are waiting for the owner. */}
                 {waiting && (
@@ -335,7 +330,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
           })}
         </nav>
 
-        {/* The department, always in view: ten lights, lit only by real work. */}
+        {/* The department, always in view: a light per employee, lit only by real work. */}
         <div className={`mt-5 ${collapsed ? "px-2" : "px-4"}`}>
           {!collapsed &&
             (pro && ready ? (
@@ -345,17 +340,17 @@ export function Hub({ lamps }: { lamps: Lamps }) {
                 onClick={() => setTab("dept")}
                 className="hub-nav mb-1.5 !min-h-9 w-full !px-1.5 !text-[13px]"
               >
-                <span className="flex-1 text-left">{working ? `${c.dept.title} · ${fmt(c.dept.staff, { n: working })}` : c.dept.title}</span>
+                <span className="flex-1 text-left">{c.dept.title}</span>
                 <ChevronRight className="h-4 w-4 text-ink-2" strokeWidth={1.75} aria-hidden />
               </button>
             ) : (
-              <p className="mb-2 px-1.5 text-[13px] text-ink-2">{working ? `${c.dept.title} · ${fmt(c.dept.staff, { n: working })}` : c.dept.title}</p>
+              <p className="mb-2 px-1.5 text-[13px] text-ink-2">{c.dept.title}</p>
             ))}
-          <ul ref={grid} className={`grid gap-1.5 ${collapsed ? "grid-cols-2" : "grid-cols-5"}`}>
-            {LAMP_ORDER.map((r, i) => {
+          <ul ref={grid} className={`grid gap-1.5 ${collapsed ? "grid-cols-2" : "grid-cols-4"}`}>
+            {OWNER_LAMPS.map((r, i) => {
               const st = lamps.state[r];
-              const radar = r === "radar";
-              const label = `${c.lamps[r].name}: ${lamps.soon.has(r) && st === "off" ? offWord(lamps, r, c.lampState.soon) : c.lampState[st]}`;
+              const quiet = isQuiet(lamps, r);
+              const label = `${c.lamps[r].name}: ${quiet ? lamps.quiet?.[r] : c.lampState[st]}`;
               return (
                 <li key={r} className="relative">
                   <LampTile
@@ -365,11 +360,10 @@ export function Hub({ lamps }: { lamps: Lamps }) {
                     state={st}
                     data-role={r}
                     aria-label={label}
-                    aria-disabled={radar || undefined}
                     aria-haspopup={pro && st !== "off" ? "dialog" : undefined}
-                    className={`w-full ${collapsed ? "!min-h-7" : "!min-h-10"} ${lamps.soon.has(r) && st === "off" ? "lamp--soon" : ""} transition-transform duration-150 active:scale-[0.96]`}
+                    className={`w-full ${collapsed ? "!min-h-7" : "!min-h-10"} ${quiet ? "lamp--soon" : ""} transition-transform duration-150 active:scale-[0.96]`}
                     {...{ type: "button" }}
-                    onClick={() => !radar && onLamp(r)}
+                    onClick={() => onLamp(r)}
                     onMouseEnter={(e) => showTip(r, e.currentTarget, false)}
                     onMouseLeave={hideTip}
                     onFocus={(e) => showTip(r, e.currentTarget, true)}
@@ -461,7 +455,7 @@ export function Hub({ lamps }: { lamps: Lamps }) {
             <span className="font-semibold">{c.lamps[tip.role].name}</span>
             <span className="text-ink-2">
               {" "}
-              · {lamps.soon.has(tip.role) && lamps.state[tip.role] === "off" ? offWord(lamps, tip.role, c.lampState.soon) : c.lampState[lamps.state[tip.role]]}
+              · {isQuiet(lamps, tip.role) ? lamps.quiet?.[tip.role] : c.lampState[lamps.state[tip.role]]}
               {lamps.words[tip.role] ? ` · ${lamps.words[tip.role]}` : ""}
             </span>
           </div>,
@@ -646,7 +640,7 @@ export function StageLight({ lamps }: { lamps: Lamps }) {
   const level = (r: AgentRole) => (lamps.state[r] === "warming" ? 0.7 : lamps.state[r] === "on" || lamps.state[r] === "you" ? 1 : 0);
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-0 isolate transition-[clip-path] duration-300 ease-out" style={{ clipPath: clip }}>
-      {LAMP_ORDER.map((r, i) => {
+      {OWNER_LAMPS.map((r, i) => {
         const at = spots[r];
         if (!at) return null;
         const o = level(r);
