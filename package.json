@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
     "set-webhook": "node scripts/set-webhook.mjs",
     "db:migrate": "node scripts/db-migrate.mjs",
     "env:push": "node scripts/vercel-env-push.mjs"

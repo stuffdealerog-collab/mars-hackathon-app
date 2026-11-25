@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@/components/analytics/Analytics";
 import { onest } from "@/components/ui/font";
 import { META, ogImage } from "@/components/ui/meta";
 import "./globals.css";
@@ -27,7 +28,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="uz" className={`h-full antialiased ${onest.variable}`}>
-      <body className="flex min-h-full flex-col font-sans">{children}</body>
+      <body className="flex min-h-full flex-col font-sans">
+        {children}
+        {/* Visit counters (GA4, Metrica): production only, off in the Mini App, never see ?query or #fragment. */}
+        <Analytics />
+      </body>
     </html>
   );
 }
