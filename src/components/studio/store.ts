@@ -17,12 +17,13 @@ import { fmt } from "../ui/format";
 import { useLang, type Lang } from "../ui/lang";
 import * as api from "./api";
 import type { Fail } from "./api";
+import { approvedPost, refreshedPost, withoutKey, type Edits } from "./approval";
 import { latestBatch } from "./batch";
 import { keepAudit, keepPlan, keptAudit, keptPlan, pickPlan, type KeptPlan } from "./keep";
 import { askChannel, nextAsk, publishFailKind, retryAsk, type AdminAsk } from "./admin-ask";
 import { defaultPro, safeTab, type Tab } from "./mode";
 import { SAMPLE_CHANNEL, sampleAudit, sampleBrand, samplePlan, sampleQuestions, sampleWeek } from "./sample";
-import { needsPicture, weekPlan, type Schedule, type WeekPlan } from "./week";
+import { needsPicture, requeueOnApprove, weekPlan, type Schedule, type WeekPlan } from "./week";
 
 export type Phase = "start" | "working" | "ready" | "reopening";
 export type Mode = "channel" | "fresh";
@@ -59,8 +60,18 @@ export type WeekState =
   | { state: "sending" }
   | { state: "done"; queued: number; skipped: api.WeekSkipped[]; adminUrl?: string }
   | { state: "changed" }
-  | { state: "continue"; continueUrl: string }
+  /** `code`: auth_required (this browser has no Telegram owner) or brand_unowned (nobody has claimed the channel yet). */
+  | { state: "continue"; continueUrl: string; code?: string }
   | { state: "failed"; message: string };
+
+/** The week's outcome in one sentence, for a toast (a post approved again through the week). */
+export function weekMessage(w: WeekState): string {
+  const c = copy().week;
+  if (w.state === "changed") return c.changed;
+  if (w.state === "failed") return w.message;
+  if (w.state === "continue") return w.code === "brand_unowned" ? c.continueUnowned : c.continueText;
+  return "";
+}
 
 /** The owner's questions (GET /api/uslub/answers): what the engine asks, and where the card stands. */
 export type QuestionsState = {
@@ -136,7 +147,7 @@ interface StudioState {
   /** Publishes the card's post once more (the owner is back, or pressed «Tayyor»). */
   retryAdminAsk: () => Promise<PublishResult | null>;
   /**
-   * Measured results for the lamps ("3 ta post vaqtida chiqdi"), when the engine or autopilot
+   * Measured results for the lamps ("3 post chiqdi"), when the engine or autopilot
    * supplies them; the lamps show them in place of their work-shaped captions. Empty until then.
    */
   outcomes: Partial<Record<AgentRole, string>>;
@@ -152,6 +163,8 @@ interface StudioState {
   loadAutopilot: () => Promise<void>;
   /** The week as the screen shows it right now (what «Haftani tasdiqlash» would queue). */
   weekNow: (postIds?: string[]) => WeekPlan;
+  /** Approving this post means putting it back in the queue (a changed post whose slot is still ahead). */
+  requeues: (id: string) => boolean;
   /** Approves and queues the week on screen, or exactly `postIds` (one post approved again). */
   approveWeek: (postIds?: string[]) => Promise<WeekState>;
   /** Before the bot's week view opens (a web owner the server does not know): waiting approvals and edits leave. */
@@ -298,6 +311,15 @@ function questionsSkipped(brandId: string): boolean {
 export const weekChannel = (s: { brand: BrandProfile | null; input: { channel?: string }; sample: boolean }) =>
   s.brand?.channel || (s.input.channel ? `@${s.input.channel}` : s.sample ? SAMPLE_CHANNEL : null);
 
+/**
+ * A rewrite would race something already under way: an approval in its undo window or in flight (it would approve
+ * a text the owner never read), a publish, or the queue sending the post right now (or a send that was cut off).
+ */
+export function rewriteLocked(s: Pick<StudioState, "pendingApprove" | "busy" | "schedule">, id: string): boolean {
+  const q = s.schedule[id]?.status;
+  return !!s.pendingApprove[id] || !!s.busy[id] || q === "sending" || q === "unknown";
+}
+
 /** Posts whose picture start is in flight: never a second paid start for the same post. */
 const starting = new Set<string>();
 /** Picture starts whose answer was lost (post id -> when it started), and how long to wait for them. */
@@ -407,7 +429,7 @@ export const useStudio = create<StudioState>((set, get) => {
    * approvedAt) and the SMM-menejer blinks; on failure the post is a draft again with the reason
    * under it ("Kod: [kod]" is a quiet hint, an old link key says so).
    */
-  const applyApproval = (id: string, r: api.Res<{ post: PostDraft }>): ApproveResult => {
+  const applyApproval = (id: string, r: api.Res<{ post: PostDraft }>, sent: Edits | undefined): ApproveResult => {
     if (!r.ok) {
       const expired = r.status === 401 && api.handoffState() !== "none";
       const message = expired ? copy().access.expired : problemOf(r).message || copy().posts.approveError;
@@ -417,13 +439,14 @@ export const useStudio = create<StudioState>((set, get) => {
       });
       return { ok: false, message };
     }
-    const server = r.data.post;
+    // The server's text is what was approved (cleaned: no spaces before line breaks, no invisible characters), and
+    // the week's hash is taken of it: the edit that went with the approval is spent. An edit made while the approval
+    // was out (a newer one than `sent`) stays on screen.
+    const edits = get().edited[id];
+    const spent = edits === sent;
     set({
-      posts: get().posts.map((p) =>
-        p.id === id
-          ? { ...p, ...server, variants: { ...server.variants, ...get().edited[id] }, image: server.image ?? p.image, status: server.status === "draft" ? "approved" : server.status }
-          : p,
-      ),
+      posts: get().posts.map((p) => (p.id === id ? approvedPost(p, r.data.post, spent ? undefined : edits) : p)),
+      ...(spent && edits ? { edited: withoutKey(get().edited, id) } : {}),
       handTick: get().handTick + 1,
     });
     return { ok: true };
@@ -502,6 +525,10 @@ export const useStudio = create<StudioState>((set, get) => {
     for (const p of posts) {
       // One paid start per post: a start still in flight (the run's, a reopen's) is not repeated.
       if (starting.has(p.id)) continue;
+      // Each start can take minutes: by now the owner may have approved and queued this post (it then goes out as
+      // it was approved, text only) or given it a picture of their own. Nothing is drawn for it then.
+      const cur = get().posts.find((x) => x.id === p.id);
+      if (!cur || !needsPicture(cur, get().schedule[p.id])) continue;
       starting.add(p.id);
       const t0 = Date.now();
       const r = await api.startPostImage(p.id, lang()).finally(() => starting.delete(p.id));
@@ -855,24 +882,18 @@ export const useStudio = create<StudioState>((set, get) => {
       const server = new Map(r.data.posts.map((p) => [p.id, p]));
       const local = new Set(get().posts.map((p) => p.id));
       const pending = get().pendingApprove;
+      let edited = get().edited;
       const merged = get().posts.map((p) => {
         const s = server.get(p.id);
         if (!s) return p;
-        // Server facts win (status, link, picture, and the text when this device has no edit of it: a rewrite on
-        // another device, or «Haftani tasdiqlash» would hash an old text); the owner's unsaved edits and waiting
-        // approvals stay.
-        const status = pending[p.id] && s.status === "draft" ? p.status : s.status;
-        const mine = !!get().edited[p.id] || !!pending[p.id];
-        return {
-          ...p,
-          status,
-          publishedUrl: s.publishedUrl ?? p.publishedUrl,
-          approvedAt: s.approvedAt ?? p.approvedAt,
-          image: s.image ?? p.image,
-          ...(mine ? {} : { variants: s.variants, needsApproval: s.needsApproval, placeholders: s.placeholders, note: s.note }),
-        };
+        // Server facts win (status, link, picture, and the text unless this device holds a newer one: a rewrite on
+        // another device, or «Haftani tasdiqlash» would hash an old text). The owner's edits of drafts and waiting
+        // approvals stay; an edit of a post the server approved is spent (approval.ts).
+        const r = refreshedPost(p, s, { edited: !!edited[p.id], pending: !!pending[p.id] });
+        if (edited[p.id] && !r.keepEdit) edited = withoutKey(edited, p.id);
+        return r.post;
       });
-      set({ posts: [...merged, ...r.data.posts.filter((p) => !local.has(p.id))] });
+      set({ posts: [...merged, ...r.data.posts.filter((p) => !local.has(p.id))], edited });
       void get().loadAutopilot();
     },
 
@@ -886,8 +907,9 @@ export const useStudio = create<StudioState>((set, get) => {
       if (!w) return;
       w.settle("flushed");
       // keepalive: the bot's tab may take the page's place; the answer still counts when it comes.
-      const r = await api.approvePost(id, lang(), get().edited[id], true);
-      applyApproval(id, r);
+      const sent = get().edited[id];
+      const r = await api.approvePost(id, lang(), sent, true);
+      applyApproval(id, r, sent);
     },
 
     flushApprovals: () => {
@@ -1187,6 +1209,12 @@ export const useStudio = create<StudioState>((set, get) => {
         set({ pendingApprove: next });
       };
       if (waiting.has(id) || get().busy[id]) return { ok: false, message: "" };
+      // A queued post changed since (a draft again with its old queue entry): a plain approval would leave the old
+      // entry, which stops at the slot. It goes back in the queue instead, as «Qayta tasdiqlash» does (no undo window).
+      if (get().requeues(id)) {
+        const w = await get().approveWeek([id]);
+        return w.state === "done" ? { ok: true } : { ok: false, message: weekMessage(w) };
+      }
       if (get().sample) {
         set({ posts: get().posts.map((p) => (p.id === id ? { ...p, status: "approved", approvedAt: new Date().toISOString() } : p)), handTick: get().handTick + 1 });
         return { ok: true };
@@ -1221,10 +1249,11 @@ export const useStudio = create<StudioState>((set, get) => {
       }
 
       busy("approve");
-      const r = await api.approvePost(id, lang(), get().edited[id]);
+      const sent = get().edited[id];
+      const r = await api.approvePost(id, lang(), sent);
       busy(undefined);
       pending(false);
-      return applyApproval(id, r);
+      return applyApproval(id, r, sent);
     },
 
     publish: async (id, script, typed) => {
@@ -1295,6 +1324,13 @@ export const useStudio = create<StudioState>((set, get) => {
       return weekPlan({ posts: s.posts, schedule: s.schedule, channel: weekChannel(s), languages: s.brand?.dna.languages, now: Date.now(), postIds });
     },
 
+    requeues: (id) => {
+      const s = get();
+      const p = s.posts.find((x) => x.id === id);
+      // A slot that has passed cannot be queued again: a plain approval then (the old entry is spent).
+      return !!p && requeueOnApprove(p, s.schedule[id]) && s.weekNow([id]).batch.ready.length > 0;
+    },
+
     approveWeek: async (postIds) => {
       const brand = get().brand;
       if (!brand || get().week.state === "sending") return get().week;
@@ -1320,8 +1356,12 @@ export const useStudio = create<StudioState>((set, get) => {
       await settleWaiting();
       for (const r of get().weekNow(postIds).toQueue) {
         const p = get().posts.find((x) => x.id === r.postId);
-        if (p?.status !== "draft" || !get().edited[p.id]) continue;
-        applyApproval(p.id, await api.approvePost(p.id, lang(), get().edited[p.id]));
+        const sent = p ? get().edited[p.id] : undefined;
+        if (p?.status !== "draft" || !sent) continue;
+        // A refused edit (a blank left, too long) would otherwise go out unedited: the week stops here, said why.
+        const a = applyApproval(p.id, await api.approvePost(p.id, lang(), sent), sent);
+        if (get().brand?.id !== brand.id) return done({ state: "idle" });
+        if (!a.ok) return done({ state: "failed", message: a.message });
       }
       if (get().brand?.id !== brand.id) return done({ state: "idle" });
       const plan = get().weekNow(postIds);
@@ -1337,7 +1377,7 @@ export const useStudio = create<StudioState>((set, get) => {
           await get().loadAutopilot();
           return done({ state: "changed" });
         }
-        if (r.continueUrl) return done({ state: "continue", continueUrl: r.continueUrl });
+        if (r.continueUrl) return done({ state: "continue", continueUrl: r.continueUrl, ...(r.code ? { code: r.code } : {}) });
         return done({ state: "failed", message: problemOf(r).message });
       }
       const queued = new Map(r.data.queued.map((q) => [q.postId, q.dueAt]));
@@ -1431,7 +1471,7 @@ export const useStudio = create<StudioState>((set, get) => {
     rewrite: async (id, instruction) => {
       const note = (v: PostNote | undefined) => set({ postNote: { ...get().postNote, [id]: v } });
       const text = instruction.trim();
-      if (!text || get().rewriting[id]) return false;
+      if (!text || get().rewriting[id] || rewriteLocked(get(), id)) return false;
       if (get().sample) {
         note({ text: copy().tools.notInSample, tone: "hint" });
         return false;

@@ -5,8 +5,8 @@ import { PostImage } from "../../media";
 import * as api from "../../studio/api";
 import { pictureBusy, useStudio } from "../../studio/store";
 import { RewriteForm } from "../../studio/PostTools";
-import { postPhase } from "../../studio/week";
-import { ScheduleLine } from "../../studio/WeekCard";
+import { noHandPublish, postPhase } from "../../studio/week";
+import { ScheduleLine, usePicturesComing, useWeek, useWhenLabel } from "../../studio/WeekCard";
 import { approveWeekNow, instagramNow } from "../actions";
 import { fmt, keepNumbers, useCopy, useLang } from "../../ui/lang";
 import { blankNote, blankTokens } from "../blank";
@@ -197,6 +197,10 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
   const schedule = useStudio((st) => (post ? st.schedule[post.id] : undefined));
   const phase = post ? postPhase(post, schedule) : ({ kind: "none" } as const);
   const weekBusy = useStudio((st) => st.week.state === "sending");
+  // An approved post the queue does not hold yet, whose slot is still ahead: «Seshanba 08:00 da o‘zi chiqsin».
+  const one = useWeek(post?.id);
+  const oneDrawing = usePicturesComing(one);
+  const whenLabel = useWhenLabel();
   const busy = post ? busyMap[post.id] : undefined;
   const nextOpen = posts.findIndex((p, i) => i !== index && statusOf(p) !== "published");
   // A blank the writer could not fill (a price, a code): the owner fills it before it can go out.
@@ -221,7 +225,8 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
   let main: BtnSpec | null = null;
   let secondary: BtnSpec | null = null;
   if (post) {
-    const held = status === "approved" && (phase.kind === "queued" || phase.kind === "sending" || phase.kind === "unknown" || phase.kind === "out");
+    const held = status === "approved" && noHandPublish(post, schedule);
+    const queueable = status === "approved" && phase.kind === "none" && one.batch.ready[0]?.postId === post.id ? one.batch.ready[0] : null;
     if (status !== "published" && blank) {
       main = { text: m.post.fill, onClick: edit, active: !moving };
     } else if (status === "draft" && phase.kind === "changed") {
@@ -240,6 +245,15 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
         : pictureComing
           ? { text: m.post.waitPicture, onClick: () => undefined, active: false }
           : { text: busy === "publish" ? c.posts.publishing : c.posts.publish, onClick: () => settled(post.id) && void publish(post.id, s), progress: busy === "publish", shine: true, active: !moving };
+      // Or let the queue send it at its slot, exactly as approved (the same as the week, for this one post).
+      if (queueable && !checking && !pictureComing)
+        secondary = {
+          text: weekBusy ? c.week.sending : fmt(c.schedule.queueOne, { when: whenLabel(queueable.dueAt) }),
+          // Inactive while the pager moves, so it never acts on the post being left (a ref read here would be read in render).
+          onClick: () => void approveWeekNow([post.id]),
+          progress: weekBusy,
+          active: !moving && !oneDrawing && busy !== "publish",
+        };
     } else {
       const url = post.publishedUrl;
       if (nextOpen >= 0) {
@@ -268,7 +282,7 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
         </div>
         {inlineSecondary && secondary && (
           <div className="px-4 pb-3 pt-2">
-            <button type="button" className="btn-2 w-full" onClick={secondary.onClick}>
+            <button type="button" className="btn-2 w-full" disabled={secondary.active === false} onClick={secondary.onClick}>
               {secondary.text}
             </button>
           </div>

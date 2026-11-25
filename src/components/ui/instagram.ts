@@ -89,6 +89,21 @@ export function coverCrop(w: number, h: number, ratio = 4 / 5): { sx: number; sy
   return { sx: 0, sy: Math.round((h - sh) / 2), sw: w, sh };
 }
 
+/** The picture's own file type, from its address (fal.media names the file): jpg when it does not say. */
+export function pictureExt(url: string): "jpg" | "png" | "webp" {
+  let path = url;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    /* a bare path */
+  }
+  const ext = /\.([a-z0-9]+)$/i.exec(path)?.[1]?.toLowerCase();
+  return ext === "png" ? "png" : ext === "webp" ? "webp" : "jpg";
+}
+
+/** The same file name with another extension ("…-instagram.jpg" -> "…-instagram.png"). */
+export const withExt = (fileName: string, ext: string) => `${fileName.replace(/\.[a-z0-9]+$/i, "")}.${ext}`;
+
 /** "non_voy-2026-11-27-instagram.jpg": the channel and the post's day. */
 export function instagramFileName(channel: string, day?: string, today = new Date().toISOString().slice(0, 10)): string {
   const slug =

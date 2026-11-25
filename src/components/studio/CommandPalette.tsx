@@ -11,6 +11,7 @@ import { queueOrder } from "./Queue";
 import { pictureBusy, recentBrands, slotKey, useStudio, type Tab } from "./store";
 import { copyText, weekText } from "./Tools";
 import { publishStep } from "./useHotkeys";
+import { noHandPublish } from "./week";
 
 type Command = { id: string; title: string; keywords: string; run: () => void };
 
@@ -40,7 +41,7 @@ function commands(c: Copy): Command[] {
     if (post) {
       const script = s.postScript && post.variants[s.postScript]?.trim() ? s.postScript : "uz_latn";
       if (post.status === "draft" && !s.pendingApprove[post.id]) add("approve", c.posts.approve, `${all((cc) => cc.posts.approve)} approve утвердить одобрить`, () => void approveWithUndo(post.id, true));
-      if (post.status === "approved" && !s.sample) add("publish", c.publish.toTelegram, `${all((cc) => cc.publish.toTelegram)} joylash publish`, () => publishStep(post, s.postScript));
+      if (post.status === "approved" && !s.sample && !noHandPublish(post, s.schedule[post.id])) add("publish", c.publish.toTelegram, `${all((cc) => cc.publish.toTelegram)} joylash publish`, () => publishStep(post, s.postScript));
       if (post.status === "draft" && !s.sample && desk.imageHandle && !pictureBusy(post.id, post.image)) add("image", c.tools.otherImage, all((cc) => cc.tools.otherImage), () => desk.imageHandle?.regenerate());
       add("copy", c.tools.copyText, all((cc) => cc.tools.copyText), () => void copyText(post.variants[script] ?? "").then((ok) => ok && desk.toast({ text: c.tools.copied, ms: 2200 })));
     }

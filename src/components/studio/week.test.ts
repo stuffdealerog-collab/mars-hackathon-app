@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PostDraft, PostSchedule } from "@/lib/uslub/contract";
-import { needsPicture, postPhase, publisherOutcome, tashkentWhen, weekContinueUrl, weekPlan } from "./week";
+import { needsPicture, noHandPublish, postPhase, publisherOutcome, requeueOnApprove, tashkentWhen, waitsForPictures, weekContinueUrl, weekPlan } from "./week";
 
 // Thursday 2026-11-26 10:00 in Tashkent (UTC+5).
 const NOW = Date.parse("2026-11-26T05:00:00Z");
@@ -132,5 +132,53 @@ describe("tashkentWhen", () => {
 
   it("is null for something that is not a time", () => {
     expect(tashkentWhen("soon")).toBeNull();
+  });
+});
+
+describe("requeueOnApprove", () => {
+  it("is a draft that still has a queue entry the queue acts on (or that «Qayta tasdiqlash» puts back)", () => {
+    for (const s of ["queued", "blocked", "failed", "expired"] as const) expect(requeueOnApprove(post("a"), sched(s))).toBe(true);
+  });
+
+  it("is not a post the queue sent or is sending, an approved post, or a draft with no entry", () => {
+    expect(requeueOnApprove(post("a"), sched("sent"))).toBe(false);
+    expect(requeueOnApprove(post("a"), sched("sending"))).toBe(false);
+    expect(requeueOnApprove(post("a", { status: "approved" }), sched("queued"))).toBe(false);
+    expect(requeueOnApprove(post("a"), undefined)).toBe(false);
+  });
+});
+
+describe("noHandPublish", () => {
+  it("keeps the hand off a post the queue holds, is sending, may have sent (unknown) or sent", () => {
+    const approved = post("a", { status: "approved" });
+    for (const s of ["queued", "sending", "unknown", "sent"] as const) expect(noHandPublish(approved, sched(s))).toBe(true);
+  });
+
+  it("lets the owner publish a post the queue could not send, or one that is not queued", () => {
+    const approved = post("a", { status: "approved" });
+    for (const s of ["blocked", "failed", "expired"] as const) expect(noHandPublish(approved, sched(s))).toBe(false);
+    expect(noHandPublish(approved, undefined)).toBe(false);
+  });
+});
+
+describe("waitsForPictures", () => {
+  const week = (posts: PostDraft[]) => weekPlan({ posts, schedule: {}, channel: "@nonvoy", now: NOW });
+
+  it("waits while the run still draws a picture for a post the week would queue", () => {
+    const posts = [post("a", { image: undefined }), post("b")];
+    expect(waitsForPictures(week(posts), posts, {}, true)).toBe(true);
+  });
+
+  it("does not wait once the pictures step is over, or when every post of the week has its picture", () => {
+    const bare = [post("a", { image: undefined })];
+    expect(waitsForPictures(week(bare), bare, {}, false)).toBe(false);
+    const drawn = [post("a"), post("b")];
+    expect(waitsForPictures(week(drawn), drawn, {}, true)).toBe(false);
+  });
+
+  it("does not wait for an older draft the run never draws (the owner's own «Rasm yaratish»)", () => {
+    const old = post("old", { image: undefined, createdAt: "2026-11-20T04:50:00Z" });
+    const posts = [old, post("new")];
+    expect(waitsForPictures(week(posts), posts, {}, true)).toBe(false);
   });
 });

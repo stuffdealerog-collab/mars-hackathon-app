@@ -6,6 +6,7 @@ import { botPublishUrl, handoffKey } from "./api";
 import { approveWithUndo, useDesk } from "./desk";
 import { queueOrder } from "./Queue";
 import { useStudio } from "./store";
+import { noHandPublish } from "./week";
 
 const SCRIPTS: Script[] = ["uz_latn", "uz_cyrl", "ru", "en"];
 const CONTROLS = "button, a, input, textarea, select, [contenteditable], [contenteditable=''], [role=menuitem]";
@@ -53,7 +54,8 @@ export function useHotkeys(enabled: boolean) {
           // Held Enter approves one post, never a run of them; nothing while a request is out.
           if (e.repeat || st.busy[cur.id] || st.pendingApprove[cur.id]) break;
           if (cur.status === "draft") void approveWithUndo(cur.id, true);
-          else if (cur.status === "approved" && !st.sample) publishStep(cur, st.postScript);
+          // The queue holds it (or its send was cut off): it goes out by itself, never a second time by hand.
+          else if (cur.status === "approved" && !st.sample && !noHandPublish(cur, st.schedule[cur.id])) publishStep(cur, st.postScript);
           break;
         case "KeyE":
           if (cur.status === "draft") desk.setEditing(cur.id);

@@ -10,16 +10,23 @@ import { useId, useState } from "react";
 import { exportForInstagram, type ExportOutcome } from "../ui/instagram-export";
 import { instagramCaption, instagramFileName, ownHashtags } from "../ui/instagram";
 import { useCopy } from "../ui/lang";
-import { useStudio } from "./store";
+import { authHeader } from "./api";
+import { rewriteLocked, useStudio } from "./store";
 
-/** One post as an Instagram post: the caption (the channel's own hashtags, t.me links), the file name, the picture. */
-export function instagramParts(post: PostDraft, script: Script): { caption: string; fileName: string; imageUrl: string | null } {
+/**
+ * One post as an Instagram post: the caption (the channel's own hashtags, t.me links), the file name, the post (the
+ * proxy reads its picture by id) and its picture's own address (opened when nothing else works).
+ */
+export function instagramParts(post: PostDraft, script: Script): { caption: string; fileName: string; postId: string | null; imageUrl: string | null; authorization?: string } {
   const st = useStudio.getState();
   const text = post.variants[script]?.trim() || post.variants.uz_latn;
+  const imageUrl = post.image?.url ?? null;
   return {
     caption: instagramCaption(text, { hashtags: ownHashtags(st.brand?.dna) }),
     fileName: instagramFileName(st.brand?.channel || st.input.channel || st.brand?.dna.name || "mercat", post.slot?.day),
-    imageUrl: post.image?.url ?? null,
+    postId: imageUrl ? post.id : null,
+    imageUrl,
+    authorization: authHeader(),
   };
 }
 
@@ -33,6 +40,8 @@ export function RewriteForm({ post, onDone, className = "" }: { post: PostDraft;
   const id = useId();
   const [text, setText] = useState("");
   const busy = useStudio((s) => !!s.rewriting[post.id]);
+  // An approval in its undo window or in flight, a publish, the queue sending it: the rewrite waits (store.rewriteLocked).
+  const locked = useStudio((s) => rewriteLocked(s, post.id));
   const go = async () => {
     if (await useStudio.getState().rewrite(post.id, text)) {
       setText("");
@@ -51,8 +60,8 @@ export function RewriteForm({ post, onDone, className = "" }: { post: PostDraft;
         {c.rewrite.label}
       </label>
       <div className="flex gap-2">
-        <input id={id} className="input min-w-0 flex-1 !min-h-11" placeholder={c.rewrite.ph} maxLength={300} value={text} disabled={busy} onChange={(e) => setText(e.target.value)} />
-        <button type="submit" className="btn-2 shrink-0 !min-h-11 !px-4" disabled={busy || text.trim().length < 2}>
+        <input id={id} className="input min-w-0 flex-1 !min-h-11" placeholder={c.rewrite.ph} maxLength={300} value={text} disabled={busy || locked} onChange={(e) => setText(e.target.value)} />
+        <button type="submit" className="btn-2 shrink-0 !min-h-11 !px-4" disabled={busy || locked || text.trim().length < 2}>
           {busy ? <span className="breathe">{c.rewrite.busy}</span> : c.rewrite.go}
         </button>
       </div>

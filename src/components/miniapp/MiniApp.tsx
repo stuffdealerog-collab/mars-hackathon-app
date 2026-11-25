@@ -19,7 +19,7 @@ import { MiniIntro } from "./Intro";
 import { decideIntro, forcedIntro, INTRO_CLOUD_KEY, localIntro, seenVersion } from "../onboarding";
 import { launchTarget } from "./launch";
 import { approveWeekNow, restart } from "./actions";
-import { useQueuePoll, useWeek } from "../studio/WeekCard";
+import { usePicturesComing, useQueuePoll, useWeek } from "../studio/WeekCard";
 import { loadLatestPlan, useResume } from "./sync";
 import { isLimit } from "./limits";
 import { cloud, haptic, tg } from "./tg";
@@ -210,8 +210,11 @@ const TABS: PhoneTab[] = ["channel", "posts"];
 function Tabs({ active }: { active: boolean }) {
   const c = useCopy();
   const m = useMiniCopy();
-  // «Haftani tasdiqlash · N» takes the MainButton on Postlar once two or more posts can go out at their time.
-  const weekN = useWeek().toQueue.length;
+  // «Haftani tasdiqlash · N» takes the MainButton on Postlar once a post can go out at its time (the week card on
+  // Postlar only names it). While the run still draws a picture for one of them, the button waits, greyed.
+  const week = useWeek();
+  const weekN = week.toQueue.length;
+  const drawing = usePicturesComing(week);
   const weekBusy = useStudio((s) => s.week.state === "sending");
   const tab: PhoneTab = useStudio((s) => (s.tab === "dept" ? "channel" : s.tab));
   const setTab = useStudio((s) => s.setTab);
@@ -231,8 +234,10 @@ function Tabs({ active }: { active: boolean }) {
   const main =
     tab === "channel" && firstLook && total > 0
       ? { text: fmt(m.seePosts, { n: total }), onClick: toPosts }
-      : tab === "posts" && (weekN >= 2 || weekBusy)
-        ? { text: weekBusy ? c.week.sending : fmt(c.week.approve, { n: weekN }), onClick: () => void approveWeekNow(), progress: weekBusy, shine: true }
+      : tab === "posts" && (weekN >= 1 || weekBusy)
+        ? drawing && !weekBusy
+          ? { text: fmt(c.week.approve, { n: weekN }), onClick: () => undefined, active: false }
+          : { text: weekBusy ? c.week.sending : fmt(c.week.approve, { n: weekN }), onClick: () => void approveWeekNow(), progress: weekBusy, shine: true }
         : tab === "posts" && next
           ? { text: m.review, onClick: () => (haptic.tap(), openPost(next)) }
           : null;

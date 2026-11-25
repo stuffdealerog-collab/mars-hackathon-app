@@ -9,6 +9,7 @@
  */
 import type { PostDraft, PostSchedule, Script } from "@/lib/uslub/contract";
 import { selectWeekBatch, type WeekBatch, type WeekPost, type WeekReady, type WeekSkip } from "../../lib/autopilot/week";
+import { latestBatch } from "./batch";
 
 export type Schedule = Record<string, PostSchedule>;
 
@@ -108,7 +109,51 @@ export function needsPicture(p: Pick<PostDraft, "status" | "image">, s?: PostSch
   return (p.status === "draft" && (!p.image || (p.image.status === "failed" && !p.image.url))) || (p.status === "approved" && !p.image);
 }
 
-/** The SMM-menejer's measured result: posts the queue put out at their time, and the next one waiting. */
+/**
+ * The run is still drawing this week's pictures (`drawing`: its pictures step is waiting or running) and a post that
+ * «Haftani tasdiqlash» would queue has none yet: approving now would queue it as text only, while the run goes on to
+ * draw a picture the queue never sends. The button waits until the pictures are done.
+ */
+export function waitsForPictures(
+  plan: Pick<WeekPlan, "toQueue">,
+  posts: readonly Pick<PostDraft, "id" | "status" | "image" | "createdAt">[],
+  schedule: Schedule,
+  drawing: boolean,
+): boolean {
+  if (!drawing || !plan.toQueue.length) return false;
+  const latest = latestBatch(posts);
+  const byId = new Map(posts.map((p) => [p.id, p]));
+  return plan.toQueue.some((r) => {
+    const p = byId.get(r.postId);
+    return !!p && latest.has(p.id) && needsPicture(p, schedule[p.id]);
+  });
+}
+
+/** Queue entries an approval of a changed post must replace: the queue still acts on them, or «Qayta tasdiqlash» does. */
+const REQUEUE: ReadonlySet<PostSchedule["status"]> = new Set(["queued", "blocked", "failed", "expired"]);
+
+/**
+ * A draft that still has a queue entry (approved and queued, then rewritten): approving it must put this version back
+ * in the queue (approve-week with its id). A plain approval would leave the old entry, which stops at the slot on the
+ * changed text while the screen says the post goes out.
+ */
+export function requeueOnApprove(post: Pick<PostDraft, "status">, s?: PostSchedule | null): boolean {
+  return post.status === "draft" && !!s && REQUEUE.has(s.status);
+}
+
+/**
+ * The queue holds this post, or its send was cut off (it may be in the channel already): it is never published by
+ * hand, from a button, Enter or the command palette.
+ */
+export function noHandPublish(post: Pick<PostDraft, "status" | "publishedUrl">, s?: PostSchedule | null): boolean {
+  const k = postPhase(post, s).kind;
+  return k === "queued" || k === "sending" || k === "unknown" || k === "out";
+}
+
+/**
+ * The SMM-menejer's measured result: posts the queue put out (counted, not called "on time": a blocked post is
+ * retried and may go out hours late), and the next one waiting.
+ */
 export function publisherOutcome(schedule: Schedule): { out: number; next?: string } {
   const all = Object.values(schedule);
   const out = all.filter((s) => s.status === "sent").length;

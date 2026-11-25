@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coverCrop, instagramCaption, instagramFileName, ownHashtags } from "./instagram";
+import { coverCrop, instagramCaption, instagramFileName, ownHashtags, pictureExt, withExt } from "./instagram";
 
 describe("instagramCaption", () => {
   it("drops Mercat's tracked link and the line it sits on", () => {
@@ -65,5 +65,19 @@ describe("instagramFileName", () => {
   it("names the file after the channel and day", () => {
     expect(instagramFileName("@Non_voy", "2026-11-27")).toBe("non_voy-2026-11-27-instagram.jpg");
     expect(instagramFileName("Tandir non", undefined, "2026-11-25")).toBe("tandir-non-2026-11-25-instagram.jpg");
+  });
+});
+
+describe("pictureExt / withExt", () => {
+  it("takes the file type from the picture's address, jpg when it does not say", () => {
+    expect(pictureExt("https://v3.fal.media/files/zebra/abc.png")).toBe("png");
+    expect(pictureExt("https://v3.fal.media/files/zebra/abc.WEBP")).toBe("webp");
+    expect(pictureExt("https://v3.fal.media/files/zebra/abc.jpeg")).toBe("jpg");
+    expect(pictureExt("https://v3.fal.media/files/zebra/abc")).toBe("jpg");
+    expect(pictureExt("https://v3.fal.media/files/a.png?x=1.jpg")).toBe("png");
+  });
+
+  it("names Telegram's download after what the file is", () => {
+    expect(withExt("non_voy-2026-11-27-instagram.jpg", "png")).toBe("non_voy-2026-11-27-instagram.png");
   });
 });

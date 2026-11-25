@@ -7,7 +7,7 @@
 export const BATCH_MAX = 7;
 const BATCH_WINDOW_MS = 15 * 60_000;
 
-export function latestBatch(posts: { id: string; createdAt: string }[], max = BATCH_MAX, windowMs = BATCH_WINDOW_MS): Set<string> {
+export function latestBatch(posts: readonly { id: string; createdAt: string }[], max = BATCH_MAX, windowMs = BATCH_WINDOW_MS): Set<string> {
   const at = (p: { createdAt: string }) => {
     const t = Date.parse(p.createdAt);
     return Number.isFinite(t) ? t : 0;

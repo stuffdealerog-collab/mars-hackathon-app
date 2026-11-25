@@ -18,7 +18,7 @@ import { addBotToChannelUrl } from "../ui/tme";
 import { authHeader } from "./api";
 import { showPost, whenOf } from "./desk";
 import { useStudio, weekChannel } from "./store";
-import { postPhase, tashkentWhen, weekContinueUrl, weekPlan, type WeekPlan } from "./week";
+import { postPhase, tashkentWhen, waitsForPictures, weekContinueUrl, weekPlan, type WeekPlan } from "./week";
 import type { WeekSkipReason } from "@/lib/autopilot/types";
 
 type Variant = "studio" | "mini";
@@ -53,6 +53,14 @@ export function useWeek(postId?: string): WeekPlan {
       }),
     [posts, schedule, brand, typed, sample, now, postId],
   );
+}
+
+/** The run still draws a picture for a post the week would queue (week.ts waitsForPictures): the week waits. */
+export function usePicturesComing(plan: WeekPlan): boolean {
+  const drawing = useStudio((s) => !s.sample && s.steps.some((x) => x.key === "images" && (x.status === "run" || x.status === "wait")));
+  const posts = useStudio((s) => s.posts);
+  const schedule = useStudio((s) => s.schedule);
+  return useMemo(() => waitsForPictures(plan, posts, schedule, drawing), [plan, posts, schedule, drawing]);
 }
 
 /** "Seshanba 08:00" for a queue time (Tashkent); Russian keeps the weekday lower case mid-sentence. */
@@ -115,7 +123,7 @@ function AdminLine({ variant, onOpen, url, compact = false }: { variant: Variant
   }, [asked]);
   return (
     <div className="flex flex-col gap-2 rounded-[16px] bg-[var(--bad-soft,var(--glass-2))] px-3.5 py-3">
-      <p className="text-[14px] leading-snug">{fmt(c.week.admin, { channel: channel ?? c.week.yourChannel })}</p>
+      <p className="text-[14px] leading-snug">{channel ? fmt(c.week.admin, { channel }) : c.week.adminYours}</p>
       {!compact && <p className="text-[13px] leading-snug text-ink-2">{c.week.adminHint}</p>}
       <Out
         href={url || addBotToChannelUrl(bot)}
@@ -173,7 +181,8 @@ export function AutopilotRow({ variant, onOpen, compact = false }: { variant: Va
             href={continueUrl}
             variant={variant}
             onOpen={(h) => {
-              useStudio.getState().handOverWeek();
+              // Only the approvals the owner already tapped leave now; switching the autopilot approves nothing.
+              useStudio.getState().flushApprovals();
               onOpen?.(h);
             }}
             className="link mt-1.5 inline-flex min-h-10 items-center text-[14px] text-ink"
@@ -202,6 +211,7 @@ export function WeekCard({ variant = "studio", onOpen, compact = false }: { vari
   const schedule = useStudio((s) => s.schedule);
   const posts = useStudio((s) => s.posts);
   const admin = useStudio((s) => s.botAdmin);
+  const drawing = usePicturesComing(plan);
   if (!brandId || !posts.length) return null;
   const known = knownOwner(sample);
   const n = plan.toQueue.length;
@@ -221,8 +231,9 @@ export function WeekCard({ variant = "studio", onOpen, compact = false }: { vari
         {!compact && <LampTile role="publisher" size="xs" state={sending ? "warming" : held ? "on" : n ? "you" : "off"} className="h-11 w-11 shrink-0 !rounded-[12px]" aria-hidden />}
         <div className="min-w-0 flex-1">
           {n > 0 && variant === "studio" ? (
-            known ? (
-              <button type="button" className={`btn ${compact ? "w-full" : ""}`} disabled={sending} onClick={() => void useStudio.getState().approveWeek()}>
+            known || drawing ? (
+              // While the run still draws this week's pictures the button waits: the week would go out text only.
+              <button type="button" className={`btn ${compact ? "w-full" : ""}`} disabled={sending || drawing} onClick={() => void useStudio.getState().approveWeek()}>
                 {label}
               </button>
             ) : (
@@ -240,7 +251,13 @@ export function WeekCard({ variant = "studio", onOpen, compact = false }: { vari
           )}
         </div>
       </div>
-      {n > 0 && (!compact || !known) && <p className="text-[13.5px] leading-snug text-ink-2">{known ? c.week.approveHint : c.week.continueText}</p>}
+      {n > 0 && drawing ? (
+        <p role="status" className="breathe text-[13.5px] leading-snug text-ink-2">
+          {c.week.drawing}
+        </p>
+      ) : (
+        n > 0 && (!compact || !known) && <p className="text-[13.5px] leading-snug text-ink-2">{known ? c.week.approveHint : c.week.continueText}</p>
+      )}
 
       {week.state === "done" && (
         <p role="status" className="text-[14px] leading-snug text-ok">
@@ -259,7 +276,7 @@ export function WeekCard({ variant = "studio", onOpen, compact = false }: { vari
       )}
       {week.state === "continue" && (
         <div className="flex flex-col gap-2">
-          <p className="text-[14px] leading-snug">{c.week.continueText}</p>
+          <p className="text-[14px] leading-snug">{week.code === "brand_unowned" ? c.week.continueUnowned : c.week.continueText}</p>
           <Out href={week.continueUrl} variant={variant} onOpen={onOpen} className="btn-2 !min-h-10 self-start !px-4 !text-[14px]">
             {c.week.continueBtn}
           </Out>
@@ -387,12 +404,14 @@ export function QueueOne({ post }: { post: PostDraft }) {
   const sample = useStudio((s) => s.sample);
   const held = useStudio((s) => !!s.schedule[post.id]);
   const busy = useStudio((s) => s.week.state === "sending");
-  const ready = useWeek(post.id).batch.ready[0];
+  const one = useWeek(post.id);
+  const drawing = usePicturesComing(one);
+  const ready = one.batch.ready[0];
   if (held || post.status !== "approved" || !ready || !knownOwner(sample)) return null;
   const w = tashkentWhen(ready.dueAt);
   const when = w ? `${c.weekdays[w.weekday]} ${w.time}` : "";
   return (
-    <button type="button" className="link self-start text-[14px] text-ink-2" disabled={busy} onClick={() => void useStudio.getState().approveWeek([post.id])}>
+    <button type="button" className="link self-start text-[14px] text-ink-2" disabled={busy || drawing} onClick={() => void useStudio.getState().approveWeek([post.id])}>
       {fmt(c.schedule.queueOne, { when })}
     </button>
   );

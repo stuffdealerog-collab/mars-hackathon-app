@@ -27,7 +27,7 @@ export function LampTile({
   /** the state word under the name; omit for a bare light (size "xs") */
   stateText?: string;
   /**
-   * A measured result for the owner ("3 ta post vaqtida chiqdi"), when the data gives one: it takes
+   * A measured result for the owner ("3 post chiqdi"), when the data gives one: it takes
    * the place of the work-shaped caption (`children`). Without it the lamp stays as it is.
    */
   result?: string;

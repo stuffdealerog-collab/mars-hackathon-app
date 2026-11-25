@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useId, useState } from "react";
 import { fmt, keepNumbers, useCopy, useLang } from "../ui/lang";
-import { weekday } from "../ui/format";
+import { ownerText, weekday } from "../ui/format";
 import { parseChannel } from "../ui/parts";
 import { PostImage } from "@/components/media";
 import { lampVars } from "../lamp/lamps";
@@ -14,7 +14,7 @@ import { useDesktop } from "./Hub";
 import { latestBatch } from "./batch";
 import { PostTools } from "./PostTools";
 import { slotKey, useStudio } from "./store";
-import { postPhase } from "./week";
+import { noHandPublish, postPhase } from "./week";
 import { QueueOne, ReapproveButton, ScheduleLine } from "./WeekCard";
 
 // Professional rejim only, loaded on demand.
@@ -147,7 +147,7 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
           </span>
         )}
       </header>
-      {when && timeLabel && <p className="-mt-1 px-1 pb-2 text-[12.5px] leading-snug text-ink-3">{timeLabel}</p>}
+      {when && timeLabel && <p className="-mt-1 px-1 pb-2 text-[12.5px] leading-snug text-ink-3">{ownerText(timeLabel, lang)}</p>}
 
       {/* Drawn close to Telegram's own channel post, so the owner sees what subscribers will see. */}
       <div className="tgpost relative">
@@ -273,7 +273,7 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
               <ExternalLink className="h-4 w-4" aria-hidden />
             </a>
           )
-        ) : approved && (phase.kind === "queued" || phase.kind === "sending" || phase.kind === "unknown" || phase.kind === "out") ? (
+        ) : approved && noHandPublish(post, schedule) ? (
           // The queue holds it (or its send was cut off): it goes out by itself, never a second time by hand.
           <ScheduleLine post={post} />
         ) : approved ? (

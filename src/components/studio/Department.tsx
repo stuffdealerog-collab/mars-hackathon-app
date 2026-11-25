@@ -13,12 +13,12 @@ import { POSTS_PER_RUN, useStudio, type Step, type StepKey } from "./store";
 import { publisherOutcome, tashkentWhen, type Schedule } from "./week";
 
 /**
- * The SMM-menejer's measured result from the queue: posts it put out at their time ("2 ta post vaqtida chiqdi"), or
+ * The SMM-menejer's measured result from the queue: posts it put out ("2 post chiqdi", counted, never called "on time"), or
  * the next one waiting ("keyingisi: Juma 07:30"). Nothing until the queue has something (never a made-up number).
  */
 export function publisherWords(schedule: Schedule, c: ReturnType<typeof useCopy>, lang: Lang): string | null {
   const o = publisherOutcome(schedule);
-  if (o.out) return `${o.out} ${plural(c.lampResult.outOnTime, o.out, lang)}`;
+  if (o.out) return `${o.out} ${plural(c.lampResult.out, o.out, lang)}`;
   const w = o.next ? tashkentWhen(o.next) : null;
   if (!w) return null;
   const day = c.weekdays[w.weekday];

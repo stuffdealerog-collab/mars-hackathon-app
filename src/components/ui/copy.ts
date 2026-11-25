@@ -205,7 +205,7 @@ const uz = {
     clean: "matn tekshirildi",
     pictures: ["rasm", "rasm", "rasm"],
     published: ["joylandi", "joylandi", "joylandi"],
-    outOnTime: ["post vaqtida chiqdi", "post vaqtida chiqdi", "post vaqtida chiqdi"],
+    out: ["post chiqdi", "post chiqdi", "post chiqdi"],
     next: "keyingisi: {when}",
   },
   hub: {
@@ -343,6 +343,8 @@ const uz = {
     changed: "Postlar o‘zgargan ekan, ro‘yxatni yangiladik. Ko‘rib chiqing va yana bosing.",
     continueText: "Bu brauzer Telegram hisobingizni bilmaydi. Botda davom eting: u kanal huquqini tekshiradi va haftani jadvalga qo‘yadi.",
     continueBtn: "Telegram’da davom etish",
+    continueUnowned: "Bot avval kanal adminligingizni tekshiradi, keyin haftani jadvalga qo‘yadi.",
+    drawing: "Rasmlar hali chizilmoqda. Tayyor bo‘lgach haftani tasdiqlaysiz, postlar rasmi bilan chiqadi.",
     left: "Jadvalga kirmadi",
     skip: {
       blank: "bo‘sh joy qolgan: {tokens}",
@@ -357,7 +359,7 @@ const uz = {
     admin: "Bot {channel} kanalida hali admin emas, postlar chiqmay kutib turadi.",
     adminBtn: "Botni kanalga qo‘shish",
     adminHint: "«Xabar joylash» huquqi bilan admin qiling. Qaytganingizda yana tekshiramiz.",
-    yourChannel: "sizning",
+    adminYours: "Bot kanalingizda hali admin emas, postlar chiqmay kutib turadi.",
     close: "Yopish",
   },
   schedule: {
@@ -407,6 +409,8 @@ const uz = {
     working: "Tayyorlanmoqda…",
     done: "4:5 rasm yuklandi, matn nusxalandi",
     shared: "Matn nusxalandi, Instagram’ni tanlang",
+    saved: "Rasm saqlandi, matn nusxalandi",
+    copied: "Matn nusxalandi",
     opened: "Matn nusxalandi. Rasm yangi oynada ochildi: o‘sha yerda saqlang.",
     noImage: "Matn nusxalandi (bu postda rasm yo‘q)",
     failed: "Nusxalab bo‘lmadi. Matnni qo‘lda belgilab oling.",
@@ -615,7 +619,7 @@ const ru: Copy = {
     clean: "текст проверен",
     pictures: ["картинка", "картинки", "картинок"],
     published: ["опубликован", "опубликовано", "опубликовано"],
-    outOnTime: ["пост вышел вовремя", "поста вышли вовремя", "постов вышли вовремя"],
+    out: ["пост вышел", "поста вышли", "постов вышли"],
     next: "следующий: {when}",
   },
   hub: {
@@ -753,6 +757,8 @@ const ru: Copy = {
     changed: "Посты успели измениться, мы обновили список. Проверьте и нажмите ещё раз.",
     continueText: "Этот браузер не знает ваш Telegram. Продолжите в боте: он проверит права в канале и поставит неделю в график.",
     continueBtn: "Продолжить в Telegram",
+    continueUnowned: "Бот сначала проверит, что вы админ канала, и поставит неделю в график.",
+    drawing: "Картинки ещё рисуются. Когда будут готовы, утвердите неделю: посты выйдут с картинками.",
     left: "Не вошли в график",
     skip: {
       blank: "остался пропуск: {tokens}",
@@ -767,7 +773,7 @@ const ru: Copy = {
     admin: "Бот пока не админ в канале {channel}: посты будут ждать.",
     adminBtn: "Добавить бота в канал",
     adminHint: "Дайте право «Публикация сообщений». Когда вернётесь, проверим снова.",
-    yourChannel: "вашем",
+    adminYours: "Бот пока не админ в вашем канале: посты будут ждать.",
     close: "Закрыть",
   },
   schedule: {
@@ -817,6 +823,8 @@ const ru: Copy = {
     working: "Готовим…",
     done: "Картинка 4:5 скачана, текст скопирован",
     shared: "Текст скопирован, выберите Instagram",
+    saved: "Картинка сохранена, текст скопирован",
+    copied: "Текст скопирован",
     opened: "Текст скопирован. Картинка открылась в новом окне: сохраните её там.",
     noImage: "Текст скопирован (в посте нет картинки)",
     failed: "Не удалось скопировать. Выделите текст вручную.",
@@ -1022,7 +1030,7 @@ const en: Copy = {
     clean: "text checked",
     pictures: ["picture", "pictures", "pictures"],
     published: ["published", "published", "published"],
-    outOnTime: ["post out on time", "posts out on time", "posts out on time"],
+    out: ["post out", "posts out", "posts out"],
     next: "next: {when}",
   },
   hub: {
@@ -1160,6 +1168,8 @@ const en: Copy = {
     changed: "The posts changed in the meantime, so we refreshed the list. Check it and press again.",
     continueText: "This browser doesn't know your Telegram account. Carry on in the bot: it checks your channel rights and schedules the week.",
     continueBtn: "Continue in Telegram",
+    continueUnowned: "The bot first checks that you are an admin of the channel, then schedules the week.",
+    drawing: "The pictures are still being drawn. Approve the week once they're ready, so the posts go out with them.",
     left: "Not scheduled",
     skip: {
       blank: "a blank is left: {tokens}",
@@ -1174,7 +1184,7 @@ const en: Copy = {
     admin: "The bot is not an admin of {channel} yet, so the posts will wait.",
     adminBtn: "Add the bot to the channel",
     adminHint: "Give it the “Post messages” right. We check again when you're back.",
-    yourChannel: "your",
+    adminYours: "The bot is not an admin of your channel yet, so the posts will wait.",
     close: "Close",
   },
   schedule: {
@@ -1224,6 +1234,8 @@ const en: Copy = {
     working: "Preparing…",
     done: "4:5 picture saved, caption copied",
     shared: "Caption copied, pick Instagram",
+    saved: "Picture saved, caption copied",
+    copied: "Caption copied",
     opened: "Caption copied. The picture opened in a new tab: save it there.",
     noImage: "Caption copied (this post has no picture)",
     failed: "Couldn't copy. Select the text by hand.",
