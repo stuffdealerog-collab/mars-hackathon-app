@@ -7,7 +7,7 @@ import { recordPageView } from "./lib/stats-pageview";
  *
  * - /stats: HTTP Basic auth in front of the live stats page. A page cannot send 401 with WWW-Authenticate itself,
  *   and without that header the browser never shows its password prompt.
- * - / and /studio: counts the visit server-side without cookies (stats-pageview.ts) and passes the request on
+ * - /, /about and /studio: counts the visit server-side without cookies (stats-pageview.ts) and passes the request on
  *   untouched. The write runs after the response (waitUntil), so the page never waits for it or fails because of it.
  */
 const NO_STORE = "private, no-store, max-age=0";
@@ -48,5 +48,5 @@ export function proxy(request: NextRequest, event?: NextFetchEvent): NextRespons
 const isStatsPath = (pathname: string) => pathname === "/stats" || pathname.startsWith("/stats/");
 
 export const config = {
-  matcher: ["/", "/studio", "/stats", "/stats/:path*"],
+  matcher: ["/", "/about", "/studio", "/stats", "/stats/:path*"],
 };

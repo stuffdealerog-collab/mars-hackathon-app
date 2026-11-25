@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isCleanLanding, isSafeQueryKey, referrerIsClean, sessionHistoryIsClean, staysOnLanding } from "./landing";
+import { ABOUT_PATH, COUNTED_PATHS, countedPathOf, isCleanLanding, isSafeQueryKey, referrerIsClean, sessionHistoryIsClean, staysOnLanding } from "./landing";
 
 const O = "https://mercat-ai.vercel.app";
 const BRAND = "00000000-0000-0000-0000-000000000000";
@@ -108,5 +108,53 @@ describe("isSafeQueryKey", () => {
   it("knows the language and campaign keys only", () => {
     for (const k of ["lang", "utm_source", "utm_medium", "ysclid", "yclid", "gclid", "fbclid"]) expect(isSafeQueryKey(k)).toBe(true);
     for (const k of ["brand", "k", "channel", "mode", "mock", "post", "intro", "tgWebAppStartParam", ""]) expect(isSafeQueryKey(k)).toBe(false);
+  });
+});
+
+describe("the explainer (/about) as a second counted page", () => {
+  it("counts only '/' and '/about'", () => {
+    expect(COUNTED_PATHS).toEqual(["/", "/about"]);
+  });
+
+  it("knows which counted page a document opened on", () => {
+    expect(countedPathOf(`${O}/`, O)).toBe("/");
+    expect(countedPathOf(`${O}/?lang=ru&utm_source=tg`, O)).toBe("/");
+    expect(countedPathOf(`${O}/about`, O)).toBe("/about");
+    expect(countedPathOf(`${O}/about?lang=en`, O)).toBe("/about");
+    expect(countedPathOf("/about?lang=uz", O)).toBe("/about");
+  });
+
+  it("refuses every other page, an unknown key, another origin and Telegram's addresses", () => {
+    expect(countedPathOf(`${O}/studio?lang=ru`, O)).toBeNull();
+    expect(countedPathOf(`${O}/about/x`, O)).toBeNull();
+    expect(countedPathOf(`${O}/about?brand=${BRAND}`, O)).toBeNull();
+    expect(countedPathOf(`${O}/about?k=SECRETKEY`, O)).toBeNull();
+    expect(countedPathOf(`${O}/?tgWebAppStartParam=x`, O)).toBeNull();
+    expect(countedPathOf(`${O}/about#tgWebAppData=user%3D1`, O)).toBeNull();
+    expect(countedPathOf("https://example.com/about", O)).toBeNull();
+    expect(countedPathOf("http://[", O)).toBeNull();
+  });
+
+  it("keeps an /about document on /about: the landing and the Studio are full loads from it", () => {
+    expect(staysOnLanding(`${O}/about?lang=ru`, O, ABOUT_PATH)).toBe(true);
+    expect(staysOnLanding(`${O}/about?lang=ru&utm_campaign=x`, O, ABOUT_PATH)).toBe(true);
+    expect(staysOnLanding(`${O}/`, O, ABOUT_PATH)).toBe(false);
+    expect(staysOnLanding(`${O}/studio?lang=ru`, O, ABOUT_PATH)).toBe(false);
+    expect(staysOnLanding(`${O}/about?brand=${BRAND}`, O, ABOUT_PATH)).toBe(false);
+  });
+
+  it("keeps a landing document off /about too: each document counts one page", () => {
+    expect(staysOnLanding(`${O}/about?lang=ru`, O)).toBe(false);
+    expect(staysOnLanding(`${O}/about`, O, "/")).toBe(false);
+  });
+
+  it("wants a clean address and a clean history on /about as on the landing", () => {
+    expect(isCleanLanding(`${O}/about?lang=ru`, O, ABOUT_PATH)).toBe(true);
+    expect(isCleanLanding(`${O}/about#x`, O, ABOUT_PATH)).toBe(false);
+    const studio = `${O}/studio?lang=ru&brand=${BRAND}`;
+    expect(sessionHistoryIsClean(O, [{ url: `${O}/about?lang=ru`, sameDocument: true }], "navigate", 1, ABOUT_PATH)).toBe(true);
+    expect(sessionHistoryIsClean(O, [{ url: studio, sameDocument: true }, { url: `${O}/about`, sameDocument: true }], "reload", 2, ABOUT_PATH)).toBe(false);
+    expect(sessionHistoryIsClean(O, [{ url: `${O}/`, sameDocument: true }, { url: `${O}/about`, sameDocument: true }], "navigate", 2, ABOUT_PATH)).toBe(false);
+    expect(sessionHistoryIsClean(O, [{ url: `${O}/`, sameDocument: false }, { url: `${O}/about`, sameDocument: true }], "navigate", 2, ABOUT_PATH)).toBe(true);
   });
 });

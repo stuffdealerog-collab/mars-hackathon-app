@@ -5,10 +5,10 @@ import { type EventEnv, eventEnv } from "./stats-meta";
 import { safeLogEvent } from "./track";
 
 /**
- * Server-side, cookie-less page views of the landing page and the Studio, written by src/proxy.ts as `page_view`
- * events for /stats. Only a category of everything is kept:
+ * Server-side, cookie-less page views of the landing page, the explainer (/about) and the Studio, written by
+ * src/proxy.ts as `page_view` events for /stats. Only a category of everything is kept:
  *
- *   { path: "landing" | "studio", source, device: "mobile" | "desktop", surface: "web", visitor, env }
+ *   { path: "landing" | "about" | "studio", source, device: "mobile" | "desktop", surface: "web", visitor, env }
  *
  * `source` comes from `?src=`, `?utm_source=` or the referrer's host category (source-category.ts visitSource);
  * `visitor` is the daily keyed hash of IP + User-Agent (anon-key.ts dailyVisitorKey). The URL's query and fragment
@@ -18,16 +18,18 @@ import { safeLogEvent } from "./track";
  * Only production counts: next dev, `next start` on a laptop and Vercel previews write no page views (and no visitor
  * keys, see stats-meta.ts), even when their DATABASE_URL points at the shared production database.
  *
- * The Studio is counted on a full page load and on an in-app jump to it (a next/link click on the landing page, which
- * the browser sends as a same-origin fetch, not a document request). That is only safe because no link to /studio
- * prefetches (they all set prefetch={false}; tests/analytics-tracking.test.ts checks it): in the proxy, Next.js strips
- * the headers that tell a prefetch from a click. The landing page counts full loads only, since links back to "/" may
- * prefetch.
+ * The Studio and /about are counted on a full page load and on an in-app jump to them (a next/link click on the
+ * landing page, which the browser sends as a same-origin fetch, not a document request). That is only safe because no
+ * link to /studio or /about prefetches (they all set prefetch={false}; tests/analytics-tracking.test.ts checks it): in
+ * the proxy, Next.js strips the headers that tell a prefetch from a click. The landing page counts full loads only,
+ * since links back to "/" may prefetch.
  */
 
-export type PageViewPath = "landing" | "studio";
+export type PageViewPath = "landing" | "about" | "studio";
 
-const PATHS: Record<string, PageViewPath> = { "/": "landing", "/studio": "studio" };
+const PATHS: Record<string, PageViewPath> = { "/": "landing", "/about": "about", "/studio": "studio" };
+/** Pages counted on an in-app jump as well as on a load: no link to them prefetches. */
+const JUMP_COUNTED: ReadonlySet<PageViewPath> = new Set(["about", "studio"]);
 
 /** Crawlers, link previews (Telegram, WhatsApp, Facebook…), uptime checks, headless browsers and HTTP libraries. */
 const NOT_A_PERSON_RE =
@@ -82,14 +84,14 @@ export type PageViewProps = {
 
 /**
  * The page_view props for a request, or null when it is not a counted page visit. Pure apart from the server key.
- * The Studio counts loads and in-app jumps; the landing page counts loads only.
+ * The Studio and /about count loads and in-app jumps; the landing page counts loads only.
  */
 export function pageViewFrom(req: VisitRequest, now: Date = new Date()): PageViewProps | null {
   const url = new URL(req.url);
   const path = PATHS[url.pathname.replace(/\/+$/, "") || "/"];
   if (!path) return null;
   const kind = visitKind(req);
-  if (kind !== "load" && !(kind === "jump" && path === "studio")) return null;
+  if (kind !== "load" && !(kind === "jump" && JUMP_COUNTED.has(path))) return null;
   const ua = req.headers.get("user-agent") ?? "";
   return {
     path,

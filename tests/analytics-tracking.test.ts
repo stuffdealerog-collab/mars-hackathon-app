@@ -189,7 +189,17 @@ describe("page views (counted server-side by the proxy)", () => {
     expect(visitKind(visit("/studio"))).toBe("load");
   });
 
-  it("no link to /studio prefetches (the proxy could not tell a prefetch from a click)", async () => {
+  it("counts /about on a load and on an in-app jump from the landing page", () => {
+    const jump = { "sec-fetch-dest": "empty", "sec-fetch-mode": "cors", "sec-fetch-site": "same-origin", referer: "https://mercat-ai.vercel.app/?lang=ru" };
+    expect(pageViewFrom(visit("/about?lang=ru"))).toMatchObject({ path: "about", surface: "web" });
+    expect(pageViewFrom(visit("/about/"))?.path).toBe("about");
+    expect(pageViewFrom(visit("/about?lang=en", jump))).toMatchObject({ path: "about", source: "internal" });
+    expect(pageViewFrom(visit("/about", { ...jump, "next-router-prefetch": "1" }))).toBeNull();
+    expect(pageViewFrom(visit("/about/more"))).toBeNull();
+  });
+
+  /** Every <Link> in src whose href (inline or through one named const) points at `page`, and those that prefetch. */
+  async function linksTo(page: RegExp) {
     const { readdirSync, readFileSync, statSync } = await import("node:fs");
     const { join } = await import("node:path");
     const files: string[] = [];
@@ -210,11 +220,22 @@ describe("page views (counted server-side by the proxy)", () => {
         const href = /href=(\{[^}]*\}|"[^"]*")/.exec(tag)?.[1] ?? "";
         const target = /href=\{\s*([A-Za-z_]\w*)\s*\}/.exec(tag)?.[1];
         const resolved = target ? (new RegExp(`const ${target}\\s*=\\s*([^;\\n]+)`).exec(text)?.[1] ?? "") : href;
-        if (!/\/studio/.test(resolved)) continue;
+        if (!page.test(resolved)) continue;
         links += 1;
         if (!/prefetch=\{false\}/.test(tag.slice(0, tag.indexOf(">", tag.indexOf("href")) + 1))) offenders.push(`${file}: ${href}`);
       }
     }
+    return { links, offenders };
+  }
+
+  it("no link to /studio prefetches (the proxy could not tell a prefetch from a click)", async () => {
+    const { links, offenders } = await linksTo(/\/studio/);
+    expect(links).toBeGreaterThan(0);
+    expect(offenders).toEqual([]);
+  });
+
+  it("no link to /about prefetches either (it counts in-app jumps the same way)", async () => {
+    const { links, offenders } = await linksTo(/\/about/);
     expect(links).toBeGreaterThan(0);
     expect(offenders).toEqual([]);
   });
