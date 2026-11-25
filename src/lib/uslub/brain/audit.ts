@@ -132,7 +132,7 @@ export async function analyzeDeterministic(input: {
   const category = input.category ?? "";
   const niche = nicheOf(category, own.title);
   // What kind of channel this is: the brand's stored type, else read from the posts (owner correction 2).
-  const typeGuess = input.channelType ? undefined : detectChannelType({ posts: own.posts, title: own.title, postsPerWeek: stats.postsPerWeek });
+  const typeGuess = input.channelType ? undefined : detectChannelType({ posts: own.posts, title: own.title, postsPerWeek: stats.postsPerWeek, channel: own.channel });
   const channelType: ChannelType = input.channelType ?? typeGuess?.type ?? "business";
   emit({ stage: "type", channelType, confidence: typeGuess?.confidence ?? 1, goal: defaultGoalFor(channelType) });
   const [summaries, learn, snapshots] = await Promise.all([

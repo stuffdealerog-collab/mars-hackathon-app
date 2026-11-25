@@ -27,8 +27,9 @@ export function channelProfile(input: { samplePosts: string[]; channel?: string;
   const posts: EndingPost[] = input.scraped?.posts.map((p) => ({ text: p.text, isForward: p.isForward })) ?? input.samplePosts.map((text) => ({ text }));
   const newestFirst = [...posts].reverse();
   const bot = getEnv().BOT_USERNAME?.replace(/^@/, "");
-  const postEnding = extractPostEnding(newestFirst, { channel: input.scraped?.username ?? input.channel, bot });
-  const channelType = detectChannelType({ posts: newestFirst, title: input.scraped?.title, description: input.scraped?.description }).type;
+  const channel = input.scraped?.username ?? input.channel;
+  const postEnding = extractPostEnding(newestFirst, { channel, bot });
+  const channelType = detectChannelType({ posts: newestFirst, title: input.scraped?.title, description: input.scraped?.description, channel }).type;
   return { postEnding, channelType };
 }
 

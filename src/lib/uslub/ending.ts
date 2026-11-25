@@ -31,6 +31,39 @@ const ADMIN_RE = /(?<!\p{L})(admin|administrator|админ|администра
 
 const norm = (s: string) => s.toLowerCase().replace(/^@/, "");
 
+/* ------------------------------------------------------------------ ads and the ad-contact footer */
+
+const lineKey = (line: string) => line.toLowerCase().replace(/[^\p{L}\p{N}@_]+/gu, " ").trim();
+const lastLines = (text: string, n: number) => text.split("\n").map((l) => l.trim()).filter(Boolean).slice(-n);
+const CONTACTISH_RE = /@\w|t\.me\/|https?:\/\/|\d{2}[\s-]?\d{3}[\s-]?\d{2}/i;
+
+/**
+ * Ad-marker lines that are the channel's footer, not an ad: a line with the marker and a contact ("📢 Reklama: @kun_reklama",
+ * "Реклама: t.me/ads_manager") among the last 3 lines of at least half the posts (and of at least 3). A digest that sells
+ * ads signs every post this way, and those posts are its own voice. A bare "#reklama" is a marker, never a footer.
+ */
+export function adFooters(texts: string[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const t of texts) {
+    const keys = new Set(lastLines(t, 3).filter((l) => AD_RE.test(l) && CONTACTISH_RE.test(l)).map(lineKey));
+    for (const k of keys) counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  return new Set([...counts.entries()].filter(([, n]) => n >= 3 && n * 2 >= texts.length).map(([k]) => k));
+}
+
+/** The post without its ad-contact footer lines (see adFooters). */
+export function withoutAdFooter(text: string, footers: Set<string>): string {
+  if (!footers.size) return text;
+  return text
+    .split("\n")
+    .filter((l) => !footers.has(lineKey(l)))
+    .join("\n")
+    .trimEnd();
+}
+
+/** An ad (#reklama, "Реклама", erid…) once the channel's ad-contact footer is set aside. */
+export const isAdPost = (text: string, footers: Set<string> = new Set()): boolean => AD_RE.test(withoutAdFooter(text, footers));
+
 /** The last lines of a post that make its ending: up to 2 non-empty lines (3 when the last one is only hashtags). */
 export function endingOf(text: string): string {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -86,40 +119,57 @@ export function classifyEnding(ending: string, opts: EndingOptions = {}): Exclud
 
 const MAX_LINE = 140;
 
+type Tally = Map<string, { n: number; lines: Map<string, number> }>;
+
+/** How many texts carry each contact (once per text), with the lines that carry it as written. */
+function tallyContacts(texts: string[], opts: EndingOptions): Tally {
+  const tally: Tally = new Map();
+  for (const text of texts) {
+    const seen = new Set<string>();
+    for (const c of contactsIn(text, opts)) {
+      if (seen.has(c.key)) continue;
+      seen.add(c.key);
+      const t = tally.get(c.key) ?? { n: 0, lines: new Map<string, number>() };
+      t.n++;
+      const line = (text.split("\n").find((l) => contactsIn(l, opts).some((x) => x.key === c.key)) ?? c.raw).replace(/\s+/g, " ").trim();
+      t.lines.set(line, (t.lines.get(line) ?? 0) + 1);
+      tally.set(c.key, t);
+    }
+  }
+  return tally;
+}
+
+const topOf = (tally: Tally, ok: (n: number) => boolean) => [...tally.values()].filter((t) => ok(t.n)).sort((a, b) => b.n - a.n)[0];
+
 /**
- * The channel's usual ending, from its own posts (newest first; ads and forwards skipped). The pattern is the habit
- * at least half the posts share, else "mixed". `contact` is the channel's most frequent contact, as the line that
- * carries it is most often written ("📞 Buyurtma: +998 90 123 45 67"), and only when at least two posts use it (one
- * when the channel has fewer than three posts): a contact seen once may be a partner's.
+ * The channel's usual ending, from its own posts (newest first; ads and forwards skipped, an ad-contact footer is not an
+ * ad). The pattern is the habit at least half the posts share, else "mixed". `contact` is the channel's most frequent
+ * contact, as the line that carries it is most often written ("📞 Buyurtma: +998 90 123 45 67"), and only when at least
+ * two posts use it (one when the channel has fewer than three posts): a contact seen once may be a partner's.
+ * The contact is looked for in the endings first. When they show no contact habit, a contact that at least half the
+ * posts carry anywhere is still the channel's: a phone block above an address, a guarantee line, hashtags or the
+ * channel's own @signature ("📞 +998… / 📍 Chilonzor / ⏰ 8:00–21:00"). The pattern is then "contact" (it stays "mixed"
+ * when the endings share no habit).
  */
 export function extractPostEnding(posts: (string | EndingPost)[], opts: EndingOptions = {}): PostEnding {
-  const own = posts
-    .map((p) => (typeof p === "string" ? { text: p } : p))
-    .filter((p) => !p.isForward && p.text.trim().length >= 10 && !AD_RE.test(p.text));
+  const mine = posts.map((p) => (typeof p === "string" ? { text: p } : p)).filter((p) => !p.isForward && p.text.trim().length >= 10);
+  const footers = adFooters(mine.map((p) => p.text));
+  const own = mine.filter((p) => !isAdPost(p.text, footers));
   if (!own.length) return { pattern: "none", examples: [] };
   const endings = own.map((p) => endingOf(p.text));
   const kinds = endings.map((e) => classifyEnding(e, opts));
   const counts = new Map<Kind, number>();
   for (const k of kinds) counts.set(k, (counts.get(k) ?? 0) + 1);
   const [topKind, topN] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-  const pattern: Kind = topN * 2 >= own.length ? topKind : "mixed";
+  const habit: Kind = topN * 2 >= own.length ? topKind : "mixed";
 
-  // Contact: the most frequent contact across the endings (then the whole posts), in the line that carries it.
-  const tally = new Map<string, { n: number; lines: Map<string, number> }>();
-  endings.forEach((e) => {
-    const seen = new Set<string>();
-    for (const c of contactsIn(e, opts)) {
-      if (seen.has(c.key)) continue;
-      seen.add(c.key);
-      const t = tally.get(c.key) ?? { n: 0, lines: new Map<string, number>() };
-      t.n++;
-      const line = (e.split("\n").find((l) => contactsIn(l, opts).some((x) => x.key === c.key)) ?? c.raw).replace(/\s+/g, " ").trim();
-      t.lines.set(line, (t.lines.get(line) ?? 0) + 1);
-      tally.set(c.key, t);
-    }
-  });
+  // Contact: the most frequent contact across the endings; else the one at least half the posts carry anywhere.
   const minUses = own.length < 3 ? 1 : 2;
-  const best = [...tally.values()].filter((t) => t.n >= minUses).sort((a, b) => b.n - a.n)[0];
+  const inEndings = topOf(tallyContacts(endings, opts), (n) => n >= minUses);
+  const inPosts = habit === "contact" ? undefined : topOf(tallyContacts(own.map((p) => p.text), opts), (n) => n >= minUses && n * 2 >= own.length);
+  const carried = inPosts != null && (habit !== "mixed" || !inEndings);
+  const best = carried ? inPosts : inEndings;
+  const pattern: Kind = carried && habit !== "mixed" ? "contact" : habit;
   const contactLine = best ? [...best.lines.entries()].sort((a, b) => b[1] - a[1])[0][0] : undefined;
 
   // Hashtags the channel ends with again and again (topic tags used once are not a habit).
@@ -144,7 +194,7 @@ export function extractPostEnding(posts: (string | EndingPost)[], opts: EndingOp
 
 type Variant = Exclude<Script, "uz_cyrl">;
 
-const UZ_LATIN_RE = /o['‘’ʻ`]|g['‘’ʻ`]|(?<!\p{L})(uchun|buyurtma|yozing|murojaat|manzil|bog['‘’ʻ]lan|aloqa|qo['‘’ʻ]ng['‘’ʻ]iroq|telefon|raqam)/iu;
+const UZ_LATIN_RE = /o['‘’ʻ`]|g['‘’ʻ`]|(?<!\p{L})(uchun|buyurtma|yozing|murojaat|manzil|bog['‘’ʻ]lan|aloqa|qo['‘’ʻ]ng['‘’ʻ]iroq|telefon|raqam|reklama)/iu;
 
 /** The contact line in this variant: as the channel writes it when it is in the variant's language, else emoji + contact. */
 export function contactLineFor(line: string, script: Variant, opts: EndingOptions = {}): string {
@@ -168,8 +218,44 @@ const CONTACT_BLANK_RE = /\[(kontakt|контакт|contact)\]/i;
 const BLANK_SENTENCE_RE = /[^\n.!?]*\[(kontakt|контакт|contact)\][^\n.!?]*[.!?]?/gi;
 
 /**
+ * Where the channel writes its contact line, from its endings (lines normalized): `after` = the lines below it (all of
+ * an ending that does not carry it: the contact then sits above the ending, "📞 … / 📍 Chilonzor / ⏰ 8:00–21:00");
+ * `before` = the line right above it ("👉 @kun_digest" over "📢 Reklama: @kun_reklama").
+ */
+function contactSpot(ending: PostEnding, opts: EndingOptions): { after: Set<string>; before: Set<string> } {
+  const keys = new Set(contactsIn(ending.contact ?? "", opts).map((c) => c.key));
+  const after = new Set<string>();
+  const before = new Set<string>();
+  for (const e of ending.examples) {
+    const lines = e.split("\n").map((l) => l.trim()).filter(Boolean);
+    const at = lines.findIndex((l) => contactsIn(l, opts).some((c) => keys.has(c.key)));
+    for (const l of lines.slice(at + 1)) after.add(lineKey(l));
+    if (at > 0) before.add(lineKey(lines[at - 1]));
+  }
+  after.delete("");
+  before.delete("");
+  return { after, before };
+}
+
+/**
+ * The contact line goes where the channel puts it: above the closing lines it writes after its contact (an address,
+ * opening hours, hashtags) when the new post ends with them; right under the line it writes above its contact (its
+ * @signature) when the new post ends with that; else at the end, after an empty line.
+ */
+function placeContactLine(text: string, line: string, ending: PostEnding, opts: EndingOptions): string {
+  const { after, before } = contactSpot(ending, opts);
+  const lines = text.trimEnd().split("\n");
+  let i = lines.length;
+  while (i > 0 && lines[i - 1].trim() && (after.has(lineKey(lines[i - 1])) || isHashtagLine(lines[i - 1].trim()))) i--;
+  if (i > 0 && i < lines.length) return [...lines.slice(0, i), line, ...lines.slice(i)].join("\n");
+  const last = lines[lines.length - 1] ?? "";
+  return `${text.trimEnd()}${before.has(lineKey(last)) ? "\n" : "\n\n"}${line}`;
+}
+
+/**
  * Ends a new post the way the channel's posts end:
- * - "contact": the channel's contact goes in (a [kontakt] blank is filled with it; otherwise its line is appended once);
+ * - "contact": the channel's contact goes in (a [kontakt] blank is filled with it; otherwise its line goes in once, where
+ *   the channel puts it), and the channel's recurring hashtags are appended when the post has none of them;
  * - "hashtags": the channel's recurring hashtags are appended when the post has none of them;
  * - "none": nothing is added, and a [kontakt] blank the writer left is removed (the channel never names a contact);
  * - "admin" / "link" / "mixed": the writer followed the examples; nothing is forced.
@@ -183,7 +269,7 @@ export function applyPostEnding(text: string, ending: PostEnding | undefined, sc
     const present = contactsIn(out, opts).some((c) => keys.has(c.key));
     const raw = contactsIn(ending.contact, opts)[0]?.raw;
     if (CONTACT_BLANK_RE.test(out) && raw) out = out.replace(new RegExp(CONTACT_BLANK_RE.source, "gi"), raw);
-    else if (!present && ending.pattern === "contact") out = `${out.trimEnd()}\n\n${contactLineFor(ending.contact, script, opts)}`;
+    else if (!present && ending.pattern === "contact") out = placeContactLine(out, contactLineFor(ending.contact, script, opts), ending, opts);
   } else if ((ending.pattern === "none" || ending.pattern === "hashtags") && CONTACT_BLANK_RE.test(out)) {
     out = out
       .replace(BLANK_SENTENCE_RE, "")
@@ -192,7 +278,7 @@ export function applyPostEnding(text: string, ending: PostEnding | undefined, sc
       .replace(/\n{3,}/g, "\n\n")
       .trim();
   }
-  if (ending.pattern === "hashtags" && ending.hashtags?.length) {
+  if ((ending.pattern === "hashtags" || ending.pattern === "contact") && ending.hashtags?.length) {
     const has = ending.hashtags.some((h) => out.toLowerCase().includes(h.toLowerCase()));
     if (!has) out = `${out.trimEnd()}\n\n${ending.hashtags.join(" ")}`;
   }
@@ -290,7 +376,7 @@ export function planTrackedLink(s: { link?: string; cta: string }, bot: string |
 export function endingBrief(ending: PostEnding | undefined): string {
   if (!ending || !ending.examples.length) return "";
   const how: Record<Kind, string> = {
-    contact: `they end with the channel's contact. Reuse it exactly as written: "${ending.contact ?? ""}"`,
+    contact: `they end with the channel's contact${ending.hashtags?.length ? ` and its hashtags ${ending.hashtags.join(" ")}` : ""}. Reuse the contact exactly as written: "${ending.contact ?? ""}", where the examples put it (any lines the examples write below it, such as an address or opening hours, stay below it).`,
     admin: "they end by sending readers to the admin, without a phone or link (copy that manner).",
     link: "they end with a link (copy the link from the examples exactly; never another link).",
     hashtags: `they end with hashtags only${ending.hashtags?.length ? `: ${ending.hashtags.join(" ")}` : ""}.`,
@@ -298,4 +384,18 @@ export function endingBrief(ending: PostEnding | undefined): string {
     mixed: `no single habit; follow the examples${ending.contact ? `. When a post asks people to order or write, use the channel's contact exactly as written: "${ending.contact}"` : ""}.`,
   };
   return [`HOW THE CHANNEL'S POSTS END (learned from its own posts) — ${how[ending.pattern]}`, ...ending.examples.map((e, i) => `ending ${i + 1}: ${e.replace(/\n/g, " / ")}`)].join("\n");
+}
+
+/**
+ * How a stored brand's posts end: learned at brand creation (dna.postEnding), else read from its stored posts now (rows
+ * made before 2026-11-25; `samplePosts` are oldest first, as stored). A new channel with no posts has no ending to follow.
+ * `bot` is Mercat's bot (BOT_USERNAME): never the channel's contact.
+ */
+export function brandPostEnding(
+  brand: { dna?: { postEnding?: PostEnding } | null; mode?: string; samplePosts: string[]; channel?: string },
+  bot?: string,
+): PostEnding | undefined {
+  if (brand.dna?.postEnding) return brand.dna.postEnding;
+  if (brand.mode === "fresh" || brand.samplePosts.length < 3) return undefined;
+  return extractPostEnding([...brand.samplePosts].reverse(), { channel: brand.channel, bot });
 }

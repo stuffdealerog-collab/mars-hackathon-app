@@ -2,14 +2,19 @@
  * What kind of channel this is (owner correction 2, 2026-11-25), from the channel's own posts, title and description.
  * Pure: regexes and counts only, no LLM. Goals, rules, plan pillars, owner questions and the Monday report follow it.
  *
- * - business:  prices, how to order, a phone or address, menus, promotions ("buyurtma", "заказ", "12 000 so'm");
- * - blog:      a person writing about their own life in the first person ("men bugun…", "я сегодня…", "I tried…");
- * - expert:    advice, lessons and opinions from a specialist ("5 ta xato", "совет", "how to", "menimcha");
+ * - business:  a phone or address, how to order, a price with an offer or in a price list ("buyurtma", "заказ",
+ *              "Narxi: 12 000 so'm"); a price told in a story ("билеты стоили 250$") is not selling;
+ * - blog:      a person writing about their own life in the first person ("men bugun…", "qaytdim", "я сегодня…",
+ *              "Вчера вернулась…", "мой любимый…", "I tried…");
+ * - expert:    advice, lessons and opinions from a specialist ("5 ta xato", "совет", "how to", "menimcha", "Bugungi so'z",
+ *              "Writing Task 2");
  * - media:     news in the third person, sources, many short posts with links ("ma'lum qildi", "сообщает", "according to");
  * - community: members, meetups, events and chats of a group ("a'zolar", "встреча", "join us").
+ * An ad-contact footer under most posts ("📢 Reklama: @…") is how a digest signs, not an ad.
  * With little evidence the answer is "business" at low confidence (today's sales plan), and the owner confirms the goal.
  */
 import type { ChannelType, Goal } from "../contract";
+import { adFooters, contactsIn, isAdPost, withoutAdFooter } from "../ending";
 import { normApos } from "./stats";
 
 export interface TypePost {
@@ -24,6 +29,8 @@ export interface TypeInput {
   description?: string;
   /** Posts per week, when known: a news digest posts many times a day. */
   postsPerWeek?: number;
+  /** The channel's own @username: its signature ("👉 @kun_digest") is not a contact to order through. */
+  channel?: string;
 }
 
 export interface ChannelTypeGuess {
@@ -61,22 +68,56 @@ const stem = (alts: string) => new RegExp(`${L}(?:${alts})`, "iu");
 
 const RE = {
   price: /\d[\d\s.,]*\s?(so'?m|сўм|сум|sum\b|uzs|ming\b|минг|тыс|\$|usd|y\.e)/iu,
-  order: stem(
-    "buyurtma|zakaz|заказ|yetkazib|yetkazish|доставк|delivery|sotib ol|sotuvda|купить|в наличии|mavjud|narx|цен[аыуе]|price|chegirma|aksiya|скидк|акци|bron|брон|savatcha|корзин|menyu|меню|filial|филиал|do'kon|магазин|optom|оптом|kafolat|гарант|nasiya|рассрочк|to'lov|оплат",
+  // Words of selling (not the word "price": a traveller writes "цена с завтраком" too).
+  sell: stem(
+    "buyurtma|zakaz|заказ|yetkazib|yetkazish|доставк|delivery|sotib ol|sotuvda|купить|в наличии|mavjud|chegirma|aksiya|скидк|акци|bron|брон|savat|корзин|xarid|tovar|товар|promokod|промокод|menyu|меню|filial|филиал|do'kon|магазин|optom|оптом|kafolat|гарант|nasiya|рассрочк|to'lov|оплат",
   ),
+  priceWord: stem("narx|цен[аыуе]|стоимост|price"),
+  // A price the way a price list writes it: "Narxi: 180 000 so'm", "💰 1 200 000", "Цена — 450 000" at a line or
+  // sentence start, or a price on a line of its own ("45 000 сум", "По 45 000 сум") (a traveller's "chipta narxi
+  // 270 000 so'm edi" is narration, not a price list).
+  priceLabel:
+    /(^|\n|[.!?]\s+)[^\p{L}\d\n]{0,4}(?:(?:narx|цен[аыуе]|стоимост|price)\p{L}*[^\n\d]{0,24}\d|[💰💵💸]\s*\d|(?:по|от|всего|faqat|atigi|jami)?\s*\d[\d\s.,]*\s?(?:so'?m|сўм|сум|uzs|\$|usd|y\.e)[^\p{L}\d\n]{0,4}(?:\n|$))/u,
+  priceLine: /\d[\d\s.,]*\s?(so'?m|сўм|сум|sum\b|uzs|ming\b|минг|тыс|\$|usd|y\.e)[^\n\d]{0,12}$/gimu,
   phone: /\+?998[\s-]?\(?\d{2}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}/,
-  place: /ko'chasi|mavzesi|tumani|mo'ljal|ориентир|ул\.|метро|ish vaqti|режим работы|\d{1,2}[:.]\d{2}\s?[-–—]\s?\d{1,2}[:.]\d{2}/iu,
-  // First person singular: pronouns, and Uzbek 1sg verb endings (bordim, yozaman, o'ylayapman).
-  iUz: /(?<![\p{L}'])(men|meni|menga|mening|menda|mendan|o'zim|o'zimning)(?![\p{L}'])|(?<![\p{L}'])\p{L}{3,}(dim|yapman|ayman|aman)(?![\p{L}'])/iu,
-  iRu: word("я|мне|меня|мой|моя|моё|мои|моих|сама|сам"),
-  iEn: /(?<![\p{L}'])(i|i'm|i've|i'd|my|me|myself)(?![\p{L}'])/u,
+  // An address or opening hours ("metro" only with a station name after it: "Метро — 200 иен" is a traveller's note).
+  place: /ko'chasi|mavzesi|tumani|mo'ljal|ориентир|ул\.|метро\s+[«"]?\p{L}|metro\s+[«"]?\p{L}|ish vaqti|режим работы|\d{1,2}[:.]\d{2}\s?[-–—]\s?\d{1,2}[:.]\d{2}/iu,
+  // First person singular. Uzbek: pronouns, 1sg verb endings (bordim, yozaman, ketyapman, borgan edim, boribman,
+  // bormoqchiman) and "my" on the people and things of one's own life (oilam, o'g'lim, uyim).
+  iUz: new RegExp(
+    String.raw`(?<![\p{L}'])(men|meni|menga|mening|menda|mendan|o'zim|o'zimning|edim|oilam|onam|otam|akam|opam|ukam|singlim|o'g'lim|qizim|erim|xotinim|turmush o'rtog'im|do'stim|dugonam|uyim|hayotim|farzandlarim|bolalarim)(?![\p{L}'])|(?<![\p{L}'])\p{L}{3,}(dim|yapman|ayman|aman|ganman|ibman|chiman|moqdaman)(?![\p{L}'])`,
+    "iu",
+  ),
+  // Russian: pronouns and possessives in every case ("моей", "моему", "со мной").
+  iRu: word("я|мне|меня|мной|мною|мой|моя|моё|мое|мои|моих|моего|моей|моему|моим|моём|моем|моими|мою|сама|сам"),
+  // Russian past tense with the subject left out, as a diary writes it: "Вчера вернулась из Грузии", "Наконец
+  // дописала", "Сходила в театр" (a news sentence names its subject: "Президент подписал…"). Feminine and reflexive
+  // forms only at the sentence start; masculine ones only after a word of time ("Вчера ходил").
+  ruPast: new RegExp(
+    String.raw`(?:^|[.!?…]\s+|\n\s*)(?:(?:вчера|сегодня|утром|вечером|ночью|днём|днем|наконец|наконец-то|впервые|сначала|потом|опять|снова|тоже|уже|недавно|давно|сама|сам|только что)\s+(?:\p{L}{2,}(?:ла|лась|лся|л))|\p{L}{2,}(?:ала|яла|ила|ела|ула|ыла|лась|лся))(?![\p{L}\d])`,
+    "giu",
+  ),
+  // "I", but not a model name ("Intel Core i5").
+  iEn: /(?<![\p{L}'])(i|i'm|i've|i'd|my|me|myself)(?![\p{L}\d'])/u,
   diary: word("bugun|kecha|ertaga|hayotim|oilam|сегодня|вчера|завтра|моя жизнь|today|yesterday|this morning|my life|weekend|dam olish"),
   advice: stem(
     "maslahat|tavsiya|qanday qilib|nima uchun|sabablari|xato|qoida|bilasizmi|foydali|o'rganing|darslik|совет|рекоменд|как правильно|как выбрать|почему|ошибк|правил[оа]|урок|разбор|лайфхак|how to|tips?\\b|mistake|guide|lesson|why you|did you know|myth|afsona|миф",
   ),
+  // Teaching: lessons, the word of the day, exam prep (an exam section with its number, answers, band scores), steps
+  // and common traps. A school that names IELTS in an ad is not teaching.
+  lesson: stem(
+    [
+      "bugungi so'z|kun so'zi|yangi so'z|so'z:|слово дня|word of the day|today's word|idiom|phrasal verb|collocation|sinonim|синоним|synonym|vocabulary|lug'at",
+      "misol:|masalan:|пример:|example:|answers?:|javoblar?i?:|ответы?:|true/false|not given",
+      "(?:writing|speaking|reading|listening)(?:'?(?:da|ga|ning|dagi))?\\s+(?:task|part|bo'lim)\\s*\\d?|band\\s*\\d|grammatika|грамматик|grammar",
+      "dars(?:i|imiz)?(?![\\p{L}])|урок|lesson|mashq|упражнен|exercise|tuzoq|ловушк|eng ko'p (?:uchraydigan|qilinadigan|beriladigan)|частые ошибки|частая ошибка|common mistake",
+      "qanday \\p{L}+ (?:kerak|mumkin)|как (?:правильно|выбрать|сделать|запомнить|подготовиться|сдать)|how (?:to|do you)|o'rniga|вместо|instead of",
+      "\\d+ ta (?:qadam|usul|xato|maslahat|sabab|qoida)|\\d+ (?:шаг|способ|ошиб|совет|причин|правил)|\\d+ (?:steps|ways|tips|mistakes|reasons|rules)",
+    ].join("|"),
+  ),
   opinion: stem("menimcha|fikrimcha|tajribam|по-моему|по моему мнению|я считаю|мой опыт|i think|in my opinion|my experience"),
   specialist: stem(
-    "shifokor|doktor|vrach|врач|psixolog|психолог|advokat|юрист|lawyer|trener|тренер|coach|коуч|ustoz|устоз|учител|teacher|mutaxassis|специалист|эксперт|expert|dietolog|нутрициолог|marketolog|маркетолог|pediatr|педиатр",
+    "shifokor|doktor|vrach|врач|psixolog|психолог|advokat|юрист|lawyer|trener|тренер|coach|коуч|ustoz|устоз|учител|teacher|mutaxassis|специалист|эксперт|expert|dietolog|нутрициолог|marketolog|маркетолог|pediatr|педиатр|shogird|o'quvchilarim|o'quvchim|o'qituvchi|my students?|мо(?:и|я|й|его|ей|им) учени|tutor|repetitor|репетитор|преподавател|instructor",
   ),
   news: stem(
     "yangilik|xabar ber|ma'lum qil|bildirdi|aytib o'tdi|ta'kidladi|manba|новост|сообщ|заявил|по данным|источник|news|reported|according to|breaking|срочно|tezkor|rasman|официально|prezident|президент|vazir|министр|hukumat|правительств",
@@ -108,15 +149,33 @@ const r2 = (x: number) => Math.round(x * 100) / 100;
  * Every score is a share of the channel's own posts showing that type's signals, plus a title bonus; the highest wins.
  */
 export function detectChannelType(inp: TypeInput): ChannelTypeGuess {
-  const own = inp.posts.filter((p) => !p.isForward && p.text.trim().length >= 20 && !/#reklama|#реклама|(^|[^\p{L}])реклама([^\p{L}]|$)|\breklama\b|#ad\b|erid/iu.test(p.text));
+  // An ad-contact footer under most posts ("📢 Reklama: @kun_reklama") is how the channel signs, not an ad: its posts
+  // stay the channel's own and are read without that line.
+  const mine = inp.posts.filter((p) => !p.isForward);
+  const footers = adFooters(mine.map((p) => p.text));
+  const own = mine
+    .filter((p) => p.text.trim().length >= 20 && !isAdPost(p.text, footers))
+    .map((p) => (footers.size ? { ...p, text: withoutAdFooter(p.text, footers) } : p));
   const n = Math.max(1, own.length);
   const share = (pred: (t: string, p: TypePost) => boolean) => own.filter((p) => pred(normApos(p.text).toLowerCase(), p)).length / n;
+  const firstPerson = (t: string) => count(RE.iUz, t) + count(RE.iRu, t) + count(RE.ruPast, t) + count(RE.iEn, t);
 
-  const biz = share((t) => RE.price.test(t) || RE.phone.test(t) || RE.place.test(t) || count(RE.order, t) >= 2 || (RE.order.test(t) && /[@+]\w|t\.me\//.test(t)));
-  const firstPerson = (t: string) => count(RE.iUz, t) + count(RE.iRu, t) + count(RE.iEn, t);
+  // A post that sells: a phone or an address, a contact with an offer, two words of selling, or a price the way a
+  // shop writes it (with a word of selling, a "Narxi: …" label or a price list). A price inside a story ("билеты
+  // стоили 250$", "poyezd chiptasi 270 000 so'm turdi") is not selling. A home baker writing in the first person
+  // ("Bugun men medovik pishirdim, buyurtma qiling, narxi…") still sells.
+  const contact = (t: string) => contactsIn(t, { channel: inp.channel }).length > 0;
+  const sells = (t: string) => {
+    if (RE.phone.test(t) || RE.place.test(t)) return true;
+    const price = RE.price.test(t);
+    const sell = count(RE.sell, t);
+    if (contact(t)) return sell > 0 || price || RE.priceWord.test(t);
+    return sell >= 2 || (price && (sell > 0 || RE.priceLabel.test(t) || count(RE.priceLine, t) >= 2));
+  };
+  const biz = share(sells);
   const iShare = share((t) => firstPerson(t) >= 2);
   const diary = share((t) => firstPerson(t) >= 1 && RE.diary.test(t));
-  const teach = share((t) => RE.advice.test(t) || RE.opinion.test(t) || count(RE.numberedList, t) >= 3);
+  const teach = share((t) => RE.advice.test(t) || RE.opinion.test(t) || RE.lesson.test(t) || count(RE.numberedList, t) >= 3);
   const specialist = share((t) => RE.specialist.test(t));
   const news = share((t) => RE.news.test(t) && firstPerson(t) <= 1);
   const linky = share((t, p) => RE.link.test(t) || (p.links?.some((l) => !/t\.me\/s?\/?[\w]+\/\d+$/.test(l)) ?? false));

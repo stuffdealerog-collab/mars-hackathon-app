@@ -276,23 +276,26 @@ const OQ: Record<Lang, Record<string, string>> = {
   },
 };
 
-const OWNER_TEXT: Record<Lang, { needInput: string; blocked: string; unknownWhere: string; weakDiff: string }> = {
+const OWNER_TEXT: Record<Lang, { needInput: string; blocked: string; unknownWhere: string; unknownWhereReaders: string; weakDiff: string }> = {
   uz: {
     needInput: "Egasidan ma'lumot kerak",
     blocked: "Taklif tuzish uchun narx kerak: asosiy mahsulot yoki xizmatlaringiz narxini yuboring.",
     unknownWhere: "Hali noma'lum: mijozlar qayerda ekanini «Mijoz radar» qidiradi.",
+    unknownWhereReaders: "Hali noma'lum: o‘quvchilaringiz yana qaysi kanallarni o‘qiydi. Buni o‘xshash kanallar orqali aniqlaymiz.",
     weakDiff: "Raqobatchilardan farqingiz aniq emas: bitta aniq misol yozing — siz nimani boshqalardan boshqacha qilasiz?",
   },
   ru: {
     needInput: "Нужно от владельца",
     blocked: "Для предложения нужна цена: пришлите цены на основные товары или услуги.",
     unknownWhere: "Пока неизвестно: где ваши клиенты, найдёт «Радар клиентов».",
+    unknownWhereReaders: "Пока неизвестно, какие ещё каналы читают ваши подписчики. Это покажут похожие каналы.",
     weakDiff: "Неясно, чем вы отличаетесь от конкурентов: напишите один конкретный пример.",
   },
   en: {
     needInput: "Needed from the owner",
     blocked: "We need a price to build the offer: send the prices of your main products or services.",
     unknownWhere: "Not known yet: the customer radar will look for where your customers are.",
+    unknownWhereReaders: "Not known yet: which other channels your readers follow. Similar channels will show it.",
     weakDiff: "It's not clear how you differ from competitors: write one concrete example.",
   },
 };
@@ -860,6 +863,8 @@ export async function buildStrategy(inp: StrategyInput) {
   // empty and the owner is asked for the price in their language. A growth plan has no offer and no price question.
   const offerBlocked = isBlockedMarker(d2?.offer ?? "");
   if (offerBlocked && !growthPlan) ownerQuestions.push(q.price);
+  // A growth channel has readers and subscribers, never customers.
+  const unknownWhere = growthPlan ? OWNER_TEXT[lang].unknownWhereReaders : OWNER_TEXT[lang].unknownWhere;
   const strategy: Strategy = {
     positioning: d2?.positioning ?? "",
     audiences: (d2?.audiences ?? []).slice(0, 3).map((a) => ({
@@ -867,7 +872,7 @@ export async function buildStrategy(inp: StrategyInput) {
       pains: a.pains.filter((p) => extractIds(p).length > 0),
       whereTheyAre: a.whereTheyAre.filter((w) => extractIds(w).length > 0 || w.startsWith("UNKNOWN")).length
         ? a.whereTheyAre.filter((w) => extractIds(w).length > 0 || w.startsWith("UNKNOWN"))
-        : [OWNER_TEXT[lang].unknownWhere],
+        : [unknownWhere],
     })),
     offer: growthPlan ? "" : !priceFacts.length ? OWNER_TEXT[lang].blocked : offerBlocked ? "" : (d2?.offer ?? ""),
     proofPoints: (d2?.proofPoints ?? []).filter((p) => extractIds(p).some((i) => /^[FW]\d+$/.test(i))),
@@ -877,7 +882,7 @@ export async function buildStrategy(inp: StrategyInput) {
     kpis,
     risks: risks.slice(0, 6),
   };
-  ownerFacing(strategy, lang, OWNER_TEXT[lang].unknownWhere);
+  ownerFacing(strategy, lang, unknownWhere);
   emit({ stage: "strategy", strategy, ok: Boolean(d2), elapsedMs: elapsed() });
   const rationale = [...(analysis?.learn?.changes ?? []), ...(d2?.rationale ?? []).filter((l) => extractIds(l).length > 0 && !groundedCheck(l, ledgerMap).length)].map(stripIdsAll);
   const plan: ContentPlan = { weekOf: sk.weekOf, items, rationale: rationale.join("\n") };

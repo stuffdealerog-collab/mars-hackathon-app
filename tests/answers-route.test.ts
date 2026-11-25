@@ -26,6 +26,7 @@ vi.mock("@/lib/uslub/budget", () => ({ spendClaude }));
 
 const store = await import("../src/lib/uslub/store");
 const route = await import("../src/app/api/uslub/answers/route");
+const { planTypeFor } = await import("../src/lib/uslub/brain/channel-type");
 import type { BrandDNA } from "../src/lib/uslub/contract";
 
 let ip = 0;
@@ -75,17 +76,33 @@ describe("POST/GET /api/uslub/answers", () => {
   });
 
   // Review of PR #54.
-  it("the goal is only ever the owner's: null until answered (with the type's suggestion), then it moves the type", async () => {
+  it("the goal is only ever the owner's: null until answered (with the type's suggestion); the plan type follows it", async () => {
     const b = await store.saveBrand({ channel: "safia_goal", knowledge: "", samplePosts: ["a"], dna: DNA, mode: "channel", channelType: "business" }, null, "channel_only");
     const before = await (await call("GET", `/api/uslub/answers?brandId=${b.id}`)).json();
     expect(before).toMatchObject({ goal: null, suggestedGoal: "sale", channelType: "business" });
-    // A shop whose owner wants subscribers is planned and analysed as a growth channel from now on.
+    // A shop whose owner wants subscribers is planned and analysed as a growth channel: planTypeFor(type, goal).
     await call("POST", "/api/uslub/answers", { brandId: b.id, goal: "grow" });
-    expect(await store.getBrand(b.id)).toMatchObject({ goal: "grow", channelType: "community" });
-    // A blog whose owner wants orders becomes a business.
+    const shop = await store.getBrand(b.id);
+    expect(shop).toMatchObject({ goal: "grow", channelType: "business" });
+    expect(planTypeFor(shop?.channelType, shop?.goal)).toBe("community");
+    // A blog whose owner wants orders gets a sales plan.
     const blog = await store.saveBrand({ channel: "dilnoza_goal", knowledge: "", samplePosts: ["a"], dna: DNA, mode: "channel", channelType: "blog" }, null, "channel_only");
     await call("POST", "/api/uslub/answers", { brandId: blog.id, goal: "sale" });
-    expect(await store.getBrand(blog.id)).toMatchObject({ goal: "sale", channelType: "business" });
+    const sold = await store.getBrand(blog.id);
+    expect(sold).toMatchObject({ goal: "sale", channelType: "blog" });
+    expect(planTypeFor(sold?.channelType, sold?.goal)).toBe("business");
+  });
+
+  // Verifier of PR #54: blog -> "sale" -> "grow" used to end as a community channel.
+  it("a goal changed back and forth lands on the channel's own detected type again", async () => {
+    const blog = await store.saveBrand({ channel: "dilnoza_flip", knowledge: "", samplePosts: ["a"], dna: DNA, mode: "channel", channelType: "blog" }, null, "channel_only");
+    await call("POST", "/api/uslub/answers", { brandId: blog.id, goal: "sale" });
+    await call("POST", "/api/uslub/answers", { brandId: blog.id, goal: "grow" });
+    const after = await store.getBrand(blog.id);
+    expect(after).toMatchObject({ goal: "grow", channelType: "blog" });
+    expect(planTypeFor(after?.channelType, after?.goal)).toBe("blog");
+    const view = await (await call("GET", `/api/uslub/answers?brandId=${blog.id}`)).json();
+    expect(view).toMatchObject({ channelType: "blog", goal: "grow", suggestedGoal: "grow" });
   });
 
   it("a channel_only row made 'custom' by the answers keeps its samples marked as the channel's", async () => {

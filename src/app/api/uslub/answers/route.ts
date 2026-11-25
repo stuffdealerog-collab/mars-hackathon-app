@@ -3,7 +3,7 @@ import { getEnv } from "@/lib/env";
 import { mayTrackLinks, type OwnerAnswers } from "@/lib/uslub/brain/answers";
 import { loadAnswers, saveAnswers } from "@/lib/uslub/brain/answers-store";
 import { questionsForBrand } from "@/lib/uslub/brain/brand-questions";
-import { defaultGoalFor, planTypeFor } from "@/lib/uslub/brain/channel-type";
+import { defaultGoalFor } from "@/lib/uslub/brain/channel-type";
 import { currentContext } from "@/lib/uslub/context";
 import { assertDraftAccess, handle, HttpError, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import { samplesFromOf, withSamplesFrom } from "@/lib/uslub/samples";
@@ -40,9 +40,10 @@ const botName = () => getEnv().BOT_USERNAME?.replace(/^@/, "");
  * reused by every weekly plan and post. No Claude call and no budget unit. Fields not sent keep their saved value.
  * A channel_only brand becomes the caller's own (source 'custom'): private prices never sit on a public cache row; its
  * samples stay marked as the channel's (dna.samplesFrom), so a later rebuild still reads the channel's newest posts.
- * The goal is written to brands.goal (only ever the owner's answer). A goal against the stored type (a shop that wants
- * subscribers, a blog that wants orders) also moves brands.channel_type to the type that goal plans as (planTypeFor),
- * so every later analysis and plan picks the matching findings: no price or how-to-order advice for a growth goal.
+ * The goal is written to brands.goal (only ever the owner's answer). brands.channel_type keeps the type detected from
+ * the channel's posts: every analysis, plan and report plans as planTypeFor(type, goal) (a shop that wants subscribers
+ * gets a growth plan with no price or how-to-order advice, a blog that wants orders a sales plan), so a goal changed
+ * back and forth always lands on the channel's own type again.
  * trackLinksActive: the tracked link is on (opted in AND the brand has an owner in Telegram; until it is claimed,
  * plan posts carry no Mercat link).
  */
@@ -62,10 +63,7 @@ export const POST = handle(async (req) => {
   }
   const lang = body.lang ?? currentContext()?.lang ?? "uz";
   const answers = await saveAnswers(brand.id, given, lang);
-  if (given.goal) {
-    const type = brand.channelType ? planTypeFor(brand.channelType, given.goal) : undefined;
-    await setBrandTypeGoal(brand.id, { goal: given.goal, ...(type && type !== brand.channelType ? { channelType: type } : {}) });
-  }
+  if (given.goal) await setBrandTypeGoal(brand.id, { goal: given.goal });
   return json({
     answers,
     questions: questionsForBrand(brand, answers, lang, { bot: botName() }),

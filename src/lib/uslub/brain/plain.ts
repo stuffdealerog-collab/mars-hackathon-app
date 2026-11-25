@@ -440,6 +440,15 @@ function growthFinding(rule: RuleResult, s: ChannelStats, lang: Lang, ctx: Plain
   const N = (x: number, d = 0) => numText(x, lang, d);
   const L = (t: T3) => pick(lang, t);
   switch (rule.id) {
+    case "R.SUSPECT_BOOSTED": {
+      // The shared text says "useful to customers": a blog or a digest has readers and subscribers.
+      const m = s.medianViews != null ? N(s.medianViews) : "?";
+      return L({
+        uz: `Postlarning ko‘rishlari bir-biriga juda o‘xshash (odatda ${m} atrofida) — bunday tekislik ko‘pincha sotib olingan ko‘rishlarda uchraydi. Obunachi yoki ko‘rish sotib olmang: postlar sonini oshirmaymiz, o‘quvchilar o‘qib, ulashadigan postlarga e’tibor beramiz.`,
+        ru: `Просмотры у постов почти одинаковые (обычно около ${m}) — так часто бывает при накрученных просмотрах. Не покупайте подписчиков и просмотры: частоту не повышаем, делаем ставку на посты, которые подписчики читают и пересылают.`,
+        en: `Views are almost identical from post to post (usually about ${m}), which often happens with bought views. Don't buy subscribers or views: we keep the posting rate and focus on posts your readers read and forward.`,
+      });
+    }
     case "R.SERIES": {
       const rubrics = (rule.data?.rubrics as { label: string; n: number; lift: number | null }[] | undefined) ?? [];
       const keep = rule.data?.keep as string | undefined;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getEnv } from "@/lib/env";
 import type { OwnerAnswers } from "@/lib/uslub/brain/answers";
 import { loadAnswers } from "@/lib/uslub/brain/answers-store";
 import { loadKnowledge } from "@/lib/uslub/brain/kbstore";
@@ -9,6 +10,7 @@ import { loadPlanView, savePlanView } from "@/lib/uslub/brain/memory";
 import { respond } from "@/lib/uslub/brain/route-utils";
 import { buildStrategy } from "@/lib/uslub/brain/strategy";
 import { spendClaude } from "@/lib/uslub/budget";
+import { brandPostEnding } from "@/lib/uslub/ending";
 import { assertDraftAccess, HttpError, handle, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 
 // Node.js runtime is the default (an explicit `runtime` export is rejected with cacheComponents).
@@ -132,7 +134,8 @@ export const POST = handle(async (req) => {
       mainGoal: answers?.goal ?? (stored?.goal === "sale" || stored?.goal === "grow" ? stored.goal : undefined),
       answers,
       brandOwnerTelegramId: stored?.ownerTelegramId ?? null,
-      postEnding: stored?.dna?.postEnding,
+      // A brand made before endings were learned reads its ending from its stored posts (as the copywriter does).
+      postEnding: stored ? brandPostEnding(stored, getEnv().BOT_USERNAME?.replace(/^@/, "")) : undefined,
       products: stored?.dna?.products,
       onStage,
     }).then(remember),

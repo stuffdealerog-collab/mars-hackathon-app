@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getEnv } from "../env";
 import { answeredContact, type OwnerAnswers } from "./brain/answers";
 import type { BrandProfile, NeuroHit, PlanSlot, PostDraft, PostEnding, Script } from "./contract";
-import { applyPostEnding, dropTrackedLinks, endingBrief, ensureTrackedLink, extractPostEnding, ownContactKeys } from "./ending";
+import { applyPostEnding, brandPostEnding, dropTrackedLinks, endingBrief, ensureTrackedLink, ownContactKeys } from "./ending";
 import { rewriteNeuroBatch, type EditJob } from "./editor";
 import { llmJson, MODEL_FAST, MODEL_QUALITY, type Effort } from "./llm";
 import { factKeys, newFactKeys } from "./fact-keys";
@@ -49,9 +49,7 @@ Hard rules:
  * made before 2026-11-25). A new channel with no posts has no ending to follow.
  */
 export function brandEnding(brand: BrandProfile): PostEnding | undefined {
-  if (brand.dna.postEnding) return brand.dna.postEnding;
-  if (brand.mode === "fresh" || brand.samplePosts.length < 3) return undefined;
-  return extractPostEnding([...brand.samplePosts].reverse(), { channel: brand.channel, bot: getEnv().BOT_USERNAME?.replace(/^@/, "") });
+  return brandPostEnding(brand, getEnv().BOT_USERNAME?.replace(/^@/, ""));
 }
 
 const FACT_POST_RE = /\d[\d\s.,]*\s?(so['‘’ʻ]?m|сўм|сум|sum\b|uzs|ming\b|минг|тыс)|\+?998[\s-]?\(?\d{2}\)?[\s-]?\d{3}/i;

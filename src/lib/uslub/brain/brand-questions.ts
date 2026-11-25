@@ -1,8 +1,10 @@
 /**
  * The owner's open questions for a stored brand, without a plan run (GET/POST /api/uslub/answers): what the brand
- * already shows (its type, the contact its posts end with, prices in its posts, its products) pre-fills them. Pure.
+ * already shows (its type, the contact its posts carry, prices in its posts, its products) pre-fills them. A brand
+ * made before endings were learned reads its contact from its stored posts (brandPostEnding). Pure.
  */
 import type { BrandProfile } from "../contract";
+import { brandPostEnding } from "../ending";
 import type { OwnerAnswers } from "./answers";
 import { runQuestions, type OwnerQuestion } from "./questions";
 import type { Lang } from "./types";
@@ -10,7 +12,7 @@ import type { Lang } from "./types";
 const PRICE_RE = /\d[\d\s.,]*\s?(so['‘’ʻ]?m|сўм|сум|sum\b|uzs|ming\b|минг|тыс)/i;
 
 export function questionsForBrand(
-  brand: Pick<BrandProfile, "channelType" | "dna" | "samplePosts" | "knowledge"> & { channel?: string },
+  brand: Pick<BrandProfile, "channelType" | "dna" | "samplePosts" | "knowledge" | "mode"> & { channel?: string },
   answers: OwnerAnswers | null,
   lang: Lang,
   opts: { bot?: string } = {},
@@ -21,7 +23,7 @@ export function questionsForBrand(
     lang,
     channelType: brand.channelType,
     answers,
-    contact: brand.dna?.postEnding?.contact ?? answers?.contact,
+    contact: brandPostEnding(brand, opts.bot)?.contact ?? answers?.contact,
     channel: brand.channel,
     bot: opts.bot,
     priceFacts: Math.min(3, pricePosts),
