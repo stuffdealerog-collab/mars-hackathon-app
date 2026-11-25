@@ -15,9 +15,8 @@ export type ChannelRight = "post_messages" | "edit_messages" | "delete_messages"
 
 /**
  * «Post messages» to publish, «Invite users» for the per-source invite links that count who came
- * from which post. The server's link (addBotAsAdminLink in lib/uslub/publish.ts) must ask for the
- * same pair; it still asks for post_messages alone until the AP stream adds invite_users (plan §1,
- * "Admin rights").
+ * from which post. The server's link (addBotAsAdminLink in lib/uslub/publish.ts) asks for the
+ * same pair (plan §1, "Admin rights").
  */
 export const BOT_CHANNEL_RIGHTS: readonly ChannelRight[] = ["post_messages", "invite_users"];
 

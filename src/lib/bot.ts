@@ -2,6 +2,7 @@ import "server-only";
 import { after } from "next/server";
 import { type Api, Bot, InlineKeyboard } from "grammy";
 import { isAiConfigured } from "./ai";
+import { registerAutopilot } from "./autopilot/bot-handlers";
 import { getSql, isDbConfigured } from "./db";
 import { getEnv, getPublicUrl } from "./env";
 import { formatDay, type Locale, pickLocale, t } from "./i18n";
@@ -169,6 +170,7 @@ function registerHandlers(b: Bot) {
     syncProfileOnce(ctx.api);
     return next();
   });
+  registerAutopilot(b); // week_ links, week/autopilot/orders buttons, channel rights, joins, reactions (before /start below)
   const pm = b.chatType("private");
 
   // /start <payload> — deep links like https://t.me/<bot>?start=src_booth1

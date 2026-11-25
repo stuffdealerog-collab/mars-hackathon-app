@@ -13,7 +13,8 @@
  * The module has no "@/" imports at load time so llm.ts (and its tests) can import it as is.
  */
 
-export type OpsAlertKind = "image_balance" | "anthropic_credit";
+/** publish_failed: the autopilot could not send an approved post (src/lib/autopilot/tasks.ts). */
+export type OpsAlertKind = "image_balance" | "anthropic_credit" | "publish_failed";
 export type OpsAlertResult = "sent" | "no_chat" | "rate_limited" | "failed";
 
 export const OPS_ALERT_WINDOW_MS = 60 * 60_000;

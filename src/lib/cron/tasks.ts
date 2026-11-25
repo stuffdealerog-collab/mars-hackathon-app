@@ -1,4 +1,5 @@
 import "server-only";
+import { channelSnapshots, postMetrics, publishDue, weekly } from "../autopilot/tasks";
 import { heartbeat } from "./heartbeat";
 import { mediaSweep } from "./media-sweep";
 import { CronRegistry } from "./registry";
@@ -8,4 +9,10 @@ import { CronRegistry } from "./registry";
  * changes nothing else in src/lib/cron (see registry.ts for the rules). Work that must not wait, such as
  * publishing posts that are due, goes before slow work.
  */
-export const cronRegistry = new CronRegistry().register(heartbeat).register(mediaSweep);
+export const cronRegistry = new CronRegistry()
+  .register(heartbeat)
+  .register(publishDue)
+  .register(mediaSweep)
+  .register(channelSnapshots)
+  .register(postMetrics)
+  .register(weekly);

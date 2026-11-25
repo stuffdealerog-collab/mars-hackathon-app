@@ -1,5 +1,6 @@
 import "server-only";
 import { GrammyError, InputFile } from "grammy";
+import { recordPublication } from "@/lib/autopilot/repo";
 import { getBot } from "@/lib/bot";
 import { getEnv } from "@/lib/env";
 import { checkChatRights, checkPublishAccess, type MemberInfo } from "./access";
@@ -10,9 +11,14 @@ import { getBrand, getPost, linkBrandChannel, markPublished } from "./store";
 
 const BOT_USERNAME_FALLBACK = "mercatai";
 
+/**
+ * Adds the bot to one of the owner's channels as an admin with the rights it needs: post the approved posts, and
+ * make invite links per source (QR code, Instagram bio) so the Monday report can count joins per source. The same
+ * rights as the UI's link (src/components/ui/tme.ts BOT_CHANNEL_RIGHTS).
+ */
 export function addBotAsAdminLink(): string {
   const bot = getEnv().BOT_USERNAME ?? BOT_USERNAME_FALLBACK;
-  return `https://t.me/${bot}?startchannel&admin=post_messages`;
+  return `https://t.me/${bot}?startchannel&admin=post_messages+invite_users`;
 }
 
 export type PublishResult = { ok: boolean; status: number; url?: string; error?: string; addAdminUrl?: string };
@@ -125,6 +131,11 @@ export async function publishPost(args: {
     if (access.linkChannel) await linkBrandChannel(brand!.id, target);
     const url = `https://t.me/${target.slice(1)}/${messageId}`;
     await markPublished(post!.id, url, target, userId);
+    // Message id, chat, time and plan item on the post, and a metrics row for its 24 h / 72 h views. Never fails
+    // the publish: the post is already in the channel.
+    await recordPublication({ postId: post!.id, brandId: brand!.id, chat: target, messageId, slot: latest.slot ?? post!.slot }).catch((err) =>
+      console.warn("[uslub/publish] publication details not stored:", err instanceof Error ? err.message : err),
+    );
     return { ok: true, status: 200, url };
   } catch (err) {
     if (err instanceof GrammyError) {

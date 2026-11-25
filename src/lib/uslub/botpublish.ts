@@ -55,8 +55,11 @@ async function memberInfo(api: Api, chat: string, userId: number): Promise<Membe
   }
 }
 
-/** Can this user publish this brand's posts to `channel`? Claims an unowned brand on success. */
-async function authorize(api: Api, brand: StoredBrand, channel: string, user: User): Promise<ClaimDecision> {
+/**
+ * Can this user publish this brand's posts to `channel`? Claims an unowned brand on success. Also used by the
+ * autopilot's week_ deep link (src/lib/autopilot/bot-handlers.ts).
+ */
+export async function authorize(api: Api, brand: StoredBrand, channel: string, user: User): Promise<ClaimDecision> {
   if (brand.ownerTelegramId != null) return claimDecision({ ownerTelegramId: brand.ownerTelegramId, userId: user.id, user: null, bot: null });
   const me = await api.getMe();
   const chat = `@${channel.replace(/^@/, "")}`;
@@ -72,7 +75,7 @@ async function authorize(api: Api, brand: StoredBrand, channel: string, user: Us
  * Why the user cannot publish here. With `retry` (a button press) a missing bot admin offers the button again;
  * without it (the user typed a channel name) the text asks them to send the channel name again instead.
  */
-function refusal(api: Api, chatId: number, locale: Locale, reason: Exclude<ClaimDecision, { ok: true }>["reason"], channel: string, retry?: string) {
+export function refusal(api: Api, chatId: number, locale: Locale, reason: Exclude<ClaimDecision, { ok: true }>["reason"], channel: string, retry?: string) {
   const botKey = retry ? "pub.bot_not_admin" : "pub.bot_not_admin_send";
   const key = reason === "not_owner" ? "pub.not_yours" : reason === "user_not_admin" ? "pub.user_not_admin" : reason === "user_cannot_post" ? "pub.user_cannot_post" : botKey;
   const kb = new InlineKeyboard();
