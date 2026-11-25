@@ -23,7 +23,9 @@ export default function QrPage({ searchParams }: PageProps<"/qr">) {
 async function QrContent({ searchParams }: { searchParams: PageProps<"/qr">["searchParams"] }) {
   const params = await searchParams;
   const raw = typeof params.src === "string" ? params.src.trim() : "";
-  const src = SOURCE_RE.test(raw) ? raw : "";
+  // A label copied from a /qr link ("src_booth2") would otherwise become src_src_booth2.
+  const label = raw.replace(/^(?:src_)+/i, "");
+  const src = SOURCE_RE.test(label) ? label : "";
   const bot = getEnv().BOT_USERNAME;
 
   if (!bot) {

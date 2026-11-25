@@ -18,26 +18,28 @@
 /** Telegram deep-link payloads allow only A-Z a-z 0-9 _ - (max 64 chars). */
 const PAYLOAD_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
-/** The bot's tracked plan link `src_<6-char tag>_<slot>` (bot.ts PLAN_LINK_RE); stored rows lost the "src_". */
+/** The bot's tracked plan link `src_<6-char tag>_<slot>` (bot.ts PLAN_LINK_RE). */
 const PLAN_LINK_RE = /^src_[a-z0-9]{6}_\d{1,2}$/;
-const STORED_PLAN_RE = /^(?:src_)?[a-z0-9]{6}_\d{1,2}$/;
+const PLAN_ANY_RE = /^(?:src_)?[a-z0-9]{6}_\d{1,2}$/;
+/** A plan link in a row stored before categories: the old parseSource had cut the "src_". */
+const OLD_PLAN_ROW_RE = /^[a-z0-9]{6}_\d{1,2}$/;
 
 /** Prefixes whose tail is an id or a channel name: always reduced to the prefix, whatever follows. */
 const ID_PREFIXES = new Set(["publish", "brand", "post", "ch"]);
 
-/** An id hidden inside an owner's label: a UUID, or 16+ hex characters in a row. */
+/** An id hidden inside a label or a word: a UUID, or 16+ hex characters in a row. */
 const UUID_IN_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 const LONG_HEX_IN_RE = /[0-9a-f]{16,}/;
 
 const OTHER = "other";
 const MAX_LENGTH = 32;
 
-/** Looks like an id rather than a word: a number, a UUID or hex string, or a long token with digits. */
+const hidesId = (value: string) => UUID_IN_RE.test(value) || LONG_HEX_IN_RE.test(value);
+
+/** Looks like an id rather than a word: a number, a UUID or hex run, or a long token with digits. */
 function isIdLike(part: string): boolean {
-  if (/^\d+$/.test(part)) return true;
-  if (/^[0-9a-f]{16,}$/.test(part)) return true;
+  if (/^\d+$/.test(part) || hidesId(part)) return true;
   if (/^[0-9a-f]{8,}$/.test(part) && /\d/.test(part)) return true;
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}/.test(part)) return true;
   return part.length > 24 || (part.length >= 12 && /\d/.test(part));
 }
 
@@ -46,7 +48,7 @@ function labelCategory(label: string): string {
   if (!label) return OTHER;
   const head = label.split("_")[0];
   if (ID_PREFIXES.has(head)) return head;
-  if (UUID_IN_RE.test(label) || LONG_HEX_IN_RE.test(label)) return OTHER;
+  if (hidesId(label)) return OTHER;
   return label.slice(0, MAX_LENGTH);
 }
 
@@ -67,24 +69,30 @@ export function sourceCategory(payload?: string | null): string | null {
   if (!raw) return null;
   if (!PAYLOAD_RE.test(raw)) return OTHER;
   const lower = raw.toLowerCase();
-  if (STORED_PLAN_RE.test(lower)) return "plan";
+  if (PLAN_ANY_RE.test(lower)) return "plan";
   if (lower.startsWith("src_")) return labelCategory(lower.slice(4));
   return wordCategory(lower);
 }
 
 /**
- * The category of a value already stored in `app_users.source`: a category written by sourceCategory, or, in rows
- * from before it, the payload minus "src_". Both read as a label, so `booth_1` and `tashkent2026` survive, while
- * the old `publish_<id>` / `brand_<id>` rows still collapse to their prefix and a bare id to "other".
- * sourceCategory's own output maps to itself.
+ * The category of a value already stored in `app_users.source`, read as a label and never stripped of "src_" again:
+ * storedSourceCategory(sourceCategory(p)) === sourceCategory(p) for every payload p.
+ *
+ * Rows from before categories hold the payload minus one leading "src_" (the old parseSource), so:
+ *   - an old /qr label (`booth_1`, `tashkent2026`) reads as itself;
+ *   - an old plan link reads `<tag>_<n>` and maps to "plan" (OLD_PLAN_ROW_RE; a new row never looks like that);
+ *   - an old `publish_<id>` / `brand_<id>` / `post_<id>` / `ch_<name>` row collapses to its prefix, and a value
+ *     with a UUID or a 16+ hex run in it to "other";
+ *   - an old row that still starts with "src_" came from a `src_src_…` payload: its label really is `src_…`,
+ *     the same as a new row of that payload, so it is kept as is.
  */
 export function storedSourceCategory(value?: string | null): string | null {
   const raw = value?.trim();
   if (!raw) return null;
   if (!PAYLOAD_RE.test(raw)) return OTHER;
   const lower = raw.toLowerCase();
-  if (STORED_PLAN_RE.test(lower)) return "plan";
-  return labelCategory(lower.startsWith("src_") ? lower.slice(4) : lower);
+  if (OLD_PLAN_ROW_RE.test(lower)) return "plan";
+  return labelCategory(lower);
 }
 
 /**

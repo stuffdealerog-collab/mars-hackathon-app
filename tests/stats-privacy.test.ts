@@ -84,6 +84,60 @@ describe("storedSourceCategory (rows from before categories hold the payload min
     expect(storedSourceCategory(`x_${"z".repeat(61)}`)).toBe(`x_${"z".repeat(30)}`);
     expect(storedSourceCategory(null)).toBeNull();
   });
+
+  it("never strips src_ a second time: a src_src_ payload reads back as its src_ label", () => {
+    expect(sourceCategory("src_src_booth2")).toBe("src_booth2");
+    expect(storedSourceCategory("src_booth2")).toBe("src_booth2");
+    expect(sourceCategory("src_src_market_1")).toBe("src_market_1");
+    expect(storedSourceCategory("src_market_1")).toBe("src_market_1");
+    expect(storedSourceCategory(sourceCategory("src_src_k3x9qa_4"))).toBe(sourceCategory("src_src_k3x9qa_4"));
+  });
+
+  it("agrees with the write side on hex runs inside a word", () => {
+    expect(sourceCategory("x-abcdefabcdefabcd")).toBe("other");
+    expect(storedSourceCategory("x-abcdefabcdefabcd")).toBe("other");
+    expect(sourceCategory("promo_x-abcdefabcdefabcd")).toBe("promo");
+  });
+});
+
+describe("source categories, property-style over fuzzed payloads", () => {
+  const ID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{16,}/i;
+
+  // Deterministic pseudo-random payloads (a fixed LCG seed), plus hand-built shapes.
+  let seed = 20261125;
+  const next = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+  const pick = <T,>(xs: readonly T[]) => xs[Math.floor(next() * xs.length)];
+  const ALPHABET = "abcdefABCDEF0123456789xyzXYZ_-";
+  const randomToken = (max: number) =>
+    Array.from({ length: 1 + Math.floor(next() * max) }, () => pick([...ALPHABET])).join("");
+  const uuid = () =>
+    [8, 4, 4, 4, 12].map((n) => Array.from({ length: n }, () => pick([..."0123456789abcdef"])).join("")).join("-");
+
+  const heads = ["", "src_", "src_src_", "SRC_", "Src_src_", "publish_", "brand_", "post_", "ch_", "ref_", "utm_", "x-", "booth_"];
+  const tails = () => [
+    uuid(), uuid().toUpperCase(), uuid().replace(/-/g, ""), "abcdefabcdefabcd", "ABCDEF0123456789", "booth2", "booth_1",
+    "market_1", "k3x9qa_4", "Tashkent2026", "42", "deadbeef", "a_b_c", "", "_", "x-abcdefabcdefabcd",
+    `prefix${uuid()}`.slice(0, 50), randomToken(20), randomToken(60),
+  ];
+  const suffixes = ["", "_ru", "_1", "_uz_latn", `_${uuid()}`];
+
+  const payloads: string[] = [];
+  for (const head of heads) for (const tail of tails()) for (const suffix of suffixes) payloads.push(`${head}${tail}${suffix}`);
+  for (let i = 0; i < 2000; i++) payloads.push(randomToken(64));
+  for (let i = 0; i < 300; i++) payloads.push(`src_${randomToken(60)}`);
+
+  it("reads every stored category back as itself, and no id survives either side", () => {
+    expect(payloads.length).toBeGreaterThan(3000);
+    for (const p of payloads) {
+      const stored = sourceCategory(p);
+      expect(storedSourceCategory(stored), p).toBe(stored);
+      if (stored) expect(stored, p).not.toMatch(ID_RE);
+      // Rows from before categories held the payload minus one "src_": reading them must not leak an id either.
+      const oldRow = /^src_/.test(p) && p.length > 4 ? p.slice(4) : p;
+      const read = storedSourceCategory(oldRow);
+      if (read) expect(read, p).not.toMatch(ID_RE);
+    }
+  });
 });
 
 describe("eventStartPayload", () => {
