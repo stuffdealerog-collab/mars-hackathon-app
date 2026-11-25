@@ -9,6 +9,8 @@ import type { Copy as CopyText } from "../ui/copy";
 import { weekday } from "../ui/format";
 import { fmt, useCopy } from "../ui/lang";
 import { useDesk } from "./desk";
+// Hub renders Tools; the store is read only on a click, so the cycle is safe.
+import { useHub } from "./Hub";
 import { pictureBusy, slotKey, useStudio } from "./store";
 
 type Tool = { key: string; icon: typeof Copy; label: string; run: () => void; off?: string | true };
@@ -115,7 +117,9 @@ export function Tools({ collapsed }: { collapsed: boolean }) {
         icon: ShieldCheck,
         label: c.tools.botAdmin,
         off: !channel ? true : undefined,
-        run: () => window.open(`https://t.me/${s.bot}?startchannel&admin=post_messages`, "_blank", "noopener"),
+        // The intro's add-the-bot card: the three steps, and its button opens Telegram's
+        // add-to-channel link (ui/tme.ts) with the post right already on.
+        run: () => useHub.setState({ intro: "admin" }),
       },
     ];
   }

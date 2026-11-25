@@ -6,10 +6,11 @@ import { INTRO_COPY } from "./copy";
 import { Onboarding } from "./Onboarding";
 
 /**
- * Dev-only stage for the intro (/tg/intro?variant=desktop&theme=light&lang=ru): the intro over
- * a plain stage with a link field, so «Boshlash» can show where it hands over.
+ * Dev-only stage for the intro (/tg/intro?variant=desktop&theme=light&lang=ru, &only=admin for
+ * the add-the-bot card alone): the intro over a plain stage with a link field, so the end can
+ * show where it hands over.
  */
-export function IntroPreview({ variant, theme, lang }: { variant: "phone" | "desktop"; theme: "dark" | "light"; lang: Lang }) {
+export function IntroPreview({ variant, theme, lang, bot, only }: { variant: "phone" | "desktop"; theme: "dark" | "light"; lang: Lang; bot: string; only: "admin" | null }) {
   const [open, setOpen] = useState(true);
   const field = useRef<HTMLInputElement>(null);
   const t = INTRO_COPY[lang];
@@ -21,7 +22,9 @@ export function IntroPreview({ variant, theme, lang }: { variant: "phone" | "des
       </button>
       <Onboarding
         open={open}
+        only={only}
         lang={lang}
+        bot={bot}
         variant={variant}
         onClose={(how) => {
           setOpen(false);

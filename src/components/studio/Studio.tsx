@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Led } from "../lamp/Led";
 import { WORK_LIGHT } from "../lamp/lamps";
-import { decideIntro, forcedByUrl, localIntro, Onboarding } from "@/components/onboarding";
+import { decideIntro, forcedIntro, localIntro, Onboarding } from "@/components/onboarding";
 import { fmt, useCopy, useInitLang, useLang, useTabTitle } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel, useStageVariant } from "../ui/parts";
 import { ChannelSign } from "./ChannelSign";
@@ -142,13 +142,19 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
   const tab = useStudio((s) => s.tab);
   const pro = useStudio((s) => s.pro);
   const lang = useLang((s) => s.lang);
-  // The first-run intro: once for a newcomer; never for an owner with saved channels; not over a
-  // link that already says what to do (?brand=, ?channel=); always with ?intro=1. Remembered here.
+  const bot = useStudio((s) => s.bot);
+  // The first-run intro: once for a newcomer; an owner with saved channels, or who saw an older
+  // intro, gets only the add-the-bot card; not over a link that already says what to do
+  // (?brand=, ?channel=); always with ?intro=1 (?intro=admin: the card alone). Remembered here.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
-    const d = decideIntro({ seen: localIntro.seen(), returning: recentBrands().length > 0, withIntent: !!(p.get("brand") || p.get("channel")), force: forcedByUrl(window.location.search) });
-    if (d.mark) localIntro.mark();
-    if (d.show) useHub.setState({ intro: true });
+    const d = decideIntro({
+      seen: localIntro.version(),
+      returning: recentBrands().length > 0,
+      withIntent: !!(p.get("brand") || p.get("channel")),
+      force: forcedIntro(window.location.search),
+    });
+    if (d.show) useHub.setState({ intro: d.only ?? true });
   }, []);
   const gutter = (collapsed ? RAIL_W : HUB_W) + 36;
   return (
@@ -182,14 +188,16 @@ function DesktopStudio({ theme }: { theme?: Theme }) {
       />
       <CommandPalette />
       <Onboarding
-        open={intro}
+        open={!!intro}
+        only={intro === "admin" ? "admin" : null}
         lang={lang}
+        bot={bot}
         variant="desktop"
         onClose={(how) => {
           localIntro.mark();
           useHub.setState({ intro: false });
-          // "Boshlash" at the end of the intro puts the owner in the link field.
-          if (how === "done") document.querySelector<HTMLInputElement>("main input")?.focus();
+          // Finishing the intro on the start screen puts the owner in the link field.
+          if (how === "done" && useStudio.getState().phase === "start") document.querySelector<HTMLInputElement>("main input")?.focus();
         }}
       />
     </div>

@@ -22,6 +22,8 @@ export type BtnSpec = {
   active?: boolean;
   progress?: boolean;
   shine?: boolean;
+  /** Secondary only: where it sits next to the MainButton (default "left"; "bottom" stacks them, both full width). */
+  position?: "left" | "right" | "top" | "bottom";
 };
 
 type Reg = { priority: number; main: BtnSpec | null; secondary: BtnSpec | null };
@@ -43,7 +45,14 @@ interface NavState {
   checking: Record<string, "lost" | "busy" | undefined>;
   /** The first-run intro over everything, at this step (null: closed). Back walks its steps. */
   intro: number | null;
-  openIntro: () => void;
+  /** "admin": the intro is only its add-the-bot card (kept after closing, for the exit). */
+  introOnly: "admin" | null;
+  /**
+   * Where the intro was opened: "boot" (the app's own first-run decision, or Settings' replay)
+   * or "over" (the add-the-bot card asked for from a screen or sheet, which stays beneath it).
+   */
+  introFrom: "boot" | "over";
+  openIntro: (only?: "admin", from?: "boot" | "over") => void;
   setIntroStep: (n: number) => void;
   closeIntro: () => void;
   push: (r: Route) => void;
@@ -73,8 +82,10 @@ export const useNav = create<NavState>((set, get) => ({
   dirtyEdit: false,
   checking: {},
   intro: null,
+  introOnly: null,
+  introFrom: "boot",
 
-  openIntro: () => set({ intro: 0 }),
+  openIntro: (only, from = "boot") => set({ intro: 0, introOnly: only ?? null, introFrom: from }),
   setIntroStep: (n) => set({ intro: n }),
   closeIntro: () => set({ intro: null }),
 
@@ -102,8 +113,14 @@ export const useNav = create<NavState>((set, get) => ({
 
   back: () => {
     // The intro covers everything: Back steps through it and never reaches what lies beneath.
+    // The add-the-bot card opened over a screen or sheet is the exception: Back closes the card
+    // and leaves that screen as it was (not marked seen: the owner only stepped back).
     const intro = get().intro;
     if (intro != null) {
+      if (closesOnBack(get())) {
+        get().closeIntro();
+        return true;
+      }
       if (intro > 0) set({ intro: intro - 1 });
       return intro > 0;
     }
@@ -128,8 +145,20 @@ export const useNav = create<NavState>((set, get) => ({
   },
 }));
 
-/** True when something can be closed or popped: Telegram shows its Back button. */
-export const useCanGoBack = () => useNav((s) => (s.intro != null ? s.intro > 0 : (!!s.sheet && !s.sheetLeaving) || s.stack.some((x) => !x.leaving)));
+type BackState = Pick<NavState, "intro" | "introOnly" | "introFrom" | "sheet" | "sheetLeaving" | "stack">;
+
+/** The add-the-bot card opened over the app (not at launch): Back closes it. */
+function closesOnBack(s: BackState): boolean {
+  return s.intro === 0 && s.introOnly === "admin" && s.introFrom === "over";
+}
+
+/** True when something can be closed, stepped back or popped: Telegram shows its Back button. */
+export function canGoBack(s: BackState): boolean {
+  if (s.intro != null) return s.intro > 0 || closesOnBack(s);
+  return (!!s.sheet && !s.sheetLeaving) || s.stack.some((x) => !x.leaving);
+}
+
+export const useCanGoBack = () => useNav(canGoBack);
 
 /** The live (not leaving) pushed screens. */
 export const liveStack = (s: NavState) => s.stack.filter((x) => !x.leaving);
@@ -146,7 +175,7 @@ export function useBottomButtons(key: string, priority: number, enabled: boolean
   const handlers = useLatest({ main, secondary });
 
   const mainSig = main ? `${main.text}|${main.active !== false}|${!!main.progress}|${!!main.shine}` : "";
-  const secSig = secondary ? `${secondary.text}|${secondary.active !== false}|${!!secondary.progress}` : "";
+  const secSig = secondary ? `${secondary.text}|${secondary.active !== false}|${!!secondary.progress}|${secondary.position ?? ""}` : "";
 
   useEffect(() => {
     if (!enabled) {

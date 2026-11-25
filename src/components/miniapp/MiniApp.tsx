@@ -16,8 +16,8 @@ import { FreshScreen, StartScreen } from "./screens/Start";
 import { VideoScreen } from "./screens/Video";
 import { EdgeBack, Layer, Skel, Toast } from "./Shell";
 import { SheetHost } from "./sheets/Sheets";
-import { markIntroSeen, MiniIntro } from "./Intro";
-import { decideIntro, forcedByUrl, INTRO_CLOUD_KEY, introSeen, localIntro } from "../onboarding";
+import { MiniIntro } from "./Intro";
+import { decideIntro, forcedIntro, INTRO_CLOUD_KEY, localIntro, seenVersion } from "../onboarding";
 import { launchTarget } from "./launch";
 import { restart } from "./actions";
 import { loadLatestPlan, useResume } from "./sync";
@@ -79,15 +79,15 @@ export function MiniApp({ bot, theme, langHint }: { bot: string; theme: Theme; l
       // The link the app was opened with comes first (bot button, startapp=brand_<id> from the
       // desktop Studio), then the brand this owner worked on last.
       const target = launchTarget(window.location.search, tg()?.initDataUnsafe?.start_param);
-      // The intro on an ordinary first open only; it opens under the launch moment, which reveals it.
+      // The intro on an ordinary open only (someone who knows the product: just its add-the-bot
+      // card); it opens under the launch moment, which reveals it.
       const intro = decideIntro({
-        seen: introSeen(saved[INTRO_CLOUD_KEY]) || localIntro.seen(),
+        seen: Math.max(seenVersion(saved[INTRO_CLOUD_KEY]), localIntro.version()),
         returning: !!saved.brand,
         withIntent: !!(target.brand || target.channel || s.sample),
-        force: forcedByUrl(window.location.search),
+        force: forcedIntro(window.location.search),
       });
-      if (intro.mark) markIntroSeen();
-      if (intro.show) useNav.getState().openIntro();
+      if (intro.show) useNav.getState().openIntro(intro.only);
       setBooted(true);
       if (s.sample) return; // ?mock=1: the start screen runs the made-up bakery
       // Same rule as the desktop Studio: a brand that is gone or someone else's is forgotten; a

@@ -82,7 +82,7 @@ function paint(btn: TgBottomButton, spec: BtnSpec | null, primary: boolean, them
     is_active: spec.active !== false && !spec.progress,
     is_visible: true,
     ...(atLeast("7.10") ? { has_shine_effect: !!spec.shine } : {}),
-    ...(sec ? { position: "left" as const } : {}),
+    ...(sec ? { position: spec.position ?? "left" } : {}),
   };
   tgSafe(() => btn.setParams(params));
   tgSafe(() => (spec.progress ? btn.showProgress(false) : btn.hideProgress()));
@@ -116,7 +116,7 @@ export function useBottomBar(theme: Theme, active: boolean): boolean {
   }, [active, current]);
 
   const mainSig = main ? `${main.text}|${main.active !== false}|${!!main.progress}|${!!main.shine}` : "";
-  const secSig = secondary ? `${secondary.text}|${secondary.active !== false}|${!!secondary.progress}` : "";
+  const secSig = secondary ? `${secondary.text}|${secondary.active !== false}|${!!secondary.progress}|${secondary.position ?? ""}` : "";
   useEffect(() => {
     const app = tg();
     if (!active || !app) return;

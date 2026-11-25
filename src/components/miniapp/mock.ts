@@ -206,7 +206,9 @@ export function installTelegramMock(opts: { scheme: "light" | "dark"; platform: 
     const ctop = app.contentSafeAreaInset!.top;
     const showMain = main.isVisible;
     const showSec = secondary.isVisible;
-    const barH = showMain || showSec ? 10 + 50 + 10 + profile.safe.bottom : 0;
+    // "top" / "bottom": Telegram stacks the two buttons, each full width.
+    const stacked = showMain && showSec && (secondary.params.position === "top" || secondary.params.position === "bottom");
+    const barH = showMain || showSec ? 10 + 50 + 10 + (stacked ? 60 : 0) + profile.safe.bottom : 0;
     document.documentElement.style.setProperty("--tg-bottom-bar", `${barH}px`);
     const statusInk = dark ? "#fff" : "#000";
     const pills = state.fullscreen
@@ -221,10 +223,10 @@ export function installTelegramMock(opts: { scheme: "light" | "dark"; platform: 
       ? `<div style="position:fixed;left:0;right:0;top:0;height:${top}px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font:600 15px/1 -apple-system,system-ui,sans-serif;color:${statusInk};pointer-events:none;z-index:2"><span>9:41</span><span style="letter-spacing:2px">▪▪▪ ◔</span></div>`
       : "";
     const bar = barH
-      ? `<div style="position:fixed;left:0;right:0;bottom:0;height:${barH}px;background:${state.bottomBar};display:flex;gap:10px;padding:10px 12px ${10 + profile.safe.bottom}px;box-sizing:border-box;z-index:2">
-          ${showSec && secondary.params.position !== "right" ? btnHtml("secondary", secondary, false) : ""}
+      ? `<div style="position:fixed;left:0;right:0;bottom:0;height:${barH}px;background:${state.bottomBar};display:flex;flex-direction:${stacked ? "column" : "row"};gap:10px;padding:10px 12px ${10 + profile.safe.bottom}px;box-sizing:border-box;z-index:2">
+          ${showSec && secondary.params.position !== "right" && secondary.params.position !== "bottom" ? btnHtml("secondary", secondary, false) : ""}
           ${showMain ? btnHtml("main", main, true) : ""}
-          ${showSec && secondary.params.position === "right" ? btnHtml("secondary", secondary, false) : ""}
+          ${showSec && (secondary.params.position === "right" || secondary.params.position === "bottom") ? btnHtml("secondary", secondary, false) : ""}
         </div>`
       : "";
     chrome.innerHTML = `<style>
