@@ -7,10 +7,12 @@ import { slotKey, useStudio } from "../../studio/store";
 import { plural, weekday } from "../../ui/format";
 import { fmt, useCopy, useLang, type Lang } from "../../ui/lang";
 import { useBlank } from "../use-blank";
+import { WeekCard } from "../../studio/WeekCard";
+import { postPhase } from "../../studio/week";
 import { useMiniCopy } from "../copy";
 import { useNav } from "../nav";
 import { TopBar, useCompact } from "../Shell";
-import { haptic } from "../tg";
+import { haptic, openLink } from "../tg";
 
 const SCRIPT_FOR: Record<Lang, Script> = { uz: "uz_latn", ru: "ru", en: "en" };
 
@@ -94,6 +96,14 @@ export function PostsScreen({ onOpen, active }: { onOpen: (id: string) => void; 
           </div>
           {posts.length > 0 && <p className="tnum mt-1 text-[14px] text-ink-2">{fmt(m.posts.done, { n: done, m: posts.length })}</p>}
 
+          {/* The week: what goes out by itself, what stays out and why, the bot's rights, the autopilot. The tap is
+              Telegram's MainButton («Haftani tasdiqlash · N»). */}
+          {posts.length > 0 && (
+            <div className="mt-5">
+              <WeekCard variant="mini" onOpen={openLink} />
+            </div>
+          )}
+
           {posts.length === 0 ? (
             <div className="ma-group mt-6 flex flex-col items-start gap-3 p-4">
               <p className="text-[15px] text-ink-2">{m.posts.empty}</p>
@@ -161,6 +171,7 @@ function Missed() {
 }
 
 function PostRow({ post, script, onOpen }: { post: PostDraft; script: Script; onOpen: () => void }) {
+  const c = useCopy();
   const m = useMiniCopy();
   const when = useWhen()(post);
   // The picture slot stays reserved while pictures are on their way, so rows never shift.
@@ -169,6 +180,8 @@ function PostRow({ post, script, onOpen }: { post: PostDraft; script: Script; on
   const blank = useBlank(post);
   const text = (post.variants[script] ?? "").trim();
   const status = post.status === "published" ? "published" : post.status === "approved" ? "approved" : "draft";
+  // The queue's word on it: scheduled, out, or changed since its approval.
+  const phase = postPhase(post, useStudio((s) => s.schedule[post.id]));
   return (
     <button
       type="button"
@@ -183,7 +196,14 @@ function PostRow({ post, script, onOpen }: { post: PostDraft; script: Script; on
         <span className="flex items-center justify-between gap-2">
           <span className="truncate text-[13px] text-ink-2">{when}</span>
           {/* A status appears once the owner acted; a draft needs no label, unless it waits for a fact. */}
-          {status !== "draft" ? (
+          {phase.kind === "queued" ? (
+            <StatusDot status="approved" label={c.queue.scheduled} />
+          ) : phase.kind === "changed" ? (
+            <span className="inline-flex shrink-0 items-center gap-1.5 text-[12.5px] font-semibold text-led">
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-led" />
+              {c.schedule.reapprove}
+            </span>
+          ) : status !== "draft" ? (
             <StatusDot status={status} label={m.posts[status]} />
           ) : blank ? (
             <span className="inline-flex shrink-0 items-center gap-1.5 text-[12.5px] font-semibold text-led">

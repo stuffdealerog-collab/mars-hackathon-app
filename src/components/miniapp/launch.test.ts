@@ -6,7 +6,7 @@ const POST = "d0f7a62c-9fda-4ef1-a9f2-c0ffee000001";
 
 describe("launchTarget", () => {
   it("opens the brand from the desktop Studio's startapp=brand_<id>", () => {
-    expect(launchTarget("", `brand_${BRAND}`)).toEqual({ brand: BRAND, post: null, channel: null });
+    expect(launchTarget("", `brand_${BRAND}`)).toEqual({ brand: BRAND, post: null, channel: null, view: null });
   });
 
   it("reads tgWebAppStartParam when the client sets no start_param", () => {
@@ -14,16 +14,22 @@ describe("launchTarget", () => {
   });
 
   it("prefers the bot button's ?brand= and keeps ?post=", () => {
-    expect(launchTarget(`?brand=${BRAND}&post=${POST}`, "brand_other-id-000")).toEqual({ brand: BRAND, post: POST, channel: null });
+    expect(launchTarget(`?brand=${BRAND}&post=${POST}`, "brand_other-id-000")).toEqual({ brand: BRAND, post: POST, channel: null, view: null });
   });
 
   it("opens a post from startapp=post_<id>", () => {
-    expect(launchTarget("", `post_${POST}`)).toEqual({ brand: null, post: POST, channel: null });
+    expect(launchTarget("", `post_${POST}`)).toEqual({ brand: null, post: POST, channel: null, view: null });
   });
 
   it("starts a channel from ?channel= or startapp=ch_<name>", () => {
     expect(launchTarget("?channel=t.me/lifesmileuz", null).channel).toBe("t.me/lifesmileuz");
     expect(launchTarget("", "ch_lifesmileuz").channel).toBe("lifesmileuz");
+  });
+
+  it("opens the week from the bot's Review button (?brand=<id>&view=week) or startapp=week_<id>", () => {
+    expect(launchTarget(`?brand=${BRAND}&view=week`, null)).toEqual({ brand: BRAND, post: null, channel: null, view: "week" });
+    expect(launchTarget("", `week_${BRAND}`)).toEqual({ brand: BRAND, post: null, channel: null, view: "week" });
+    expect(launchTarget(`?brand=${BRAND}&view=other`, null).view).toBeNull();
   });
 
   it("ignores ids that are not ids", () => {
@@ -32,6 +38,6 @@ describe("launchTarget", () => {
   });
 
   it("opens nothing for an ordinary launch", () => {
-    expect(launchTarget("", "")).toEqual({ brand: null, post: null, channel: null });
+    expect(launchTarget("", "")).toEqual({ brand: null, post: null, channel: null, view: null });
   });
 });

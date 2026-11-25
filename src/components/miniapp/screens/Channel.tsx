@@ -7,6 +7,7 @@ import { StyleRefs } from "../../media";
 import * as api from "../../studio/api";
 import { Strip, useLamps } from "../../studio/Department";
 import { topFindings } from "../../studio/findings";
+import { QuestionsCard } from "../../studio/Questions";
 import { slotKey, useStudio } from "../../studio/store";
 import type { PlanItemExtra } from "../../studio/api";
 import { isMachineEvidence, ownerText, plural, weekday } from "../../ui/format";
@@ -79,6 +80,9 @@ export function ChannelScreen({ onOpenPost }: { onOpenPost: (id: string) => void
           </div>
 
           {mode === "channel" ? <Numbers /> : <p className="mt-6 px-1 text-[15px] leading-relaxed text-ink-2">{c.channel.freshNoStats}</p>}
+          <div className="mt-6 empty:hidden">
+            <QuestionsCard variant="mini" />
+          </div>
           {mode === "fresh" && <Launch />}
           <Style />
           {/* «Qanday yozasiz» is a marketer's table: Pro only. */}
@@ -420,6 +424,8 @@ function Plan({ onOpenPost }: { onOpenPost: (id: string) => void }) {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] leading-snug">{ownerText(it.hook, lang)}</span>
+                  {/* Where the time comes from: the strategist's guidance, said as given. */}
+                  {it.timeLabel && <span className="mt-0.5 block text-[13px] leading-snug text-ink-3">{ownerText(it.timeLabel, lang)}</span>}
                   {pro && <PlanRowDetails item={it as PlanItem & PlanItemExtra} />}
                   <span className="mt-1 flex items-center gap-1 text-[13px] text-ink-3">
                     {has && <Check className="h-3.5 w-3.5 text-ink-2" aria-hidden />}

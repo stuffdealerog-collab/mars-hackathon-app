@@ -4,6 +4,10 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { PostImage } from "../../media";
 import * as api from "../../studio/api";
 import { pictureBusy, useStudio } from "../../studio/store";
+import { RewriteForm } from "../../studio/PostTools";
+import { noHandPublish, postPhase } from "../../studio/week";
+import { ScheduleLine, usePicturesComing, useWeek, useWhenLabel } from "../../studio/WeekCard";
+import { approveWeekNow, instagramNow } from "../actions";
 import { fmt, keepNumbers, useCopy, useLang } from "../../ui/lang";
 import { blankNote, blankTokens } from "../blank";
 import { useBlank } from "../use-blank";
@@ -189,6 +193,14 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
   const post = posts[index];
   const s = post ? scriptOf(post, script) : script;
   const status = post ? statusOf(post) : "draft";
+  // The queue's word on this post: it goes out by itself (no publish button), or changed since its approval.
+  const schedule = useStudio((st) => (post ? st.schedule[post.id] : undefined));
+  const phase = post ? postPhase(post, schedule) : ({ kind: "none" } as const);
+  const weekBusy = useStudio((st) => st.week.state === "sending");
+  // An approved post the queue does not hold yet, whose slot is still ahead: «Seshanba 08:00 da o‘zi chiqsin».
+  const one = useWeek(post?.id);
+  const oneDrawing = usePicturesComing(one);
+  const whenLabel = useWhenLabel();
   const busy = post ? busyMap[post.id] : undefined;
   const nextOpen = posts.findIndex((p, i) => i !== index && statusOf(p) !== "published");
   // A blank the writer could not fill (a price, a code): the owner fills it before it can go out.
@@ -213,8 +225,17 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
   let main: BtnSpec | null = null;
   let secondary: BtnSpec | null = null;
   if (post) {
+    const held = status === "approved" && noHandPublish(post, schedule);
+    const queueable = status === "approved" && phase.kind === "none" && one.batch.ready[0]?.postId === post.id ? one.batch.ready[0] : null;
     if (status !== "published" && blank) {
       main = { text: m.post.fill, onClick: edit, active: !moving };
+    } else if (status === "draft" && phase.kind === "changed") {
+      // Approved and queued, then rewritten: approving again puts this version back in the queue.
+      main = { text: weekBusy ? c.week.sending : c.schedule.reapprove, onClick: () => settled(post.id) && void approveWeekNow([post.id]), progress: weekBusy, active: !moving };
+      secondary = { text: c.posts.edit, onClick: edit, active: !moving };
+    } else if (held) {
+      // The queue sends it at its time: never a second send by hand. The next post that waits, if any.
+      if (nextOpen >= 0) main = { text: m.post.next, onClick: () => (haptic.tap(), goTo(nextOpen)), active: !moving };
     } else if (status === "draft") {
       main = { text: busy === "approve" ? c.posts.approving : c.posts.approve, onClick: () => settled(post.id) && void approve(post.id), progress: busy === "approve", active: !moving };
       secondary = { text: c.posts.edit, onClick: edit, active: !moving };
@@ -224,6 +245,15 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
         : pictureComing
           ? { text: m.post.waitPicture, onClick: () => undefined, active: false }
           : { text: busy === "publish" ? c.posts.publishing : c.posts.publish, onClick: () => settled(post.id) && void publish(post.id, s), progress: busy === "publish", shine: true, active: !moving };
+      // Or let the queue send it at its slot, exactly as approved (the same as the week, for this one post).
+      if (queueable && !checking && !pictureComing)
+        secondary = {
+          text: weekBusy ? c.week.sending : fmt(c.schedule.queueOne, { when: whenLabel(queueable.dueAt) }),
+          // Inactive while the pager moves, so it never acts on the post being left (a ref read here would be read in render).
+          onClick: () => void approveWeekNow([post.id]),
+          progress: weekBusy,
+          active: !moving && !oneDrawing && busy !== "publish",
+        };
     } else {
       const url = post.publishedUrl;
       if (nextOpen >= 0) {
@@ -252,7 +282,7 @@ export function PostScreen({ id, active }: { id: string; active: boolean }) {
         </div>
         {inlineSecondary && secondary && (
           <div className="px-4 pb-3 pt-2">
-            <button type="button" className="btn-2 w-full" onClick={secondary.onClick}>
+            <button type="button" className="btn-2 w-full" disabled={secondary.active === false} onClick={secondary.onClick}>
               {secondary.text}
             </button>
           </div>
@@ -339,7 +369,7 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
               // Never the model name, the English prompt or the sample count for an owner; Pro keeps
               // the product photo button.
               pro={false}
-              allowProductPhoto={pro}
+              allowProductPhoto
               lang={lang}
               authorization={api.authHeader()}
               refs={refs}
@@ -371,6 +401,31 @@ function PostPage({ post, script, current, pro, label }: { post: PostDraft; scri
             {note.text}
           </p>
         )}
+        {note && note.tone !== "bad" && !note.href && !blank && (
+          <p role="status" className={`mt-3 px-1 text-[14px] leading-snug ${note.tone === "ok" ? "text-ok" : "text-ink"}`}>
+            {note.text}
+          </p>
+        )}
+
+        <div className="mt-3 px-1 empty:hidden">
+          <ScheduleLine post={post} variant="mini" onOpen={openLink} />
+        </div>
+
+        {/* Two quiet tools, in Simple too: change it in one phrase; the post for Instagram (4:5 + caption). */}
+        <div className="ma-group mt-4">
+          {status !== "published" && <RewriteForm post={post} className="px-4 pb-3 pt-3" />}
+          <button
+            type="button"
+            className="ma-row ma-press"
+            onClick={() => {
+              haptic.tap();
+              void instagramNow(post, script);
+            }}
+          >
+            <span className="min-w-0 flex-1 text-[15.5px] font-medium">{c.instagram.btn}</span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-ink-3" aria-hidden />
+          </button>
+        </div>
 
         {pro && (
           <div className="ma-group mt-4">

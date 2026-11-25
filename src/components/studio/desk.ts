@@ -139,7 +139,8 @@ export async function approveWithUndo(id: string, advance = false) {
   const { toast, dismiss, setFocused } = useDesk.getState();
   const next = advance ? st.posts.find((p) => p.status === "draft" && p.id !== id) : undefined;
   if (next) setFocused(next.id);
-  const delay = st.approveDelayMs;
+  // A changed post goes back in the queue at once (store.approve): there is no undo window to offer.
+  const delay = st.requeues(id) ? 0 : st.approveDelayMs;
   const text = next?.slot ? fmt(c.approve.next, { when: whenOf(next.slot) }) : c.approve.toast;
   const t = delay > 0 && !st.sample ? toast({ text, action: { label: c.approve.undo, run: () => useStudio.getState().undoApprove(id) }, ms: delay }) : null;
   const r = await st.approve(id);

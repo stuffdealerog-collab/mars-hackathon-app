@@ -35,7 +35,7 @@ export const LAMP_ORDER: AgentRole[] = [
 export const OWNER_LAMPS: readonly AgentRole[] = LAMP_ORDER.filter((r) => r !== "video" && r !== "radar");
 
 /**
- * Measured results on the lamps ("3 ta post vaqtida chiqdi", "+120 medianaga"), when the data
+ * Measured results on the lamps ("3 post chiqdi", "+120 medianaga"), when the data
  * gives one. A lamp with an outcome reads it as its result and as its words; a dark lamp lights
  * (a measured result is held work); a lamp that is working or failed keeps its state. Pure.
  */

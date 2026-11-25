@@ -71,6 +71,8 @@ export interface TgApp {
   enableVerticalSwipes?(): void;
   openTelegramLink?(url: string): void;
   openLink?(url: string): void;
+  /** Bot API 8.0: Telegram downloads the file itself (a webview cannot save a blob). */
+  downloadFile?(params: { url: string; file_name: string }, cb?: (accepted: boolean) => void): void;
   showConfirm?(message: string, cb: (ok: boolean) => void): void;
   showPopup?(
     params: { title?: string; message: string; buttons?: { id?: string; type?: "default" | "ok" | "close" | "cancel" | "destructive"; text?: string }[] },

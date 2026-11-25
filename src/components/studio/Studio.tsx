@@ -15,6 +15,8 @@ import { ChannelTab } from "./ChannelTab";
 import { Panel, Strip, useLamps } from "./Department";
 import { Hub, HUB_W, RAIL_W, StageLight, useDesktop, useHub, useHubRestore } from "./Hub";
 import { PostsSplit, PostsTab } from "./Posts";
+import { QuestionsCard } from "./Questions";
+import { useQueuePoll } from "./WeekCard";
 import { SpectrumIntro } from "./SpectrumIntro";
 import { Start } from "./Start";
 import { Toasts } from "./Toasts";
@@ -87,6 +89,7 @@ export function Studio({ bot, inTelegram = false, theme, langHint }: { bot: stri
   // Mini App keep the one-column Studio below.
   const desktop = useDesktop();
   useHubRestore();
+  useQueuePoll();
   // Before the browser says how wide it is, draw the hub's silhouette (or the column's header):
   // no blank frame, no jump from a phone column to the studio.
   if (desktop === null && !inTelegram) return <StudioSkeleton theme={theme} />;
@@ -375,6 +378,14 @@ function Working() {
         <Panel ref={panelRef} lamps={lamps} housing={!!desktop} />
         {intro && <SpectrumIntro fieldRef={ledRef} panelRef={panelRef} onBloom={onBloom} onDone={onDone} />}
       </div>
+
+      {/* While the department works: the engine's few questions, under the lamps (never over them). Answers
+          given before the plan is written reach this week's posts. */}
+      {!problem && (
+        <div className="relative mt-8 max-w-[640px] lg:mt-[120px]">
+          <QuestionsCard />
+        </div>
+      )}
 
       {problem && (
         <div role="alert" className="relative mt-8 rounded-2xl border border-line bg-card p-4 sm:p-5 lg:mt-[140px]">

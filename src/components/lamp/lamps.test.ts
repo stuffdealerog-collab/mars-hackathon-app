@@ -29,9 +29,9 @@ describe("withOutcomes", () => {
     expect(withOutcomes(lamps, { publisher: "  ", analyst: null })).toBe(lamps);
   });
   it("labels a lamp with its result and lights a dark one", () => {
-    const out = withOutcomes(lampsOf(), { publisher: " 3 ta post vaqtida chiqdi " });
-    expect(out.outcome?.publisher).toBe("3 ta post vaqtida chiqdi");
-    expect(out.words.publisher).toBe("3 ta post vaqtida chiqdi");
+    const out = withOutcomes(lampsOf(), { publisher: " 3 post chiqdi " });
+    expect(out.outcome?.publisher).toBe("3 post chiqdi");
+    expect(out.words.publisher).toBe("3 post chiqdi");
     expect(out.state.publisher).toBe("on");
     expect(out.state.analyst).toBe("off");
   });

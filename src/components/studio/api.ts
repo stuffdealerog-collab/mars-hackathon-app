@@ -9,21 +9,28 @@ import type {
   BrandMode,
   BrandProfile,
   ChannelAudit,
+  ChannelType,
   ContentPlan,
   PlanItem,
   PlanSlot,
   PostDraft,
   PostImage,
+  PostSchedule,
   Script,
   Strategy,
   VisualStyle,
 } from "@/lib/uslub/contract";
+import type { AutopilotState, BotAdminStatus, WeekSkipReason } from "@/lib/autopilot/types";
+import type { AnswersBody, Question } from "../ui/answers";
 import { useLang, type Lang } from "../ui/lang";
 
 /** A blank still in a post's text, per script (approve and publish refuse with placeholder_left). */
 export type Missing = { script: Script; tokens: string[] };
-/** `scope` comes with a 429 `budget_exhausted`: "app" (the whole app's day) or "anonymous" (guests on the web). */
-export type Fail = { ok: false; error?: string; code: string; status: number; reason?: string; addAdminUrl?: string; missing?: Missing[]; scope?: string };
+/**
+ * `scope` comes with a 429 `budget_exhausted`: "app" (the whole app's day) or "anonymous" (guests on the web).
+ * `continueUrl` comes with the autopilot's 401/403: the bot's week view, where the owner carries on.
+ */
+export type Fail = { ok: false; error?: string; code: string; status: number; reason?: string; addAdminUrl?: string; missing?: Missing[]; scope?: string; continueUrl?: string };
 export type Ok<T> = { ok: true; data: T };
 export type Res<T> = Ok<T> | Fail;
 
@@ -112,7 +119,7 @@ function headers(): Record<string, string> {
 }
 
 async function failFrom(res: Response): Promise<Fail> {
-  const j = (await res.json().catch(() => null)) as { error?: string; code?: string; reason?: string; addAdminUrl?: string; missing?: unknown; scope?: unknown } | null;
+  const j = (await res.json().catch(() => null)) as { error?: string; code?: string; reason?: string; addAdminUrl?: string; missing?: unknown; scope?: unknown; continueUrl?: unknown } | null;
   return {
     ok: false,
     status: res.status,
@@ -121,6 +128,8 @@ async function failFrom(res: Response): Promise<Fail> {
     reason: j?.reason,
     addAdminUrl: j?.addAdminUrl,
     scope: typeof j?.scope === "string" ? j.scope : undefined,
+    // Only a Telegram link is ever opened from an error answer.
+    continueUrl: typeof j?.continueUrl === "string" && /^https:\/\/t\.me\//.test(j.continueUrl) ? j.continueUrl : undefined,
     missing: Array.isArray(j?.missing) ? (j.missing as Missing[]).filter((m) => typeof m?.script === "string" && Array.isArray(m.tokens)) : undefined,
   };
 }
@@ -166,7 +175,8 @@ const q = (lang: Lang) => `lang=${lang}`;
 
 export type ChannelInfo = { title?: string; subscribers?: number; postsRead?: number };
 
-export function createBrand(input: { channel?: string; knowledge?: string; mode?: BrandMode; lang: Lang }) {
+/** `brandId`: the row this browser already holds for the channel, so a re-run reuses it (its type, goal, answers). */
+export function createBrand(input: { channel?: string; knowledge?: string; mode?: BrandMode; lang: Lang; brandId?: string }) {
   return call<{ brand: BrandProfile; channelInfo?: ChannelInfo }>(
     "/brand",
     { method: "POST", body: { ...input, initData: tgInitData() } },
@@ -180,8 +190,59 @@ export function getBrand(id: string, lang: Lang) {
 
 /* --------------------------------------------------------------- analysis */
 
-export function analyzeChannel(channel: string, lang: Lang) {
-  return call<{ audit: ChannelAudit }>("/analyze", { method: "POST", body: { channel, lang } }, 95_000);
+/** `brandId`: the brand's stored channel type and confirmed goal pick the findings. */
+export function analyzeChannel(channel: string, lang: Lang, brandId?: string) {
+  return call<{ audit: ChannelAudit }>("/analyze", { method: "POST", body: { channel, lang, ...(brandId ? { brandId } : {}) } }, 95_000);
+}
+
+/* ---------------------------------------------------------- owner answers */
+
+/** GET/POST /api/uslub/answers: the questions still open (the engine decides them) and what the owner said. */
+export type AnswersInfo = {
+  questions: Question[];
+  channelType?: ChannelType | null;
+  goal?: "sale" | "grow" | null;
+  suggestedGoal?: string;
+};
+
+export function getAnswers(brandId: string, lang: Lang) {
+  return call<AnswersInfo>(`/answers?brandId=${encodeURIComponent(brandId)}&${q(lang)}`, { method: "GET" }, 20_000);
+}
+
+export function saveAnswers(brandId: string, body: AnswersBody, lang: Lang) {
+  return call<{ questions: Question[] }>("/answers", { method: "POST", body: { brandId, ...body, lang, initData: tgInitData() } }, 20_000);
+}
+
+/* -------------------------------------------------------------- autopilot */
+
+export type AutopilotInfo = {
+  autopilot: AutopilotState & { trialDaysLeft?: number };
+  admin: BotAdminStatus;
+  schedule: Record<string, PostSchedule>;
+};
+
+export function getAutopilot(brandId: string, lang: Lang) {
+  return call<AutopilotInfo>(`/autopilot?brandId=${encodeURIComponent(brandId)}&${q(lang)}`, { method: "GET" }, 15_000);
+}
+
+/** Verified owner only; anyone else gets 401/403 with `continueUrl` (the bot's week view has the same switch). */
+export function setAutopilot(brandId: string, on: boolean, lang: Lang) {
+  return call<AutopilotInfo>("/autopilot", { method: "POST", body: { brandId, on, lang, initData: tgInitData() } }, 20_000);
+}
+
+export type WeekSkipped = { postId: string; reason: WeekSkipReason; tokens?: string[]; dates?: string[] };
+export type WeekResult = { queued: { postId: string; dueAt: string }[]; skipped: WeekSkipped[]; admin: BotAdminStatus; addAdminUrl?: string };
+
+/**
+ * «Haftani tasdiqlash»: approves and queues the batch the owner was shown (`hash`, week-hash.ts) or `postIds`.
+ * 409 batch_changed: the week changed since it was shown; 401/403 come with `continueUrl` (the bot).
+ */
+export function approveWeek(brandId: string, hash: string, lang: Lang, postIds?: string[]) {
+  return call<WeekResult>(
+    "/posts/approve-week",
+    { method: "POST", body: { brandId, hash, lang, initData: tgInitData(), ...(postIds?.length ? { postIds } : {}) } },
+    35_000,
+  );
 }
 
 /* --------------------------------------------------------------- strategy */
@@ -318,6 +379,18 @@ export function listPosts(brandId: string, lang: Lang) {
 /** Persists the approval. Edited texts ride along so the bot publishes what the owner saw. */
 export function approvePost(postId: string, lang: Lang, variants?: Partial<Record<Script, string>>, keepalive = false) {
   return call<{ post: PostDraft }>("/posts/approve", { method: "POST", body: { postId, lang, ...(variants ? { variants } : {}) }, keepalive }, 20_000);
+}
+
+/**
+ * Rewrites a post from one phrase of the owner ("qisqaroq", "narxi 210 000"). `kept`: versions left as they were;
+ * `reapprove`: the post was approved and is a draft again (nothing unseen goes out on an old approval).
+ */
+export function rewritePost(postId: string, instruction: string, lang: Lang) {
+  return call<{ post: PostDraft; kept: Script[]; reapprove: boolean }>(
+    "/posts/rewrite",
+    { method: "POST", body: { postId, instruction, lang, initData: tgInitData() } },
+    65_000,
+  );
 }
 
 /* --------------------------------------------------------------- pictures */

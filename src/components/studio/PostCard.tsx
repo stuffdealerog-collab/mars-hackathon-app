@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useId, useState } from "react";
 import { fmt, keepNumbers, useCopy, useLang } from "../ui/lang";
-import { weekday } from "../ui/format";
+import { ownerText, weekday } from "../ui/format";
 import { parseChannel } from "../ui/parts";
 import { PostImage } from "@/components/media";
 import { lampVars } from "../lamp/lamps";
@@ -12,7 +12,10 @@ import { authHeader, botPublishUrl, handoffKey } from "./api";
 import { approveWithUndo, refsWording, useDesk, type ImageHandle } from "./desk";
 import { useDesktop } from "./Hub";
 import { latestBatch } from "./batch";
-import { useStudio } from "./store";
+import { PostTools } from "./PostTools";
+import { slotKey, useStudio } from "./store";
+import { noHandPublish, postPhase } from "./week";
+import { QueueOne, ReapproveButton, ScheduleLine } from "./WeekCard";
 
 // Professional rejim only, loaded on demand.
 const PostDetails = dynamic(() => import("./pro/ProDetails").then((m) => m.PostDetails), { ssr: false });
@@ -56,6 +59,11 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
   const editing = useDesk((s) => s.editingId === post.id);
   const setEditing = (on: boolean) => useDesk.getState().setEditing(on ? post.id : null);
   const confirming = useDesk((s) => s.confirmId === post.id);
+  // The queue's view of this post (GET /api/uslub/autopilot): goes out by itself, out, stopped, changed.
+  const schedule = useStudio((s) => s.schedule[post.id]);
+  const phase = postPhase(post, schedule);
+  // Where the slot's time comes from (PlanItem.timeLabel): guidance from the strategist, said as given.
+  const timeLabel = useStudio((s) => (post.slot ? s.plan?.items.find((it) => slotKey(it) === slotKey(post.slot!))?.timeLabel : undefined));
   // Switching posts in the queue while this one is open for editing: let the edit go with the
   // card, or the keyboard would stay silent on the next post.
   useEffect(
@@ -135,10 +143,11 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
         {(approved || published) && (
           <span className="inline-flex shrink-0 items-center gap-1 text-[14px] font-medium text-ok">
             <Check className="h-4 w-4" aria-hidden />
-            {published ? c.posts.published : c.posts.approved}
+            {published ? c.posts.published : phase.kind === "queued" ? c.queue.scheduled : c.posts.approved}
           </span>
         )}
       </header>
+      {when && timeLabel && <p className="-mt-1 px-1 pb-2 text-[12.5px] leading-snug text-ink-3">{ownerText(timeLabel, lang)}</p>}
 
       {/* Drawn close to Telegram's own channel post, so the owner sees what subscribers will see. */}
       <div className="tgpost relative">
@@ -183,7 +192,8 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
             initial={post.image ?? null}
             lang={lang}
             pro={false}
-            allowProductPhoto={pro}
+            // The owner's own product photo is the strongest picture: offered in Simple too (plan §1).
+            allowProductPhoto
             autoStart={false}
             expected={waiting}
             // A redrawn approved post would fail publishing (the bot checks what the owner saw).
@@ -263,11 +273,19 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
               <ExternalLink className="h-4 w-4" aria-hidden />
             </a>
           )
+        ) : approved && noHandPublish(post, schedule) ? (
+          // The queue holds it (or its send was cut off): it goes out by itself, never a second time by hand.
+          <ScheduleLine post={post} />
         ) : approved ? (
           sample ? (
-            <p className="text-[14px] leading-relaxed text-ink-2">{c.posts.samplePublish}</p>
+            <>
+              <ScheduleLine post={post} />
+              <p className="text-[14px] leading-relaxed text-ink-2">{c.posts.samplePublish}</p>
+              <QueueOne post={post} />
+            </>
           ) : (
             <>
+              <ScheduleLine post={post} />
               {direct && !inTelegram && !channel ? (
                 // A brand from a description has no channel yet: ask for it here; the first publish
                 // links it (both the owner and the bot must be admins there).
@@ -321,8 +339,20 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
                 </a>
               )}
               {!direct && <p className="text-[14px] leading-relaxed text-ink-2">{c.posts.webNote}</p>}
+              <QueueOne post={post} />
             </>
           )
+        ) : phase.kind === "changed" ? (
+          // Approved and queued, then changed (rewritten): approving again puts this version in the queue.
+          <div className="flex flex-col gap-3">
+            <ScheduleLine post={post} action={false} />
+            <div className="flex gap-2.5">
+              <button type="button" className="btn-2 flex-1 @md:flex-none" aria-keyshortcuts="E" onClick={startEdit}>
+                {c.posts.edit}
+              </button>
+              <ReapproveButton post={post} className="btn flex-1 @md:flex-none" />
+            </div>
+          </div>
         ) : (
           <div className="flex gap-2.5">
             <button type="button" className="btn-2 flex-1 @md:flex-none" aria-keyshortcuts="E" onClick={startEdit}>
@@ -347,6 +377,12 @@ export function PostCard({ post, script, inTelegram, inspector = false, advance 
           </p>
         )}
       </footer>
+      {/* Outside the sticky footer: the buttons of the post in view stay one row. */}
+      {!editing && (
+        <div className="px-1 pt-2">
+          <PostTools post={post} script={script} onSay={(text, tone) => useDesk.getState().toast({ text, tone, ms: 3600 })} />
+        </div>
+      )}
       {/* Pro depth comes after the owner's decision, never between the post and its buttons. */}
       {pro && !inspector && <PostDetails post={post} />}
     </article>
