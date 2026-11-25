@@ -1,5 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { watchAnthropicBilling } from "./ops/alert";
 import { getEnv } from "./env";
 
 /** Default model; override with ANTHROPIC_MODEL. */
@@ -28,7 +29,7 @@ export function isAiConfigured(): boolean {
 function getClient(): Anthropic | null {
   const apiKey = getEnv().ANTHROPIC_API_KEY;
   if (!apiKey) return null;
-  client ??= new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 });
+  client ??= new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1, fetch: watchAnthropicBilling(fetch) });
   return client;
 }
 
