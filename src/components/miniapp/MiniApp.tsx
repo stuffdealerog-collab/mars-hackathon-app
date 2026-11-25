@@ -1,4 +1,4 @@
-import { BarChart3, Newspaper } from "lucide-react";
+import { BarChart3, Clapperboard, Newspaper } from "lucide-react";
 import { LAMPS, OWNER_LAMPS } from "../lamp/lamps";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudio, type Tab } from "../studio/store";
@@ -13,6 +13,7 @@ import { PostScreen } from "./screens/Post";
 import { PostsScreen } from "./screens/Posts";
 import { RunScreen } from "./screens/Run";
 import { FreshScreen, StartScreen } from "./screens/Start";
+import { VideoScreen } from "./screens/Video";
 import { EdgeBack, Layer, Skel, Toast } from "./Shell";
 import { SheetHost } from "./sheets/Sheets";
 import { MiniIntro } from "./Intro";
@@ -198,10 +199,10 @@ function Pushed({ route, active }: { route: Route; active: boolean }) {
 
 /* -------------------------------------------------------------------- tabs */
 
-/** The phone has two tabs; the desktop's "Bo‘lim" lives in the Strip and Panel here. */
+/** The phone has three tabs; the desktop's "Bo‘lim" lives in the Strip and Panel here. */
 type PhoneTab = Exclude<Tab, "dept">;
-const TAB_ICONS: Record<PhoneTab, typeof BarChart3> = { channel: BarChart3, posts: Newspaper };
-const TABS: PhoneTab[] = ["channel", "posts"];
+const TAB_ICONS: Record<PhoneTab, typeof BarChart3> = { channel: BarChart3, posts: Newspaper, video: Clapperboard };
+const TABS: PhoneTab[] = ["channel", "posts", "video"];
 
 function Tabs({ active }: { active: boolean }) {
   const m = useMiniCopy();
@@ -256,6 +257,7 @@ function Tabs({ active }: { active: boolean }) {
           <div key={t} className="ma-tabpanel" data-active={tab === t ? "true" : "false"} role="tabpanel" id={`ma-panel-${t}`} aria-labelledby={`ma-tab-${t}`} inert={tab !== t ? true : undefined}>
             {t === "channel" && <ChannelScreen onOpenPost={openPost} />}
             {t === "posts" && <PostsScreen onOpen={openPost} active={active && tab === "posts"} />}
+            {t === "video" && <VideoScreen />}
           </div>
         ))}
       </div>

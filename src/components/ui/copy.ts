@@ -93,7 +93,11 @@ const uz = {
     openBot: "Botda ochish",
   },
 
-  tabs: { channel: "Kanal", posts: "Postlar", dept: "Bo‘lim" },
+  tabs: { channel: "Kanal", posts: "Postlar", video: "Video", dept: "Bo‘lim" },
+  video: {
+    title: "Video",
+    text: "Tez orada: Videograf kanalingiz uchun Reels ssenariysini yozadi va nimani suratga olishni aytadi. Siz telefonda olasiz, Mercat kanalga joylaydi.",
+  },
 
   channel: {
     subscribers: "obunachi",
@@ -195,7 +199,7 @@ const uz = {
     radar: { name: "Mijozlar radari", job: "Mijozlaringiz qayerda" },
     publisher: { name: "SMM-menejer", job: "Kanalga joylaydi" },
   },
-  lampState: { off: "kutmoqda", warming: "ishlayapti", on: "tayyor", you: "sizni kutmoqda", error: "xato", noPicturesSample: "namunada rasmsiz" },
+  lampState: { off: "kutmoqda", warming: "ishlayapti", on: "tayyor", you: "sizni kutmoqda", error: "xato", noPicturesSample: "namunada rasmsiz", soon: "tez orada" },
   /** Counted captions: [one, few, many]. Uzbek and English need fewer forms, Russian needs all three. */
   lampResult: {
     postsRead: ["post o‘qildi", "post o‘qildi", "post o‘qildi"],
@@ -422,7 +426,11 @@ const ru: Copy = {
     openBot: "Открыть в боте",
   },
 
-  tabs: { channel: "Канал", posts: "Посты", dept: "Отдел" },
+  tabs: { channel: "Канал", posts: "Посты", video: "Видео", dept: "Отдел" },
+  video: {
+    title: "Видео",
+    text: "Скоро: Видеограф напишет сценарий Reels для вашего канала и подскажет, что снять. Вы снимаете на телефон, Mercat публикует в канал.",
+  },
 
   channel: {
     subscribers: "подписчиков",
@@ -525,7 +533,7 @@ const ru: Copy = {
     radar: { name: "Радар клиентов", job: "Где ваши клиенты" },
     publisher: { name: "SMM-менеджер", job: "Публикует в канал" },
   },
-  lampState: { off: "ждёт", warming: "работает", on: "готово", you: "ждёт вас", error: "ошибка", noPicturesSample: "в образце без картинок" },
+  lampState: { off: "ждёт", warming: "работает", on: "готово", you: "ждёт вас", error: "ошибка", noPicturesSample: "в образце без картинок", soon: "скоро" },
   lampResult: {
     postsRead: ["пост прочитан", "поста прочитано", "постов прочитано"],
     described: "описание прочитано",
@@ -749,7 +757,11 @@ const en: Copy = {
     openBot: "Open in the bot",
   },
 
-  tabs: { channel: "Channel", posts: "Posts", dept: "Department" },
+  tabs: { channel: "Channel", posts: "Posts", video: "Video", dept: "Department" },
+  video: {
+    title: "Video",
+    text: "Coming soon: the Videographer writes a Reels script for your channel and tells you what to film. You shoot it on your phone, Mercat posts it to your channel.",
+  },
 
   channel: {
     subscribers: "subscribers",
@@ -851,7 +863,7 @@ const en: Copy = {
     radar: { name: "Customer radar", job: "Where your customers are" },
     publisher: { name: "SMM manager", job: "Publishes to your channel" },
   },
-  lampState: { off: "waiting", warming: "working", on: "done", you: "waiting for you", error: "error", noPicturesSample: "no pictures in the sample" },
+  lampState: { off: "waiting", warming: "working", on: "done", you: "waiting for you", error: "error", noPicturesSample: "no pictures in the sample", soon: "soon" },
   lampResult: {
     postsRead: ["post read", "posts read", "posts read"],
     described: "description read",

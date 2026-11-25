@@ -30,6 +30,7 @@ function commands(c: Copy): Command[] {
     const tabs: [Tab, (cc: Copy) => string][] = [
       ["posts", (cc) => cc.tabs.posts],
       ["channel", (cc) => cc.tabs.channel],
+      ["video", (cc) => cc.tabs.video],
       ...(s.pro ? ([["dept", (cc: Copy) => cc.tabs.dept]] as [Tab, (cc: Copy) => string][]) : []),
     ];
     for (const [tab, get] of tabs) add(`tab-${tab}`, get(c), all(get), () => s.setTab(tab));
