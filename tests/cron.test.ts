@@ -104,11 +104,13 @@ describe("CronRegistry", () => {
       postMetrics: fake("post-metrics"),
       weekly: fake("weekly"),
     }));
+    vi.doMock("../src/lib/connectors/task", () => ({ connectorsSync: { name: "connectors-sync", budgetMs: 5_000, run: async () => ({}) } }));
     const { cronRegistry } = await import("../src/lib/cron/tasks");
     const { TICK_BUDGET_MS } = await import("../src/lib/cron/registry");
-    expect(cronRegistry.list().map((t) => t.name)).toEqual(["heartbeat", "publish-due", "media-sweep", "week-messages", "channel-snapshots", "post-metrics", "weekly"]);
+    expect(cronRegistry.list().map((t) => t.name)).toEqual(["heartbeat", "publish-due", "media-sweep", "week-messages", "channel-snapshots", "post-metrics", "weekly", "connectors-sync"]);
     // Every task's budget fits in the tick together, so none is ever skipped for lack of time.
     expect(cronRegistry.list().reduce((a, t) => a + t.budgetMs, 0)).toBeLessThanOrEqual(TICK_BUDGET_MS);
+    vi.doUnmock("../src/lib/connectors/task");
     vi.doUnmock("../src/lib/autopilot/tasks");
     vi.doUnmock("../src/lib/cron/media-sweep");
     vi.doUnmock("@/lib/db");

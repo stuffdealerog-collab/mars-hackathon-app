@@ -7,7 +7,8 @@ export const AUTOPILOT_BUDGETS = {
   /** Sends the "posts are ready" week message once the week's pictures are done (weekly.ts starts them). */
   "week-messages": 15_000,
   "channel-snapshots": 15_000,
-  "post-metrics": 20_000,
+  /** 15 s (was 20 s): 5 s went to the connectors sync (src/lib/connectors/task.ts); one channel read needs 8 s. */
+  "post-metrics": 15_000,
   /** Report on last week + one brand's plan (≤45 s) and posts (≤60 s). */
   weekly: 130_000,
 } as const;

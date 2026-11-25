@@ -1,0 +1,98 @@
+{
+  "_note": "Response shapes from Google's OAuth 2.0, YouTube Data API v3, YouTube Analytics API v2 and Google Ads API (REST, v26) references. Ids, names and numbers are invented; no live account was called.",
+  "token": {
+    "access_token": "ya29.ACCESS-TOKEN-abc",
+    "expires_in": 3599,
+    "refresh_token": "1//REFRESH-TOKEN-xyz",
+    "scope": "openid https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly",
+    "token_type": "Bearer",
+    "id_token": "eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJzdWIiOiIxMTA0OTIzODQ3NTYxMjM0NTY3ODkiLCJhdWQiOiIxMjMtYWJjLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIn0.c2ln"
+  },
+  "tokenNoRefresh": { "access_token": "ya29.ACCESS-TOKEN-abc", "expires_in": 3599, "scope": "openid https://www.googleapis.com/auth/youtube.readonly", "token_type": "Bearer" },
+  "refreshed": { "access_token": "ya29.FRESH-ACCESS-TOKEN", "expires_in": 3599, "scope": "openid https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly", "token_type": "Bearer" },
+  "invalidGrant": { "error": "invalid_grant", "error_description": "Token has been expired or revoked." },
+  "channels": {
+    "kind": "youtube#channelListResponse",
+    "items": [
+      {
+        "kind": "youtube#channel",
+        "id": "UC1234567890abcdefghijkl",
+        "snippet": { "title": "Safia Bakery", "customUrl": "@safiabakery", "publishedAt": "2021-03-01T10:00:00Z" },
+        "contentDetails": { "relatedPlaylists": { "likes": "", "uploads": "UU1234567890abcdefghijkl" } },
+        "statistics": { "viewCount": "412000", "subscriberCount": "12300", "hiddenSubscriberCount": false, "videoCount": "214" }
+      }
+    ]
+  },
+  "channelsNone": { "kind": "youtube#channelListResponse", "pageInfo": { "totalResults": 0, "resultsPerPage": 5 } },
+  "reportDay": {
+    "kind": "youtubeAnalytics#resultTable",
+    "columnHeaders": [
+      { "name": "day", "columnType": "DIMENSION", "dataType": "STRING" },
+      { "name": "views", "columnType": "METRIC", "dataType": "INTEGER" },
+      { "name": "estimatedMinutesWatched", "columnType": "METRIC", "dataType": "INTEGER" },
+      { "name": "averageViewDuration", "columnType": "METRIC", "dataType": "INTEGER" },
+      { "name": "subscribersGained", "columnType": "METRIC", "dataType": "INTEGER" },
+      { "name": "subscribersLost", "columnType": "METRIC", "dataType": "INTEGER" },
+      { "name": "likes", "columnType": "METRIC", "dataType": "INTEGER" },
+      { "name": "comments", "columnType": "METRIC", "dataType": "INTEGER" },
+      { "name": "shares", "columnType": "METRIC", "dataType": "INTEGER" }
+    ],
+    "rows": [
+      ["2026-11-20", 1520, 2310, 91, 14, 2, 80, 6, 9],
+      ["2026-11-21", 1830, 2602, 85, 21, 3, 102, 11, 12]
+    ]
+  },
+  "reportType": {
+    "kind": "youtubeAnalytics#resultTable",
+    "columnHeaders": [
+      { "name": "day", "columnType": "DIMENSION", "dataType": "STRING" },
+      { "name": "creatorContentType", "columnType": "DIMENSION", "dataType": "STRING" },
+      { "name": "views", "columnType": "METRIC", "dataType": "INTEGER" }
+    ],
+    "rows": [
+      ["2026-11-20", "SHORTS", 1100],
+      ["2026-11-20", "VIDEO_ON_DEMAND", 420],
+      ["2026-11-21", "SHORTS", 1500],
+      ["2026-11-21", "VIDEO_ON_DEMAND", 300],
+      ["2026-11-21", "LIVE_STREAM", 30]
+    ]
+  },
+  "playlist": { "items": [{ "contentDetails": { "videoId": "vid111" } }, { "contentDetails": { "videoId": "vid222" } }] },
+  "videos": {
+    "items": [
+      { "id": "vid111", "snippet": { "title": "Shokoladli tort 60 soniyada", "publishedAt": "2026-11-22T12:00:00Z" }, "statistics": { "viewCount": "8400", "likeCount": "390", "commentCount": "22" }, "contentDetails": { "duration": "PT58S" } },
+      { "id": "vid222", "snippet": { "title": "Novvoyxonamizda bir kun", "publishedAt": "2026-11-10T12:00:00Z" }, "statistics": { "viewCount": "2100", "likeCount": "88" }, "contentDetails": { "duration": "PT12M4S" } }
+    ]
+  },
+  "quotaError": { "error": { "code": 403, "message": "The request cannot be completed because you have exceeded your quota.", "errors": [{ "domain": "youtube.quota", "reason": "quotaExceeded" }] } },
+  "accessible": { "resourceNames": ["customers/1112223333", "customers/4445556666"] },
+  "customerManager": { "results": [{ "customer": { "resourceName": "customers/1112223333", "id": "1112223333", "descriptiveName": "Agency MCC", "currencyCode": "USD", "manager": true, "testAccount": false } }], "fieldMask": "customer.id,customer.descriptiveName" },
+  "customerPlain": { "results": [{ "customer": { "resourceName": "customers/4445556666", "id": "4445556666", "descriptiveName": "Test shop", "currencyCode": "UZS", "manager": false, "testAccount": true } }] },
+  "clients": {
+    "results": [
+      { "customerClient": { "resourceName": "customers/1112223333/customerClients/1112223333", "id": "1112223333", "descriptiveName": "Agency MCC", "manager": true, "currencyCode": "USD", "testAccount": false, "status": "ENABLED" } },
+      { "customerClient": { "resourceName": "customers/1112223333/customerClients/7778889999", "id": "7778889999", "descriptiveName": "Safia Bakery", "manager": false, "currencyCode": "USD", "testAccount": false, "status": "ENABLED" } },
+      { "customerClient": { "resourceName": "customers/1112223333/customerClients/7778880000", "id": "7778880000", "descriptiveName": "Closed shop", "manager": false, "currencyCode": "USD", "testAccount": false, "status": "CANCELED" } }
+    ]
+  },
+  "campaignsPage1": {
+    "results": [
+      { "segments": { "date": "2026-11-20" }, "campaign": { "resourceName": "customers/7778889999/campaigns/301", "id": "301", "name": "Search — tortlar", "status": "ENABLED" }, "metrics": { "impressions": "1200", "clicks": "48", "costMicros": "3450000", "conversions": 2 } },
+      { "segments": { "date": "2026-11-20" }, "campaign": { "resourceName": "customers/7778889999/campaigns/302", "id": "302", "name": "PMax", "status": "ENABLED" }, "metrics": { "impressions": "800", "clicks": "12", "costMicros": "1000000", "conversions": 0 } }
+    ],
+    "nextPageToken": "page-2"
+  },
+  "campaignsPage2": {
+    "results": [
+      { "segments": { "date": "2026-11-21" }, "campaign": { "resourceName": "customers/7778889999/campaigns/301", "id": "301", "name": "Search — tortlar", "status": "ENABLED" }, "metrics": { "impressions": "1500", "clicks": "51", "costMicros": "4100000" } }
+    ]
+  },
+  "notApproved": {
+    "error": {
+      "code": 403,
+      "message": "The caller does not have permission",
+      "status": "PERMISSION_DENIED",
+      "details": [{ "@type": "type.googleapis.com/google.ads.googleads.v26.errors.GoogleAdsFailure", "errors": [{ "errorCode": { "authorizationError": "CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION" }, "message": "..." }] }]
+    }
+  }
+}
