@@ -80,9 +80,10 @@ describe("bot texts (E10, E11, E14)", () => {
     expect(t("uz", "bot.post_header", { i: 1, score: 90 })).toBe("✍️ Post 1 · tabiiylik: 90/100");
     expect(t("ru", "bot.post_header", { i: 1, score: 90 })).toBe("✍️ Пост 1 · естественность: 90/100");
     expect(t("en", "bot.post_header", { i: 1, score: 90 })).toBe("✍️ Post 1 · natural: 90/100");
-    expect(t("ru", "bot.done")).toBe("Готово! Весь план, остальные посты и их версии на кириллице, русском и английском — в приложении. Без вашего одобрения ничего не публикуется.");
+    expect(t("ru", "bot.done")).toBe("Готово! Весь план — в приложении: для остальных дней нажмите «Написать пост». Там же версии постов на кириллице, русском и английском. Без вашего одобрения ничего не публикуется.");
     expect(t("uz", "bot.open_studio")).toBe("🧩 Studiya’da ochish");
     for (const l of LOCALES) expect(`${t(l, "bot.done")} ${t(l, "pub.not_found")} ${t(l, "bot.results_no_plan")}`).not.toMatch(/Studio’da|в Studio/);
+    for (const l of LOCALES) expect(`${t(l, "bot.done_no_plan")} ${t(l, "bot.photos_has_brand")} ${t(l, "bot.photos_skipped")}`).not.toMatch(/Studio’da|в Studio/);
   });
 
   it("the texts that say which bot to add name it, and the uz admin right is Telegram's own label", () => {

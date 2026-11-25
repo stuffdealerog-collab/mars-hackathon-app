@@ -121,6 +121,16 @@ export interface OnboardRun {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
+ * The run's last message, by what it made: plan and posts ("Done", the rest of the plan is in the app); posts without a
+ * plan (the plan step failed: posts from the plain brief); a plan without posts (no time left, or the writer failed
+ * every slot: the app writes them from the plan); neither ("failed": an error and a way to try again, never "Done").
+ */
+export function closingFor(posts: number, planned: boolean): "bot.done" | "bot.done_no_plan" | "bot.posts_later" | "failed" {
+  if (posts > 0) return planned ? "bot.done" : "bot.done_no_plan";
+  return planned ? "bot.posts_later" : "failed";
+}
+
+/**
  * Slow part of the onboarding: run after replying "Ishlayapman…" so the webhook answers fast. The same steps the Studio
  * runs, each sent as soon as it is ready: the brand voice, the channel analysis (a channel run), the week plan (or the
  * 2-week launch plan for a description), the first posts from the plan, then the owner's questions (goal first) and, on
@@ -187,13 +197,21 @@ export async function runOnboarding(
       });
     }
 
-    const app = getPublicUrl();
-    const kb = new InlineKeyboard();
-    if (app?.startsWith("https://")) kb.webApp(t(locale, "bot.open_in_app"), `${app}/tg?brand=${brand.id}`).row();
-    // The desktop Studio has no Telegram identity: the link carries this owner's signed handoff key (handoff.ts).
-    kb.url(t(locale, "bot.open_studio"), studioLink(brand.id, userId));
-    // No posts (no time left, or the writer failed every slot) but a plan: the app writes them from the plan.
-    await send(t(locale, !posts.length && planned ? "bot.posts_later" : "bot.done"), { reply_markup: kb });
+    // The last word says what the owner really got: never "Done" for a run that made neither a plan nor a post.
+    const outcome = closingFor(posts.length, Boolean(planned));
+    if (outcome === "failed") {
+      // The plan failed and the writer had no time or wrote nothing: the voice alone is not a result. A channel can be
+      // tried again with one tap (or described instead); a description is sent again.
+      const retry = "channel" in input ? new InlineKeyboard().text(t(locale, "pub.button_retry"), retryOnboardData(input.channel)) : undefined;
+      await send(`⚠️ ${t(locale, "bot.error")}${retry ? `\n\n${t(locale, "bot.or_describe")}` : ""}`, retry ? { reply_markup: retry } : undefined);
+    } else {
+      const app = getPublicUrl();
+      const kb = new InlineKeyboard();
+      if (app?.startsWith("https://")) kb.webApp(t(locale, "bot.open_in_app"), `${app}/tg?brand=${brand.id}`).row();
+      // The desktop Studio has no Telegram identity: the link carries this owner's signed handoff key (handoff.ts).
+      kb.url(t(locale, "bot.open_studio"), studioLink(brand.id, userId));
+      await send(t(locale, outcome), { reply_markup: kb });
+    }
     const analysis = await analysisSent;
     await safeLogEvent(userId, "bot_onboarded", {
       brand_id: brand.id,
@@ -204,11 +222,18 @@ export async function runOnboarding(
       ...(planned ? { goal: planned.goal, mode: planned.mode } : {}),
     });
 
-    // The owner's questions (goal first, then the facts the goal needs) and, on a brand's first run, the photos.
-    const queue = planned?.questions ?? questionsForBrand(brand, await loadAnswers(brand.id).catch(() => null), locale, { bot: getEnv().BOT_USERNAME?.replace(/^@/, "") });
-    const askPhotos = !built.reused && !(brand.visual?.refs ?? []).some((r) => r.source === "owner");
-    const fromChannel = Boolean(brand.channel) && brand.mode !== "fresh";
-    await startQuestions(api, chatId, userId, brand.id, { queue, skipped: [], planGoal: planned?.goal, rebuildable: planned?.mode === "channel", fromChannel, askPhotos }, locale);
+    // A failed run asks nothing: the retry (or a new description) asks again.
+    if (outcome === "failed") return;
+    // The owner's questions (goal first, then the facts the goal needs) and, on a brand's first run, the photos. The run
+    // is already delivered: a question that cannot be sent (a Telegram 400 or 429) stays silent, never "⚠️" after "Done".
+    try {
+      const queue = planned?.questions ?? questionsForBrand(brand, await loadAnswers(brand.id).catch(() => null), locale, { bot: getEnv().BOT_USERNAME?.replace(/^@/, "") });
+      const askPhotos = !built.reused && !(brand.visual?.refs ?? []).some((r) => r.source === "owner");
+      const fromChannel = Boolean(brand.channel) && brand.mode !== "fresh";
+      await startQuestions(api, chatId, userId, brand.id, { queue, skipped: [], planGoal: planned?.goal, rebuildable: planned?.mode === "channel", fromChannel, askPhotos }, locale);
+    } catch (err) {
+      console.warn("[uslub/onboard] questions not sent", err instanceof Error ? err.message : err);
+    }
   } catch (err) {
     if (!live()) return;
     // Same owner-safe sentence as the API, in the user's language (never a stack trace or an English SDK error).

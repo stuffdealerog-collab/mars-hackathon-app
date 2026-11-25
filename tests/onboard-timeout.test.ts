@@ -22,6 +22,7 @@ vi.mock("../src/lib/uslub/copywriter", () => ({ generatePosts: async () => [] })
 vi.mock("../src/lib/uslub/botflow/plan", () => ({ analyzeForBot: async () => null, planForBrand: async () => null, writePlanPosts: async () => [] }));
 
 const { runOnboardingInTime, RETRY_ONBOARD_RE } = await import("../src/lib/uslub/onboard");
+const { t } = await import("../src/lib/i18n");
 
 function fakeApi() {
   const sent: { text: string; opts?: Record<string, unknown> }[] = [];
@@ -51,7 +52,12 @@ describe("a bot onboarding that takes too long", () => {
     await run.settled;
     expect(settled).toBe(true);
     expect(sent.length).toBeGreaterThan(1);
-    expect(sent.some((m) => /Готово/.test(m.text))).toBe(true);
+    expect(sent.some((m) => /Tort uyi/.test(m.text))).toBe(true); // the brand voice arrived late
+    // The plan failed and no post was written: never "Готово" for that, but an error and the retry button.
+    expect(sent.some((m) => /Готово/.test(m.text))).toBe(false);
+    const last = sent.at(-1);
+    expect(last?.text).toBe(`⚠️ ${t("ru", "bot.error")}\n\n${t("ru", "bot.or_describe")}`);
+    expect((last?.opts?.reply_markup as { inline_keyboard: { callback_data?: string }[][] }).inline_keyboard.flat()[0].callback_data).toBe("ob:tort_uyi");
   });
 
   it("asks to resend a business description (it can't fit in a button)", async () => {

@@ -8,9 +8,12 @@ import {
 } from "../src/lib/uslub/botflow/pending-core";
 import {
   branchOf,
+  contactBadKey,
+  contactQuestion,
   FLOW_CALLBACK_PREFIXES,
   matchOption,
   nextQuestion,
+  orderedOptions,
   parseContact,
   parsePrices,
   PHOTOS_RE,
@@ -150,6 +153,16 @@ describe("questions in the chat", () => {
     expect(matchOption("salom", goalQ.options ?? [])).toBeNull();
     expect(matchOption("telefon", orderQ.options ?? [])).toBe("phone");
   });
+
+  it("a typed number counts in the order of the buttons: on a blog (pre-filled 'grow'), '1' is 'grow'", () => {
+    expect(orderedOptions(goalQ).map((o) => o.value)).toEqual(["grow", "sale"]);
+    expect(renderQuestion(goalQ, BRAND, "uz").rows[0].map((b) => b.text)).toEqual(orderedOptions(goalQ).map((o) => o.label));
+    expect(matchOption("1", orderedOptions(goalQ))).toBe("grow");
+    expect(matchOption("2", orderedOptions(goalQ))).toBe("sale");
+    // Without a pre-filled answer the engine's order is the buttons' order.
+    expect(orderedOptions(orderQ).map((o) => o.value)).toEqual(["phone", "manager", "own_bot", "site", "mercat_link"]);
+    expect(matchOption("1", orderedOptions({ ...orderQ, prefill: "site" }))).toBe("site");
+  });
 });
 
 describe("parsing the owner's answers", () => {
@@ -166,6 +179,20 @@ describe("parsing the owner's answers", () => {
     expect(parsePrices("Manicure 120,000 UZS, Pedicure 150,000 UZS")).toEqual([
       { name: "Manicure", price: "120,000 UZS" },
       { name: "Pedicure", price: "150,000 UZS" },
+    ]);
+  });
+
+  it("prices: millions, thousands and a currency sign before the number, as Uzbek prices are written", () => {
+    expect(parsePrices("Divan — 2.5 mln so'm")).toEqual([{ name: "Divan", price: "2.5 mln so'm" }]);
+    expect(parsePrices("Divan 2,5 mln")).toEqual([{ name: "Divan", price: "2,5 mln" }]);
+    expect(parsePrices("Стол — 1,2 млн сум")).toEqual([{ name: "Стол", price: "1,2 млн сум" }]);
+    expect(parsePrices("Torti 180k")).toEqual([{ name: "Torti", price: "180k" }]);
+    expect(parsePrices("Kurs — 300 ming so‘m")).toEqual([{ name: "Kurs", price: "300 ming so‘m" }]);
+    expect(parsePrices("Торт 180 тыс. сум")).toEqual([{ name: "Торт", price: "180 тыс. сум" }]);
+    expect(parsePrices("iPhone 15 — $899")).toEqual([{ name: "iPhone 15", price: "$899" }]);
+    expect(parsePrices("Cobalt 14 500 $\nNexia 3 — 12 000 у.е.")).toEqual([
+      { name: "Cobalt", price: "14 500 $" },
+      { name: "Nexia 3", price: "12 000 у.е." },
     ]);
   });
 
@@ -189,6 +216,15 @@ describe("parsing the owner's answers", () => {
     expect(parseContact("90 123 45 67")).toBe("90 123 45 67");
     expect(parseContact("bilmayman")).toBeNull();
     expect(parseContact("@mercatai", { bot: "mercatai" })).toBeNull(); // our bot is never their contact
+  });
+
+  it("contact follow-up: a missing contact is answered with an example of the kind asked for", () => {
+    expect(contactQuestion("site", "uz").contactFor).toBe("site");
+    expect(contactBadKey(contactQuestion("site", "uz"))).toBe("bot.q_contact_bad_site");
+    expect(contactBadKey(contactQuestion("own_bot", "ru"))).toBe("bot.q_contact_bad_bot");
+    expect(contactBadKey(contactQuestion("phone", "en"))).toBe("bot.q_contact_bad");
+    expect(contactBadKey(contactQuestion("manager", "uz"))).toBe("bot.q_contact_bad");
+    expect(contactBadKey(undefined)).toBe("bot.q_contact_bad");
   });
 });
 

@@ -13,8 +13,11 @@ export type PendingKind = (typeof PENDING_KINDS)[number];
 /** The engine's question keys plus the bot's own follow-up: the contact behind "phone" or "@manager". */
 export type AskedKey = QuestionKey | "contact";
 
-/** An engine question (runQuestions) or the bot's contact follow-up. */
-export type FlowQuestion = Omit<OwnerQuestion, "key"> & { key: AskedKey };
+/** Which contact the bot's follow-up asks for (after "phone", "@manager", "our bot" or "website"). */
+export type ContactKind = "phone" | "manager" | "own_bot" | "site";
+
+/** An engine question (runQuestions) or the bot's contact follow-up (which names the kind of contact it wants). */
+export type FlowQuestion = Omit<OwnerQuestion, "key"> & { key: AskedKey; contactFor?: ContactKind };
 
 /** The questions still to ask after a run, in order, and what the run already knows. */
 export interface QuestionFlow {

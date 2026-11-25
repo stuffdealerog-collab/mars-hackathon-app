@@ -109,7 +109,8 @@ async function customerFromPlanLink(ctx: { reply: (text: string, other?: object)
 /**
  * Starts a bot onboarding (channel link or business description): checks AI and the spend gate, says "working",
  * then runs it after the webhook has answered, within its time budget (a late run tells the owner instead of
- * going silent). Claude usage is logged as one llm_usage event (route "bot/onboard").
+ * going silent). Claude usage is logged as one llm_usage event (route "bot/onboard"). `onStarted` runs once the run is
+ * really on (every gate and the budget passed): analytics that must not count a refused start.
  */
 async function startOnboarding(
   ctx: { reply: (text: string, other?: object) => Promise<unknown>; replyWithChatAction: (a: "typing") => Promise<unknown>; api: Api },
@@ -117,6 +118,7 @@ async function startOnboarding(
   userId: number,
   locale: Locale,
   input: Exclude<OnboardInput, null>,
+  onStarted?: () => Promise<void>,
 ): Promise<void> {
   if (!isAiConfigured()) {
     await ctx.reply(t(locale, "bot.ai_unavailable"));
@@ -140,6 +142,7 @@ async function startOnboarding(
   }
   // A new run: whatever the bot was still asking about an earlier one is moot (the new run asks again).
   await clearPending(userId);
+  await onStarted?.().catch(() => undefined);
   try {
     await ctx.reply("channel" in input ? t(locale, "bot.working_channel", { channel: input.channel }) : t(locale, "bot.working_text"));
     await ctx.replyWithChatAction("typing").catch(() => undefined);
@@ -307,8 +310,11 @@ function registerHandlers(b: Bot) {
     }
     await ctx.answerCallbackQuery().catch(() => undefined);
     await ctx.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => undefined);
-    await logPostRegenerated(ctx.from.id, { brandId: brand.id, why: "another_version" });
-    await startOnboarding(ctx, ctx.chat?.id ?? ctx.from.id, ctx.from.id, locale, { channel: brand.channel });
+    // Counted only once the run really starts: a busy gate, the hourly limit, the daily budget or AI off is no rebuild.
+    const ownerId = ctx.from.id;
+    await startOnboarding(ctx, ctx.chat?.id ?? ownerId, ownerId, locale, { channel: brand.channel }, () =>
+      logPostRegenerated(ownerId, { brandId: brand.id, why: "another_version" }),
+    );
   });
 
   // "📢 Publish" under a generated post. ctx.from is trusted (comes from Telegram).

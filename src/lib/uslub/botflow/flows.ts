@@ -11,7 +11,7 @@ import { flushUsage, runWithContext } from "../context";
 import { getBrand, type StoredBrand } from "../store";
 import { styleWords } from "../visual/words";
 import { VisualLimitError } from "../visual/service";
-import { addPendingPhoto, clearPending, getPending, setPending } from "./pending";
+import { addPendingPhoto, clearPending, getPending, ownsABrand, setPending, takePendingPhotos } from "./pending";
 import type { Pending, QuestionFlow } from "./pending-core";
 import { learnFromOwnerPhotos, telegramPhoto } from "./photos";
 import { saveOwnerAnswers } from "./answers";
@@ -19,9 +19,11 @@ import {
   asKey,
   branchOf,
   type Button,
+  contactBadKey,
   contactQuestion,
   matchOption,
   nextQuestion,
+  orderedOptions,
   parseContact,
   parsePrices,
   PHOTOS_RE,
@@ -170,21 +172,26 @@ async function answerTyped(api: Api, chatId: number, user: User, locale: Locale,
   if (pending.kind === "goal") {
     // A new channel or a business description starts a new run.
     if (isChannelText(s) || s.length >= 40) return false;
-    const goal = matchOption(s, flow.queue.find((q) => q.key === "goal")?.options ?? []);
+    // A typed "1" is the first button the owner sees (the pre-filled answer), not the engine's first option.
+    const goalQ = flow.queue.find((q) => q.key === "goal");
+    const goal = goalQ ? matchOption(s, orderedOptions(goalQ)) : null;
     if (goal === "sale" || goal === "grow") await answerGoal(api, chatId, user, locale, brand, goal, flow);
     else await api.sendMessage(chatId, t(locale, "bot.q_tap"));
     return true;
   }
   switch (pending.key) {
     case "order": {
-      // A t.me link is a channel to read (a new run); a typed number or @name is how customers order.
-      if (/(?:t|telegram)\.me\//i.test(s)) return false;
+      // A channel (a t.me link or a bare @name, as the onboarding prompt asks for one) is a new run, or the answer to
+      // a publish "which channel?" wait: never the brand's contact. A typed number is how customers order; a manager's
+      // @username comes in the contact follow-up, after "@manager" is tapped.
+      if (isChannelText(s)) return false;
       const contact = parseContact(s, { bot: botName() });
       if (contact) {
         await answerOrder(api, chatId, user, locale, brand, orderHowOf(contact), flow, contact);
         return true;
       }
-      const how = matchOption(s, flow.queue.find((q) => q.key === "order")?.options ?? []);
+      const orderQ = flow.queue.find((q) => q.key === "order");
+      const how = orderQ ? matchOption(s, orderedOptions(orderQ)) : null;
       if (how && isOrderHow(how)) await answerOrder(api, chatId, user, locale, brand, how, flow);
       else await api.sendMessage(chatId, t(locale, "bot.q_tap"));
       return true;
@@ -206,7 +213,7 @@ async function answerTyped(api: Api, chatId: number, user: User, locale: Locale,
       // A @name or a t.me link here is the contact the bot asked for.
       const contact = parseContact(s, { bot: botName() });
       if (contact) await answerFact(api, chatId, user, locale, brand, "contact", { contact }, flow);
-      else await api.sendMessage(chatId, t(locale, "bot.q_contact_bad"));
+      else await api.sendMessage(chatId, t(locale, contactBadKey(flow.queue.find((q) => q.key === "contact"))));
       return true;
     }
   }
@@ -259,8 +266,9 @@ async function receivePhoto(api: Api, chatId: number, user: User, locale: Locale
   const ids = await addPendingPhoto(user.id, brand.id, fileId, MAX_BOT_PHOTOS);
   if (!ids) return; // a repeat, or a 4th photo of an album: the first three are already on their way
   if (ids.length >= MAX_BOT_PHOTOS) {
-    await clearPending(user.id);
-    await deps.later(() => learnPhotos(api, chatId, user, locale, brand.id, ids));
+    // Taken atomically: a "Done" tap at the same moment finds nothing, so the style is learned once.
+    const taken = await takePendingPhotos(user.id, brand.id);
+    if (taken?.length) await deps.later(() => learnPhotos(api, chatId, user, locale, brand.id, taken));
     return;
   }
   // An album arrives as several updates at once: only the last photo in answers, once they have settled.
@@ -361,9 +369,10 @@ export function registerBotFlows(b: Bot, deps: FlowDeps): void {
       if (!waiting?.fileIds.length) return void (await ctx.answerCallbackQuery({ text: t(locale, "bot.photos_need_one") }).catch(() => undefined));
       await ctx.answerCallbackQuery().catch(() => undefined);
       await ctx.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => undefined);
-      await clearPending(ctx.from.id);
+      // Taken atomically: of two quick taps (or a tap and a 3rd photo) only one starts the paid style analysis.
+      const taken = await takePendingPhotos(ctx.from.id, brand.id);
       const user = ctx.from;
-      await deps.later(() => learnPhotos(ctx.api, chatId, user, locale, brand.id, waiting.fileIds));
+      if (taken?.length) await deps.later(() => learnPhotos(ctx.api, chatId, user, locale, brand.id, taken));
       return;
     }
     await ctx.answerCallbackQuery().catch(() => undefined);
@@ -386,7 +395,10 @@ export function registerBotFlows(b: Bot, deps: FlowDeps): void {
     }
     // A question is open: the photo is not its answer and needs no reply of its own. Nor does a 4th photo of an album
     // that arrives after the first three were taken.
-    if (!pending && !album) await api.sendMessage(chatId, t(locale, "bot.photos_unexpected"));
+    if (pending || album) return;
+    // An owner (a 4th single photo just after the first three, or photos some days later): photos go to the Studio.
+    // Anyone else has no brand to put them on yet.
+    await api.sendMessage(chatId, t(locale, (await ownsABrand(user.id)) ? "bot.photos_has_brand" : "bot.photos_unexpected"));
   };
   pm.on("message:photo", async (ctx) => {
     if (!ctx.from) return;

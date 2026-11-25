@@ -10,6 +10,8 @@ import { livePending, type Pending, pendingKey } from "./pending-core";
  */
 
 const mem = new Map<number, Pending>();
+/** Without a database: users the bot has waited on for a brand of theirs (ownsABrand). */
+const memOwners = new Set<number>();
 
 export async function getPending(telegramId: number, now = Date.now()): Promise<Pending | null> {
   if (!isDbConfigured()) return livePending(mem.get(telegramId), now);
@@ -26,6 +28,7 @@ export async function getPending(telegramId: number, now = Date.now()): Promise<
 export async function setPending(telegramId: number, pending: Pending): Promise<void> {
   if (!isDbConfigured()) {
     mem.set(telegramId, pending);
+    memOwners.add(telegramId);
     return;
   }
   await getSql()`
@@ -75,7 +78,47 @@ export async function addPendingPhoto(telegramId: number, brandId: string, fileI
   return p?.kind === "photos" ? p.fileIds : null;
 }
 
+/**
+ * Ends a photos wait for `brandId` and hands over its photos, atomically: of a 3rd photo and a "Done" tap arriving
+ * together (or two quick taps), only one gets them, so the paid style analysis runs once. null when there was no such
+ * wait (another update already took it).
+ */
+export async function takePendingPhotos(telegramId: number, brandId: string, now = Date.now()): Promise<string[] | null> {
+  if (!isDbConfigured()) {
+    const p = livePending(mem.get(telegramId), now);
+    if (!p || p.kind !== "photos" || p.brandId !== brandId) return null;
+    mem.delete(telegramId);
+    return p.fileIds;
+  }
+  const rows = (await getSql()`
+    DELETE FROM brain_facts_cache
+    WHERE kb_hash = ${pendingKey(telegramId)} AND facts->>'kind' = 'photos' AND facts->>'brandId' = ${brandId}
+    RETURNING facts
+  `.catch((err) => {
+    console.warn("[botflow/pending] photos not taken", err instanceof Error ? err.message : err);
+    return [];
+  })) as { facts: unknown }[];
+  const p = livePending(rows[0]?.facts, now);
+  return p?.kind === "photos" ? p.fileIds : null;
+}
+
+/**
+ * Whether this Telegram user owns a brand (a photo sent with nothing pending is then for the Studio, not a first run).
+ * Without a database (dev, tests) it counts the users the bot has waited on for a brand of theirs. Never throws.
+ */
+export async function ownsABrand(telegramId: number): Promise<boolean> {
+  if (!isDbConfigured()) return memOwners.has(telegramId);
+  try {
+    const rows = (await getSql()`SELECT 1 FROM brands WHERE owner_telegram_id = ${telegramId} LIMIT 1`) as unknown[];
+    return rows.length > 0;
+  } catch (err) {
+    console.warn("[botflow/pending] owner lookup failed", err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
 /** Test hook: forget every in-memory wait. */
 export function resetPendingMemory(): void {
   mem.clear();
+  memOwners.clear();
 }

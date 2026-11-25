@@ -25,7 +25,8 @@ vi.mock("@/lib/telegram-auth", () => ({ authenticateRequest: () => null, validat
 vi.mock("../src/lib/uslub/publish", () => ({ publishPost: vi.fn(), addBotAsAdminLink: () => "https://t.me/mercatai?startchannel" }));
 const buildBrand = vi.hoisted(() => vi.fn());
 vi.mock("../src/lib/uslub/brand", () => ({ buildBrand }));
-vi.mock("../src/lib/uslub/copywriter", () => ({ generatePosts: vi.fn(async () => []) }));
+const generatePosts = vi.hoisted(() => vi.fn(async (): Promise<unknown[]> => []));
+vi.mock("../src/lib/uslub/copywriter", () => ({ generatePosts }));
 const planner = vi.hoisted(() => ({ analyzeForBot: vi.fn(), planForBrand: vi.fn(), writePlanPosts: vi.fn() }));
 vi.mock("../src/lib/uslub/botflow/plan", () => planner);
 const visual = vi.hoisted(() => ({
@@ -52,12 +53,15 @@ import type { BrandDNA, ChannelAudit, ContentPlan, PostDraft } from "../src/lib/
 type Call = { method: string; payload: Record<string, unknown> };
 const calls: Call[] = [];
 const members = new Map<string, string>(); // "<chat>:<user>" -> status
+/** A sendMessage whose text this returns true for fails as Telegram would (400). */
+let failSend: ((text: string) => boolean) | null = null;
 
 const bot = getBot();
 bot.botInfo = { id: 1, is_bot: true, first_name: "Mercat", username: "mercatai" } as never;
 bot.api.config.use(async (_prev, method, payload) => {
   const p = (payload ?? {}) as Record<string, unknown>;
   calls.push({ method, payload: p });
+  if (method === "sendMessage" && failSend?.(String(p.text))) return { ok: false, error_code: 400, description: "Bad Request: chat not found" } as never;
   if (method === "sendMessage") return { ok: true, result: { message_id: calls.length, date: 0, chat: { id: p.chat_id, type: "private" }, text: p.text } } as never;
   if (method === "getFile") return { ok: true, result: { file_id: p.file_id, file_unique_id: `u${String(p.file_id)}`, file_size: 4, file_path: `photos/${String(p.file_id)}.jpg` } } as never;
   if (method === "getChatMember") {
@@ -184,7 +188,8 @@ beforeEach(() => {
   resetPendingMemory();
   resetPlanOwnerCache();
   registerVideoHandler(null);
-  for (const f of [buildBrand, planner.analyzeForBot, planner.planForBrand, planner.writePlanPosts, visual.learnAndSaveVisual, planByTag, fetchMock]) f.mockClear();
+  failSend = null;
+  for (const f of [buildBrand, planner.analyzeForBot, planner.planForBrand, planner.writePlanPosts, visual.learnAndSaveVisual, planByTag, fetchMock, generatePosts]) f.mockClear();
 });
 
 afterEach(async () => {
@@ -303,6 +308,53 @@ describe("a channel run in the bot: the Studio's analysis, plan and posts, then 
     expect(await getPending(user)).toBeNull();
   });
 
+  it("with 'how customers order' open, a bare @channel is a new run, never the brand's contact", async () => {
+    const user = ++nextUser;
+    const brand = await onboard(user);
+    await send(callback(user, questionData("g", brand.id, "sale")));
+    expect(await getPending(user)).toMatchObject({ kind: "fact", key: "order" });
+    const other = await newBrand(user, { channel: "boshqa_kanal" });
+    buildBrand.mockResolvedValueOnce({ brand: other, cached: false, channel: { totalMessages: 20 } });
+    planner.analyzeForBot.mockResolvedValueOnce(null);
+    planner.planForBrand.mockResolvedValueOnce(null);
+    await send(textUpdate(user, "@boshqa_kanal"));
+    expect(buildBrand).toHaveBeenLastCalledWith(expect.objectContaining({ channel: "boshqa_kanal" }));
+    const answers = await loadAnswers(brand.id);
+    expect(answers?.goal).toBe("sale");
+    expect(answers?.contact).toBeUndefined();
+    expect(answers?.orderHow).toBeUndefined();
+  });
+
+  it("on a blog the pre-filled 'more subscribers' is the first button, and a typed '1' picks it", async () => {
+    const user = ++nextUser;
+    const brand = await onboard(user, { goal: "grow", questions: runQuestions({ lang: "uz", channelType: "blog" }), brandExtra: { channelType: "blog" } });
+    expect(lastButtons()[0].callback_data).toBe(questionData("g", brand.id, "grow"));
+    await send(textUpdate(user, "1"));
+    expect((await loadAnswers(brand.id))?.goal).toBe("grow");
+    expect(texts().some((x) => x.includes("qayta tuzaymi"))).toBe(false);
+    expect(lastText()).toContain("Kanal nima haqida?");
+  });
+
+  it("a website follow-up answered without a site gets a site example", async () => {
+    const user = ++nextUser;
+    const brand = await onboard(user);
+    await send(callback(user, questionData("g", brand.id, "sale")));
+    await send(callback(user, questionData("o", brand.id, "site")));
+    expect(lastText()).toBe(t("uz", "bot.q_contact_site"));
+    await send(textUpdate(user, "bilmayman"));
+    expect(lastText()).toBe(t("uz", "bot.q_contact_bad_site"));
+    await send(textUpdate(user, "tortuyi.uz"));
+    expect(await loadAnswers(brand.id)).toMatchObject({ orderHow: "site", contact: "tortuyi.uz" });
+  });
+
+  it("a question that Telegram refuses to send stays silent: no '⚠️' after 'Done'", async () => {
+    const user = ++nextUser;
+    failSend = (text) => text.includes("Kanalning asosiy maqsadi nima?");
+    await onboard(user);
+    expect(texts().some((x) => x.startsWith("⚠️"))).toBe(false);
+    expect(texts()).toContain(t("uz", "bot.done"));
+  });
+
   it("a re-run of a channel the owner already has asks no photos", async () => {
     const user = ++nextUser;
     const brand = await onboard(user, { reused: true, questions: [] });
@@ -324,6 +376,62 @@ describe("a channel run in the bot: the Studio's analysis, plan and posts, then 
     expect(buildBrand).toHaveBeenCalledTimes(2);
     expect(buildBrand.mock.calls[1][0]).toMatchObject({ channel: "tort_uyi", ownerTelegramId: user });
     expect(events.find((e) => e.type === "post_regenerated")?.props).toEqual({ brand_id: brand.id, why: "another_version" });
+  });
+
+  it("a rebuild that cannot start (AI off) is not counted as a regenerated post", async () => {
+    const user = ++nextUser;
+    const brand = await onboard(user);
+    const key = env.ANTHROPIC_API_KEY;
+    env.ANTHROPIC_API_KEY = "";
+    try {
+      await send(callback(user, rebuildData(brand.id)));
+    } finally {
+      env.ANTHROPIC_API_KEY = key;
+    }
+    expect(lastText()).toBe(t("uz", "bot.ai_unavailable"));
+    expect(buildBrand).toHaveBeenCalledTimes(1);
+    expect(events.some((e) => e.type === "post_regenerated")).toBe(false);
+  });
+});
+
+describe("the run's last message says what the owner really got", () => {
+  it("posts without a plan: no word about a whole plan", async () => {
+    const user = ++nextUser;
+    const brand = await newBrand(user);
+    buildBrand.mockResolvedValueOnce({ brand, cached: false, channel: { totalMessages: 40 } });
+    planner.analyzeForBot.mockResolvedValueOnce(null);
+    planner.planForBrand.mockResolvedValueOnce(null);
+    generatePosts.mockResolvedValueOnce([post(brand.id, 1), post(brand.id, 2)]);
+    await send(textUpdate(user, "https://t.me/tort_uyi"));
+    expect(texts()).toContain(t("uz", "bot.done_no_plan"));
+    expect(texts()).not.toContain(t("uz", "bot.done"));
+    expect(lastText()).toContain("Kanalning asosiy maqsadi nima?"); // the questions still follow
+  });
+
+  it("neither a plan nor a post: an error with a retry button, never 'Done', and no questions", async () => {
+    const user = ++nextUser;
+    const brand = await newBrand(user);
+    buildBrand.mockResolvedValueOnce({ brand, cached: false, channel: { totalMessages: 40 } });
+    planner.analyzeForBot.mockResolvedValueOnce(null);
+    planner.planForBrand.mockResolvedValueOnce(null);
+    await send(textUpdate(user, "https://t.me/tort_uyi"));
+    expect(lastText()).toBe(`⚠️ ${t("uz", "bot.error")}\n\n${t("uz", "bot.or_describe")}`);
+    expect(lastButtons().map((b) => b.callback_data)).toEqual(["ob:tort_uyi"]);
+    for (const key of ["bot.done", "bot.done_no_plan", "bot.posts_later"] as const) expect(texts()).not.toContain(t("uz", key));
+    expect(await getPending(user)).toBeNull();
+    expect(events.find((e) => e.type === "bot_onboarded")?.props).toMatchObject({ brand_id: brand.id, posts: 0, plan_items: 0 });
+  });
+
+  it("a plan without posts sends the owner to the app's «Postini yozish»", async () => {
+    const user = ++nextUser;
+    const brand = await newBrand(user);
+    buildBrand.mockResolvedValueOnce({ brand, cached: false, channel: { totalMessages: 40 } });
+    planner.analyzeForBot.mockResolvedValueOnce(null);
+    planner.planForBrand.mockResolvedValueOnce({ mode: "channel", plan: plan(), questions: [], goal: "sale", channelType: "business" });
+    planner.writePlanPosts.mockResolvedValueOnce([]);
+    await send(textUpdate(user, "https://t.me/tort_uyi"));
+    expect(texts()).toContain(t("uz", "bot.posts_later"));
+    expect(texts()).not.toContain(t("uz", "bot.done"));
   });
 });
 
@@ -414,6 +522,15 @@ describe("the pending-state dispatcher (read before a message counts as a new ru
     expect(visual.learnAndSaveVisual).not.toHaveBeenCalled();
   });
 
+  it("an owner's photo with nothing pending points to the Studio's picture style, not to a first run", async () => {
+    const user = ++nextUser;
+    const brand = await onboard(user, { questions: [] });
+    await send(callback(user, photosData("s", brand.id)));
+    await send(photoUpdate(user, "late"));
+    expect(lastText()).toBe(t("uz", "bot.photos_has_brand"));
+    expect(visual.learnAndSaveVisual).not.toHaveBeenCalled();
+  });
+
   it("a video wait goes to the media stream's handler (text and video), and nowhere else", async () => {
     const user = ++nextUser;
     const brand = await newBrand(user);
@@ -471,6 +588,26 @@ describe("photos become the designer's style references", () => {
     await send(callback(user, photosData("d", brand.id)));
     expect(visual.learnAndSaveVisual).toHaveBeenCalledTimes(1);
     expect(lastText()).toBe(t("uz", "bot.photos_learned_plain"));
+  });
+
+  it("a 3rd photo and a Done tap at the same moment, or two quick Done taps, learn the style once", async () => {
+    const user = ++nextUser;
+    const brand = await onboard(user, { questions: [] });
+    visual.learnAndSaveVisual.mockResolvedValueOnce({ visual: { refs: [] }, cached: false });
+    await send(photoUpdate(user, "p1"));
+    await send(photoUpdate(user, "p2"));
+    await Promise.all([bot.handleUpdate(photoUpdate(user, "p3") as never), bot.handleUpdate(callback(user, photosData("d", brand.id)) as never)]);
+    await drain();
+    expect(visual.learnAndSaveVisual).toHaveBeenCalledTimes(1);
+    expect(await getPending(user)).toBeNull();
+
+    const other = ++nextUser;
+    const otherBrand = await onboard(other, { questions: [] });
+    visual.learnAndSaveVisual.mockResolvedValueOnce({ visual: { refs: [] }, cached: false });
+    await send(photoUpdate(other, "q1"));
+    await Promise.all([1, 2].map(() => bot.handleUpdate(callback(other, photosData("d", otherBrand.id)) as never)));
+    await drain();
+    expect(visual.learnAndSaveVisual).toHaveBeenCalledTimes(2);
   });
 
   it("the style limit is said plainly", async () => {
