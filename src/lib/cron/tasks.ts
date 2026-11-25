@@ -1,5 +1,6 @@
 import "server-only";
 import { channelSnapshots, postMetrics, publishDue, weekly, weekMessages } from "../autopilot/tasks";
+import { connectorsSync } from "../connectors/task";
 import { heartbeat } from "./heartbeat";
 import { mediaSweep } from "./media-sweep";
 import { CronRegistry } from "./registry";
@@ -16,4 +17,5 @@ export const cronRegistry = new CronRegistry()
   .register(weekMessages)
   .register(channelSnapshots)
   .register(postMetrics)
-  .register(weekly);
+  .register(weekly)
+  .register(connectorsSync);
