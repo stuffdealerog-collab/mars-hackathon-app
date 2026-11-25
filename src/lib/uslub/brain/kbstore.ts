@@ -71,26 +71,40 @@ export async function saveKnowledge(brandId: string, sources: IngestedSource[]):
 const header = (r: Row) => `[${r.kind}${r.title ? `: ${r.title}` : ""}${r.url ? ` — ${r.url}` : ""}]`;
 
 /**
- * The brand's memory as one KB text (newest source first, capped at 20k chars)
- * plus the source list. Never throws for a missing table.
+ * The brand's memory as one KB text (capped at 20k chars) plus the source list. Never throws for a missing table.
+ * The owner's answers come first (only the newest answers row; answers-store.ts keeps one), so no cap downstream
+ * (the facts step, the copywriter's 6,000 chars) ever cuts them; then the owner's sources, newest first. The 30-row
+ * window counts sources only: answers saved every week never push a price list or a website out of it.
  */
 export async function loadKnowledge(brandId: string): Promise<{ text: string; sources: KnowledgeSourceRow[] }> {
   let rows: Row[] = [];
   if (!isDbConfigured()) rows = mem.get(brandId) ?? [];
   else {
     try {
-      rows = (await getSql()`
-        SELECT id, kind, url, title, text, structured, created_at FROM brand_knowledge
-        WHERE brand_id = ${brandId} ORDER BY created_at DESC LIMIT 30
-      `) as Row[];
+      const sql = getSql();
+      const [answers, sources] = (await sql.transaction([
+        sql`
+          SELECT id, kind, url, title, text, structured, created_at FROM brand_knowledge
+          WHERE brand_id = ${brandId} AND kind = 'answers' ORDER BY created_at DESC LIMIT 1
+        `,
+        sql`
+          SELECT id, kind, url, title, text, structured, created_at FROM brand_knowledge
+          WHERE brand_id = ${brandId} AND kind <> 'answers' ORDER BY created_at DESC LIMIT 30
+        `,
+      ])) as [Row[], Row[]];
+      rows = [...answers, ...sources];
     } catch (err) {
       if (pgErrorCode(err) !== "42P01") throw err;
       rows = mem.get(brandId) ?? [];
     }
   }
-  // Answers are saved whole on every change (answers-store.ts): only the newest answers row is current.
-  const firstAnswers = rows.findIndex((r) => r.kind === "answers");
-  rows = rows.filter((r, i) => r.kind !== "answers" || i === firstAnswers);
+  rows = answersFirst(rows);
   const text = capText(rows.filter((r) => r.text.trim()).map((r) => `${header(r)}\n${r.text}`).join("\n\n"), KB_CAP);
   return { text, sources: rows.map(toSource) };
+}
+
+/** The newest answers row first, the other answers rows dropped, the rest in their order (newest first). Pure. */
+export function answersFirst<T extends { kind: string }>(rows: T[]): T[] {
+  const answers = rows.find((r) => r.kind === "answers");
+  return [...(answers ? [answers] : []), ...rows.filter((r) => r.kind !== "answers")];
 }

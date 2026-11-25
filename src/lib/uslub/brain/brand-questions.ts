@@ -9,7 +9,12 @@ import type { Lang } from "./types";
 
 const PRICE_RE = /\d[\d\s.,]*\s?(so['‘’ʻ]?m|сўм|сум|sum\b|uzs|ming\b|минг|тыс)/i;
 
-export function questionsForBrand(brand: Pick<BrandProfile, "channelType" | "dna" | "samplePosts" | "knowledge">, answers: OwnerAnswers | null, lang: Lang): OwnerQuestion[] {
+export function questionsForBrand(
+  brand: Pick<BrandProfile, "channelType" | "dna" | "samplePosts" | "knowledge"> & { channel?: string },
+  answers: OwnerAnswers | null,
+  lang: Lang,
+  opts: { bot?: string } = {},
+): OwnerQuestion[] {
   // Price posts stand in for price facts here (no facts step without a plan run): three of them mean prices are known.
   const pricePosts = [...brand.samplePosts, brand.knowledge].filter((t) => PRICE_RE.test(t)).length;
   return runQuestions({
@@ -17,6 +22,8 @@ export function questionsForBrand(brand: Pick<BrandProfile, "channelType" | "dna
     channelType: brand.channelType,
     answers,
     contact: brand.dna?.postEnding?.contact ?? answers?.contact,
+    channel: brand.channel,
+    bot: opts.bot,
     priceFacts: Math.min(3, pricePosts),
     products: brand.dna?.products,
   });

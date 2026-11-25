@@ -336,7 +336,9 @@ export async function savePosts(posts: PostDraft[], telegramId: number | null = 
 
 /**
  * A post's text after the owner asked for a rewrite ("shorter", "price 210 000"): new variants, neuro hits and score.
- * A published post is never rewritten (the channel already has it). Returns the updated post, or null.
+ * The post becomes a draft again (approved_at cleared): text the owner has not seen yet is never published by the
+ * autopilot or the schedule on an earlier approval. A published post, or one being sent right now, is never rewritten
+ * (the channel already has it). Returns the updated post, or null.
  */
 export async function updatePostText(
   id: string,
@@ -345,15 +347,16 @@ export async function updatePostText(
   if (!isUuid(id)) return null;
   if (!isDbConfigured()) {
     const p = mem.posts.get(id);
-    if (!p || p.status === "published") return null;
-    const next = { ...p, variants: patch.variants, neuroHits: patch.neuroHits, humanScore: patch.humanScore };
+    if (!p || p.status === "published" || memClaims.has(id)) return null;
+    const next: PostDraft = { ...p, variants: patch.variants, neuroHits: patch.neuroHits, humanScore: patch.humanScore, status: "draft" };
+    delete next.approvedAt;
     mem.posts.set(id, next);
     return next;
   }
   const rows = (await getSql()`
     UPDATE posts SET variants = ${JSON.stringify(patch.variants)}::jsonb, neuro_hits = ${JSON.stringify(patch.neuroHits)}::jsonb,
-                     human_score = ${patch.humanScore}
-    WHERE id = ${id} AND status <> 'published' AND status NOT LIKE 'publishing:%'
+                     human_score = ${patch.humanScore}, status = 'draft', approved_at = NULL
+    WHERE id = ${id} AND status IN ('draft', 'approved')
     RETURNING id
   `) as { id: string }[];
   return rows.length ? getPost(id) : null;

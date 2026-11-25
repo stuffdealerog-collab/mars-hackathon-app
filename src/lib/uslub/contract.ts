@@ -338,10 +338,8 @@ export type NodeStatus = "idle" | "running" | "done" | "error" | "needs_approval
  * GET  /api/uslub/brand?id= -> { brand: BrandProfile }
  * POST /api/uslub/posts    { brandId: string; brief: string; count?: number }   (count <= 5)
  *                          -> { posts: PostDraft[] }
- * POST /api/uslub/posts    { brandId: string; slots: (PlanSlot & { brief: string; link?: string })[] }  (<= 7)
- *                          -> { posts: PostDraft[] }   one post per plan slot, slot kept on the post; each post ends
- *                          the way the channel's posts end (BrandDNA.postEnding); `link` (the plan item's tracked
- *                          link) is put in by code only when the owner opted in and the brand has an owner
+ * POST /api/uslub/posts    { brandId: string; slots: (PlanSlot & { brief: string })[] }  (<= 7)
+ *                          -> { posts: PostDraft[] }   one post per plan slot, slot kept on the post
  * GET  /api/uslub/posts?brandId= -> { posts: PostDraft[] }   newest first (drafts + approved)
  * POST /api/uslub/posts/approve { postId: string } -> { post: PostDraft }   persists approval
  * POST /api/uslub/visual   { brandId: string; ownerImages?: string[] }  (https or data: URLs)
@@ -370,19 +368,6 @@ export type NodeStatus = "idle" | "running" | "done" | "error" | "needs_approval
  *                          -> { strategy: Strategy; plan: ContentPlan }   (stored per brand for 30 days)
  * GET  /api/uslub/strategy?brandId= -> { plan, strategy, mode, ownerQuestions, planTag, launch?, lang, createdAt }
  *                          or { plan: null } — the brand's latest plan, so a reopen shows it without a new run
- *                          The channel strategy also returns { channelType, goal, questions, trackLinks } and streams
- *                          { stage: "questions", questions, channelType, goal } right after "facts" (owner corrections).
- *                          A blog/expert/media/community plan uses goals reach | engage | grow (never sale/trust).
- * POST /api/uslub/answers  { brandId, goal?: "sale"|"grow", orderHow?: "phone"|"manager"|"own_bot"|"site"|"mercat_link",
- *                            contact?, prices?: {name, price}[] (≤5), about?, trackLinks?, lang?, initData? }
- *                          -> { answers, questions, trackLinksActive }   no Claude call, no budget unit; the newest
- *                          answers row wins and is reused every week; a channel_only brand becomes the caller's own
- * GET  /api/uslub/answers?brandId= -> { answers, questions, channelType, goal, trackLinksActive }
- *                          questions: { key: "goal"|"order"|"prices"|"about", text, input: "choice"|"text"|"prices",
- *                          options?, prefill?, hint? }[] — the UI renders whatever comes back (goal first)
- * POST /api/uslub/posts/rewrite { postId, instruction, lang? } -> { post: PostDraft, kept: Script[] }
- *                          rewrites a draft from one phrase ("короче", "narxi 210 000"); never a published post (409)
- * POST /api/uslub/analyze also returns { channelType, typeConfidence, goal } (the detected type and its default goal).
  * Errors may be 429 { code: "budget_exhausted", scope: "app" | "anonymous" } (daily Claude cap) and, on media
  * routes, 429 { code: "guest_limit" } (per-guest picture cap).
  */

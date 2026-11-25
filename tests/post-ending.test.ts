@@ -129,7 +129,8 @@ describe("ensureTrackedLink", () => {
 describe("dropTrackedLinks", () => {
   it("without the opt-in a Mercat link the writer left goes, with its label-only line; other links stay", async () => {
     const { dropTrackedLinks } = await import("../src/lib/uslub/ending");
-    expect(dropTrackedLinks("Tort tayyor.\nYozing: https://t.me/mercatai?start=src_ab12cd_1", "mercatai")).toBe("Tort tayyor.\nYozing");
+    // A call to action left with nothing to act on goes with its link (review of PR #54).
+    expect(dropTrackedLinks("Tort tayyor.\nYozing: https://t.me/mercatai?start=src_ab12cd_1", "mercatai")).toBe("Tort tayyor.");
     expect(dropTrackedLinks("Tort tayyor.\n👉 https://t.me/mercatai?start=src_ab12cd_1", "mercatai")).toBe("Tort tayyor.");
     expect(dropTrackedLinks("Sayt: https://safia.uz · @safia_admin", "mercatai")).toBe("Sayt: https://safia.uz · @safia_admin");
   });

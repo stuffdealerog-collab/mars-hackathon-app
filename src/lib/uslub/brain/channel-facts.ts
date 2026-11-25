@@ -28,6 +28,28 @@ export function channelFactsKb(data: ChannelData, now: number): string {
     : "";
 }
 
+/** What the facts step reads at most (extractFacts clips its input here). */
+export const FACTS_INPUT_CHARS = 12_000;
+/** The channel's posts always get at least this share of it (or all they need, when shorter). */
+export const CHANNEL_FACTS_MIN = 6_000;
+
+/**
+ * The facts step's input: the owner's text (answers first, then documents and price lists, as loadKnowledge orders
+ * them) and the channel's posts, each with its own budget inside FACTS_INPUT_CHARS. The channel keeps at least
+ * CHANNEL_FACTS_MIN characters (its price posts come first), more when the owner's text is short; the owner's text gets
+ * the rest, cut from its end, so their answers stay. A 20k-character document never pushes the channel's price card out.
+ */
+export function factsInput(ownerText: string, channelKb: string, cap = FACTS_INPUT_CHARS, channelMin = CHANNEL_FACTS_MIN): string {
+  const owner = ownerText.trim();
+  const channel = channelKb.trim();
+  if (!channel) return clip(owner, cap);
+  if (!owner) return clip(channel, cap);
+  const sep = 2;
+  const channelBudget = Math.min(channel.length, Math.max(channelMin, cap - sep - owner.length));
+  const ownerBudget = Math.max(0, cap - sep - channelBudget);
+  return [clip(owner, ownerBudget).trimEnd(), clip(channel, channelBudget).trimEnd()].filter(Boolean).join("\n\n");
+}
+
 /** Price facts quoted from channel posts older than 90 days: still used, but the owner is asked to confirm them. */
 export function stalePriceLines(facts: { type: string; quote: string; text: string }[], kb: string, now: number): string[] {
   return facts

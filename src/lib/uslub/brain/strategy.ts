@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ChannelType, ContentPlan, PlanItem, PostEnding, Strategy } from "@/lib/uslub/contract";
 import { answeredContact, type OwnerAnswers } from "./answers";
 import { defaultGoalFor, planTypeFor } from "./channel-type";
+import { ownContactKeys } from "../ending";
 import { wrongLanguage } from "./language";
 import { runQuestions, type OwnerQuestion } from "./questions";
 import { createHash } from "node:crypto";
@@ -27,7 +28,7 @@ import { clip } from "../text";
 import { dotted, pastDatesIn } from "../dates";
 import { briefMetaText, distinctTopics, type Duplicate, dropDuplicates, duplicateItems, factSourceOf, isBlockedMarker, ownerFacing, pastFacts, withTrackedLink } from "./plan-checks";
 import { fixMixedScript } from "../postguard";
-import { channelFactsKb, stalePriceLines } from "./channel-facts";
+import { channelFactsKb, factsInput, stalePriceLines } from "./channel-facts";
 export { channelFactsKb, stalePriceLines };
 
 /* ------------------------------------------------------------------ D0 facts */
@@ -341,6 +342,9 @@ export async function buildStrategy(inp: StrategyInput) {
   const channel = inp.preloaded?.own.channel ?? inp.channel;
   const brandName = inp.brandName ?? (channel ? `@${channel.replace(/^@/, "")}` : "Brend");
   const live = !inp.preloaded;
+  const bot = getEnv().BOT_USERNAME?.replace(/^@/, "");
+  // The goal the owner confirmed picks the findings: a shop that wants subscribers is analysed as a growth channel.
+  const confirmedGoal = inp.answers?.goal ?? inp.mainGoal;
 
   // 1. facts ∥ channel analysis (scrape, validity, bench, learn) ∥ web context (only the strategist waits for it)
   emit({ stage: "facts", status: "start" });
@@ -362,22 +366,24 @@ export async function buildStrategy(inp: StrategyInput) {
             lang,
             brandId: inp.brandId,
             ownerVerified: inp.ownerVerified,
-            channelType: inp.channelType,
+            channelType: inp.channelType ? planTypeFor(inp.channelType, confirmedGoal) : undefined,
             preloaded: inp.preloaded,
             onStage: emit,
           }),
         )
       : Promise.resolve(null);
-  // The channel's own posts are always in the facts, after the owner's text (answers, documents, price lists): ALL
-  // collected posts, price posts first. Facts are quote-checked against this text, so nothing outside it gets in.
+  // The channel's own posts are always in the facts, after the owner's text (answers first, documents, price lists):
+  // ALL collected posts, price posts first, with their own share of the facts step's 12,000 characters, so a long
+  // document never pushes them out (factsInput). Facts are quote-checked against this text: nothing else gets in.
   let knowledge = inp.knowledge;
   const fromChannel = Boolean(channel || inp.preloaded);
   const factsP = fromChannel
     ? ownP.then((own) => {
-        knowledge = [inp.knowledge.trim(), own ? channelFactsKb(own, now) : ""].filter(Boolean).join("\n\n");
-        return extractFacts(knowledge);
+        const channelKb = own ? channelFactsKb(own, now) : "";
+        knowledge = [inp.knowledge.trim(), channelKb].filter(Boolean).join("\n\n");
+        return extractFacts(factsInput(inp.knowledge, channelKb));
       })
-    : extractFacts(inp.knowledge);
+    : extractFacts(factsInput(inp.knowledge, ""));
   const [facts, analysis] = await Promise.all([
     factsP.catch((err) => {
       console.warn("[brain/strategy] fact extraction failed", err instanceof Error ? err.message : err);
@@ -390,7 +396,9 @@ export async function buildStrategy(inp: StrategyInput) {
 
   // What kind of channel this is and the goal the week is planned for (owner correction 2).
   const channelType: ChannelType = analysis?.channelType ?? inp.channelType ?? "business";
-  const mainGoal = inp.answers?.goal ?? inp.mainGoal ?? (defaultGoalFor(channelType) === "sale" ? "sale" : "grow");
+  const mainGoal = confirmedGoal ?? (defaultGoalFor(channelType) === "sale" ? "sale" : "grow");
+  // The plan type follows the confirmed goal (a sales plan for "sale", a growth plan for "grow"), and so do the
+  // findings: a channel detected as a business whose owner wants subscribers never gets price or how-to-order rules.
   const planType = planTypeFor(channelType, mainGoal);
   const growthPlan = planType !== "business";
 
@@ -415,6 +423,8 @@ export async function buildStrategy(inp: StrategyInput) {
     priceFacts: priceFacts.length - stalePrices.length,
     stalePrices,
     products: inp.products,
+    channel: channel ?? undefined,
+    bot,
   });
   emit({ stage: "questions", questions, channelType, goal: mainGoal });
 
@@ -431,7 +441,7 @@ export async function buildStrategy(inp: StrategyInput) {
         calendar: cal,
         bench: analysis?.bench,
         funnel: analysis?.learn?.funnel,
-        channelType,
+        channelType: planType,
         posts: analysis?.data.posts,
         subscriberTrend: analysis?.subscriberTrend,
         similar: compStats.map((c) => `@${c.channel}`),
@@ -466,9 +476,10 @@ export async function buildStrategy(inp: StrategyInput) {
   const pillar = pillarShares(cycle, rules, planType);
   // Mercat's tracked link is opt-in (answers.trackLinks or "orders through the Mercat link"), only for a sales plan,
   // and never while the brand has no owner to receive the leads (owner correction 1).
-  const leadOwner = inp.ownerTelegramId ?? inp.brandOwnerTelegramId ?? null;
+  // A brand's leads go to the brand's owner, never to whoever runs the plan (the same rule as mayTrackLinks in the
+  // posts route); a plan without a brand (pasted knowledge) has the caller as its owner.
+  const leadOwner = inp.brandId ? (inp.brandOwnerTelegramId ?? null) : (inp.ownerTelegramId ?? null);
   const trackLinks = !growthPlan && leadOwner != null && Boolean(inp.answers?.trackLinks || inp.answers?.orderHow === "mercat_link");
-  const bot = trackLinks ? getEnv().BOT_USERNAME?.replace(/^@/, "") : undefined;
   const planTag = newPlanTag();
   const learned = analysis?.learn?.hints;
   // One topic at most once a week: a sales week has at most (distinct topics + 1) slots.
@@ -488,7 +499,7 @@ export async function buildStrategy(inp: StrategyInput) {
     hasPriceFact: priceFacts.length > 0,
     hasOfferFact: offerFacts.length > 0,
     approvedPosts: inp.approvedPosts ?? 12,
-    bot,
+    bot: trackLinks ? bot : undefined,
     lang,
     calendar: cal,
     planTag,
@@ -550,7 +561,7 @@ export async function buildStrategy(inp: StrategyInput) {
       effort: "low",
       maxTokens: 6000,
       timeoutMs: Math.max(8_000, DEADLINE - 1_000 - elapsed()),
-      system: `${common}\n\n${D2(brandName, category || (growthPlan ? channelType : "biznes"), cycle, inp.goal ?? GOAL_TEXT[lang][growthPlan ? "grow" : "sale"], { lang, growthType: growthPlan ? channelType : undefined })}`,
+      system: `${common}\n\n${D2(brandName, category || (growthPlan ? planType : "biznes"), cycle, inp.goal ?? GOAL_TEXT[lang][growthPlan ? "grow" : "sale"], { lang, growthType: growthPlan ? planType : undefined })}`,
       prompt: JSON.stringify({
         outputLanguage: LANG_NAME[lang],
         facts: factsForLlm,
@@ -578,6 +589,8 @@ export async function buildStrategy(inp: StrategyInput) {
     competitorTexts,
     emojiCap,
     address: voice.address,
+    // The channel's own contacts (its ending, the owner's answer) may all be in a CTA: "☎️ +998 90 123 45 67 | @admin".
+    endingContactKeys: ownContactKeys(inp.postEnding, [answeredContact(inp.answers)], { channel: channel ?? undefined, bot }),
   };
   const drafts = new Map<number, Drafted>();
   const codeFails = new Map<number, CheckFail[]>();
@@ -889,8 +902,9 @@ export async function buildStrategy(inp: StrategyInput) {
     planId = await savePlan({
       tag: planTag,
       brandId: inp.brandId,
-      // Leads from this plan's links go to this Telegram user; the bot never claims the channel's identity to customers.
-      ownerTelegramId: inp.ownerTelegramId,
+      // Leads from this plan's links go to this Telegram user (the brand's owner, the same one the links were gated on);
+      // the bot never claims the channel's identity to customers.
+      ownerTelegramId: leadOwner ?? inp.ownerTelegramId,
       channel,
       weekOf: sk.weekOf,
       items: stored,

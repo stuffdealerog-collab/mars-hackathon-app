@@ -1,7 +1,6 @@
 import { z } from "zod";
 import type { OwnerAnswers } from "@/lib/uslub/brain/answers";
 import { loadAnswers } from "@/lib/uslub/brain/answers-store";
-import { defaultGoalFor } from "@/lib/uslub/brain/channel-type";
 import { loadKnowledge } from "@/lib/uslub/brain/kbstore";
 import type { ChannelType } from "@/lib/uslub/contract";
 import { setBrandTypeGoal, type StoredBrand } from "@/lib/uslub/store";
@@ -104,9 +103,8 @@ export const POST = handle(async (req) => {
         lang,
         createdAt: new Date().toISOString(),
       }).catch(() => {});
-      // A brand made before type detection learns its type now (the goal stays the owner's once they answered).
-      if (stored && r.channelType && !stored.channelType)
-        await setBrandTypeGoal(stored.id, { channelType: r.channelType, ...(stored.goal ? {} : { goal: defaultGoalFor(r.channelType) }) }).catch(() => {});
+      // A brand made before type detection learns its type now (brands.goal is only ever the owner's answer).
+      if (stored && r.channelType && !stored.channelType) await setBrandTypeGoal(stored.id, { channelType: r.channelType }).catch(() => {});
     }
     return r;
   };

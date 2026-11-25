@@ -7,6 +7,7 @@ import type { BrandProfile, NeuroHit, PlanSlot, PostDraft, PostEnding, Script } 
 import { applyPostEnding, dropTrackedLinks, endingBrief, ensureTrackedLink, extractPostEnding, ownContactKeys } from "./ending";
 import { rewriteNeuroBatch, type EditJob } from "./editor";
 import { llmJson, MODEL_FAST, MODEL_QUALITY, type Effort } from "./llm";
+import { factKeys, newFactKeys } from "./fact-keys";
 import { analyzeNeuro, inventedFacts } from "./neuro";
 import { findPlaceholders } from "./placeholders";
 import { alignProductNames, contactBlankIfNone, dropVideoMentions, fixMixedScript, hasContact, oneContactRoute, replaceHiddenPrice, ruFirstPersonGender } from "./postguard";
@@ -80,7 +81,9 @@ function brandContext(brand: BrandProfile, knowledge: string, ending: PostEnding
       ? `THE OWNER'S VOICE IN RUSSIAN: the owner writes about themself as a ${gender === "f" ? "woman (я приготовила, сама, рада)" : "man (я приготовил, сам, рад)"}. In the ru version, first-person verbs and adjectives take that gender; "мы" stays "мы".`
       : "",
     knowledge ? `BRAND KNOWLEDGE (the only source of facts):\n${clip(knowledge, 6000)}` : "BRAND KNOWLEDGE: none beyond the posts.",
-    older.length ? `FACTS FROM THE CHANNEL'S OLDER POSTS (prices, products, contacts; facts only, not the voice):\n${older.join("\n---\n")}` : "",
+    older.length
+      ? `THE CHANNEL'S OLDER POSTS (products, contacts; facts only, not the voice). Prices here may be outdated: a price in the plan slot, in the brand knowledge (the owner's answers) or in the newer posts below wins; use an older price only when none of them has one:\n${older.join("\n---\n")}`
+      : "",
     examples ? `THE BRAND'S REAL POSTS (match this voice):\n${examples}` : "",
     endingBrief(ending),
   ]
@@ -350,8 +353,9 @@ export interface RewriteResult {
 /**
  * Rewrites a post from one phrase of the owner: one fast-model pass over the three versions, then the same code
  * post-pass as a new post (a hidden price becomes a price blank sentence by sentence, one price format per script,
- * the DNA's product names, mixed letters fixed, no video talk under a picture). A version that gained a number, price
- * or date that neither the post nor the request had keeps its old text.
+ * the DNA's product names, mixed letters fixed, no video talk under a picture). A version that gained a number, price,
+ * date or promo word that neither the post (in any of its versions) nor the request had keeps its old text; when that
+ * is the Uzbek version, all three keep theirs, so the versions never disagree on a price.
  */
 export async function rewritePost(brand: BrandProfile, post: Pick<PostDraft, "variants" | "slot">, instruction: string, opts: { timeoutMs?: number } = {}): Promise<RewriteResult> {
   const res = await llmJson({
@@ -368,12 +372,19 @@ export async function rewritePost(brand: BrandProfile, post: Pick<PostDraft, "va
   const keep = brandWords(brand);
   const variants = { ...post.variants };
   const kept: Script[] = [];
+  // Facts are compared by meaning, across the three versions and the phrase: "narxi 210 000" lets the ru and en
+  // versions say "210 000 сум" and "210,000 UZS", "dushanba" lets them say "понедельник" and "Monday".
+  const allowed = factKeys([post.variants.uz_latn, post.variants.ru, post.variants.en, instruction].join("\n"));
   for (const script of ["uz_latn", "ru", "en"] as const) {
     let text = res[script].trim();
-    if (text.length < 10 || inventedFacts(`${post.variants[script]}\n${instruction}`.repeat(8), text).length) {
-      kept.push(script);
+    if (text.length < 10 || newFactKeys(allowed, text).length) {
+      // The Uzbek version is the main one: when it stays, the other two stay with it (one set of facts per post).
+      kept.push(...(script === "uz_latn" ? (["uz_latn", "ru", "en"] as const) : [script]));
+      if (script === "uz_latn") break;
       continue;
     }
+    // Whatever the accepted Uzbek version says, the other two may say too.
+    if (script === "uz_latn") for (const k of factKeys(text)) allowed.add(k);
     if (script === "uz_latn") text = fixMixedScript(text);
     text = replaceHiddenPrice(text, script);
     if (post.slot?.format && post.slot.format !== "video") text = dropVideoMentions(text);

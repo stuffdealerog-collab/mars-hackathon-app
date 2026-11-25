@@ -221,7 +221,8 @@ export function ensureTrackedLink(text: string, link: string, script: Variant): 
   if (!m) return text;
   if (text.includes(link)) return text;
   const bot = m[1];
-  const mangled = new RegExp(String.raw`(?:https?:\/\/)?(?:t\.me|telegram\.me)\/${bot}(?:\?start=[\w-]*)?`, "i");
+  // The bot's name must end there: a channel link that starts with it (t.me/mercatai_uz) is not a copy of the link.
+  const mangled = new RegExp(String.raw`(?:https?:\/\/)?(?:t\.me|telegram\.me)\/${bot}(?!\w)(?:\?start=[\w-]*)?`, "i");
   if (mangled.test(text)) return text.replace(mangled, link);
   return `${text.trimEnd()}\n\n${TRACK_LABEL[script]}: ${link}`;
 }
@@ -233,19 +234,43 @@ export function withoutTrackedLinks(cta: string): string {
   return cta.replace(ANY_TRACKED_RE, "").replace(/[\s:–—-]+$/, "").trim();
 }
 
+/** Words of a call to action that only make sense with something to tap or write to ("Buyurtma bering", "Пишите"). */
+const CTA_WORD_RE =
+  /(?<!\p{L})(buyurtma|zakaz|заказ|order|yoz|qo['‘’ʻ]ng['‘’ʻ]iroq|murojaat|bog['‘’ʻ]lan|пиш|напиш|звон|позвон|обращ|свяж|write|call|message|contact|dm|batafsil|подробн|details|havola|ссылк|link|bosing|нажм|click|tap|o['‘’ʻ]ting|переход|перейд|shu yerda|bu yerda|здесь|here)\p{L}*/iu;
+
+/**
+ * A line whose link was taken out at its end: the call to action that pointed at it goes too, back to the previous
+ * sentence end ("Medovik — 180 000 so'm. Buyurtma bering: <link>" -> "Medovik — 180 000 so'm."). A short tail of at most
+ * six words with a CTA word and no contact of its own counts as that call to action. Null = nothing is left.
+ */
+function withoutDanglingCta(line: string): string | null {
+  // "…+998 90 123 45 67 yoki <link>": the "or" that led to the link goes with it.
+  const rest = line.replace(/[\s,]+(yoki|или|or)$/iu, "");
+  const cut = Math.max(0, ...[...rest.matchAll(/[.!?…](?=\s)/g)].map((m) => (m.index ?? -1) + 1));
+  const tail = rest.slice(cut).trim();
+  const words = tail.match(/[\p{L}\d'‘’ʻ]+/gu) ?? [];
+  const bare = Boolean(tail) && words.length <= 6 && CTA_WORD_RE.test(tail) && !contactsIn(tail).length;
+  const kept = bare ? rest.slice(0, cut).trimEnd() : rest;
+  return /[\p{L}\d]/u.test(kept) ? kept : null;
+}
+
 /**
  * A post with no Mercat tracked link (the owner did not opt in, or the brand has no owner): any t.me/<bot>?start=src_…
- * the writer left goes, and a line left with only a label ("Yozing:") goes with it. Other links stay.
+ * the writer left goes. When the link ended its line, the call to action that pointed at it goes with it (a line left
+ * with only "Yozing:" or "Buyurtma bering" goes whole). Other links stay.
  */
 export function dropTrackedLinks(text: string, bot: string | undefined): string {
   if (!bot) return text;
-  const re = new RegExp(String.raw`\s*(?:https?:\/\/)?(?:t\.me|telegram\.me)\/${bot}\?start=src_[\w-]+`, "gi");
+  const link = String.raw`\s*(?:https?:\/\/)?(?:t\.me|telegram\.me)\/${bot}\?start=src_[\w-]+`;
+  const re = new RegExp(link, "gi");
+  const atEnd = new RegExp(String.raw`${link}[\s.!?)]*$`, "i");
   if (!re.test(text)) return text;
   return text
     .split("\n")
     .map((line) => {
       if (!line.match(re)) return line;
       const rest = line.replace(re, "").replace(/[\s:–—-]+$/, "").trimEnd();
+      if (atEnd.test(line)) return withoutDanglingCta(rest);
       return /[\p{L}\d]/u.test(rest) ? rest : null;
     })
     .filter((l): l is string => l !== null)

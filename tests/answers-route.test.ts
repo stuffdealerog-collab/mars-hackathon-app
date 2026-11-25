@@ -19,6 +19,8 @@ vi.mock("@/lib/uslub/store", async () => await import("../src/lib/uslub/store"))
 vi.mock("@/lib/uslub/brain/answers", async () => await import("../src/lib/uslub/brain/answers"));
 vi.mock("@/lib/uslub/brain/answers-store", async () => await import("../src/lib/uslub/brain/answers-store"));
 vi.mock("@/lib/uslub/brain/brand-questions", async () => await import("../src/lib/uslub/brain/brand-questions"));
+vi.mock("@/lib/uslub/brain/channel-type", async () => await import("../src/lib/uslub/brain/channel-type"));
+vi.mock("@/lib/uslub/samples", async () => await import("../src/lib/uslub/samples"));
 const spendClaude = vi.fn(async () => {});
 vi.mock("@/lib/uslub/budget", () => ({ spendClaude }));
 
@@ -70,5 +72,27 @@ describe("POST/GET /api/uslub/answers", () => {
     const ok = await (await call("POST", "/api/uslub/answers", { brandId: b.id, goal: "grow", trackLinks: true }, "tma 5150")).json();
     expect(ok.trackLinksActive).toBe(true);
     expect(ok.questions.map((q: { key: string }) => q.key)).toEqual(["about"]);
+  });
+
+  // Review of PR #54.
+  it("the goal is only ever the owner's: null until answered (with the type's suggestion), then it moves the type", async () => {
+    const b = await store.saveBrand({ channel: "safia_goal", knowledge: "", samplePosts: ["a"], dna: DNA, mode: "channel", channelType: "business" }, null, "channel_only");
+    const before = await (await call("GET", `/api/uslub/answers?brandId=${b.id}`)).json();
+    expect(before).toMatchObject({ goal: null, suggestedGoal: "sale", channelType: "business" });
+    // A shop whose owner wants subscribers is planned and analysed as a growth channel from now on.
+    await call("POST", "/api/uslub/answers", { brandId: b.id, goal: "grow" });
+    expect(await store.getBrand(b.id)).toMatchObject({ goal: "grow", channelType: "community" });
+    // A blog whose owner wants orders becomes a business.
+    const blog = await store.saveBrand({ channel: "dilnoza_goal", knowledge: "", samplePosts: ["a"], dna: DNA, mode: "channel", channelType: "blog" }, null, "channel_only");
+    await call("POST", "/api/uslub/answers", { brandId: blog.id, goal: "sale" });
+    expect(await store.getBrand(blog.id)).toMatchObject({ goal: "sale", channelType: "business" });
+  });
+
+  it("a channel_only row made 'custom' by the answers keeps its samples marked as the channel's", async () => {
+    const b = await store.saveBrand({ channel: "safia_mark", knowledge: "", samplePosts: ["a"], dna: DNA, mode: "channel", channelType: "business" }, null, "channel_only");
+    await call("POST", "/api/uslub/answers", { brandId: b.id, orderHow: "phone" });
+    const after = await store.getBrand(b.id);
+    expect(after?.source).toBe("custom");
+    expect((after?.dna as { samplesFrom?: string }).samplesFrom).toBe("channel");
   });
 });

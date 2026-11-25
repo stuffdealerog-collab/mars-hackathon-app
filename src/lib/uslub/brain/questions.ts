@@ -7,6 +7,7 @@
  * - a blog, expert, media or community channel (goal "grow"): what the channel is about. Never prices or orders.
  */
 import type { ChannelType, Goal } from "../contract";
+import { contactsIn } from "../ending";
 import type { OwnerAnswers } from "./answers";
 import { defaultGoalFor } from "./channel-type";
 import type { Lang } from "./types";
@@ -30,8 +31,11 @@ export interface QuestionInput {
   lang: Lang;
   channelType?: ChannelType | null;
   answers?: OwnerAnswers | null;
-  /** The contact the channel's posts end with (BrandDNA.postEnding.contact), if any. */
+  /** The contact line the channel's posts end with (BrandDNA.postEnding.contact), if any. */
   contact?: string;
+  /** The channel's own @username and Mercat's bot: neither is the contact customers order through. */
+  channel?: string;
+  bot?: string;
   /** Current price facts known from the posts or the owner. */
   priceFacts?: number;
   /** Price lines older than 90 days ("Medovik — 180 000 so'm"): asked to confirm instead of asked again. */
@@ -122,7 +126,10 @@ export function runQuestions(inp: QuestionInput): OwnerQuestion[] {
   }
   if (!a.orderHow) {
     const options = (["phone", "manager", "own_bot", "site", "mercat_link"] as const).map((v) => ({ value: v, label: t[v] }));
-    const c = inp.contact?.trim();
+    // Only the contact itself goes in the question ("+998 90 123 45 67", "@safia_admin"), never the whole ending line
+    // ("📞 Buyurtma uchun: +998…" would read "Buyurtmalarni 📞 Buyurtma uchun: … orqali").
+    const line = inp.contact?.trim();
+    const c = line ? contactsIn(line, { channel: inp.channel, bot: inp.bot }).map((x) => x.raw).filter((x, i, all) => all.indexOf(x) === i).join(", ") || line : undefined;
     const byPhone = c && /\d{2}[\s-]?\d{3}/.test(c);
     out.push(
       c

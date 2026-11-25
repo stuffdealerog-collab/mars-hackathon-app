@@ -1,10 +1,13 @@
 import { z } from "zod";
+import { getEnv } from "@/lib/env";
 import { mayTrackLinks, type OwnerAnswers } from "@/lib/uslub/brain/answers";
 import { loadAnswers, saveAnswers } from "@/lib/uslub/brain/answers-store";
 import { questionsForBrand } from "@/lib/uslub/brain/brand-questions";
+import { defaultGoalFor, planTypeFor } from "@/lib/uslub/brain/channel-type";
 import { currentContext } from "@/lib/uslub/context";
 import { assertDraftAccess, handle, HttpError, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
-import { setBrandSource, setBrandTypeGoal } from "@/lib/uslub/store";
+import { samplesFromOf, withSamplesFrom } from "@/lib/uslub/samples";
+import { setBrandSource, setBrandTypeGoal, updateBrandProfile } from "@/lib/uslub/store";
 
 const Price = z.object({
   name: z.string().trim().min(1).max(120),
@@ -27,14 +30,21 @@ const Body = z.object({
   initData: z.string().max(8192).optional(),
 });
 
+/** Mercat's bot: never offered as the contact customers order through. */
+const botName = () => getEnv().BOT_USERNAME?.replace(/^@/, "");
+
 /**
  * POST { brandId, goal?, orderHow?, contact?, prices?[≤5 {name, price}], about?, trackLinks?, lang?, initData? }
  *   -> { answers, questions, trackLinksActive }
- * The owner's answers to the run's questions, stored in brand_knowledge (kind 'answers', the newest row wins) and
+ * The owner's answers to the run's questions, stored in brand_knowledge (kind 'answers', one row per brand) and
  * reused by every weekly plan and post. No Claude call and no budget unit. Fields not sent keep their saved value.
- * A channel_only brand becomes the caller's own (source 'custom'): private prices never sit on a public cache row.
- * The goal is also written to brands.goal. trackLinksActive: the tracked link is on (opted in AND the brand has an
- * owner in Telegram; until it is claimed, plan posts carry no Mercat link).
+ * A channel_only brand becomes the caller's own (source 'custom'): private prices never sit on a public cache row; its
+ * samples stay marked as the channel's (dna.samplesFrom), so a later rebuild still reads the channel's newest posts.
+ * The goal is written to brands.goal (only ever the owner's answer). A goal against the stored type (a shop that wants
+ * subscribers, a blog that wants orders) also moves brands.channel_type to the type that goal plans as (planTypeFor),
+ * so every later analysis and plan picks the matching findings: no price or how-to-order advice for a growth goal.
+ * trackLinksActive: the tracked link is on (opted in AND the brand has an owner in Telegram; until it is claimed,
+ * plan posts carry no Mercat link).
  */
 export const POST = handle(async (req) => {
   rateLimit(req, "answers", 20);
@@ -46,21 +56,28 @@ export const POST = handle(async (req) => {
   const fields: OwnerAnswers = { goal: body.goal, orderHow: body.orderHow, contact: body.contact, prices: body.prices, about: body.about, trackLinks: body.trackLinks };
   const given: OwnerAnswers = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
   if (!Object.keys(given).length) throw new HttpError(400, "Send at least one answer", "invalid_input");
-  if (brand.source === "channel_only") await setBrandSource(brand.id, "custom");
+  if (brand.source === "channel_only") {
+    await setBrandSource(brand.id, "custom");
+    if (!samplesFromOf(brand.dna)) await updateBrandProfile(brand.id, { dna: withSamplesFrom(brand.dna, "channel") });
+  }
   const lang = body.lang ?? currentContext()?.lang ?? "uz";
   const answers = await saveAnswers(brand.id, given, lang);
-  if (given.goal) await setBrandTypeGoal(brand.id, { goal: given.goal });
+  if (given.goal) {
+    const type = brand.channelType ? planTypeFor(brand.channelType, given.goal) : undefined;
+    await setBrandTypeGoal(brand.id, { goal: given.goal, ...(type && type !== brand.channelType ? { channelType: type } : {}) });
+  }
   return json({
     answers,
-    questions: questionsForBrand(brand, answers, lang),
+    questions: questionsForBrand(brand, answers, lang, { bot: botName() }),
     trackLinksActive: mayTrackLinks(answers, brand.ownerTelegramId),
   });
 });
 
 /**
- * GET ?brandId=&lang= -> { answers, questions, channelType, goal, trackLinksActive }
+ * GET ?brandId=&lang= -> { answers, questions, channelType, goal, suggestedGoal, trackLinksActive }
  * The saved answers and the questions still open (the goal first; for a business how customers order and prices,
  * for a blog/expert/media/community what the channel is about). Answered questions are not asked again.
+ * goal: the goal the owner confirmed, null until they answer; suggestedGoal: the one the channel type starts with.
  */
 export const GET = handle(async (req) => {
   rateLimit(req, "answers-get", 60);
@@ -72,9 +89,10 @@ export const GET = handle(async (req) => {
   const answers = await loadAnswers(brand.id).catch(() => null);
   return json({
     answers: answers ?? {},
-    questions: questionsForBrand(brand, answers, lang),
+    questions: questionsForBrand(brand, answers, lang, { bot: botName() }),
     channelType: brand.channelType ?? null,
     goal: answers?.goal ?? brand.goal ?? null,
+    suggestedGoal: defaultGoalFor(brand.channelType),
     trackLinksActive: mayTrackLinks(answers, brand.ownerTelegramId),
   });
 });

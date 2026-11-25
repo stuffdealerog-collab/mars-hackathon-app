@@ -313,18 +313,19 @@ export const ANALYSIS_FRESH_MS = 24 * 3600_000;
 export const AUDIT_CACHE_MS = ANALYSIS_FRESH_MS;
 
 /** Cache key of a whole saved analysis: the same channel, language, competitors, category (and brand, if given). */
-export function analysisViewKey(input: { channel: string; competitors?: string[]; category?: string; brandId?: string }, lang: Lang): string {
+export function analysisViewKey(input: { channel: string; competitors?: string[]; category?: string; brandId?: string; channelType?: ChannelType }, lang: Lang): string {
   const channel = normalizeChannel(input.channel) ?? input.channel.trim().toLowerCase();
   const comps = [...(input.competitors ?? [])].map((c) => normalizeChannel(c) ?? c.toLowerCase()).sort();
-  const raw = JSON.stringify(["v2", channel, lang, comps, (input.category ?? "").trim().toLowerCase(), input.brandId ?? ""]);
+  // A given channel type (the brand's stored one) is part of the key: a growth channel's findings are other findings.
+  const raw = JSON.stringify(["v2", channel, lang, comps, (input.category ?? "").trim().toLowerCase(), input.brandId ?? "", ...(input.channelType ? [input.channelType] : [])]);
   return `auditview:${createHash("sha256").update(raw).digest("hex").slice(0, 32)}`;
 }
 
 /** Cache key of an audit's written findings: a new post on the channel (or other competitors) makes a new key. */
-export function auditCacheKey(a: Pick<Analysis, "data">, input: { competitors?: string[]; category?: string }, lang: Lang): string {
+export function auditCacheKey(a: Pick<Analysis, "data">, input: { competitors?: string[]; category?: string; channelType?: ChannelType }, lang: Lang): string {
   const newest = a.data.posts.reduce((m, p) => Math.max(m, p.id), 0);
   const comps = [...(input.competitors ?? [])].map((c) => normalizeChannel(c) ?? c.toLowerCase()).sort();
-  const raw = JSON.stringify(["v2", a.data.channel.toLowerCase(), lang, newest, comps, (input.category ?? "").trim().toLowerCase()]);
+  const raw = JSON.stringify(["v2", a.data.channel.toLowerCase(), lang, newest, comps, (input.category ?? "").trim().toLowerCase(), ...(input.channelType ? [input.channelType] : [])]);
   return `audit:${createHash("sha256").update(raw).digest("hex").slice(0, 32)}`;
 }
 
@@ -334,6 +335,11 @@ export async function runAudit(input: {
   lang?: Lang;
   category?: string;
   brandId?: string;
+  /**
+   * The brand's stored channel type, as its confirmed goal plans it (planTypeFor): a brand whose owner wants
+   * subscribers gets growth findings, never price or how-to-order ones. Missing = detected from the posts.
+   */
+  channelType?: ChannelType;
   onStage?: OnStage;
   /** true = analyze again even if this channel was analyzed in the last 24 h (ANALYSIS_FRESH_MS). */
   refresh?: boolean;
