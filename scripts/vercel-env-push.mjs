@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Pushes the app's env vars from .env.local to the linked Vercel project
-// (production + preview; the visit counter ids production only). Empty values are skipped;
-// values are never printed.
+// (production + preview; the PRODUCTION_ONLY group below goes to production only). Empty values
+// are skipped; values are never printed. CRON_SECRET, LABS_ROUTES and STATS_PASSWORD are never
+// pushed: set them in the Vercel dashboard on purpose (see .env.example).
 // Usage: pnpm env:push   (then redeploy: vercel deploy --prod)
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -43,10 +44,35 @@ const ALLOWED = [
   // Visit counters: public ids, inlined into the client at build time (redeploy after a change).
   "NEXT_PUBLIC_GA_ID",
   "NEXT_PUBLIC_YM_ID",
+  // Stats page: the team's ids (STATS_PASSWORD is set in the dashboard, production only).
+  "STATS_TEAM_TG_IDS",
+  // Value loop 2026-11-25: team alerts, connectors. Not here on purpose: CRON_SECRET (a local copy
+  // would let a dev server run the tick against the production database), LABS_ROUTES (a value
+  // tried locally would open paid routes in production).
+  "OPS_CHAT_ID",
+  "CONNECTOR_TOKEN_KEY",
+  "META_APP_ID",
+  "META_APP_SECRET",
+  "GOOGLE_OAUTH_CLIENT_ID",
+  "GOOGLE_OAUTH_CLIENT_SECRET",
+  "GOOGLE_ADS_DEVELOPER_TOKEN",
 ];
 const TARGETS = ["production", "preview"];
-// Preview deployments must not count as visits: the counter ids go to production only.
-const PRODUCTION_ONLY = new Set(["NEXT_PUBLIC_GA_ID", "NEXT_PUBLIC_YM_ID"]);
+// Production only:
+// - visit counter ids: preview deployments must not count as visits;
+// - OPS_CHAT_ID: alerts from previews would be noise;
+// - connector keys: the OAuth redirect URIs are registered for the production domain only.
+const PRODUCTION_ONLY = new Set([
+  "NEXT_PUBLIC_GA_ID",
+  "NEXT_PUBLIC_YM_ID",
+  "OPS_CHAT_ID",
+  "CONNECTOR_TOKEN_KEY",
+  "META_APP_ID",
+  "META_APP_SECRET",
+  "GOOGLE_OAUTH_CLIENT_ID",
+  "GOOGLE_OAUTH_CLIENT_SECRET",
+  "GOOGLE_ADS_DEVELOPER_TOKEN",
+]);
 
 if (!existsSync(".env.local")) {
   console.error("No .env.local found.");

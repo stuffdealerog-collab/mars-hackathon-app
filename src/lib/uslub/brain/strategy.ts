@@ -703,7 +703,7 @@ export async function buildStrategy(inp: StrategyInput) {
     console.warn("[brain/strategy] strategist failed", err instanceof Error ? err.message : err);
   }
   const d2 = strategyOut?.d2;
-  const nameByGoal = new Map(d2?.pillars.map((p) => [p.goal, p.name]) ?? []);
+  const nameByGoal = new Map<string, string>(d2?.pillars.map((p) => [p.goal, p.name]) ?? []);
   for (const it of items) it.pillar = nameByGoal.get(it.goal) ?? it.goal;
   const risks = [...(d2?.risks ?? [])];
   if (d2) {

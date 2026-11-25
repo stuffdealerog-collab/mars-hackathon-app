@@ -41,7 +41,44 @@ export interface BrandDNA {
   doList: string[];
   dontList: string[];
   languages: Script[];
+  /**
+   * How the channel's own posts end, learned from those posts. New posts end the same way (owner correction 1,
+   * 2026-11-25): never a rule like "contact in every post", never Mercat's link in place of the channel's contact.
+   * Missing on brands analysed before 2026-11-25.
+   */
+  postEnding?: PostEnding;
 }
+
+/**
+ * The usual ending of a channel's posts.
+ * - "contact":  a contact line (phone, @manager, a bot or wa.me link): `contact` holds it exactly as the posts write it;
+ * - "admin":    "write to the admin" / "в личку" without a concrete contact;
+ * - "link":     a link (site, shop, form);
+ * - "hashtags": hashtags only;
+ * - "none":     the posts just end;
+ * - "mixed":    no single habit (fewer than half the posts share one).
+ */
+export interface PostEnding {
+  pattern: "contact" | "admin" | "link" | "hashtags" | "none" | "mixed";
+  /** The contact as the channel writes it (e.g. "📞 +998 90 123 45 67", "@dilnoza_admin"); reuse it in that form. */
+  contact?: string;
+  /** Hashtags the channel's posts end with, as written (max 5). */
+  hashtags?: string[];
+  /** Up to 3 real endings copied from the channel's posts (last line or two), newest first. */
+  examples: string[];
+}
+
+/**
+ * What kind of channel this is (owner correction 2, 2026-11-25). Goals, findings, plan pillars, owner questions and
+ * the Monday report follow it.
+ * - "business":  a shop, cafe, service, clinic… selling to customers (orders are a goal);
+ * - "blog":      a person's own channel;
+ * - "expert":    a creator, teacher or specialist building an audience;
+ * - "media":     news, a digest;
+ * - "community": a group or club channel run for its members.
+ * A blog/expert/media/community channel gets a growth plan and never price or "how to order" advice.
+ */
+export type ChannelType = "business" | "blog" | "expert" | "media" | "community";
 
 export interface BrandProfile {
   id: string;
@@ -58,6 +95,16 @@ export interface BrandProfile {
   mode?: BrandMode;
   /** How the brand's pictures look; missing until the style is learned. */
   visual?: VisualStyle;
+  /**
+   * What kind of channel this is (db: brands.channel_type), so goals, plans and reports follow it (owner correction 2).
+   * Missing = not detected yet (brands made before detection shipped keep today's sales plan).
+   */
+  channelType?: ChannelType;
+  /**
+   * The main goal the owner confirmed (db: brands.goal): "sale" (more orders) or "grow" (more subscribers). The
+   * confirm question is pre-filled from channelType. Missing = not asked yet.
+   */
+  goal?: Goal;
   createdAt: string; // ISO
 }
 
@@ -90,6 +137,8 @@ export interface PlanSlot {
   goal: Goal;
   hook: string;
   cta: string;
+  /** The plan item's format (PlanItem.format: "photo", "video", "text", "poll", …); missing on older posts. */
+  format?: string;
 }
 
 /** A picture for a post, made in the brand's visual style. */
@@ -135,7 +184,26 @@ export interface PostDraft {
   needsApproval?: boolean;
   placeholders?: { script: Script; tokens: string[] }[];
   note?: string; // owner-readable, in the request's language: which fact to add
+  /** Set once the approved post is queued to go out on its own at its slot (autopilot); missing = not queued. */
+  schedule?: PostSchedule;
   createdAt: string;
+}
+
+/**
+ * A post's place in the publish queue (db: publish_queue).
+ * - "queued":  waits for dueAt;
+ * - "sending": a tick is sending it now;
+ * - "sent":    out in the channel (PostDraft.publishedUrl has the link);
+ * - "blocked": the bot is not an admin with post rights in the channel; retried until dueAt + 24 h;
+ * - "failed":  Telegram refused it after the retries;
+ * - "expired": more than 24 h late (the ticker was down); the owner decides;
+ * - "unknown": the send was cut off mid-way; never resent on its own, the owner checks the channel.
+ */
+export interface PostSchedule {
+  dueAt: string; // ISO
+  status: "queued" | "sending" | "sent" | "blocked" | "failed" | "expired" | "unknown";
+  /** Owner-safe reason when blocked/failed/expired/unknown, in the request's language. */
+  error?: string;
 }
 
 export interface RadarLead {
@@ -166,7 +234,15 @@ export interface VideoPlan {
 /* Rule: every finding, proof point and KPI baseline must come from real data
  * (channel stats, the owner's knowledge base, cited web sources) — never invented. */
 
-export type Goal = "reach" | "trust" | "sale";
+/**
+ * What a plan item (and the post written from it) is for.
+ * Sales channels (ChannelType "business"): "reach" new people, build "trust", make a "sale".
+ * Growth channels (blog, expert, media, community; owner correction 2): "engage" the people already there (reactions,
+ * replies, forwards, polls) and "grow" the channel (new subscribers: series, cross-promotion, shareable posts).
+ */
+export type Goal = SalesGoal | GrowthGoal;
+export type SalesGoal = "reach" | "trust" | "sale";
+export type GrowthGoal = "engage" | "grow";
 
 export interface ChannelAudit {
   channel: string; // @username
@@ -211,6 +287,11 @@ export interface PlanItem {
   brief: string; // ready to hand to the copywriter
   metric: string;
   needsApproval: boolean; // promos, prices, video, first posts
+  /**
+   * Owner-readable note on `time`, in the plan's language, as guidance and never a promise: where the time comes from
+   * (e.g. "Kanalingizda eng ko‘p ko‘rilgan vaqt" / "Your channel's best hour so far"). The UI shows it as given.
+   */
+  timeLabel?: string;
 }
 
 export interface ContentPlan {

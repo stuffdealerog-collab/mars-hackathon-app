@@ -63,15 +63,15 @@ const ITEMS_TASK = `TASK: write the 9 launch posts' plan items (one per slot). F
 Follow each slot's "purpose". Slot 1 is the pinned intro post. Every hook must be different. Return JSON { items: [{ slot, hook, cta, brief }] } for all 9 slots.`;
 
 const METRIC: Record<Lang, Record<Goal, string>> = {
-  uz: { reach: "javoblar va ulashishlar", trust: "ko‘rishlar", sale: "buyurtmalar" },
-  ru: { reach: "ответы и пересылки", trust: "просмотры", sale: "заказы" },
-  en: { reach: "replies and forwards", trust: "views", sale: "orders" },
+  uz: { reach: "javoblar va ulashishlar", trust: "ko‘rishlar", sale: "buyurtmalar", engage: "reaksiyalar va javoblar", grow: "yangi obunachilar" },
+  ru: { reach: "ответы и пересылки", trust: "просмотры", sale: "заказы", engage: "реакции и ответы", grow: "новые подписчики" },
+  en: { reach: "replies and forwards", trust: "views", sale: "orders", engage: "reactions and replies", grow: "new subscribers" },
 };
 
 const PILLAR_NAME: Record<Lang, Record<Goal, string>> = {
-  uz: { reach: "Foydali va qiziq", trust: "Ishonch", sale: "Sotuv" },
-  ru: { reach: "Польза и вовлечение", trust: "Доверие", sale: "Продажи" },
-  en: { reach: "Useful and engaging", trust: "Trust", sale: "Sales" },
+  uz: { reach: "Foydali va qiziq", trust: "Ishonch", sale: "Sotuv", engage: "Muloqot", grow: "O‘sish" },
+  ru: { reach: "Польза и вовлечение", trust: "Доверие", sale: "Продажи", engage: "Общение", grow: "Рост" },
+  en: { reach: "Useful and engaging", trust: "Trust", sale: "Sales", engage: "Conversation", grow: "Growth" },
 };
 
 /** When the model's offer used terms the owner never gave: the offer's shape; the terms are the owner's call. */
@@ -180,7 +180,7 @@ export async function buildLaunchStrategy(inp: LaunchInput) {
     return item;
   });
 
-  const shares = { reach: 0, trust: 0, sale: 0 } as Record<Goal, number>;
+  const shares: Record<Goal, number> = { reach: 0, trust: 0, sale: 0, engage: 0, grow: 0 };
   for (const s of slots) shares[s.goal]++;
   const clean = (x: string) => stripIdsAll(x);
   const offerOk = d && d.offer.trim() && !unsupported(description, d.offer).length;
