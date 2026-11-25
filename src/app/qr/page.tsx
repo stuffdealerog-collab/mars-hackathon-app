@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import QRCode from "qrcode";
 import { Suspense } from "react";
 import { getEnv } from "@/lib/env";
+import { sourceCategory } from "@/lib/source-category";
 import PrintButton from "./print-button";
 
 export const metadata: Metadata = { title: "QR code", robots: { index: false } };
@@ -54,6 +55,11 @@ async function QrContent({ searchParams }: { searchParams: PageProps<"/qr">["sea
         className="h-auto w-full max-w-[480px] rounded-xl bg-white p-2"
       />
       <p className="break-all font-mono text-lg">{link}</p>
+      {src && (
+        <p className="no-print text-sm text-muted">
+          Counted on /stats as <span className="font-mono">{sourceCategory(`src_${src}`)}</span>
+        </p>
+      )}
       {raw && !src && (
         <p className="no-print text-sm text-bad">
           Invalid source. Use 1–60 characters: letters, digits, _ or -.

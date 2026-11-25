@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { bucketSources, eventStartPayload, sourceCategory } from "../src/lib/source-category";
+import { bucketSources, eventStartPayload, sourceCategory, storedSourceCategory } from "../src/lib/source-category";
 import { statsGate } from "../src/lib/stats-access";
 
 const UUID = "3f2a9c1e-5b7d-4e8f-9a0b-1c2d3e4f5a6b";
@@ -42,14 +42,47 @@ describe("sourceCategory", () => {
     expect(sourceCategory("a".repeat(65))).toBe("other");
   });
 
-  it("is empty for no payload and idempotent", () => {
+  it("keeps the owner's /qr label after src_ (only ids hidden in it are dropped)", () => {
+    expect(sourceCategory("src_booth_1")).toBe("booth_1");
+    expect(sourceCategory("src_booth_2")).toBe("booth_2");
+    expect(sourceCategory("src_booth_1")).not.toBe(sourceCategory("src_booth_2"));
+    expect(sourceCategory("src_tashkent2026")).toBe("tashkent2026");
+    expect(sourceCategory("src_techstars2026")).toBe("techstars2026");
+    expect(sourceCategory("src_expo_2026")).toBe("expo_2026");
+    expect(sourceCategory("src_Flyer-A")).toBe("flyer-a");
+    expect(sourceCategory(`src_${"x".repeat(60)}`)).toBe("x".repeat(32));
+    expect(sourceCategory(`src_${UUID}`)).toBe("other");
+    expect(sourceCategory(`src_booth_${UUID.replace(/-/g, "")}`)).toBe("other");
+    expect(sourceCategory("src_a1b2c3d4e5f6a7b8")).toBe("other");
+    expect(sourceCategory(`src_brand_${UUID}`)).toBe("brand");
+    expect(sourceCategory("src_")).toBe("other");
+  });
+
+  it("is empty for no payload, and a stored category reads back as itself", () => {
     expect(sourceCategory(null)).toBeNull();
     expect(sourceCategory(undefined)).toBeNull();
     expect(sourceCategory("  ")).toBeNull();
-    for (const p of [`publish_${UUID}`, `brand_${UUID}`, "src_k3x9qa_4", "src_booth1", "utm_source_ig", UUID]) {
-      const once = sourceCategory(p);
-      expect(sourceCategory(once)).toBe(once);
+    const payloads = [
+      `publish_${UUID}`, `brand_${UUID}`, "src_k3x9qa_4", "src_booth1", "src_booth_1", "src_tashkent2026",
+      "src_expo_2026", "utm_source_ig", "ref_42", "tg_ads_2026", "landing", UUID, "has space",
+    ];
+    for (const p of payloads) {
+      const stored = sourceCategory(p);
+      expect(storedSourceCategory(stored)).toBe(stored);
     }
+  });
+});
+
+describe("storedSourceCategory (rows from before categories hold the payload minus src_)", () => {
+  it("keeps old /qr labels and still hides old ids", () => {
+    expect(storedSourceCategory("booth_1")).toBe("booth_1");
+    expect(storedSourceCategory("tashkent2026")).toBe("tashkent2026");
+    expect(storedSourceCategory("k3x9qa_4")).toBe("plan");
+    expect(storedSourceCategory(`publish_${UUID}_ru`)).toBe("publish");
+    expect(storedSourceCategory(`brand_${UUID}`)).toBe("brand");
+    expect(storedSourceCategory(UUID)).toBe("other");
+    expect(storedSourceCategory(`x_${"z".repeat(61)}`)).toBe(`x_${"z".repeat(30)}`);
+    expect(storedSourceCategory(null)).toBeNull();
   });
 });
 
