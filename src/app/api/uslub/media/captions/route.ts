@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { handle, json, rateLimit, readJson } from "@/lib/uslub/http";
 import { autoCues, normalizeCues, toAss, toSrt, toWebVtt } from "@/lib/uslub/media/captions";
+import { labsGate } from "@/lib/ops/labs";
 
 const Cue = z.object({ start: z.number().min(0).max(600), end: z.number().min(0).max(600), text: z.string().max(200) });
 
@@ -24,6 +25,8 @@ const TYPES = { vtt: "text/vtt; charset=utf-8", srt: "application/x-subrip; char
  * Captions are always our overlay: video models garble Uzbek letters.
  */
 export const POST = handle(async (req) => {
+  const closed = labsGate("media/captions"); // no screen calls this route: 404 unless LABS_ROUTES names it
+  if (closed) return closed;
   rateLimit(req, "media_captions", 30);
   const b = await readJson(req, Body);
   const cues = b.cues?.length ? normalizeCues(b.cues, b.seconds, b.lang) : autoCues(b.lines ?? [], b.seconds, b.lang);

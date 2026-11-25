@@ -40,6 +40,8 @@ export interface MediaJobRepo {
   update(job: MediaJob): Promise<void>;
   /** Billable jobs of a kind since `sinceIso`: app-wide, for one owner, brand and anonymous caller (a cheap pre-check). */
   countSince?(sinceIso: string, kind: MediaKind, keys: QuotaKeys): Promise<QuotaUsage>;
+  /** Ids of queued/running jobs created before `createdBeforeIso`, oldest first (for the stuck-job sweep). */
+  listOpen?(createdBeforeIso: string, limit: number): Promise<string[]>;
 }
 
 /** Counts toward a quota: inside the window, same kind, and not refused at submit. */
@@ -71,6 +73,15 @@ export class MemoryMediaJobRepo implements MediaJobRepo {
 
   async countSince(sinceIso: string, kind: MediaKind, keys: QuotaKeys) {
     return this.count(sinceIso, kind, keys);
+  }
+
+  async listOpen(createdBeforeIso: string, limit: number): Promise<string[]> {
+    const before = Date.parse(createdBeforeIso);
+    return [...this.jobs.values()]
+      .filter((j) => (j.status === "queued" || j.status === "running") && Date.parse(j.createdAt) < before)
+      .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+      .slice(0, limit)
+      .map((j) => j.id);
   }
 
   private count(sinceIso: string, kind: MediaKind, keys: QuotaKeys): QuotaUsage {

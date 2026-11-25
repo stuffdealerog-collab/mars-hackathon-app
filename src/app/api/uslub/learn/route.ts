@@ -3,6 +3,7 @@ import { learnFor } from "@/lib/uslub/brain/learn-run";
 import { toHttp } from "@/lib/uslub/brain/route-utils";
 import { normalizeChannel, scrapeChannelData } from "@/lib/uslub/brain/scrape";
 import { HttpError, handle, json, loadBrandFor, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
+import { labsGate } from "@/lib/ops/labs";
 
 export const maxDuration = 30;
 
@@ -18,6 +19,8 @@ const Body = z.object({
  * outcomes[i].status: not_found | too_early | early (≥20 h, age-adjusted) | final (72 h).
  */
 export const POST = handle(async (req) => {
+  const closed = labsGate("learn"); // no screen calls this route: 404 unless LABS_ROUTES names it
+  if (closed) return closed;
   rateLimit(req, "brain-learn", 10);
   const body = await readJson(req, Body);
   let channel = body.channel ? normalizeChannel(body.channel) : null;

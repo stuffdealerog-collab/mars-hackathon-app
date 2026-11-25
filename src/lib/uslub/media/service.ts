@@ -1,10 +1,11 @@
 import "server-only";
 import { isDbConfigured } from "@/lib/db";
+import { imageBalanceText, notifyOps } from "@/lib/ops/alert";
 import { configSecrets, readMediaConfig, type MediaConfig } from "./config";
 import { MediaJobs } from "./jobs";
 import { PgMediaJobRepo } from "./pg-repo";
 import { publicPresets } from "./presets";
-import type { MediaProvider } from "./provider";
+import { isBalanceError, redactSecrets, type MediaProvider } from "./provider";
 import { demoProvider } from "./providers/demo";
 import { falProvider } from "./providers/fal";
 import { higgsfieldProvider } from "./providers/higgsfield";
@@ -42,7 +43,14 @@ export function media() {
     anonDailyLimit: config.anonDailyLimit,
     anonActorDailyLimit: config.anonActorDailyLimit,
     image: config.image,
+    imageTimeoutMs: config.imageTimeoutMs,
     secrets: () => configSecrets(config),
+    // A provider out of money fails every picture until someone tops it up: tell the team (once an hour).
+    onSubmitError: async (provider, err) => {
+      if (!isBalanceError(err)) return;
+      const detail = redactSecrets(err instanceof Error ? err.message : String(err), configSecrets(config));
+      await notifyOps("image_balance", imageBalanceText(provider, detail));
+    },
   });
   cached = { jobs, config, providers };
   return cached;

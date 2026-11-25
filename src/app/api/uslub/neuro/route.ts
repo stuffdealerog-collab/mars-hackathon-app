@@ -3,6 +3,7 @@ import { cleanText } from "@/lib/uslub/editor";
 import { spendClaude } from "@/lib/uslub/budget";
 import { handle, json, rateLimit, readJson, telegramUserId } from "@/lib/uslub/http";
 import { analyzeNeuro } from "@/lib/uslub/neuro";
+import { labsGate } from "@/lib/ops/labs";
 
 export const maxDuration = 60;
 
@@ -20,6 +21,8 @@ const Body = z.object({
  * The editor never adds facts: a rewrite that invents numbers/dates/promos is replaced by a deletion-only edit.
  */
 export const POST = handle(async (req) => {
+  const closed = labsGate("neuro"); // no screen calls this route: 404 unless LABS_ROUTES names it
+  if (closed) return closed;
   rateLimit(req, "neuro", 30);
   const body = await readJson(req, Body);
   if (body.rewrite === false) {

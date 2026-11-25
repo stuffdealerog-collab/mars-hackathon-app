@@ -9,6 +9,7 @@ import { findLeads } from "@/lib/uslub/radar";
 import { classifySensitivity } from "@/lib/uslub/sensitivity";
 import { countPublished, publicBrand, savePosts } from "@/lib/uslub/store";
 import { planVideo } from "@/lib/uslub/video";
+import { labsGate } from "@/lib/ops/labs";
 
 export const maxDuration = 90;
 
@@ -48,6 +49,8 @@ const errMsg = (r: PromiseSettledResult<unknown>) => (r.status === "rejected" ? 
  * after the Brand DNA; each part fails independently. (Extra route, not in the contract.)
  */
 export const POST = handle(async (req) => {
+  const closed = labsGate("department"); // no screen calls this route: 404 unless LABS_ROUTES names it
+  if (closed) return closed;
   rateLimit(req, "department", 4);
   const body = await readJson(req, Body);
   if (!body.channel && !body.knowledge?.trim()) throw new HttpError(400, "Send a channel or knowledge", "knowledge_needed");

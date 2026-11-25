@@ -1,10 +1,10 @@
-import { connection } from "next/server";
+import { after, connection } from "next/server";
 import { z } from "zod";
 import { safeLogEvent } from "@/lib/track";
 import { assertDraftAccess, clientIp, HttpError, json, loadBrandFor, rateLimit, telegramUserId } from "@/lib/uslub/http";
 import { readMediaConfig } from "@/lib/uslub/media/config";
-import { planPostImageStart, pollPostImage, PostImageLimitError, publicPostImage, startPostImage } from "@/lib/uslub/media/post-image";
-import { ensureVisual, postImageDeps } from "@/lib/uslub/media/post-image-service";
+import { isPendingImage, planPostImageStart, pollPostImage, PostImageLimitError, publicPostImage, startPostImage } from "@/lib/uslub/media/post-image";
+import { ensureVisual, maybeSweepStuckMediaJobs, postImageDeps } from "@/lib/uslub/media/post-image-service";
 import { getPostForImage } from "@/lib/uslub/media/post-repo";
 import { langOf, parseLang, PictureError, pictureErrorResponse, pictureErrorText, type Lang } from "@/lib/uslub/media/route-errors";
 import { downloadImage, ImageInputError, parseDataUrl } from "@/lib/uslub/visual/images";
@@ -62,6 +62,8 @@ export async function POST(req: Request): Promise<Response> {
   let lang: Lang = langOf(req);
   try {
     rateLimit(req, "post_image", 30);
+    // Pictures nobody is polling any more (closed tabs) are finished or failed after the answer.
+    after(() => maybeSweepStuckMediaJobs());
     let raw: unknown;
     try {
       raw = await req.json();
@@ -79,6 +81,9 @@ export async function POST(req: Request): Promise<Response> {
     await assertDraftAccess(brand, telegramId);
     const deps = postImageDeps(); // 503 without fal, before anything else
 
+    // A picture shown as rendering may have finished, or got stuck, while nobody polled: bring it up to
+    // date first, so "another variant" is never blocked by a job that is already over.
+    if (isPendingImage(post.image)) post.image = await pollPostImage({ post, actor: { telegramId } }, deps).catch(() => post.image);
     const plan = planPostImageStart(post.image, Boolean(body.regenerate || body.photo));
     if (plan === "existing") return json({ image: publicPostImage(post.image!) });
     if (plan === "limit") throw new PictureError(429, "post_limit");

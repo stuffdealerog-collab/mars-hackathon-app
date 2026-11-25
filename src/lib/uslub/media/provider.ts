@@ -73,6 +73,19 @@ export class ProviderError extends Error {
   }
 }
 
+const BALANCE_RE = /exhausted balance|user is locked|insufficient|top ?up|balance|billing|credits?\b|payment required/i;
+
+/**
+ * The provider refused because the account has no money (fal: "403: User is locked. Reason: Exhausted
+ * balance"; Higgsfield: "insufficient API balance"). Retrying cannot help: the team must top it up.
+ * Only 401/402/403 count, and only with money words: a plain 403 "not allowed" is something else.
+ */
+export function isBalanceError(err: unknown): boolean {
+  if (!(err instanceof ProviderError)) return false;
+  if (err.status === 402) return true;
+  return (err.status === 401 || err.status === 403) && BALANCE_RE.test(err.message);
+}
+
 /** Removes anything that looks like a credential from a provider error before we store or show it. */
 export function redactSecrets(text: string, secrets: (string | undefined)[] = []): string {
   let out = text;
