@@ -34,6 +34,15 @@ describe("facts about events that are already over (E3)", () => {
     expect([...past.keys()].sort()).toEqual(["F1", "F4"]);
     expect(past.get("F1")).toBe("2026-11-02");
   });
+
+  it("a promotion from an old post that still runs on the plan's first day stays current", () => {
+    const kb = "[2026-11-01] Aksiya 1-noyabrdan 31-dekabrgacha: har bir tortga 10% chegirma!\n\n[2026-10-01] Aksiya 1-oktabrdan 20-oktabrgacha edi.";
+    const facts = [
+      { id: "F1", type: "offer", quote: "Aksiya 1-noyabrdan 31-dekabrgacha: har bir tortga 10% chegirma!" },
+      { id: "F2", type: "offer", quote: "Aksiya 1-oktabrdan 20-oktabrgacha edi." },
+    ];
+    expect([...pastFacts(facts, kb, FIRST_DAY).keys()]).toEqual(["F2"]);
+  });
 });
 
 describe("plan items that repeat each other (E4)", () => {

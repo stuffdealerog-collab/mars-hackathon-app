@@ -13,16 +13,19 @@ const Body = z.object({
   lang: z.enum(["uz", "ru", "en"]).optional(),
   category: z.string().trim().max(80).optional(),
   stream: z.boolean().optional(),
-  /** true = write the findings again even if this channel was explained in the last 12 h. */
+  /** true = analyze again even if this channel was analyzed in the last 24 h. */
   refresh: z.boolean().optional(),
 });
 
 /**
  * POST { channel, competitors?, lang?, category?, stream?, refresh? }
- * The written findings (the paid part) are reused for 12 h while the channel has no new post; refresh:true writes them
- * again. A channel with nothing to audit answers 422 channel_empty before any Claude call.
- *   -> { audit: ChannelAudit, ledger, rules, firedRules, findings, stats }
- * With stream=true: NDJSON {stage,...} events, then {stage:"result", ...}.
+ * An analysis of the same channel (language, competitors, category) from the last 24 h comes back as it was:
+ * cached: true, analyzedAt = when the channel was read; no scrape, no paid step, no budget unit. refresh:true
+ * analyzes again (the written findings are still reused while the channel has no new post). A channel with nothing
+ * to audit answers 422 channel_empty before any Claude call.
+ *   -> { audit: ChannelAudit, analyzedAt, cached, ledger, rules, firedRules, findings, stats }
+ *   stats.viewsAboveSubs: views exceed subscribers, so audit.reachRate is capped at 1 (show "views > subscribers").
+ * With stream=true: NDJSON {stage,...} events, then {stage:"result", ...}; a saved analysis sends {stage:"cached"}.
  */
 export const POST = handle(async (req) => {
   rateLimit(req, "brain-analyze", 6);

@@ -280,8 +280,21 @@ export function assembleAudit(a: Analysis, findings: Finding[], lang: Lang = "uz
   };
 }
 
-/** Written findings are reused this long for the same channel, language, competitors and newest post. */
-export const AUDIT_CACHE_MS = 12 * 3600_000;
+/**
+ * How long an analysis stays fresh: reopening the channel within it shows the saved analysis (no scrape, no paid
+ * step, no new stats row); `refresh: true` runs it again. The written findings are reused as long for the same
+ * channel, language, competitors and newest post.
+ */
+export const ANALYSIS_FRESH_MS = 24 * 3600_000;
+export const AUDIT_CACHE_MS = ANALYSIS_FRESH_MS;
+
+/** Cache key of a whole saved analysis: the same channel, language, competitors, category (and brand, if given). */
+export function analysisViewKey(input: { channel: string; competitors?: string[]; category?: string; brandId?: string }, lang: Lang): string {
+  const channel = normalizeChannel(input.channel) ?? input.channel.trim().toLowerCase();
+  const comps = [...(input.competitors ?? [])].map((c) => normalizeChannel(c) ?? c.toLowerCase()).sort();
+  const raw = JSON.stringify(["v1", channel, lang, comps, (input.category ?? "").trim().toLowerCase(), input.brandId ?? ""]);
+  return `auditview:${createHash("sha256").update(raw).digest("hex").slice(0, 32)}`;
+}
 
 /** Cache key of an audit's written findings: a new post on the channel (or other competitors) makes a new key. */
 export function auditCacheKey(a: Pick<Analysis, "data">, input: { competitors?: string[]; category?: string }, lang: Lang): string {
@@ -298,12 +311,30 @@ export async function runAudit(input: {
   category?: string;
   brandId?: string;
   onStage?: OnStage;
-  /** true = write the findings again even if this channel was explained in the last 12 h. */
+  /** true = analyze again even if this channel was analyzed in the last 24 h (ANALYSIS_FRESH_MS). */
   refresh?: boolean;
   /** Runs right before the paid Claude step (not on a cache hit): the route takes its daily budget unit here. */
   beforeLlm?: () => Promise<void>;
 }) {
   const lang = input.lang ?? "uz";
+  // A fresh saved analysis comes back as it was: reopening a brand never pays for the same analysis twice.
+  const viewKey = analysisViewKey(input, lang);
+  const saved = input.refresh ? null : await loadBrainCache<SavedAnalysis>(viewKey, ANALYSIS_FRESH_MS).catch(() => null);
+  if (saved?.audit) {
+    input.onStage?.({ stage: "cached", analyzedAt: saved.analyzedAt });
+    input.onStage?.({ stage: "done" });
+    return { ...saved, cached: true as const };
+  }
+  const result = await analyzeFresh(input, lang);
+  // Template fallbacks (the model failed) are not kept: the next open tries the real explanation again.
+  // Awaited (a few ms against a minute-long analysis): a serverless function may stop once the answer is sent.
+  if (!result.findings.length || result.findings.some((f) => !f.template)) await saveBrainCache(viewKey, result).catch(() => undefined);
+  return { ...result, cached: false as const };
+}
+
+type SavedAnalysis = Awaited<ReturnType<typeof analyzeFresh>>;
+
+async function analyzeFresh(input: Parameters<typeof runAudit>[0], lang: Lang) {
   const a = await analyzeDeterministic(input);
   // An empty channel has nothing to audit: the Studio switches to fresh mode (launch plan from the owner's description).
   if (a.data.posts.length < MIN_CHANNEL_POSTS) throw channelEmpty(a.data.channel, a.data.posts.length ? "few_posts" : "no_preview", a.data.posts.length);
@@ -330,6 +361,8 @@ export async function runAudit(input: {
   input.onStage?.({ stage: "done" });
   return {
     audit,
+    /** When the channel was read for this analysis (a saved analysis keeps its time). */
+    analyzedAt: new Date().toISOString(),
     ledger: a.ledger,
     rules: a.rules,
     firedRules: a.rules.filter((r) => r.status === "fired"),

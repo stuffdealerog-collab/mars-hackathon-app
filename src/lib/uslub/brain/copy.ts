@@ -1,4 +1,6 @@
 /** Customer-facing copy helpers for the planner (pure). */
+import { normalizePrices } from "../price";
+
 const ID = String.raw`(?:S\.[A-Za-z_][\w-]*(?:\.[\w-]+)*|F\d+|W\d+|P\.\w+\/\d+|R\.[A-Z_]+)`;
 // Unambiguous: ids separated by commas, so the engine never backtracks between two ways to split a list.
 const ID_LIST = new RegExp(String.raw`\s*[[(]\s*${ID}(?:\s*,\s*${ID})*\s*[\])]`, "g");
@@ -23,7 +25,8 @@ const LABELS: Record<string, Record<"uz" | "ru" | "en", string>> = {
 
 export function ownerText(t: string, lang: "uz" | "ru" | "en"): string {
   const ref = { uz: "ma’lumotlaringiz", ru: "ваших данных", en: "your details" }[lang];
-  return t
+  // A plan writes prices the way its posts will: 12 000 soʻm · 12 000 сум · 12,000 UZS.
+  return normalizePrices(t, lang === "uz" ? "uz_latn" : lang)
     // English labels the model leaves in a uz or ru brief ("Angle: …", "Facts: …"), and the word "ledger".
     .replace(/(^|[\n;.]\s*|\s—\s*)(Angle|Facts|Photo|Shoot|Video|Audience|Pain)\s*:/g, (_m, pre: string, label: string) => `${pre}${LABELS[label.toLowerCase()][lang]}:`)
     .replace(/\b(the |our |your )?ledger\b/gi, ref)

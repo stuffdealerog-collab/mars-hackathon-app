@@ -35,11 +35,23 @@ export function fmtInt(x: number, lang: Lang = "uz"): string {
   return s.replace(/\B(?=(\d{3})+(?!\d))/g, lang === "en" ? "," : " ");
 }
 
-const WORDS: Record<Lang, { views: string; starts: string; none: string; prior: string }> = {
-  uz: { views: "ko'rish", starts: "botga o'tish", none: "prognoz yo'q: ko'rishlar tarixi yetarli emas", prior: "taxminiy" },
-  ru: { views: "просмотров", starts: "переходов в бота", none: "прогноза нет: мало истории просмотров", prior: "ориентир" },
-  en: { views: "views", starts: "bot starts", none: "no forecast: not enough view history", prior: "rule of thumb" },
+const WORDS: Record<Lang, { views: string; starts: string; none: string; prior: string; guide: string }> = {
+  uz: { views: "ko'rish", starts: "botga o'tish", none: "prognoz yo'q: ko'rishlar tarixi yetarli emas", prior: "taxminiy", guide: "mo'ljal" },
+  ru: { views: "просмотров", starts: "переходов в бота", none: "прогноза нет: мало истории просмотров", prior: "ориентир", guide: "ориентир" },
+  en: { views: "views", starts: "bot starts", none: "no forecast: not enough view history", prior: "rule of thumb", guide: "rough guide" },
 };
+
+/** Fewer recent posts than this behind the base: the range is wider and no uplift is promised. */
+export const MIN_RECENT_N = 5;
+
+/**
+ * The views a new post gets, as the 72 h targets and forecasts use them: the median of the newest posts
+ * (recentMedianViews), else the 90-day median. Undefined without view history.
+ */
+export const baseViews = (stats: Pick<ChannelStats, "recentMedianViews" | "medianViews"> | undefined) => stats?.recentMedianViews ?? stats?.medianViews;
+
+/** Few recent posts or a cold start: a target stays at today's level (no "+20%"). */
+export const steadyBase = (stats: Pick<ChannelStats, "coldStart" | "recentMedianN"> | undefined) => !stats || stats.coldStart || stats.recentMedianN < MIN_RECENT_N;
 
 export function forecastSlot(
   slot: { goal: Goal; format: string; time: string; weekday: number },
@@ -53,8 +65,8 @@ export function forecastSlot(
   let views: Forecast["views"];
   let confidence: Forecast["confidence"] = "none";
 
-  if (stats?.medianViews != null) {
-    const base = stats.medianViews;
+  const base = baseViews(stats);
+  if (stats && base != null) {
     let mult = 1;
     if (!stats.coldStart) {
       const hb = hourBucket(Number.parseInt(slot.time.slice(0, 2), 10));
@@ -73,8 +85,10 @@ export function forecastSlot(
     const mid = base * mult;
     const lifts = stats.lifts.map((x) => x.lift);
     const [lo, hi] = lifts.length >= 10 ? [quantile(lifts, 0.25), quantile(lifts, 0.75)] : [0.65, 1.35];
-    views = { low: Math.round(mid * Math.min(lo, 0.95)), mid: Math.round(mid), high: Math.round(mid * Math.max(hi, 1.05)) };
-    basis.unshift("S.medianViews");
+    // A base from a handful of posts is noisy: the range says so.
+    const [wLo, wHi] = steadyBase(stats) ? [0.8, 1.25] : [1, 1];
+    views = { low: Math.round(mid * Math.min(lo, 0.95) * wLo), mid: Math.round(mid), high: Math.round(mid * Math.max(hi, 1.05) * wHi) };
+    basis.unshift(stats.recentMedianViews != null ? "S.recentMedianViews" : "S.medianViews");
     confidence = stats.coldStart ? "baseline" : "data";
   } else if (bench?.reachRate && stats?.subscribers) {
     const s = stats.subscribers;
@@ -93,5 +107,29 @@ export function forecastSlot(
   const v = `≈${fmtInt(views.mid, lang)} ${w.views} (${fmtInt(views.low, lang)}–${fmtInt(views.high, lang)})`;
   const st = starts ? ` · ${starts.low}–${starts.high} ${w.starts}${starts.source === "prior" ? ` (${w.prior})` : ""}` : "";
   const conf = confidence === "benchmark" ? ` · ${lang === "uz" ? "nisha bo'yicha" : lang === "ru" ? "по нише" : "niche benchmark"}` : "";
-  return { status: "ok", views, starts, basis, confidence, display: `${v}${st}${conf}` };
+  // Only the channel's own history is a forecast; a cold start or a niche median is a guide, and says so.
+  const label = confidence === "data" ? "" : `${w.guide}: `;
+  return { status: "ok", views, starts, basis, confidence, display: `${label}${v}${st}${conf}` };
+}
+
+const WEEKDAY_SHORT: Record<Lang, string[]> = {
+  uz: ["du", "se", "chor", "pay", "ju", "sha", "yak"],
+  ru: ["пн", "вт", "ср", "чт", "пт", "сб", "вс"],
+  en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+};
+
+const TIME_LABEL: Record<Lang, { measured: string; guide: string }> = {
+  uz: { measured: "Kanalingiz bo‘yicha eng yaxshi vaqt", guide: "Taxminiy vaqt" },
+  ru: { measured: "Лучшее время по вашему каналу", guide: "Ориентир по времени" },
+  en: { measured: "Best time on your channel", guide: "Suggested time" },
+};
+
+/**
+ * The owner's label for a slot's time: "best time" only when the channel's own posts (timeSource "data") or measured
+ * results ("learned") back it; a rule of thumb or a niche median is a suggestion ("Ориентир по времени: чт 12:40").
+ */
+export function bestTimeLabel(slot: { weekday: number; time: string; timeSource?: string }, lang: Lang = "uz"): string {
+  const t = TIME_LABEL[lang] ?? TIME_LABEL.uz;
+  const measured = slot.timeSource === "data" || slot.timeSource === "learned";
+  return `${measured ? t.measured : t.guide}: ${(WEEKDAY_SHORT[lang] ?? WEEKDAY_SHORT.uz)[slot.weekday] ?? ""} ${slot.time}`.replace(/\s+/g, " ").trim();
 }

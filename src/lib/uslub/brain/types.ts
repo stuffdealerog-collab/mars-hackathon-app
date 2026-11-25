@@ -65,7 +65,14 @@ export interface ChannelStats {
   maturePosts: number;
   medianViews?: number;
   medianLowConfidence: boolean;
+  /** Median views of the newest ≤10 mature posts of the last 30 days (else the newest 5): what a new post gets. */
+  recentMedianViews?: number;
+  recentMedianN: number;
+  /** Share of subscribers who see a post, at most 1 (see viewsPerSubscriber for the raw ratio). */
   reachRate?: number;
+  /** medianViews / subscribers, uncapped: above 1 when posts reach people beyond the subscribers. */
+  viewsPerSubscriber?: number;
+  viewsAboveSubs: boolean;
   postsPerWeek: number;
   maxGapDays?: number;
   viewTrend?: number;

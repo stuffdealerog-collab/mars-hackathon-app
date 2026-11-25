@@ -260,7 +260,14 @@ export function computeStats(data: ChannelData, now: number, opts: { kbAddress?:
   const views = (ps: RawPost[]) => ps.map((p) => p.views as number);
 
   const medianViews = mature.length >= 3 ? median(views(mature.slice(0, 30))) : undefined;
-  const reachRate = medianViews != null && data.subscribers ? medianViews / data.subscribers : undefined;
+  // What a new post gets: the newest ≤10 mature posts of the last 30 days (else the newest 5). Old posts keep
+  // collecting views for months, so the 90-day median overstates a fresh post (forecast 1 729–3 591 vs 546 real).
+  const last30 = mature.filter((p) => now - Date.parse(p.postedAt) <= 30 * DAY).slice(0, 10);
+  const recentPool = last30.length >= 5 ? last30 : mature.slice(0, 5);
+  const recentMedianViews = recentPool.length >= 3 ? median(views(recentPool)) : undefined;
+  // Views per subscriber can pass 1 (forwards, search, old posts): reach is a share, so it stops at 100%.
+  const viewsPerSubscriber = medianViews != null && data.subscribers ? medianViews / data.subscribers : undefined;
+  const reachRate = viewsPerSubscriber != null ? Math.min(1, viewsPerSubscriber) : undefined;
 
   // cadence
   const times = data.posts.map((p) => Date.parse(p.postedAt)).sort((a, b) => a - b);
@@ -348,7 +355,11 @@ export function computeStats(data: ChannelData, now: number, opts: { kbAddress?:
     maturePosts: mature.length,
     medianViews,
     medianLowConfidence: mature.length < MIN_CHANNEL_N,
+    recentMedianViews,
+    recentMedianN: recentMedianViews != null ? recentPool.length : 0,
     reachRate,
+    viewsPerSubscriber,
+    viewsAboveSubs: viewsPerSubscriber != null && viewsPerSubscriber > 1,
     postsPerWeek,
     maxGapDays,
     viewTrend,

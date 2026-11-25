@@ -16,10 +16,11 @@ vi.mock("@/lib/uslub/llm", () => ({ getAnthropic: () => { throw new Error("no mo
 
 const fixture = loadFixtures().find((f) => f.data.posts.length >= 20);
 let channel = fixture ? structuredClone(fixture.data) : null;
+const scrapeChannelData = vi.fn(async () => structuredClone(channel));
 vi.mock("../src/lib/uslub/brain/scrape", () => ({
   BrainScrapeError: class extends Error {},
   normalizeChannel: (c: string) => c.replace(/^@/, "").toLowerCase(),
-  scrapeChannelData: async () => structuredClone(channel),
+  scrapeChannelData,
 }));
 
 /** The model explains every fired rule in one plain Uzbek sentence pair, ids at the end (what D1 asks for). */
@@ -58,7 +59,20 @@ describe.skipIf(!fixture)("the audit's written findings are reused (E5)", () => 
     expect(second.audit.findings).toEqual(first.audit.findings);
   });
 
-  it("another language, refresh:true, or a new post on the channel writes them again", async () => {
+  // QA 2026-11-25: reopening a brand still re-read the channel and added a stats row each time (57 rows for 21
+  // channels). A whole analysis under 24 h old now comes back as it was.
+  it("reopening within 24 h does not read the channel again", async () => {
+    scrapeChannelData.mockClear();
+    const again = await runAudit({ channel: `@${handle}`, lang: "ru" });
+    expect(again.cached).toBe(true);
+    expect(scrapeChannelData).not.toHaveBeenCalled();
+    expect(Date.parse(again.analyzedAt)).toBeLessThanOrEqual(Date.now());
+    const fresh = await runAudit({ channel: handle, lang: "ru", refresh: true });
+    expect(fresh.cached).toBe(false);
+    expect(scrapeChannelData).toHaveBeenCalledTimes(1);
+  });
+
+  it("another language or refresh:true analyzes again; a new post is picked up after 24 h or on refresh", async () => {
     brainJson.mockClear();
     await runAudit({ channel: handle, lang: "en" });
     expect(brainJson).toHaveBeenCalledTimes(1);
@@ -66,8 +80,12 @@ describe.skipIf(!fixture)("the audit's written findings are reused (E5)", () => 
     expect(brainJson).toHaveBeenCalledTimes(2);
     const newest = Math.max(...(channel?.posts ?? []).map((p) => p.id));
     channel = { ...(channel as NonNullable<typeof channel>), posts: [{ ...(channel as NonNullable<typeof channel>).posts[0], id: newest + 1 }, ...(channel as NonNullable<typeof channel>).posts] };
-    await runAudit({ channel: handle, lang: "ru" });
+    expect((await runAudit({ channel: handle, lang: "ru" })).cached).toBe(true);
+    expect(brainJson).toHaveBeenCalledTimes(2);
+    vi.setSystemTime(new Date(Date.parse(fixture?.capturedAt ?? "") + 25 * 3600_000));
+    expect((await runAudit({ channel: handle, lang: "ru" })).cached).toBe(false);
     expect(brainJson).toHaveBeenCalledTimes(3);
+    vi.setSystemTime(new Date(fixture?.capturedAt ?? ""));
   });
 
   it("a channel with nothing in the last 90 days answers channel_empty before any Claude call (E12b)", async () => {

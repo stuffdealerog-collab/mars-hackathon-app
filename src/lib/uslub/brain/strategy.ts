@@ -8,6 +8,7 @@ import type { ChannelSummary } from "./bench";
 import { upcomingEvents } from "./calendar";
 import type { StoredPlanItem } from "./learn";
 import { extractIds, groundedCheck, jaccard, lintItem, trigrams, type CheckFail, type LintItem } from "./lint";
+import { bestTimeLabel } from "./forecast";
 import { brainJson, GROUNDING, HAIKU, SONNET } from "./llm";
 import { loadFactsCache, newPlanTag, saveFactsCache, savePlan } from "./memory";
 import { scrapeChannelData } from "./scrape";
@@ -625,6 +626,8 @@ export async function buildStrategy(inp: StrategyInput) {
       // extras for the UI
       slot: s.slot,
       timeSource: s.timeSource,
+      // "Best time" only when the channel's own numbers back it; otherwise a suggestion (the UI shows this label).
+      timeLabel: bestTimeLabel(s, lang),
       exp: s.exp,
       hookType: it?.hookType && (s.hookOptions ?? []).includes(it.hookType) ? it.hookType : s.hookType,
       focus: s.focus,

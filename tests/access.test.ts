@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   brandSourceFor,
   canAccessBrand,
+  canReuseBrandRow,
   checkChatRights,
   checkPublishAccess,
+  isDnaStale,
   isReusableBrand,
+  mayRewriteBrandRow,
 } from "../src/lib/uslub/access";
 
 const NOW = Date.parse("2026-11-24T12:00:00Z");
@@ -105,5 +108,49 @@ describe("publish authorization", () => {
     const noBot = checkChatRights(owner, null, "https://t.me/bot?startchannel&admin=post_messages");
     expect(noBot.ok).toBe(false);
     if (!noBot.ok) expect(noBot.error).toContain("startchannel");
+  });
+});
+
+describe("canReuseBrandRow: a re-run of a channel returns only the caller's own row", () => {
+  const row = (ownerTelegramId: number | null, channel = "tort_uyi", mode = "channel") => ({ ownerTelegramId, channel, mode });
+
+  it("same channel, same caller", () => {
+    expect(canReuseBrandRow(row(null), { channel: "@Tort_Uyi", ownerTelegramId: null })).toBe(true);
+    expect(canReuseBrandRow(row(7), { channel: "tort_uyi", ownerTelegramId: 7 })).toBe(true);
+  });
+
+  it("never another user's row, never an unowned row for an owned caller", () => {
+    expect(canReuseBrandRow(row(7), { channel: "tort_uyi", ownerTelegramId: 8 })).toBe(false);
+    expect(canReuseBrandRow(row(7), { channel: "tort_uyi", ownerTelegramId: null })).toBe(false);
+    expect(canReuseBrandRow(row(null), { channel: "tort_uyi", ownerTelegramId: 7 })).toBe(false);
+  });
+
+  it("a web brand claimed in the bot stays with the browser that holds its id", () => {
+    expect(canReuseBrandRow(row(7), { channel: "tort_uyi", ownerTelegramId: null, claimed: true })).toBe(true);
+  });
+
+  it("another channel or a fresh-mode brand is never reused", () => {
+    expect(canReuseBrandRow(row(null, "boshqa"), { channel: "tort_uyi", ownerTelegramId: null })).toBe(false);
+    expect(canReuseBrandRow(row(null, "tort_uyi", "fresh"), { channel: "tort_uyi", ownerTelegramId: null })).toBe(false);
+    expect(canReuseBrandRow({ ownerTelegramId: null, channel: null }, { channel: "tort_uyi", ownerTelegramId: null })).toBe(false);
+  });
+});
+
+describe("a reused row is changed only by the one it belongs to, and only once its DNA is old", () => {
+  it("the owner, or the browser holding an unowned row; never a browser using a claimed row", () => {
+    expect(mayRewriteBrandRow({ ownerTelegramId: 7 }, 7)).toBe(true);
+    expect(mayRewriteBrandRow({ ownerTelegramId: null }, null)).toBe(true);
+    expect(mayRewriteBrandRow({ ownerTelegramId: 7 }, null)).toBe(false);
+    expect(mayRewriteBrandRow({ ownerTelegramId: 7 }, 8)).toBe(false);
+    expect(mayRewriteBrandRow({ ownerTelegramId: null }, 7)).toBe(false);
+  });
+
+  it("DNA age counts from its builtAt stamp, else from the row", () => {
+    expect(isDnaStale({ dna: {}, createdAt: hoursAgo(25) }, NOW)).toBe(true);
+    expect(isDnaStale({ dna: {}, createdAt: hoursAgo(1) }, NOW)).toBe(false);
+    // A row rebuilt an hour ago is fresh, however old the row itself is.
+    expect(isDnaStale({ dna: { builtAt: hoursAgo(1) }, createdAt: hoursAgo(300) }, NOW)).toBe(false);
+    expect(isDnaStale({ dna: { builtAt: hoursAgo(30) }, createdAt: hoursAgo(300) }, NOW)).toBe(true);
+    expect(isDnaStale({ dna: null, createdAt: "garbage" }, NOW)).toBe(true);
   });
 });

@@ -1,6 +1,6 @@
 /**
  * Launch plan skeleton for a fresh channel (0–few subscribers, no history). Pure.
- * Two weeks, 9 posts: the pinned "who we are / what we sell / how to order" post first, then product,
+ * Two weeks, 9 posts: the "who we are / what we sell / how to order" post first (the owner pins it), then product,
  * trust, one launch offer and two posts that invite replies. Times are rule-of-thumb Tashkent hours
  * (there is no channel data to learn them from yet).
  */
@@ -57,7 +57,7 @@ export function launchSkeleton(now: number): LaunchSlot[] {
 /** What each kind of slot is for (the writer's instruction, English). */
 export const KIND_BRIEF: Record<LaunchKind, string> = {
   intro:
-    "Pinned first post: who we are, what we sell (2–4 concrete products/services from the description), where/how we work, exactly how to order (the contact from the description; if there is none, 'write to us here'). Warm, short, no hype.",
+    "First post (the owner pins it in the channel; the post itself never says 'pinned' or 'закреплённый'): who we are, what we sell (2–4 concrete products/services from the description), where/how we work, exactly how to order (the contact from the description; if there is none, 'write to us here'). Warm, short, no hype.",
   product: "One product or service from the description: what it is, who it's for, price only if the description gives it (otherwise invite people to ask the admin for the price), how to order.",
   trust: "Why people can rely on this business: how it is made or done, the people behind it, the place, hygiene/quality steps, delivery terms — only what the description says; otherwise ask the owner for a real photo of the process.",
   tip: "A useful tip customers can use today, connected to the product (how to choose, store, use, care). No selling in the first lines.",
@@ -131,25 +131,25 @@ export function launchQuestions(sig: DescriptionSignals, lang: Lang): string[] {
 
 const S: Record<Lang, { noData: string; prices: string; noPrices: string; proof: string; time: string }> = {
   uz: {
-    noData: "Kanal ma’lumoti hali yo‘q: kanal yangi, ko‘rishlar va obunachilar hali kam. Reja tavsifingiz asosida tuzildi; birinchi raqamlarni 2 haftadan keyin o‘lchaymiz.",
+    noData: "Kanal ma’lumoti hali yo‘q: kanal yangi, ko‘rishlar va obunachilar hali kam. Reja tavsifingiz asosida tuzildi.",
     prices: "Narxlar: tavsifingizda bor, postlarda shu narxlar ishlatiladi.",
     noPrices: "Narxlar: tavsifda yo‘q — sotuv postlari hozircha narxni adminga so‘rashga chaqiradi; narxlarni yuborsangiz, postlarga qo‘shamiz.",
-    proof: "Ishonch dalillari (mijoz fikrlari, raqamlar): hali yo‘q — ularni birinchi haftada yig‘amiz.",
-    time: "Vaqtlar: kanal ma’lumoti yo‘qligi uchun taxminiy (12:40 va 20:40); 2 haftadan keyin o‘zingizning ko‘rishlaringiz bo‘yicha aniqlaymiz.",
+    proof: "Ishonch dalillari (mijoz fikrlari, raqamlar) hali yo‘q: ularni yuborsangiz, postlarga qo‘shamiz.",
+    time: "Vaqtlar taxminiy (12:40 va 20:40): kanal ma’lumoti hali yo‘q.",
   },
   ru: {
-    noData: "Данных канала пока нет: канал новый, просмотров и подписчиков мало. План составлен по вашему описанию; первые цифры замерим через 2 недели.",
+    noData: "Данных канала пока нет: канал новый, просмотров и подписчиков мало. План составлен по вашему описанию.",
     prices: "Цены: есть в описании, посты используют их.",
     noPrices: "Цены: в описании нет — пока продающие посты предлагают уточнить цену у администратора; пришлите цены, и мы добавим их в посты.",
-    proof: "Доказательства (отзывы, цифры): пока нет — соберём их в первую неделю.",
-    time: "Время: ориентировочное (12:40 и 20:40), данных канала ещё нет; через 2 недели уточним по вашим просмотрам.",
+    proof: "Отзывов и цифр пока нет: пришлите их, и мы добавим их в посты.",
+    time: "Время ориентировочное (12:40 и 20:40): данных канала ещё нет.",
   },
   en: {
-    noData: "No channel data yet: the channel is new, with few views and subscribers. The plan is built from your description; we measure the first numbers in 2 weeks.",
+    noData: "No channel data yet: the channel is new, with few views and subscribers. The plan is built from your description.",
     prices: "Prices: in your description; the posts use them.",
     noPrices: "Prices: not in the description — for now sale posts invite people to ask the admin; send your prices and we add them.",
-    proof: "Proof (reviews, numbers): none yet — we collect it in the first week.",
-    time: "Times: rule of thumb (12:40 and 20:40) because there is no channel data; in 2 weeks we tune them to your own views.",
+    proof: "No proof yet (reviews, numbers): send some and we add them to the posts.",
+    time: "Times are a rule of thumb (12:40 and 20:40): there is no channel data yet.",
   },
 };
 
