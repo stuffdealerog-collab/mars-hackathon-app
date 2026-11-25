@@ -2,7 +2,7 @@
 
 import type { AgentRole } from "@/lib/uslub/contract";
 import Link from "next/link";
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { LedStrip } from "../lamp/Led";
 import { LampTile } from "../lamp/LampTile";
 import { OWNER_LAMPS, WORK_LIGHT, type LampState } from "../lamp/lamps";
@@ -12,7 +12,8 @@ import { SamplePicture } from "./SamplePicture";
 import { keepNumbers, useCopy, useInitLang, useLang, useTabTitle } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel, Steps, useStageVariant } from "../ui/parts";
 
-export function Landing({ bot }: { bot: string }) {
+/** `traction`: the live count beside Learn more, read on the server (src/app/page.tsx). */
+export function Landing({ bot, traction }: { bot: string; traction?: ReactNode }) {
   useInitLang();
   useTabTitle("landing");
   const c = useCopy();
@@ -50,7 +51,7 @@ export function Landing({ bot }: { bot: string }) {
           </h2>
           <Steps className="mt-7" />
           {/* Everything else (the department, the plan, approval, the autopilot, the price) is on /about. */}
-          <LearnMore watch={how} />
+          <LearnMore watch={how} traction={traction} />
         </section>
       </main>
 

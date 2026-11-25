@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { CHAPTER_LAMPS, CHAPTERS } from "./copy";
-import { storyLamps } from "./story";
+import { lampLevel, storyLamps } from "./story";
 
 describe("storyLamps (the department lights as the story is read)", () => {
   it("keeps every lamp dark before the first chapter is read", () => {
-    expect(storyLamps({})).toEqual({ lamps: {}, last: null });
-    expect(storyLamps({ link: 0.5 })).toEqual({ lamps: {}, last: null });
+    expect(storyLamps({})).toEqual({ lamps: {}, current: [], last: null });
+    expect(storyLamps({ link: 0.5 })).toEqual({ lamps: {}, current: [], last: null });
   });
 
   it("lights a chapter's lamps one by one as it is read", () => {
@@ -21,9 +21,9 @@ describe("storyLamps (the department lights as the story is read)", () => {
     expect(storyLamps({ approve: 1, autopilot: 0 }).lamps.publisher).toBe("on");
   });
 
-  it("lights the whole department, in pipeline order, by the end of the story", () => {
+  it("lights the whole department, in pipeline order, by the end of the story, every lamp holding its result", () => {
     const end = Object.fromEntries(CHAPTERS.map((id) => [id, 1]));
-    const { lamps, last } = storyLamps(end);
+    const { lamps, current, last } = storyLamps(end);
     expect(lamps).toEqual({
       brand: "on",
       analyst: "on",
@@ -34,7 +34,33 @@ describe("storyLamps (the department lights as the story is read)", () => {
       designer: "on",
       publisher: "on",
     });
-    expect(last).toBe("publisher");
+    // Nobody works in the last chapter: the light has moved on, the results stay.
+    expect(current).toEqual([]);
+    expect(last).toBeNull();
+  });
+
+  it("burns only the current chapter's employees at full strength; earlier ones hold their results", () => {
+    const plan = storyLamps({ link: 1, analysis: 1, plan: 0.1 });
+    expect(plan.current).toEqual(["strategist"]);
+    expect(plan.last).toBe("strategist");
+    expect(lampLevel(plan, "strategist")).toBe("work");
+    expect(lampLevel(plan, "brand")).toBe("held");
+    expect(lampLevel(plan, "analyst")).toBe("held");
+    expect(lampLevel(plan, "copywriter")).toBe("off");
+
+    const approve = storyLamps({ link: 1, analysis: 1, plan: 1, posts: 1, approve: 0.2 });
+    expect(approve.current).toEqual(["publisher"]);
+    expect(lampLevel(approve, "designer")).toBe("held");
+
+    const report = storyLamps({ link: 1, analysis: 1, plan: 1, posts: 1, approve: 1, autopilot: 1, report: 0.1 });
+    expect(report.current).toEqual([]);
+    expect(lampLevel(report, "publisher")).toBe("held");
+  });
+
+  it("names a chapter's workers only once their lamps are lit", () => {
+    const posts = storyLamps({ link: 1, analysis: 1, plan: 1, posts: 0.2 });
+    expect(posts.current).toEqual(["copywriter", "editor"]);
+    expect(posts.last).toBe("editor");
   });
 
   it("goes dark again when the reader scrolls back up", () => {

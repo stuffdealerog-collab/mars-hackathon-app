@@ -44,7 +44,7 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
           p: [
             "Telegram hisobingiz: Telegram ID, ism, foydalanuvchi nomi va til. Bularni Telegram botni yoki ilovani ochganingizda beradi.",
             "Kanalingiz: ommaviy t.me sahifasidagi postlar va raqamlar, Mercat yozgan tahlil, reja va postlar, savollarga bergan javoblaringiz.",
-            "Foydalanish: qaysi ekran va tugmalardan foydalanilgani. Bosh sahifaga kirishlarni cookie’siz, har kuni yangilanadigan anonim kalit bilan sanaymiz.",
+            "Foydalanish: qaysi ekran va tugmalardan foydalanilgani. Bosh sahifaga va «Mercat qanday ishlaydi» sahifasiga kirishlarni o‘z hisoblagichimiz cookie’siz, har kuni yangilanadigan anonim kalit bilan sanaydi. Shu ikki sahifada Google Analytics (reklama signallari o‘chirilgan) va Yandex Metrica (seans yozuvisiz) ham ishlaydi va o‘z analitika cookie’larini qo‘yadi; Studiya, ilova va bot ularni yuklamaydi.",
             "Brauzeringizda Studiya va ilova kirish kalitingiz, brendlaringiz va tilni mahalliy xotirada (localStorage) saqlaydi. Studiyadan tarmoq ulayotganingizda 10 daqiqalik cookie kirishni brauzeringizga bog‘laydi. Reklama cookie’lari yo‘q.",
             "Postlar uchun chizilgan rasmlar (rasm xizmati serverida saqlanadi).",
           ],
@@ -109,7 +109,7 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
           p: [
             "Аккаунт Telegram: ID, имя, username и язык. Их передаёт Telegram, когда вы открываете бота или приложение.",
             "Ваш канал: посты и цифры с публичной страницы t.me, разбор, план и посты, которые написал Mercat, и ваши ответы на вопросы.",
-            "Использование: какими экранами и кнопками пользовались. Заходы на главную считаем без cookie, по анонимному ключу, который меняется каждый день.",
+            "Использование: какими экранами и кнопками пользовались. Заходы на главную и на страницу «Как работает Mercat» наш собственный счётчик считает без cookie, по анонимному ключу, который меняется каждый день. На этих двух страницах работают ещё Google Analytics (рекламные сигналы выключены) и Яндекс Метрика (без записи сеансов), они ставят свои аналитические cookie; Студия, приложение и бот их не загружают.",
             "В браузере Студия и приложение хранят ключ входа, ваши бренды и язык в локальном хранилище (localStorage). Пока вы подключаете площадку из Студии, cookie на 10 минут привязывает вход к вашему браузеру. Рекламных cookie нет.",
             "Картинки, нарисованные для постов (хранятся у сервиса картинок).",
           ],
@@ -174,7 +174,7 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
           p: [
             "Your Telegram account: Telegram ID, name, username and language, which Telegram passes on when you open the bot or the Mini App.",
             "Your channel: the posts and numbers on its public t.me page, the analysis, plans and posts Mercat writes, and your answers to its questions.",
-            "Usage: which screens and buttons were used. Visits to the home page are counted without cookies, with an anonymous key that changes every day.",
+            "Usage: which screens and buttons were used. Our own counter counts visits to the home page and to “How Mercat works” without cookies, with an anonymous key that changes every day. Those two pages also run Google Analytics (ad signals off) and Yandex Metrica (no session recording), which set their own analytics cookies; the Studio, the Mini App and the bot never load them.",
             "In your browser, the Studio and the Mini App keep your sign-in key, your brands and your language in local storage. While you connect a platform from the Studio, a cookie that lasts 10 minutes ties the sign-in to your browser. Mercat sets no advertising cookies.",
             "Pictures made for posts (kept by the image service).",
           ],

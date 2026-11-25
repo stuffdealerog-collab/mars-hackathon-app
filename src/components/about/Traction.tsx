@@ -1,50 +1,36 @@
 "use client";
 
-import { useInView } from "motion/react";
-import { useEffect, useRef, useState } from "react";
-import { parseTractionBody, type Traction } from "@/lib/traction-model";
+import { useRef } from "react";
+import type { Traction } from "@/lib/traction-model";
 import { Led, ledLayout } from "../lamp/Led";
 import { useLang } from "../ui/lang";
-import { useCountUp } from "./motion";
-import { tractionLine, type TractionKind, type TractionLine } from "./traction-words";
+import { useCountUp, useParentReveal, useReveal } from "./reveal";
+import { tractionLine, tractionNote, type TractionKind, type TractionLine } from "./traction-words";
 
-type Load = { state: "loading" } | { state: "ready"; data: Traction } | { state: "none" };
-
-/** The live counts, read once per page from GET /api/public/traction (cached there for ten minutes). */
-function useTraction(): Load {
-  const [load, setLoad] = useState<Load>({ state: "loading" });
-  useEffect(() => {
-    const ctrl = new AbortController();
-    fetch("/api/public/traction", { signal: ctrl.signal })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((body: unknown) => {
-        const data = parseTractionBody(body);
-        setLoad(data ? { state: "ready", data } : { state: "none" });
-      })
-      .catch(() => {
-        if (!ctrl.signal.aborted) setLoad({ state: "none" });
-      });
-    return () => ctrl.abort();
-  }, []);
-  return load;
-}
+/** Inside the landing's Learn more row the count starts once the row has mostly risen. */
+const AFTER_ROW_MS = 200;
 
 /**
- * One counted line: the words, and the figure on an amber LED (a measured number, so the LED may print it) that
- * counts up from zero when it comes into view. The well is as wide as the final figure from the start, so nothing
- * moves while it counts. A screen reader hears the whole line once, in words.
+ * One counted line: the words, and the figure on an amber LED (a measured number, so the LED may print it). The server
+ * draws the figure itself; in the browser, a line that scrolls into view counts up to it from two thirds. The well is
+ * as wide as the final figure from the start, so nothing moves while it counts. A screen reader hears the whole line
+ * once, in words.
  */
-function CountLine({ line, dot, play }: { line: TractionLine; dot: number; play: boolean }) {
+function CountLine({ line, dot }: { line: TractionLine; dot: number }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const own = useReveal(ref, 0.6);
+  const parent = useParentReveal();
+  const value = useCountUp(line.figure, parent ?? own, parent ? AFTER_ROW_MS : 0);
   const gap = dot / 2;
-  const value = useCountUp(line.figure, play);
   const width = ledLayout(String(line.figure), dot, gap).width;
   const height = 7 * (dot + gap) - gap;
   return (
-    <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[15px] leading-snug text-ink-2 sm:text-[16px]">
+    <p ref={ref} className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[15px] leading-snug text-ink-2 sm:text-[16px]">
       <span className="sr-only">{line.sentence}</span>
       {line.before && <span aria-hidden>{line.before}</span>}
       <span
         aria-hidden
+        data-value={value}
         className="led-well inline-flex shrink-0 items-center rounded-[9px] bg-[var(--led-well,var(--stage))] px-2.5"
         style={{ boxShadow: "inset 0 0 0 1px var(--hair)", height: height + 14 }}
       >
@@ -68,40 +54,33 @@ function CountLine({ line, dot, play }: { line: TractionLine; dot: number; play:
   );
 }
 
-/**
- * "{n} people have tried Mercat" and "{m} channels analysed": live, rounded down only with "more than" in the words.
- * Space is held while the counts load, so the page never jumps; if they cannot be read, the block goes away.
- */
-export function TractionLines({
-  kinds = ["people", "channels"],
-  dot = 3,
-  note,
-  className = "",
-}: {
+export type TractionLinesProps = {
+  data: Traction;
   kinds?: TractionKind[];
   dot?: number;
-  note?: string;
+  /** say under the lines what the people count is (/about) */
+  withNote?: boolean;
   className?: string;
-}) {
-  const load = useTraction();
+};
+
+/**
+ * "More than {n} people have tried Mercat" and "{m} channels analysed": the live counts, read on the server
+ * (src/components/about/TractionSlot.tsx) and drawn with the page, so they read without JavaScript and nothing on the
+ * page moves when they arrive. A count that is missing or too small draws nothing at all.
+ */
+export function TractionLines({ data, kinds = ["people", "channels"], dot = 3, withNote = false, className = "" }: TractionLinesProps) {
   const lang = useLang((s) => s.lang);
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, amount: 0.6 });
-  const lines =
-    load.state === "ready" ? kinds.map((k) => tractionLine(lang, k, load.data[k])).filter((l): l is TractionLine => !!l) : [];
-  if (load.state === "none" || (load.state === "ready" && lines.length === 0)) return null;
-  const rowHeight = 7 * (dot + dot / 2) - dot / 2 + 14;
+  const lines = kinds
+    .map((k) => ({ kind: k, line: tractionLine(lang, k, data[k]) }))
+    .filter((l): l is { kind: TractionKind; line: TractionLine } => !!l.line);
+  if (lines.length === 0) return null;
+  const people = lines.some((l) => l.kind === "people");
   return (
-    <div
-      ref={ref}
-      className={`flex flex-col gap-2.5 transition-opacity duration-500 ease-out ${load.state === "ready" ? "opacity-100" : "opacity-0"} ${className}`}
-      // Holds the lines' height while the counts load: nothing below moves when they arrive.
-      style={{ minHeight: kinds.length * rowHeight + (kinds.length - 1) * 10 + (note ? 26 : 0) }}
-    >
-      {lines.map((line) => (
-        <CountLine key={line.sentence} line={line} dot={dot} play={inView} />
+    <div className={`flex flex-col gap-2.5 ${className}`}>
+      {lines.map(({ kind, line }) => (
+        <CountLine key={kind} line={line} dot={dot} />
       ))}
-      {note && lines.length > 0 && <p className="text-[13px] text-ink-3">{note}</p>}
+      {withNote && people && <p className="max-w-[56ch] text-[13px] leading-snug text-ink-3">{tractionNote(lang)}</p>}
     </div>
   );
 }

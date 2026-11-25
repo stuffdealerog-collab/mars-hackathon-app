@@ -82,6 +82,10 @@ export function langOf(value: string | string[] | undefined): Lang {
   return isLang(v) ? v : "uz";
 }
 
+/** Open Graph wants language_TERRITORY. */
+const OG_LOCALE: Record<Lang, string> = { uz: "uz_UZ", ru: "ru_RU", en: "en_US" };
+export const ogLocale = (lang: Lang) => OG_LOCALE[lang];
+
 export const ogImage = (lang: Lang) => ({ url: `/brand/og-${lang}.png`, width: 1200, height: 630, alt: META[lang].ogAlt });
 
 export type MetaPage = "landing" | "about" | "studio";

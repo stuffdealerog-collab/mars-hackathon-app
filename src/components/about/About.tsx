@@ -2,14 +2,13 @@
 
 import { ArrowDown, ChevronDown, Send } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { lampVars, WORK_LIGHT } from "../lamp/lamps";
 import { ChannelField } from "../ui/ChannelField";
 import { useCopy, useInitLang, useLang, useTabTitle } from "../ui/lang";
 import { LangSwitch, Logo, parseChannel, useStageVariant } from "../ui/parts";
 import { CHAPTER_LAMPS, CHAPTERS, type ChapterId } from "./copy";
-import { DepartmentPanel, DepartmentStrip, useStoryLamps } from "./Department";
-import { TractionLines } from "./Traction";
+import { DepartmentPanel, DepartmentStrip } from "./Department";
 import { useAbout } from "./useAbout";
 import { AnalysisVisual, ApproveVisual, BotMessage, LinkVisual, PlanVisual, PostVisual, VideoVisual, WhereVisual } from "./Visuals";
 
@@ -19,7 +18,7 @@ import { AnalysisVisual, ApproveVisual, BotMessage, LinkVisual, PlanVisual, Post
  * chapter is read; on a phone the same lamps ride in a strip pinned to the top. Everything shown is the made-up bakery,
  * marked "namuna"; what is not live yet says so. The one lime action is the link field at the end.
  */
-export function About({ bot }: { bot: string }) {
+export function About({ bot, traction }: { bot: string; traction?: ReactNode }) {
   useInitLang();
   useTabTitle("about");
   useStageVariant();
@@ -32,7 +31,6 @@ export function About({ bot }: { bot: string }) {
   const register = useCallback((id: ChapterId, el: HTMLElement | null) => {
     chapters.current[id] = el;
   }, []);
-  const story = useStoryLamps(chapters);
 
   return (
     <div className="desk relative isolate flex min-h-dvh flex-col overflow-x-clip bg-stage text-ink">
@@ -50,9 +48,9 @@ export function About({ bot }: { bot: string }) {
       <main className="flex-1">
         <div className="mx-auto grid w-full max-w-[1180px] px-4 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] lg:gap-x-16">
           <div className="min-w-0">
-            <Intro />
+            <Intro traction={traction} />
             <div className="relative">
-              <DepartmentStrip story={story} />
+              <DepartmentStrip chapters={chapters} />
               {CHAPTERS.map((id) => (
                 <Chapter key={id} id={id} register={register} />
               ))}
@@ -60,7 +58,7 @@ export function About({ bot }: { bot: string }) {
           </div>
           <aside aria-label={a.panel.label} className="hidden lg:block">
             <div className="about-sticky sticky pt-10">
-              <DepartmentPanel story={story} />
+              <DepartmentPanel chapters={chapters} />
             </div>
           </aside>
         </div>
@@ -89,8 +87,8 @@ export function About({ bot }: { bot: string }) {
   );
 }
 
-/** The first screen: what this page is, the live counts, and a way straight to the link field. */
-function Intro() {
+/** The first screen: what this page is, the live counts (drawn on the server), and a way straight to the link field. */
+function Intro({ traction }: { traction?: ReactNode }) {
   const a = useAbout();
   const toStart = () => {
     const field = document.getElementById("about-start");
@@ -106,7 +104,7 @@ function Intro() {
         {a.title}
       </h1>
       <p className="mt-5 max-w-[46ch] text-[17px] leading-relaxed text-ink-2 sm:text-[18px]">{a.lead}</p>
-      <TractionLines className="mt-8" note={a.tractionNote} />
+      {traction}
       <button type="button" onClick={toStart} className="btn-2 mt-8 !min-h-12 !px-5 text-[15px]">
         {a.jump}
         <ArrowDown className="h-4 w-4 text-ink-3" aria-hidden />

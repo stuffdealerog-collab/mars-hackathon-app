@@ -878,6 +878,35 @@
 .about-panel .lamp__result {
   min-height: 0;
 }
+/* Two levels of light while the story is read. The employees of the chapter being read burn at full strength (and
+   flicker on when they light); a lamp whose chapter is behind the reader holds its result at a lower level: the
+   filament keeps its hue, the glow cools to about a fifth over the usual 1000 ms ease-in, the spill almost goes and the
+   title returns to the idle weight. So the light moves from employee to employee instead of filling the panel. */
+.lamp.lamp--held .lamp__glow {
+  opacity: 0.22;
+  /* An animation, not a transition: the glow's full light comes from lamp-on, and a transition would
+     start from the base value and jump. Back at work, lamp-on returns and the lamp flickers on again. */
+  animation: lamp-hold var(--t-off) var(--ease-in) both;
+}
+@keyframes lamp-hold {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.22;
+  }
+}
+.lamp.lamp--held .lamp__spill {
+  opacity: 0.04;
+  transition: opacity var(--t-off) var(--ease-in);
+}
+.lamp.lamp--held .lamp__filament {
+  background: var(--hue);
+  box-shadow: 0 0 4px var(--hue-a);
+}
+.lamp.lamp--held .lamp__title {
+  font-weight: 450;
+}
 .about-faq summary:hover {
   color: var(--ink);
 }
@@ -933,6 +962,17 @@
   opacity: 1;
   animation: lamp-on var(--t-on) linear 0.22s both;
 }
+/* The row (pill and count) rises 18 px into the place held for it over the lamp's own warm-up time and fades in over
+   the first part of it; a keyboard focus shows it at once. Transform and opacity only: nothing around it moves. */
+.learn-row[data-reveal="wait"] {
+  opacity: 0;
+  transform: translateY(18px);
+}
+.learn-row[data-reveal="play"] {
+  transition:
+    opacity 420ms var(--ease-out),
+    transform var(--t-on) var(--ease-out);
+}
 .learn-more .learn-arrow {
   transition: transform var(--t-state) var(--ease-out);
 }
@@ -948,6 +988,11 @@
   }
   .learn-more:hover .learn-arrow {
     transform: none;
+  }
+  /* useReveal never hides under reduced motion; this keeps a stray state from moving anything. */
+  .learn-row[data-reveal] {
+    transform: none;
+    transition: opacity 150ms linear;
   }
 }
 
@@ -1253,9 +1298,10 @@
     }
   }
 
-  /* /about: the department beside the story. Tiles print a name and a job under the bulb, so the
-     words still start where the light has fallen (50 px); no result slot. Short windows keep
-     the names only (the job is in the line under the panel). */
+  /* /about: the department beside the story. Tiles print the sample result, the name and the job
+     under the bulb, so the words start where the light has fallen (50 px); the result's line is
+     held while the tile is dark. Short windows keep the result and the name (the job is in the
+     line under the panel). */
   .desk:not([data-theme="light"]) .about-panel .lamp.lamp--sm {
     min-height: 132px;
   }

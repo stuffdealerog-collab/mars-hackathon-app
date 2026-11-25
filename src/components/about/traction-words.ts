@@ -2,35 +2,38 @@ import type { Lang } from "../ui/format";
 
 /**
  * The traction counter's words (pure). The number prints on the LED (a measured number); the words around it say
- * exactly what was counted. A rounded number is always "more than" in the words, never a bare round figure.
+ * exactly what was counted. People is a floor (src/lib/traction.ts), so it always prints a figure below the count, with
+ * "more than" in the words: the line can never say more than was measured. Channels are exact.
  */
 
 export type TractionKind = "people" | "channels";
 
 /** Below these the line is not shown: an honest count that small says nothing to a visitor. */
-export const MIN_SHOWN: Record<TractionKind, number> = { people: 10, channels: 5 };
+export const MIN_SHOWN: Record<TractionKind, number> = { people: 20, channels: 5 };
 
 /**
- * A count rounded down to a figure people read at a glance: exact under 20, then tens, fifties from 100 and hundreds
- * from 1 000. `more` is true when the figure is below the count, so the words must say "more than".
+ * The largest figure people read at a glance that is strictly below the count: tens up to 100, fifties up to 1 000,
+ * hundreds after that. 66 gives 60, 60 gives 50, 100 gives 90, 1 234 gives 1 200. Always below `n`, so "more than
+ * {figure}" is true whenever the count is.
  */
-export function friendlyCount(n: number): { value: number; more: boolean } {
-  const whole = Math.max(0, Math.floor(n));
-  const step = whole < 20 ? 1 : whole < 100 ? 10 : whole < 1000 ? 50 : 100;
-  const value = Math.floor(whole / step) * step;
-  return { value, more: value < whole };
+export function figureBelow(n: number): number {
+  const whole = Math.floor(n);
+  if (!Number.isFinite(whole) || whole <= 1) return 0;
+  const step = whole <= 100 ? 10 : whole <= 1000 ? 50 : 100;
+  return Math.max(0, Math.ceil(whole / step) * step - step);
 }
 
 type Forms = { one: string; few: string; many: string };
 type Words = {
-  /** words before the number for a rounded people count ("More than") */
+  /** words before the people figure ("More than") */
   moreBefore: string;
-  /** words after the number for a rounded people count */
+  /** words after the people figure */
   moreAfter: string;
-  people: Forms;
   channels: Forms;
+  /** what the people count is, under the lines on /about */
+  note: string;
   /** the whole line for a screen reader: {n} is the figure */
-  sentence: { peopleMore: string; people: Forms; channels: Forms };
+  sentence: { people: string; channels: Forms };
 };
 
 const WORDS: Record<Lang, Words> = {
@@ -38,38 +41,38 @@ const WORDS: Record<Lang, Words> = {
     moreBefore: "",
     moreAfter: "dan ortiq kishi Mercat’ni sinab ko‘rdi",
     // Uzbek keeps a noun singular after a number.
-    people: { one: "kishi Mercat’ni sinab ko‘rdi", few: "kishi Mercat’ni sinab ko‘rdi", many: "kishi Mercat’ni sinab ko‘rdi" },
     channels: { one: "ta kanal tahlil qilindi", few: "ta kanal tahlil qilindi", many: "ta kanal tahlil qilindi" },
+    note: "Telegram’da Mercat’ni ochganlar, jamoamizsiz. Saytga anonim kirganlar qo‘shilmagan. Har 10 daqiqada yangilanadi.",
     sentence: {
-      peopleMore: "{n} dan ortiq kishi Mercat’ni sinab ko‘rdi",
-      people: { one: "{n} kishi Mercat’ni sinab ko‘rdi", few: "{n} kishi Mercat’ni sinab ko‘rdi", many: "{n} kishi Mercat’ni sinab ko‘rdi" },
+      people: "{n} dan ortiq kishi Mercat’ni sinab ko‘rdi",
       channels: { one: "{n} ta kanal tahlil qilindi", few: "{n} ta kanal tahlil qilindi", many: "{n} ta kanal tahlil qilindi" },
     },
   },
   ru: {
     moreBefore: "Больше",
-    // After "больше 60" the noun is genitive plural; a rounded figure always ends in 0.
+    // After "больше 60" the noun is genitive plural, whatever the figure ends in.
     moreAfter: "человек попробовали Mercat",
-    people: { one: "человек попробовал Mercat", few: "человека попробовали Mercat", many: "человек попробовали Mercat" },
     channels: { one: "канал уже разобрал Mercat", few: "канала уже разобрал Mercat", many: "каналов уже разобрал Mercat" },
+    note: "Те, кто открыл Mercat в Telegram, без нашей команды. Анонимные посетители сайта не считаются. Обновляется раз в 10 минут.",
     sentence: {
-      peopleMore: "Больше {n} человек попробовали Mercat",
-      people: { one: "{n} человек попробовал Mercat", few: "{n} человека попробовали Mercat", many: "{n} человек попробовали Mercat" },
+      people: "Больше {n} человек попробовали Mercat",
       channels: { one: "{n} канал уже разобрал Mercat", few: "{n} канала уже разобрал Mercat", many: "{n} каналов уже разобрал Mercat" },
     },
   },
   en: {
     moreBefore: "More than",
     moreAfter: "people have tried Mercat",
-    people: { one: "person has tried Mercat", few: "people have tried Mercat", many: "people have tried Mercat" },
     channels: { one: "channel analysed so far", few: "channels analysed so far", many: "channels analysed so far" },
+    note: "People who opened Mercat in Telegram, our team left out. Anonymous website visitors are not counted. Updated every 10 minutes.",
     sentence: {
-      peopleMore: "More than {n} people have tried Mercat",
-      people: { one: "{n} person has tried Mercat", few: "{n} people have tried Mercat", many: "{n} people have tried Mercat" },
+      people: "More than {n} people have tried Mercat",
       channels: { one: "{n} channel analysed so far", few: "{n} channels analysed so far", many: "{n} channels analysed so far" },
     },
   },
 };
+
+/** What the people line counts, in a short note for under the lines. */
+export const tractionNote = (lang: Lang) => WORDS[lang].note;
 
 /** Russian has one / few / many after a number; Uzbek and English need one form or two. */
 export function pluralForm(lang: Lang, n: number): keyof Forms {
@@ -95,13 +98,18 @@ export type TractionLine = {
   sentence: string;
 };
 
-/** The line for one count, or null when it is too small to show. Channels are exact; people round down with "more than". */
-export function tractionLine(lang: Lang, kind: TractionKind, n: number): TractionLine | null {
-  if (!Number.isFinite(n) || n < MIN_SHOWN[kind]) return null;
+/**
+ * The line for one count, or null when it is missing or too small to show. People print a figure strictly below the
+ * count with "more than" (the count is a floor); channels are exact.
+ */
+export function tractionLine(lang: Lang, kind: TractionKind, n: number | null | undefined): TractionLine | null {
+  if (typeof n !== "number" || !Number.isFinite(n) || n < MIN_SHOWN[kind]) return null;
   const w = WORDS[lang];
-  const { value, more } = kind === "people" ? friendlyCount(n) : { value: Math.floor(n), more: false };
-  const shown = groupDigits(value, lang);
-  if (more) return { figure: value, before: w.moreBefore, after: w.moreAfter, sentence: w.sentence.peopleMore.replace("{n}", shown) };
-  const form = pluralForm(lang, value);
-  return { figure: value, before: "", after: w[kind][form], sentence: w.sentence[kind][form].replace("{n}", shown) };
+  if (kind === "people") {
+    const figure = figureBelow(n);
+    return { figure, before: w.moreBefore, after: w.moreAfter, sentence: w.sentence.people.replace("{n}", groupDigits(figure, lang)) };
+  }
+  const figure = Math.floor(n);
+  const form = pluralForm(lang, figure);
+  return { figure, before: "", after: w.channels[form], sentence: w.sentence.channels[form].replace("{n}", groupDigits(figure, lang)) };
 }

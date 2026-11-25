@@ -7,10 +7,12 @@ import { LedStrip } from "../lamp/Led";
 import { LampTile } from "../lamp/LampTile";
 import { OWNER_LAMPS } from "../lamp/lamps";
 import { SamplePicture } from "../landing/SamplePicture";
+import { useMiniCopy } from "../miniapp/copy";
+import { fmt } from "../ui/format";
 import { keepNumbers, useCopy, useLang } from "../ui/lang";
 import { parseChannel } from "../ui/parts";
 import { POST_SCRIPTS, SAMPLE_POST, type PostScript } from "./copy";
-import { useReveal, type Reveal } from "./motion";
+import { useReveal, type Reveal } from "./reveal";
 import { useAbout } from "./useAbout";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -335,58 +337,92 @@ export function VideoVisual() {
   );
 }
 
-/** Where it runs: the Mini App in Telegram and the Studio on a computer, drawn small from the same pieces. */
+/**
+ * Where it runs, drawn from the real screens at a size that reads (nothing under 11 px): the Mini App's «Postlar» in
+ * Telegram (the lamp strip, a post with its time and state, the week's approve button) and the Studio on a computer
+ * (the LED sign, the week plan with days and times, the post). Both are the sample bakery; the captions under them
+ * carry the meaning, the drawings are decoration for a screen reader.
+ */
 export function WhereVisual() {
   const a = useAbout();
   const c = useCopy();
+  const m = useMiniCopy();
+  const lang = useLang((s) => s.lang);
   const w = a.chapters.where;
+  const rows = a.chapters.plan.shop.rows;
+  const post = SAMPLE_POST[DEFAULT_SCRIPT[lang]];
+  const firstPara = post.slice(0, post.indexOf("\n\n"));
   return (
-    <div className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)] items-end gap-4 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-6">
-      <figure className="m-0">
-        <div aria-hidden className="mx-auto flex aspect-[9/16] w-full flex-col gap-2 rounded-[26px] bg-stage p-2.5 shadow-[inset_0_0_0_1.5px_var(--hair-2)]">
-          <span className="mx-auto mt-0.5 h-1 w-10 shrink-0 rounded-full bg-glass-3" />
-          <div className="grid shrink-0 grid-cols-8 gap-[3px]">
-            {OWNER_LAMPS.map((r) => (
-              <LampTile key={r} role={r} size="xs" state="on" className="!min-h-[14px] !rounded-[4px]" />
-            ))}
-          </div>
-          <div className="tgpost min-h-0 flex-1 !rounded-[14px_14px_14px_5px]">
-            <SamplePicture label="" />
-            <p className="line-clamp-3 px-2 pt-1.5 text-[9.5px] leading-snug">{keepNumbers(SAMPLE_POST.uz_latn)}</p>
-          </div>
-          <span className="grid h-7 shrink-0 place-items-center rounded-full bg-glass-2 text-[10.5px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--hair)]">
-            {c.posts.approve}
-          </span>
-        </div>
-        <figcaption className="mt-2.5 text-center text-[13.5px] text-ink-2">{w.phone}</figcaption>
-      </figure>
-      <figure className="m-0">
-        <div aria-hidden className="flex aspect-[16/10] w-full gap-2 rounded-[14px] bg-stage p-2 shadow-[inset_0_0_0_1.5px_var(--hair-2)]">
-          <div className="flex w-[30%] flex-col gap-1.5 rounded-[10px] bg-glass p-1.5 shadow-[inset_0_0_0_1px_var(--hair)]">
-            <span className="h-2 w-2/3 rounded-full bg-glass-3" />
-            <span className="h-2 w-1/2 rounded-full bg-glass-3" />
-            <div className="mt-1 grid grid-cols-4 gap-1">
+    <div>
+      <SampleHead className="mb-3 px-1" />
+      <div className="grid gap-6 sm:grid-cols-[200px_minmax(0,1fr)] sm:items-end">
+        <figure className="m-0 mx-auto w-full max-w-[220px] sm:max-w-none">
+          <div aria-hidden className="flex flex-col gap-2.5 rounded-[28px] bg-stage p-3 shadow-[inset_0_0_0_1.5px_var(--hair-2)]">
+            <span className="mx-auto h-1 w-10 shrink-0 rounded-full bg-glass-3" />
+            <div className="grid shrink-0 grid-cols-8 gap-[3px]">
               {OWNER_LAMPS.map((r) => (
-                <LampTile key={r} role={r} size="xs" state="on" className="!min-h-[12px] !rounded-[4px]" />
+                <LampTile key={r} role={r} size="xs" state="on" className="lamp--held !min-h-[14px] !rounded-[4px]" />
               ))}
             </div>
+            <div className="flex items-baseline justify-between gap-2 px-0.5">
+              <span className="text-[15px] font-semibold tracking-[-0.01em]">{m.posts.title}</span>
+              <span className="tnum text-[11px] text-ink-2">{fmt(m.posts.done, { n: 1, m: 5 })}</span>
+            </div>
+            <div className="tgpost overflow-hidden !rounded-[14px_14px_14px_5px]">
+              <SamplePicture label="" />
+              <p className="line-clamp-3 px-2.5 pt-2 text-[11.5px] leading-snug">{keepNumbers(firstPara)}</p>
+              <p className="flex items-center justify-between gap-2 px-2.5 pb-2 pt-1 text-[11px]">
+                <span className="inline-flex items-center gap-1 text-ok">
+                  <Check className="h-3 w-3" />
+                  {c.posts.approved}
+                </span>
+                <span className="tnum text-ink-3">{rows[0][1]}</span>
+              </p>
+            </div>
+            <div className="flex items-center justify-between gap-2 rounded-[12px] bg-glass px-2.5 py-2 text-[11px] shadow-[inset_0_0_0_1px_var(--hair)]">
+              <span className="tnum min-w-0 truncate text-ink-2">
+                {rows[1][0]} {rows[1][1]}
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-1.5 text-ink-2">
+                <span className="lamp__you !h-1.5 !w-1.5" />
+                {a.panel.waiting}
+              </span>
+            </div>
+            <span className="grid h-9 shrink-0 place-items-center rounded-full bg-glass-2 text-[12.5px] font-semibold text-ink shadow-[inset_0_0_0_1px_var(--hair-2)]">
+              {fmt(c.week.approve, { n: 4 })}
+            </span>
           </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <LedStrip text="@TANDIR_NAMUNA" dot={2} gap={1} className="!h-7 !px-2" label="" />
-            <div className="flex flex-1 gap-1.5">
-              <div className="flex-1 rounded-[8px] bg-glass p-1.5 shadow-[inset_0_0_0_1px_var(--hair)]">
-                <span className="block h-1.5 w-3/4 rounded-full bg-glass-3" />
-                <span className="mt-1 block h-1.5 w-1/2 rounded-full bg-glass-3" />
-                <span className="mt-1 block h-1.5 w-2/3 rounded-full bg-glass-3" />
+          <figcaption className="mt-2.5 text-center text-[13.5px] text-ink-2">{w.phone}</figcaption>
+        </figure>
+        <figure className="m-0 min-w-0">
+          <div aria-hidden className="flex flex-col gap-2.5 rounded-[16px] bg-stage p-3 shadow-[inset_0_0_0_1.5px_var(--hair-2)]">
+            <LedStrip text="@TANDIR_NAMUNA" dot={2} gap={1} className="!h-8 !px-2.5" label="" />
+            <div className="grid gap-2.5 min-[480px]:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+              <div className="rounded-[12px] bg-glass p-3 shadow-[inset_0_0_0_1px_var(--hair)]">
+                <p className="text-[12.5px] font-semibold">{a.chapters.plan.shop.title}</p>
+                <p className="text-[11px] text-ink-2">{a.chapters.plan.shop.goal}</p>
+                <ol className="mt-2 flex flex-col gap-1.5">
+                  {rows.map(([day, time, topic]) => (
+                    <li key={topic} className="grid grid-cols-[1.9rem_2.6rem_minmax(0,1fr)] items-baseline text-[11.5px] leading-snug">
+                      <span className="text-ink-3">{day}</span>
+                      <span className="tnum text-ink-2">{time}</span>
+                      <span>{topic}</span>
+                    </li>
+                  ))}
+                </ol>
               </div>
-              <div className="tgpost flex-1 !rounded-[8px_8px_8px_3px] p-1.5">
-                <p className="line-clamp-5 text-[7px] leading-tight">{keepNumbers(SAMPLE_POST.uz_latn)}</p>
+              <div className="tgpost flex flex-col !rounded-[12px_12px_12px_4px] px-3 pb-2 pt-2.5">
+                <span className="text-[11.5px] font-semibold" style={{ color: "color-mix(in oklab, #E08A55 70%, var(--ink))" }}>
+                  {c.landing.examplePostName}
+                </span>
+                <p className="mt-1 line-clamp-4 text-[11.5px] leading-snug">{keepNumbers(firstPara)}</p>
+                <p className="mt-auto pt-1 text-right text-[11px] text-ink-3">{rows[0][1]}</p>
               </div>
             </div>
           </div>
-        </div>
-        <figcaption className="mt-2.5 text-center text-[13.5px] text-ink-2">{w.desk}</figcaption>
-      </figure>
+          <figcaption className="mt-2.5 text-center text-[13.5px] text-ink-2">{w.desk}</figcaption>
+        </figure>
+      </div>
     </div>
   );
 }

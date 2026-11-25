@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { About } from "@/components/about/About";
+import { TractionSlot } from "@/components/about/TractionSlot";
 import { botUsername } from "@/components/ui/bot";
-import { langOf, META, ogImage } from "@/components/ui/meta";
+import { langOf, META, ogImage, ogLocale } from "@/components/ui/meta";
 
 // "How Mercat works": the title, description and share card follow ?lang= (uz by default).
 export async function generateMetadata({ searchParams }: PageProps<"/about">): Promise<Metadata> {
@@ -13,7 +14,7 @@ export async function generateMetadata({ searchParams }: PageProps<"/about">): P
   return {
     title: m.title,
     description: m.description,
-    openGraph: { title: og, description: m.description, images: [ogImage(lang)], locale: lang },
+    openGraph: { title: og, description: m.description, images: [ogImage(lang)], locale: ogLocale(lang) },
     twitter: { card: "summary_large_image", title: og, description: m.description, images: [ogImage(lang)] },
   };
 }
@@ -30,7 +31,15 @@ async function PerRequest() {
 export default function AboutPage() {
   return (
     <>
-      <About bot={botUsername()} />
+      <About
+        bot={botUsername()}
+        // The live counts under the lead: read on the server, streamed with the page, nothing when there is none.
+        traction={
+          <Suspense fallback={null}>
+            <TractionSlot className="mt-8" withNote />
+          </Suspense>
+        }
+      />
       <Suspense>
         <PerRequest />
       </Suspense>
