@@ -376,7 +376,7 @@ export function registerBotFlows(b: Bot, deps: FlowDeps): void {
   const pm = b.chatType("private");
 
   // A photo (or an image sent as a file): the photos the bot asked for; otherwise a hint, never a paid run.
-  const onImage = async (api: Api, chatId: number, user: User, fileId: string | null) => {
+  const onImage = async (api: Api, chatId: number, user: User, fileId: string | null, album: boolean) => {
     const locale = pickLocale(user.language_code);
     const pending = await getPending(user.id);
     if (pending?.kind === "photos") {
@@ -384,17 +384,18 @@ export function registerBotFlows(b: Bot, deps: FlowDeps): void {
       else await api.sendMessage(chatId, t(locale, "bot.photos_failed"));
       return;
     }
-    // A question is open: the photo is not its answer and needs no reply of its own.
-    if (!pending) await api.sendMessage(chatId, t(locale, "bot.photos_unexpected"));
+    // A question is open: the photo is not its answer and needs no reply of its own. Nor does a 4th photo of an album
+    // that arrives after the first three were taken.
+    if (!pending && !album) await api.sendMessage(chatId, t(locale, "bot.photos_unexpected"));
   };
   pm.on("message:photo", async (ctx) => {
     if (!ctx.from) return;
-    await onImage(ctx.api, ctx.chat.id, ctx.from, pickPhotoSize(ctx.message.photo)?.file_id ?? null);
+    await onImage(ctx.api, ctx.chat.id, ctx.from, pickPhotoSize(ctx.message.photo)?.file_id ?? null, Boolean(ctx.message.media_group_id));
   });
   pm.on("message:document", async (ctx, next) => {
     const doc = ctx.message.document;
     if (!ctx.from || !/^image\/(jpeg|png|webp)$/i.test(doc.mime_type ?? "")) return next();
-    await onImage(ctx.api, ctx.chat.id, ctx.from, (doc.file_size ?? 0) <= 5_000_000 ? doc.file_id : null);
+    await onImage(ctx.api, ctx.chat.id, ctx.from, (doc.file_size ?? 0) <= 5_000_000 ? doc.file_id : null, Boolean(ctx.message.media_group_id));
   });
 
   // A video for a post, when the media stream waits for one.

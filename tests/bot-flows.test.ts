@@ -442,6 +442,9 @@ describe("photos become the designer's style references", () => {
     });
     await Promise.all(["a", "b", "c"].map((id) => bot.handleUpdate(photoUpdate(user, id, "album1") as never)));
     await drain();
+    // A 4th photo of the same album, after the first three were taken: no reply of its own.
+    const before = sent().length;
+    await send(photoUpdate(user, "d", "album1"));
     expect(visual.learnAndSaveVisual).toHaveBeenCalledTimes(1);
     const [learnedBrand, opts] = visual.learnAndSaveVisual.mock.calls[0] as [{ id: string }, { ownerImages: string[]; actor: string }];
     expect(learnedBrand.id).toBe(brand.id);
@@ -450,6 +453,7 @@ describe("photos become the designer's style references", () => {
     expect(opts.ownerImages.every((u) => u.startsWith("data:image/jpeg;base64,"))).toBe(true);
     // The largest size up to 1600 px was read; the URL with the token never left this test's fetch mock.
     expect(calls.filter((c) => c.method === "getFile").map((c) => c.payload.file_id).sort()).toEqual(["a", "b", "c"]);
+    expect(sent().length).toBe(before);
     expect(lastText()).toBe(t("uz", "bot.photos_learned", { summary: "Yorug‘ oshxona, yog‘och stol" }));
     expect(events.find((e) => e.type === "visual_learned")?.props).toMatchObject({ brand_id: brand.id, owner_refs: 1, from: "bot" });
     expect(await getPending(user)).toBeNull();
