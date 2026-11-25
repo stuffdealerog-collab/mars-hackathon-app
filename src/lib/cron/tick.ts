@@ -9,11 +9,14 @@ import { maskedMessage, runTasks, type TickReport } from "./run";
  * the env, the database and the registry into this function.
  *
  * Answers (JSON, never secrets, ids or texts):
- * - 200 { ok: true, mode: "health" }        CRON_SECRET is not set: nothing runs.
+ * - 200 { ok: true, mode: "health" }        no secret to check (CRON_SECRET unset or invalid, or not the production
+ *                                           deployment, see tickSecret): nothing runs. The GitHub workflow fails on it.
  * - 401 { ok: false, error: "unauthorized" } CRON_SECRET is set and the bearer token is missing or wrong.
  * - 503 { ok: false, error }                 db_not_configured | schema_missing (run `pnpm db:migrate`) | lock_failed
  * - 200 { ok: true, skipped: "busy" }       another tick holds the lock.
- * - 200 { ok, ...TickReport }               ok is false when a task failed or timed out.
+ * - 200 { ok, ...TickReport }               ok is false when a task failed or timed out. Only the authorised caller sees
+ *                                           it; the public GitHub log prints the summary counts, and the per-task
+ *                                           results go to the database only (cron_locks.last_report).
  */
 
 /** How long a taken lock lasts if the tick never releases it: the route's maxDuration (300 s) + 30 s. */

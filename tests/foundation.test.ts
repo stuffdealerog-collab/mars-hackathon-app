@@ -129,6 +129,48 @@ describe("tick schedules", () => {
     expect(yml).toMatch(/if \[ -z "\$CRON_SECRET" \] \|\| \[ -z "\$TICK_URL" \]; then[\s\S]*?exit 0/);
     expect(yml).toMatch(/permissions: \{\}/);
   });
+
+  it("the GitHub workflow fails when the deployment answers health (no valid CRON_SECRET there)", () => {
+    const yml = read(".github/workflows/tick.yml");
+    expect(yml).toMatch(
+      /if \[ "\$\(echo "\$body" \| jq -r '\.mode \/\/ empty'\)" = "health" \]; then\s*\n\s*echo "::error::[^\n]*CRON_SECRET[^\n]*"\s*\n\s*exit 1/,
+    );
+    // A failed call fails the run too (curl exit status, not swallowed).
+    expect(yml).toMatch(/if ! body=\$\(curl [^\n]*--fail-with-body[^\n]*\); then[\s\S]*?exit 1/);
+  });
+
+  it("the GitHub workflow prints only the summary: the repo is public, task counts stay in the database", () => {
+    const yml = read(".github/workflows/tick.yml");
+    const printed = [...yml.matchAll(/echo "\$body"([^\n]*)/g)].map((m) => m[1].trim());
+    expect(printed.length).toBeGreaterThan(0);
+    for (const rest of printed) {
+      // Every print of the answer goes through jq with a fixed list of top-level fields.
+      expect(rest, rest).toMatch(/^\| jq -(c|r) '(\{ok, mode, skipped, ran, failed, timedOut\}|\{ok, error\}|\.mode \/\/ empty|\.ok)'/);
+    }
+    expect(yml).not.toMatch(/\.tasks\b/);
+    expect(yml).not.toMatch(/^\s*curl [^\n]*"\$TICK_URL"\s*$/m); // a bare curl would print the whole answer
+  });
+});
+
+/* ------------------------------------------------------------- env push */
+
+describe("scripts/vercel-env-push.mjs", () => {
+  const script = read("scripts/vercel-env-push.mjs");
+  const allowed = /const ALLOWED = \[([\s\S]*?)\];/.exec(script)?.[1] ?? "";
+  const pushed = [...allowed.matchAll(/^\s*"([A-Z0-9_]+)",?/gm)].map((m) => m[1]);
+
+  it("never pushes CRON_SECRET, LABS_ROUTES or STATS_PASSWORD from .env.local", () => {
+    expect(pushed.length).toBeGreaterThan(10);
+    for (const name of ["CRON_SECRET", "LABS_ROUTES", "STATS_PASSWORD"]) expect(pushed, name).not.toContain(name);
+  });
+
+  it("pushes the connector keys and the alert chat to production only", () => {
+    const only = /const PRODUCTION_ONLY = new Set\(\[([\s\S]*?)\]\);/.exec(script)?.[1] ?? "";
+    for (const name of ["OPS_CHAT_ID", "CONNECTOR_TOKEN_KEY", "META_APP_SECRET", "GOOGLE_OAUTH_CLIENT_SECRET"]) {
+      expect(pushed, name).toContain(name);
+      expect(only, name).toContain(`"${name}"`);
+    }
+  });
 });
 
 /* ------------------------------------------------------------------ env */
@@ -191,6 +233,14 @@ describe("env: value-loop variables", () => {
     expect(env.CONNECTOR_TOKEN_KEY).toBe(key);
     expect(env.STATS_TEAM_TG_IDS).toEqual([12345678, 23456789]);
     expect(env.GOOGLE_OAUTH_CLIENT_ID).toBe(googleClientId);
+  });
+
+  it("accepts LABS_ROUTES=* and all (the labs gate's spellings for every route)", async () => {
+    for (const value of ["*", "all", "radar,media/jobs"]) {
+      const { env, warned } = await freshEnv({ LABS_ROUTES: value });
+      expect(warned, value).toEqual([]);
+      expect(env.LABS_ROUTES).toBe(value);
+    }
   });
 
   it("ignores invalid values with a warning that never prints them", async () => {

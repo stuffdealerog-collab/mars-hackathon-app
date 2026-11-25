@@ -3,6 +3,11 @@ name: Tick
 # Calls /api/cron/tick every 10 minutes: Vercel Hobby allows only a daily cron (that one is in vercel.json).
 # Needs the repo secret CRON_SECRET (the same value as in Vercel Production) and the repo variable TICK_URL
 # (https://<production domain>/api/cron/tick). While either is missing, the run skips without failing.
+# The run fails when the deployment answers the health check instead of running the tick: CRON_SECRET is missing
+# or invalid in Vercel Production, or was added without a redeploy (env changes reach new deployments only), or
+# TICK_URL points at a preview (only the production deployment runs tasks).
+# The repo is public, so the log shows only the summary (ok, mode, skipped, ran, failed, timedOut);
+# per-task counts stay in the database (cron_locks.last_report).
 # GitHub can start scheduled runs late when it is busy, and pauses them after 60 days without repo activity.
 
 on:
@@ -30,6 +35,17 @@ jobs:
             echo "::notice::The CRON_SECRET secret or the TICK_URL variable is not set: skipping the tick."
             exit 0
           fi
-          # The answer is a summary with counts only (no ids or texts), safe for public logs.
-          curl -fsS --max-time 300 -H "Authorization: Bearer $CRON_SECRET" "$TICK_URL"
-          echo
+          if ! body=$(curl -sS --fail-with-body --max-time 300 -H "Authorization: Bearer $CRON_SECRET" "$TICK_URL"); then
+            # Error answers carry only {ok, error} (unauthorized, schema_missing, ...); anything else is not printed.
+            echo "$body" | jq -c '{ok, error}' 2>/dev/null || echo "(the answer was not JSON)"
+            echo "::error::The tick call failed."
+            exit 1
+          fi
+          echo "$body" | jq -c '{ok, mode, skipped, ran, failed, timedOut}'
+          if [ "$(echo "$body" | jq -r '.mode // empty')" = "health" ]; then
+            echo "::error::The tick answered health and ran nothing: the deployment has no valid CRON_SECRET (set it in Vercel Production, then redeploy) or TICK_URL is not the production domain."
+            exit 1
+          fi
+          if [ "$(echo "$body" | jq -r '.ok')" != "true" ]; then
+            echo "::warning::A tick task failed or ran past its budget; details are in cron_locks.last_report and the Vercel logs."
+          fi

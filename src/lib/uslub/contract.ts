@@ -95,6 +95,16 @@ export interface BrandProfile {
   mode?: BrandMode;
   /** How the brand's pictures look; missing until the style is learned. */
   visual?: VisualStyle;
+  /**
+   * What kind of channel this is (db: brands.channel_type), so goals, plans and reports follow it (owner correction 2).
+   * Missing = not detected yet (brands made before detection shipped keep today's sales plan).
+   */
+  channelType?: ChannelType;
+  /**
+   * The main goal the owner confirmed (db: brands.goal): "sale" (more orders) or "grow" (more subscribers). The
+   * confirm question is pre-filled from channelType. Missing = not asked yet.
+   */
+  goal?: Goal;
   createdAt: string; // ISO
 }
 

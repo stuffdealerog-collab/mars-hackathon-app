@@ -180,7 +180,7 @@ export async function buildLaunchStrategy(inp: LaunchInput) {
     return item;
   });
 
-  const shares = { reach: 0, trust: 0, sale: 0 } as Record<Goal, number>;
+  const shares: Record<Goal, number> = { reach: 0, trust: 0, sale: 0, engage: 0, grow: 0 };
   for (const s of slots) shares[s.goal]++;
   const clean = (x: string) => stripIdsAll(x);
   const offerOk = d && d.offer.trim() && !unsupported(description, d.offer).length;

@@ -43,7 +43,8 @@ const schemas = {
   /**
    * Bearer token for /api/cron/tick (src/lib/cron). Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` on its
    * own once it is set; GitHub Actions sends it from the repo secret of the same name. Unset or invalid = the tick
-   * runs nothing (health answer only).
+   * runs nothing (health answer only). Set it in Vercel Production only, never in .env.local: the tick ignores it
+   * outside VERCEL_ENV=production (src/lib/cron/auth.ts tickSecret).
    */
   CRON_SECRET: z
     .string()
@@ -58,7 +59,7 @@ const schemas = {
    * Routes with no UI caller (radar, video, department, …) stay off unless named here: a comma-separated list of
    * route names (e.g. "radar,video"), or "all". Unset = every labs route is off. Parsed by the labs gate.
    */
-  LABS_ROUTES: z.string().regex(/^[A-Za-z0-9_/,\s-]{1,512}$/, "expected a comma-separated list of route names or all"),
+  LABS_ROUTES: z.string().regex(/^[A-Za-z0-9_/,*\s-]{1,512}$/, "expected a comma-separated list of route names, all or *"),
   /** AES-256-GCM key for connector tokens at rest: base64 of 32 random bytes (openssl rand -base64 32). */
   CONNECTOR_TOKEN_KEY: z
     .string()

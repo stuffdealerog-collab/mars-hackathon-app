@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { tickAuth } = await import("../src/lib/cron/auth");
+const { tickAuth, tickSecret } = await import("../src/lib/cron/auth");
 const { CronRegistry, defineCronTask, MIN_TASK_BUDGET_MS } = await import("../src/lib/cron/registry");
 const { runTasks } = await import("../src/lib/cron/run");
 const { tashkentClock } = await import("../src/lib/cron/clock");
@@ -38,6 +38,34 @@ describe("tickAuth", () => {
   it("accepts the scheme in any case and trims the configured secret (Vercel Cron sends `Bearer <secret>`)", () => {
     expect(tickAuth(`bearer ${SECRET}`, SECRET)).toBe("run");
     expect(tickAuth(`BEARER  ${SECRET} `, `  ${SECRET}\n`)).toBe("run");
+  });
+});
+
+describe("tickSecret", () => {
+  it("hands the secret over on the production deployment only", () => {
+    expect(tickSecret({ VERCEL_ENV: "production" }, SECRET)).toBe(SECRET);
+    expect(tickSecret({ VERCEL_ENV: "production" }, undefined)).toBeUndefined();
+  });
+
+  it("gives local servers and previews no secret, so they only ever answer health", () => {
+    for (const env of [{ VERCEL_ENV: "preview" }, { VERCEL_ENV: "development" }, {}, { VERCEL_ENV: "Production" }]) {
+      expect(tickSecret(env, SECRET), JSON.stringify(env)).toBeUndefined();
+      expect(tickAuth(bearer(SECRET), tickSecret(env, SECRET))).toBe("health");
+    }
+  });
+
+  it("a local tick with the right bearer never touches the lock or runs a task", async () => {
+    const acquire = vi.fn(async () => true);
+    const run = vi.fn(async () => ({}));
+    const res = await tick({
+      authorization: bearer(SECRET),
+      secret: tickSecret({ NODE_ENV: "development" }, SECRET),
+      lock: { acquire, release: vi.fn(async () => {}) },
+      tasks: [task("would-publish", 2_000, run)],
+    });
+    expect(res).toEqual({ status: 200, body: { ok: true, mode: "health" } });
+    expect(acquire).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
   });
 });
 

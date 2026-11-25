@@ -16,7 +16,10 @@ export interface TaskReport {
   result?: CronTaskResult;
 }
 
-/** Safe to show anywhere (GitHub Actions logs of a public repo): names, statuses, timings and counts only. */
+/**
+ * Names, statuses, timings and counts only (no ids or texts). Stored in cron_locks.last_report and returned to the
+ * authorised caller; the public GitHub Actions log prints only the totals, never `tasks`.
+ */
 export interface TickReport {
   startedAt: string; // ISO
   ms: number;

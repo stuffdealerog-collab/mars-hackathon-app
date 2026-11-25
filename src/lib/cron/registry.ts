@@ -16,8 +16,9 @@ import type { TashkentClock } from "./clock";
  * Rules for a task:
  * - Stop starting new work once `ctx.signal` is aborted or `ctx.timeLeft()` is too small for the next unit. After the
  *   budget the tick stops waiting for the task and moves on; its promise is not killed.
- * - Return counts only (`{ published: 2, failed: 0 }`). The tick's summary is printed in GitHub Actions logs of a
- *   public repository: never ids, chat names, texts or personal data. Anything else is dropped.
+ * - Return counts only (`{ published: 2, failed: 0 }`): never ids, chat names, texts or personal data; anything else is
+ *   dropped. Task results go to the database only (cron_locks.last_report) and to the authorised caller: the public
+ *   GitHub Actions log prints the tick's totals (ran, failed, skipped, timedOut), never a task's counts.
  * - Throwing is fine: the task is reported as "error" (the message goes to the server log only) and the rest still run.
  */
 
