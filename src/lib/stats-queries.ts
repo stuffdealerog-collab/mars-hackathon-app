@@ -73,6 +73,8 @@ export function overviewQuery(sql: Sql, o: StatsOptions) {
       FROM events e, win
       WHERE e.created_at >= win.today - interval '29 days'
         AND e.type <> ALL(${NOISE_TYPES}::text[])
+        -- an error answer alone (e.g. a stale remembered brand -> 404) is not use of the product
+        AND e.type <> 'api_error'
         AND ${f.envOk} AND ${f.notTeam("e.telegram_id")}
     ), people AS (
       SELECT ev.telegram_id, max(ev.created_at) AS last_at, min(u.created_at) AS first_seen
