@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { IntroPreview } from "@/components/onboarding/Preview";
+import { botUsername } from "@/components/ui/bot";
 
 export const metadata: Metadata = { title: "Intro preview", robots: { index: false } };
 
@@ -22,5 +23,6 @@ async function Stage({ searchParams }: { searchParams: Promise<Q> }) {
   const variant = q.variant === "phone" ? "phone" : "desktop";
   const theme = q.theme === "light" ? "light" : "dark";
   const lang = q.lang === "ru" || q.lang === "en" ? q.lang : "uz";
-  return <IntroPreview variant={variant} theme={theme} lang={lang} />;
+  const only = q.only === "admin" ? "admin" : null;
+  return <IntroPreview variant={variant} theme={theme} lang={lang} bot={botUsername()} only={only} />;
 }

@@ -151,6 +151,8 @@
   min-width: 0;
   flex-direction: column;
   justify-content: center;
+  /* A short phone scrolls the card from its top instead of cutting it off above. */
+  justify-content: safe center;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0 20px;
@@ -187,6 +189,14 @@
 .ob--desktop .ob-result {
   max-width: 440px;
 }
+/* The add-the-bot card carries its steps under the words: its picture takes less room. */
+.ob__pane[data-kind="admin"] .ob__stage {
+  min-height: 0;
+  padding: 4px 0 22px;
+}
+.ob--desktop .ob__pane[data-kind="admin"] .ob__stage {
+  padding: 8px 0 22px;
+}
 
 .ob__text {
   padding: 0 2px 8px;
@@ -209,16 +219,49 @@
   color: var(--ink-2);
   text-wrap: pretty;
 }
-.ob__admin {
-  margin-top: 14px;
-  max-width: 40ch;
-  font-size: 14.5px;
+/* Three steps in Telegram's words, numbered on small glass counters. */
+.ob__how {
+  display: grid;
+  max-width: 44ch;
+  margin-top: 16px;
+  gap: 9px;
+  counter-reset: ob-how;
+  list-style: none;
+}
+.ob__how li {
+  position: relative;
+  min-height: 24px;
+  padding: 2px 0 0 36px;
+  font-size: 15px;
   line-height: 1.4;
   color: var(--ink);
+  counter-increment: ob-how;
   text-wrap: pretty;
 }
+.ob__how li::before {
+  content: counter(ob-how);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--glass-2);
+  box-shadow: inset 0 0 0 1px var(--hair-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.ob__later {
+  width: 100%;
+  margin-top: 18px;
+}
 .ob__pro {
-  margin-top: 8px;
+  margin-top: 12px;
   max-width: 44ch;
   font-size: 13.5px;
   line-height: 1.4;
@@ -242,6 +285,10 @@
 }
 .ob--desktop .ob__foot {
   padding: 18px 28px 26px;
+}
+/* The add-the-bot card alone has no dots: its buttons keep their side. */
+.ob__foot[data-single] {
+  justify-content: flex-end;
 }
 .ob__dots {
   display: flex;
@@ -585,6 +632,117 @@
   min-height: 20px;
   flex-shrink: 0;
   border-radius: 7px;
+}
+
+/* ----------------------------------------------------------- 5 · admin */
+
+.ob-admin {
+  width: 100%;
+  max-width: 340px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+.ob-admin__head,
+.ob-admin__row {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+}
+.ob-admin__head {
+  box-shadow: inset 0 -1px 0 var(--hair);
+}
+.ob-admin__ava {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--glass-3);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+/* The bakery's own picture palette (the post pictures in the result demo). */
+.ob-admin__ava--channel {
+  background: radial-gradient(120% 90% at 30% 20%, #ffd6a0 0%, #b8642f 70%, #2a120a 100%);
+  color: rgb(255 247 234 / 0.92);
+}
+.ob-admin__who {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+.ob-admin__name {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ob-admin__meta {
+  font-size: 13px;
+  line-height: 1.25;
+  color: var(--ink-3);
+  transition: color 360ms var(--ease-out);
+}
+.ob-admin__meta[data-on] {
+  color: var(--ink-2);
+}
+/* The bot's place is drawn from the start; it fades in, it never pushes anything. */
+.ob-admin__row--bot {
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 480ms var(--ease-out),
+    transform 480ms var(--ease-out);
+}
+.ob-admin__row--bot[data-in] {
+  opacity: 1;
+  transform: none;
+}
+.ob-admin__lamp.lamp--xs {
+  width: 36px;
+  min-height: 36px;
+  flex-shrink: 0;
+  border-radius: 11px;
+}
+/* The owner's setting, drawn small: lime when on (DESIGN: Switch). */
+.ob-switch {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--glass-3);
+  box-shadow: inset 0 0 0 1px var(--hair-2);
+  transition: background var(--t-state) var(--ease-out);
+}
+.ob-switch__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ink-2);
+  transition:
+    transform var(--t-panel) var(--ease-out),
+    background var(--t-state) var(--ease-out);
+}
+.ob-switch[data-on] {
+  background: var(--lime);
+}
+.ob-switch[data-on] .ob-switch__knob {
+  transform: translateX(16px);
+  background: var(--lime-ink);
 }
 
 /* ------------------------------------------------------------- motion */

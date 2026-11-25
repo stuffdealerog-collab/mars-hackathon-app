@@ -6,14 +6,17 @@ import { LampTile } from "../lamp/LampTile";
 import { LAMP_ORDER, type LampState } from "../lamp/lamps";
 import { COPY } from "../ui/copy";
 import { fmt, parseChannel, type Lang } from "../ui/format";
+import { addBotToChannelUrl } from "../ui/tme";
 import { INTRO_COPY, type IntroCopy } from "./copy";
+import { introSteps, STEP_KINDS, type IntroOnly, type StepKind } from "./steps";
 import "./onboarding.css";
-
-export const INTRO_STEPS = 4;
 
 export type OnboardingProps = {
   open: boolean;
-  /** "done": the last step's primary action; "skip": skipped or closed early. Both count as seen. */
+  /**
+   * "done": the last card's primary action, or «later» on the add-the-bot card; "skip": closed
+   * early. Both count as seen.
+   */
   onClose: (how: "done" | "skip") => void;
   lang: Lang;
   /** "phone": full screen, swipe between steps; "desktop": a centred glass sheet, arrow keys. */
@@ -21,12 +24,25 @@ export type OnboardingProps = {
   /** Controlled step (optional): the Mini App keeps it to drive Telegram's Back and Main buttons. */
   step?: number;
   onStepChange?: (step: number) => void;
-  /** The host draws Next / Start itself (Telegram's MainButton): no button row inside. */
+  /** The host draws the primary itself (Telegram's MainButton): no button row inside. */
   hostPrimary?: boolean;
+  /** The host also draws the add-the-bot card's quiet action (Telegram's SecondaryButton). */
+  hostSecondary?: boolean;
   /** For haptics: a step changed, or a swipe ran past the first or last step. */
   onFeedback?: (kind: "step" | "edge") => void;
-  /** The bot's @username (without @), named in the one-time admin step. */
-  bot?: string;
+  /** The bot's @username (without @): named on the add-the-bot card, and its link. */
+  bot: string;
+  /** "admin": only the add-the-bot card (an owner who knows the product, the Studio's tool). */
+  only?: IntroOnly | null;
+  /** Opens a t.me link. Default: a new tab; the Mini App passes Telegram's openTelegramLink. */
+  openLink?: (url: string) => void;
+  /** The add-the-bot link was opened (controlled by a host that draws the buttons itself). */
+  added?: boolean;
+  onAdd?: () => void;
+};
+
+const openInTab = (url: string) => {
+  window.open(url, "_blank", "noopener");
 };
 
 const OUT_MS = 260;
@@ -39,26 +55,48 @@ const onReduce = (cb: () => void) => {
 const useReducedMotion = () => useSyncExternalStore(onReduce, () => window.matchMedia(REDUCE).matches, () => false);
 
 /**
- * The first-run intro: four short screens in the lamp world, each a small live demo with one
- * headline and one line. Skippable at every step; shown once by the host (see `seen.ts`).
+ * The first-run intro: short screens in the lamp world, each a small live demo with one headline
+ * and one line, ending on the one setup publishing needs: the bot as a channel admin. Shown once
+ * by the host (see `seen.ts`); «Skip» on the phone lands on that last card, which can be put off.
  */
-export function Onboarding({ open, onClose, lang, variant, step: stepProp, onStepChange, hostPrimary = false, onFeedback, bot = "mercatai" }: OnboardingProps) {
+export function Onboarding({
+  open,
+  onClose,
+  lang,
+  variant,
+  step: stepProp,
+  onStepChange,
+  hostPrimary = false,
+  hostSecondary = false,
+  onFeedback,
+  bot,
+  only = null,
+  openLink = openInTab,
+  added: addedProp,
+  onAdd,
+}: OnboardingProps) {
   const t = INTRO_COPY[lang];
   const still = useReducedMotion();
   const titleId = useId();
   const [inner, setInner] = useState(0);
-  const step = Math.min(INTRO_STEPS - 1, Math.max(0, stepProp ?? inner));
-  const last = step === INTRO_STEPS - 1;
+  const [addedInner, setAddedInner] = useState(false);
+  const added = addedProp ?? addedInner;
 
-  // Stay mounted for the exit; start from the first step on every open.
+  // Stay mounted for the exit; start from the first step on every open. The set of cards is
+  // read on open and kept through the exit, so a host clearing `only` never swaps the cards.
   const [rendered, setRendered] = useState(open);
   const [wasOpen, setWasOpen] = useState(open);
+  const [mode, setMode] = useState<IntroOnly | null>(only);
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {
       setRendered(true);
       setInner(0);
+      setAddedInner(false);
+      setMode(only);
     }
+  } else if (open && only !== mode) {
+    setMode(only);
   }
   useEffect(() => {
     if (open || !rendered) return;
@@ -66,8 +104,15 @@ export function Onboarding({ open, onClose, lang, variant, step: stepProp, onSte
     return () => clearTimeout(id);
   }, [open, rendered]);
 
+  const kinds = introSteps(mode);
+  const count = kinds.length;
+  const step = Math.min(count - 1, Math.max(0, stepProp ?? inner));
+  const last = step === count - 1;
+  const adminAt = kinds.indexOf("admin");
+  const onAdmin = step === adminAt;
+
   const go = (to: number) => {
-    const n = Math.min(INTRO_STEPS - 1, Math.max(0, to));
+    const n = Math.min(count - 1, Math.max(0, to));
     if (n === step) {
       onFeedback?.("edge");
       return;
@@ -77,6 +122,14 @@ export function Onboarding({ open, onClose, lang, variant, step: stepProp, onSte
     else setInner(n);
   };
   const next = () => (last ? onClose("done") : go(step + 1));
+  // «Skip» skips the tour, not the one thing publishing needs: it lands on the add-the-bot card.
+  const skip = () => (adminAt > step ? go(adminAt) : onClose("skip"));
+  const addBot = () => {
+    openLink(addBotToChannelUrl(bot));
+    setAddedInner(true);
+    onAdd?.();
+  };
+  const later = () => onClose("done");
 
   const sheetRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -180,7 +233,7 @@ export function Onboarding({ open, onClose, lang, variant, step: stepProp, onSte
               <X className="h-5 w-5" strokeWidth={1.8} aria-hidden />
             </button>
           ) : (
-            <button type="button" className="ob__skip" onClick={() => onClose("skip")} disabled={last && hostPrimary} data-hidden={last || undefined}>
+            <button type="button" className="ob__skip" onClick={skip} disabled={last && hostPrimary} data-hidden={last || undefined}>
               {t.skip}
             </button>
           )}
@@ -188,22 +241,34 @@ export function Onboarding({ open, onClose, lang, variant, step: stepProp, onSte
 
         <div className="ob__viewport" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
           <div ref={trackRef} className="ob__track" style={{ transform: `translate3d(${-step * 100}%, 0, 0)` }}>
-            {t.steps.map((s, i) => {
+            {kinds.map((kind, i) => {
               const on = i === step;
+              const at = STEP_KINDS.indexOf(kind);
+              const s = t.steps[at];
               return (
-                <section key={i} className="ob__pane" data-active={on || undefined} aria-hidden={!on} inert={!on ? true : undefined}>
-                  <div className="ob__stage" role="img" aria-label={t.alt[i]}>
-                    <Demo key={on ? "on" : "off"} i={i} active={on && open} still={still} lang={lang} t={t} />
+                <section key={kind} className="ob__pane" data-kind={kind} data-active={on || undefined} aria-hidden={!on} inert={!on ? true : undefined}>
+                  <div className="ob__stage" role="img" aria-label={t.alt[at]}>
+                    <Demo key={on ? "on" : "off"} kind={kind} active={on && open} still={still} lang={lang} t={t} bot={bot} />
                   </div>
                   <div className="ob__text">
                     <h2 id={`${titleId}-${i}`} className="ob__title">
                       {s.title}
                     </h2>
                     <p className="ob__line">{s.line}</p>
-                    {i === INTRO_STEPS - 1 && (
+                    {kind === "approve" && <p className="ob__pro">{variant === "desktop" ? t.pro.desktop : t.pro.phone}</p>}
+                    {kind === "admin" && (
                       <>
-                        <p className="ob__admin">{fmt(t.admin, { bot: `@${bot}` })}</p>
-                        <p className="ob__pro">{variant === "desktop" ? t.pro.desktop : t.pro.phone}</p>
+                        <ol className="ob__how">
+                          {t.admin.how.map((h, k) => (
+                            <li key={k}>{fmt(h, { bot: `@${bot}` })}</li>
+                          ))}
+                        </ol>
+                        {/* Telegram draws the lime action; the quiet one stays here when it cannot. */}
+                        {hostPrimary && !hostSecondary && (
+                          <button type="button" className="btn-2 ob__later" onClick={added ? addBot : later}>
+                            {added ? t.admin.reopen : t.admin.later}
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
@@ -213,31 +278,44 @@ export function Onboarding({ open, onClose, lang, variant, step: stepProp, onSte
           </div>
         </div>
 
-        <div className="ob__foot">
-          <div className="ob__dots" role="group" aria-label={fmt(t.of, { i: step + 1, n: INTRO_STEPS })}>
-            {t.steps.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                className="ob__dot"
-                aria-label={fmt(t.of, { i: i + 1, n: INTRO_STEPS })}
-                aria-current={i === step ? "step" : undefined}
-                onClick={() => go(i)}
-              />
-            ))}
-          </div>
-          {!hostPrimary && (
-            <div className="ob__btns">
-              {step > 0 && variant === "desktop" && (
-                <button type="button" className="btn-2 ob__btn" onClick={() => go(step - 1)}>
-                  {t.back}
-                </button>
-              )}
-              <button type="button" className={`${last ? "btn" : "btn-2"} ob__btn ob__btn--main`} onClick={next}>
-                {last ? t.start : t.next}
-              </button>
+        <div className="ob__foot" data-single={count === 1 || undefined}>
+          {count > 1 && (
+            <div className="ob__dots" role="group" aria-label={fmt(t.of, { i: step + 1, n: count })}>
+              {kinds.map((kind, i) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className="ob__dot"
+                  aria-label={fmt(t.of, { i: i + 1, n: count })}
+                  aria-current={i === step ? "step" : undefined}
+                  onClick={() => go(i)}
+                />
+              ))}
             </div>
           )}
+          {!hostPrimary &&
+            (onAdmin ? (
+              // The one owner action is the lime one; «later» is never a dead end.
+              <div className="ob__btns">
+                <button type="button" className="btn-2 ob__btn" onClick={added ? addBot : later}>
+                  {added ? t.admin.reopen : t.admin.later}
+                </button>
+                <button type="button" className="btn ob__btn ob__btn--main" onClick={added ? later : addBot}>
+                  {added ? t.admin.done : t.admin.add}
+                </button>
+              </div>
+            ) : (
+              <div className="ob__btns">
+                {step > 0 && variant === "desktop" && (
+                  <button type="button" className="btn-2 ob__btn" onClick={() => go(step - 1)}>
+                    {t.back}
+                  </button>
+                )}
+                <button type="button" className={`${last ? "btn" : "btn-2"} ob__btn ob__btn--main`} onClick={next}>
+                  {last ? t.start : t.next}
+                </button>
+              </div>
+            ))}
         </div>
       </div>
     </div>
@@ -246,13 +324,14 @@ export function Onboarding({ open, onClose, lang, variant, step: stepProp, onSte
 
 /* ------------------------------------------------------------------ demos */
 
-type DemoProps = { active: boolean; still: boolean; lang: Lang; t: IntroCopy };
+type DemoProps = { active: boolean; still: boolean; lang: Lang; t: IntroCopy; bot: string };
 
-function Demo({ i, ...p }: DemoProps & { i: number }) {
-  if (i === 0) return <LampsDemo {...p} />;
-  if (i === 1) return <LinkDemo {...p} />;
-  if (i === 2) return <ResultDemo {...p} />;
-  return <ApproveDemo {...p} />;
+function Demo({ kind, ...p }: DemoProps & { kind: StepKind }) {
+  if (kind === "lamps") return <LampsDemo {...p} />;
+  if (kind === "link") return <LinkDemo {...p} />;
+  if (kind === "result") return <ResultDemo {...p} />;
+  if (kind === "approve") return <ApproveDemo {...p} />;
+  return <AdminDemo {...p} />;
 }
 
 /** Ticks while `active`: a small clock for the demos (nothing runs under reduced motion). */
@@ -414,6 +493,49 @@ function ApproveDemo({ active, still, t }: DemoProps) {
         <span className="ob-approve__posted" data-on={phase >= 3 || undefined}>
           <LampTile role="publisher" size="xs" state={phase >= 3 ? "on" : "off"} className="ob-approve__lamp" />
           {t.demo.published}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 5 · The channel's admin list: the bot joins it, the post right switches on, and the
+ * SMM-menejer's lamp (the one that publishes) lights. Every row's place is drawn from the start.
+ */
+function AdminDemo({ active, still, t, bot }: DemoProps) {
+  // 0 the owner alone · 1 the bot joins · 2 the right switches on · 3 the lamp lights
+  const n = useTicks(active, still, 620, 4);
+  const phase = still ? 3 : Math.max(0, n - 1);
+  const d = t.admin.demo;
+  return (
+    <div className="ob-admin" aria-hidden>
+      <div className="ob-admin__head">
+        <span className="ob-admin__ava ob-admin__ava--channel">
+          <Wheat className="h-[18px] w-[18px]" strokeWidth={1.6} />
+        </span>
+        <span className="ob-admin__who">
+          <span className="ob-admin__name">Tandir non</span>
+          <span className="ob-admin__meta">{d.list}</span>
+        </span>
+      </div>
+      <div className="ob-admin__row">
+        <span className="ob-admin__ava">{d.you.slice(0, 1)}</span>
+        <span className="ob-admin__who">
+          <span className="ob-admin__name">{d.you}</span>
+          <span className="ob-admin__meta">{d.owner}</span>
+        </span>
+      </div>
+      <div className="ob-admin__row ob-admin__row--bot" data-in={phase >= 1 || undefined}>
+        <LampTile role="publisher" size="xs" state={phase >= 3 ? "on" : "off"} className="ob-admin__lamp" />
+        <span className="ob-admin__who">
+          <span className="ob-admin__name">@{bot}</span>
+          <span className="ob-admin__meta" data-on={phase >= 3 || undefined}>
+            {phase >= 3 ? d.can : d.bot}
+          </span>
+        </span>
+        <span className="ob-switch" data-on={phase >= 2 || undefined}>
+          <span className="ob-switch__knob" />
         </span>
       </div>
     </div>

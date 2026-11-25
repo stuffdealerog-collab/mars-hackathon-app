@@ -22,6 +22,8 @@ export type BtnSpec = {
   active?: boolean;
   progress?: boolean;
   shine?: boolean;
+  /** Secondary only: where it sits next to the MainButton (default "left"; "bottom" stacks them, both full width). */
+  position?: "left" | "right" | "top" | "bottom";
 };
 
 type Reg = { priority: number; main: BtnSpec | null; secondary: BtnSpec | null };
@@ -43,7 +45,9 @@ interface NavState {
   checking: Record<string, "lost" | "busy" | undefined>;
   /** The first-run intro over everything, at this step (null: closed). Back walks its steps. */
   intro: number | null;
-  openIntro: () => void;
+  /** "admin": the intro is only its add-the-bot card (kept after closing, for the exit). */
+  introOnly: "admin" | null;
+  openIntro: (only?: "admin") => void;
   setIntroStep: (n: number) => void;
   closeIntro: () => void;
   push: (r: Route) => void;
@@ -73,8 +77,9 @@ export const useNav = create<NavState>((set, get) => ({
   dirtyEdit: false,
   checking: {},
   intro: null,
+  introOnly: null,
 
-  openIntro: () => set({ intro: 0 }),
+  openIntro: (only) => set({ intro: 0, introOnly: only ?? null }),
   setIntroStep: (n) => set({ intro: n }),
   closeIntro: () => set({ intro: null }),
 
@@ -146,7 +151,7 @@ export function useBottomButtons(key: string, priority: number, enabled: boolean
   const handlers = useLatest({ main, secondary });
 
   const mainSig = main ? `${main.text}|${main.active !== false}|${!!main.progress}|${!!main.shine}` : "";
-  const secSig = secondary ? `${secondary.text}|${secondary.active !== false}|${!!secondary.progress}` : "";
+  const secSig = secondary ? `${secondary.text}|${secondary.active !== false}|${!!secondary.progress}|${secondary.position ?? ""}` : "";
 
   useEffect(() => {
     if (!enabled) {

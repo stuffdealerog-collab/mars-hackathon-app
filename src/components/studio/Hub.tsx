@@ -39,8 +39,8 @@ export const useHub = create<{
   setCollapsed: (c: boolean) => void;
   spots: Partial<Record<AgentRole, Spot>>;
   checking: boolean;
-  /** The first-run intro is open (DesktopStudio shows it; the hub reopens it). */
-  intro: boolean;
+  /** The first-run intro is open (DesktopStudio shows it; the hub reopens it); "admin": only the add-the-bot card. */
+  intro: boolean | "admin";
   blink: boolean;
 }>((set, get) => {
   const save = () => {
