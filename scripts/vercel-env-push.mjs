@@ -43,10 +43,38 @@ const ALLOWED = [
   // Visit counters: public ids, inlined into the client at build time (redeploy after a change).
   "NEXT_PUBLIC_GA_ID",
   "NEXT_PUBLIC_YM_ID",
+  // Stats page.
+  "STATS_PASSWORD",
+  "STATS_TEAM_TG_IDS",
+  // Value loop 2026-11-25: tick, team alerts, labs gate, connectors.
+  "CRON_SECRET",
+  "OPS_CHAT_ID",
+  "LABS_ROUTES",
+  "CONNECTOR_TOKEN_KEY",
+  "META_APP_ID",
+  "META_APP_SECRET",
+  "GOOGLE_OAUTH_CLIENT_ID",
+  "GOOGLE_OAUTH_CLIENT_SECRET",
+  "GOOGLE_ADS_DEVELOPER_TOKEN",
 ];
 const TARGETS = ["production", "preview"];
-// Preview deployments must not count as visits: the counter ids go to production only.
-const PRODUCTION_ONLY = new Set(["NEXT_PUBLIC_GA_ID", "NEXT_PUBLIC_YM_ID"]);
+// Production only:
+// - visit counter ids: preview deployments must not count as visits;
+// - CRON_SECRET: only production runs the tick (previews share the production database);
+// - OPS_CHAT_ID: alerts from previews would be noise;
+// - connector keys: the OAuth redirect URIs are registered for the production domain only.
+const PRODUCTION_ONLY = new Set([
+  "NEXT_PUBLIC_GA_ID",
+  "NEXT_PUBLIC_YM_ID",
+  "CRON_SECRET",
+  "OPS_CHAT_ID",
+  "CONNECTOR_TOKEN_KEY",
+  "META_APP_ID",
+  "META_APP_SECRET",
+  "GOOGLE_OAUTH_CLIENT_ID",
+  "GOOGLE_OAUTH_CLIENT_SECRET",
+  "GOOGLE_ADS_DEVELOPER_TOKEN",
+]);
 
 if (!existsSync(".env.local")) {
   console.error("No .env.local found.");

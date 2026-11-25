@@ -25,6 +25,10 @@ const GOAL_GUIDE: Record<Goal, string> = {
     "TRUST post: show why people can rely on the business — real process, people, place, address and hours, a real customer case. Only facts from the knowledge.",
   sale:
     "SALE post: one product or service, its price if the knowledge has it (otherwise write [narx] / [цена] / [price] where the price goes — the owner fills it in; never 'ask the admin for the price'), and exactly how to order. The call to action in the first 3 lines or at the end.",
+  engage:
+    "ENGAGE post (a blog or media channel): get the people already reading to answer — a question, a poll, a take they can agree or argue with, a 'which one would you pick'. No selling, no prices.",
+  grow:
+    "GROW post (a blog or media channel): something worth forwarding, or the next part of a series people come back for, with one reason to subscribe or share. No selling, no prices.",
 };
 
 /** The brief the copywriter gets for one plan slot. Hook and CTA are the plan's; links are kept verbatim. */

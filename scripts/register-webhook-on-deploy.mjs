@@ -52,7 +52,13 @@ try {
         "message",
         "edited_message",
         "callback_query",
+        // Channel signals for the autopilot (subscriber joins/leaves, reactions, posts the owner sends by hand,
+        // the bot becoming an admin). chat_member and message_reaction_count arrive only when named here and
+        // only from chats where the bot is an admin.
         "my_chat_member",
+        "chat_member",
+        "message_reaction_count",
+        "channel_post",
         "pre_checkout_query",
         "business_connection",
         "business_message",

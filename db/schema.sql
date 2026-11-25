@@ -201,3 +201,217 @@ CREATE TABLE IF NOT EXISTS media_jobs (
 
 CREATE INDEX IF NOT EXISTS media_jobs_created_idx ON media_jobs (created_at DESC);
 CREATE INDEX IF NOT EXISTS media_jobs_owner_created_idx ON media_jobs (owner_key, created_at DESC);
+
+-- ------------------------------------------ Value loop 2026-11-25 (foundation)
+-- Plan: docs/superpowers/plans/2026-11-25-value-loop.md. Additive only, like the section above: every new column is
+-- nullable or has a default, so code that does not know it keeps working. Channel keys (`channel`, `chat`,
+-- `published_chat`) hold the public username in lowercase without @, or the numeric chat id ("-100...") of a
+-- channel that has none.
+
+-- Open media jobs, for the sweep that times out jobs stuck in queued/running.
+CREATE INDEX IF NOT EXISTS media_jobs_open_idx ON media_jobs (created_at) WHERE status IN ('queued', 'running');
+
+-- Events by time alone (the /stats dashboard reads every type over a date range).
+CREATE INDEX IF NOT EXISTS events_created_at_idx ON events (created_at);
+
+-- Brands: what kind of channel it is and the owner's main goal (owner correction 2), the autopilot state, and
+-- where the brand was created.
+-- channel_type: a ChannelType (business | blog | expert | media | community); null = not detected yet.
+ALTER TABLE brands ADD COLUMN IF NOT EXISTS channel_type text;
+-- goal: the main goal the owner confirmed, a Goal: 'sale' (more orders) or 'grow' (more subscribers); null = not asked.
+ALTER TABLE brands ADD COLUMN IF NOT EXISTS goal text;
+-- autopilot: {on, since, trialEndsAt} plus the autopilot's own keys (publishAtSlot, paused, botAdmin, botRights,
+-- checkedAt). '{}' = never switched on. The trial starts when `on` first turns true (`since`).
+ALTER TABLE brands ADD COLUMN IF NOT EXISTS autopilot jsonb NOT NULL DEFAULT '{}'::jsonb;
+-- origin: web | web_linked | miniapp | bot; null = created before 2026-11-25.
+ALTER TABLE brands ADD COLUMN IF NOT EXISTS origin text;
+
+-- Posts: the plan item they came from, their schedule, and where and when they went out.
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS plan_tag text;                -- brain_plans.tag
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS plan_slot int;                -- the item's slot number in that plan
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS schedule jsonb;               -- PostDraft.schedule {dueAt, status, error?}
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS message_id int;               -- Telegram message id (the first one if photo + text)
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS published_chat text;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS published_at timestamptz;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS generated_variants jsonb;     -- variants as first written, to diff the owner's edits
+
+CREATE INDEX IF NOT EXISTS posts_plan_idx ON posts (plan_tag, plan_slot) WHERE plan_tag IS NOT NULL;
+CREATE INDEX IF NOT EXISTS posts_published_at_idx ON posts (published_at) WHERE published_at IS NOT NULL;
+
+-- Approved posts waiting for their slot. The tick claims due rows (FOR UPDATE SKIP LOCKED) and sends each one at
+-- most once. status: queued | sending | sent | blocked | failed | expired | unknown (PostSchedule in contract.ts).
+CREATE TABLE IF NOT EXISTS publish_queue (
+  post_id uuid PRIMARY KEY REFERENCES posts (id) ON DELETE CASCADE,
+  brand_id uuid NOT NULL REFERENCES brands (id) ON DELETE CASCADE,
+  owner_telegram_id bigint NOT NULL,
+  chat text NOT NULL,
+  script text NOT NULL,                         -- the variant that goes out (Script)
+  due_at timestamptz NOT NULL,
+  text_hash text NOT NULL,                      -- of the approved text + picture: an edit after approval stops the send
+  status text NOT NULL DEFAULT 'queued',
+  attempts int NOT NULL DEFAULT 0,
+  last_error text,                              -- owner-safe reason
+  locked_at timestamptz,
+  sent_at timestamptz,
+  notified_at timestamptz,                      -- when the owner got the "post is out" message
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS publish_queue_due_idx ON publish_queue (due_at) WHERE status = 'queued';
+CREATE INDEX IF NOT EXISTS publish_queue_brand_idx ON publish_queue (brand_id, due_at);
+
+-- Exactly-once claims for scheduled work: INSERT ... ON CONFLICT (key) DO NOTHING RETURNING key. Keys look like
+-- week:<brandId>:<isoWeek>, digest:<brandId>:<isoWeek>, snap:<channel>:<date>.
+CREATE TABLE IF NOT EXISTS autopilot_runs (
+  key text PRIMARY KEY,
+  brand_id uuid REFERENCES brands (id) ON DELETE CASCADE,
+  kind text NOT NULL,
+  status text NOT NULL DEFAULT 'started',
+  detail jsonb NOT NULL DEFAULT '{}'::jsonb,    -- counts and states only
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS autopilot_runs_brand_idx ON autopilot_runs (brand_id, created_at DESC);
+
+-- The tick's lock (src/lib/cron/lock.ts): one row per lock, taken over only once locked_until has passed.
+-- last_report is the last tick's summary (counts only) and doubles as the ticker's heartbeat.
+CREATE TABLE IF NOT EXISTS cron_locks (
+  name text PRIMARY KEY,
+  holder text NOT NULL,
+  locked_until timestamptz NOT NULL,
+  acquired_at timestamptz NOT NULL DEFAULT now(),
+  released_at timestamptz,
+  last_report jsonb NOT NULL DEFAULT '{}'::jsonb
+);
+
+-- Subscribers per channel per Tashkent day: getChatMemberCount where the bot is in the channel, else the t.me/s
+-- page. History only builds up from the day the daily task ships; it cannot be filled in afterwards.
+CREATE TABLE IF NOT EXISTS channel_snapshots (
+  channel text NOT NULL,
+  day date NOT NULL,
+  subscribers int NOT NULL,
+  source text NOT NULL DEFAULT 'bot',           -- bot | scrape
+  captured_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (channel, day)
+);
+
+-- One channel message's numbers: views 24 h and 72 h after it went out (Monday report, forecast check), the latest
+-- views and forwards seen, and reactions from message_reaction_count updates.
+CREATE TABLE IF NOT EXISTS post_metrics (
+  channel text NOT NULL,
+  message_id int NOT NULL,
+  post_id uuid REFERENCES posts (id) ON DELETE SET NULL,  -- null = a post Mercat did not write
+  published_at timestamptz,
+  views_24h int,
+  views_72h int,
+  views int,
+  forwards int,
+  reactions int,                                -- total
+  reaction_counts jsonb NOT NULL DEFAULT '{}'::jsonb,     -- emoji (or custom emoji id) -> count
+  measured_at timestamptz,                      -- when views/forwards were last read
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (channel, message_id)
+);
+
+CREATE INDEX IF NOT EXISTS post_metrics_post_idx ON post_metrics (post_id) WHERE post_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS post_metrics_published_idx ON post_metrics (channel, published_at DESC);
+
+-- Invite links Mercat made per channel and source (QR code, Instagram bio, an ad post), to count joins per source.
+CREATE TABLE IF NOT EXISTS invite_links (
+  link text PRIMARY KEY,
+  brand_id uuid REFERENCES brands (id) ON DELETE CASCADE,
+  channel text NOT NULL,
+  name text NOT NULL,                           -- the link's name in Telegram (createChatInviteLink, up to 32 chars)
+  source text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  revoked_at timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS invite_links_channel_idx ON invite_links (channel, created_at DESC);
+
+-- Joins and leaves from chat_member updates (the bot must be a channel admin). The member is kept only as a keyed
+-- hash (src/lib/anon-key.ts), never as a Telegram id.
+CREATE TABLE IF NOT EXISTS channel_member_events (
+  id bigserial PRIMARY KEY,
+  channel text NOT NULL,
+  user_key text NOT NULL,
+  kind text NOT NULL,                           -- join | leave
+  invite_link text,                             -- invite_links.link when the join came through one
+  at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS channel_member_events_channel_idx ON channel_member_events (channel, at DESC);
+
+-- Owner answers live in brand_knowledge (no new table): rows with kind = 'answers', the newest row wins.
+-- structured = {orderHow: 'phone' | 'manager' | 'own_bot' | 'mercat_link', contact, prices: [{name, price}] (up to 5),
+--               trackLinks: boolean (the tracked t.me link is opt-in), goal, at}
+-- text = the same answers in plain words, so the strategist reads them as facts.
+
+-- Connectors (read-only insights: Instagram, Meta ads, YouTube, Google Ads). A connection belongs to the Telegram
+-- owner; brand_id only pins it for display. Tokens are stored encrypted (AES-256-GCM with CONNECTOR_TOKEN_KEY and
+-- the row id as associated data, so the app generates the id before encrypting), never in plain text.
+CREATE TABLE IF NOT EXISTS connections (
+  id uuid PRIMARY KEY,
+  owner_telegram_id bigint NOT NULL,
+  brand_id uuid REFERENCES brands (id) ON DELETE SET NULL,
+  provider text NOT NULL,                       -- instagram | meta_ads | youtube | google_ads
+  mode text NOT NULL DEFAULT 'test',            -- test | live (the provider app's review state)
+  external_id text NOT NULL,                    -- the account id at the provider
+  account jsonb NOT NULL DEFAULT '{}'::jsonb,   -- display info: username, name, picture
+  accounts jsonb NOT NULL DEFAULT '[]'::jsonb,  -- ad accounts / customers to choose from
+  selected_account text,
+  scopes text[] NOT NULL DEFAULT '{}',
+  access_token_enc text,
+  refresh_token_enc text,
+  token_expires_at timestamptz,
+  data_access_expires_at timestamptz,
+  refreshed_at timestamptz,
+  status text NOT NULL DEFAULT 'active',        -- active | expired | revoked | error
+  last_error text,
+  last_sync_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  revoked_at timestamptz
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS connections_owner_provider_ext_idx ON connections (owner_telegram_id, provider, external_id);
+CREATE INDEX IF NOT EXISTS connections_brand_idx ON connections (brand_id);
+CREATE INDEX IF NOT EXISTS connections_due_idx ON connections (status, last_sync_at);
+
+-- Single-use OAuth state with PKCE: a callback is accepted once, before expires_at.
+CREATE TABLE IF NOT EXISTS connect_oauth_states (
+  state text PRIMARY KEY,
+  provider text NOT NULL,
+  owner_telegram_id bigint NOT NULL,
+  brand_id uuid,
+  return_to text NOT NULL DEFAULT 'studio',
+  pkce_verifier_enc text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL,
+  used_at timestamptz
+);
+
+-- Numbers pulled from a connection: one row per account and day, one per post, video or campaign. Numbers and
+-- short titles (up to 200 characters) only, no personal data about the audience.
+CREATE TABLE IF NOT EXISTS connection_metrics_daily (
+  connection_id uuid NOT NULL REFERENCES connections (id) ON DELETE CASCADE,
+  account_id text NOT NULL DEFAULT '',
+  day date NOT NULL,
+  metrics jsonb NOT NULL,
+  fetched_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (connection_id, account_id, day)
+);
+
+CREATE TABLE IF NOT EXISTS connection_items (
+  connection_id uuid NOT NULL REFERENCES connections (id) ON DELETE CASCADE,
+  kind text NOT NULL,                           -- post | reel | carousel | story | video | short | campaign
+  external_id text NOT NULL,
+  published_at timestamptz,
+  title text,
+  permalink text,
+  metrics jsonb NOT NULL DEFAULT '{}'::jsonb,
+  fetched_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (connection_id, kind, external_id)
+);

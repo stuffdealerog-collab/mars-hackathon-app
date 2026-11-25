@@ -1,0 +1,35 @@
+name: Tick
+
+# Calls /api/cron/tick every 10 minutes: Vercel Hobby allows only a daily cron (that one is in vercel.json).
+# Needs the repo secret CRON_SECRET (the same value as in Vercel Production) and the repo variable TICK_URL
+# (https://<production domain>/api/cron/tick). While either is missing, the run skips without failing.
+# GitHub can start scheduled runs late when it is busy, and pauses them after 60 days without repo activity.
+
+on:
+  schedule:
+    - cron: "3-59/10 * * * *" # every 10 minutes, off the top of the hour when GitHub is busiest
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Call the tick
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          TICK_URL: ${{ vars.TICK_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$TICK_URL" ]; then
+            echo "::notice::The CRON_SECRET secret or the TICK_URL variable is not set: skipping the tick."
+            exit 0
+          fi
+          # The answer is a summary with counts only (no ids or texts), safe for public logs.
+          curl -fsS --max-time 300 -H "Authorization: Bearer $CRON_SECRET" "$TICK_URL"
+          echo
