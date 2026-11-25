@@ -6,7 +6,8 @@
  */
 import { clip } from "../text";
 
-export type KnowledgeKind = "gdoc" | "gsheet" | "pdf" | "website" | "manual";
+/** "answers": the owner's answers to the run's questions (answers-store.ts; only the newest row counts). */
+export type KnowledgeKind = "gdoc" | "gsheet" | "pdf" | "website" | "manual" | "answers";
 
 export type KnowledgeErrorCode =
   | "BAD_URL"

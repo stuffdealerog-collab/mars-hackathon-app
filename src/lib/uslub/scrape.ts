@@ -10,6 +10,8 @@ export interface ScrapedPost {
   text: string;
   views?: string; // as shown by Telegram, e.g. "1.2K"
   date?: string; // ISO
+  /** A post forwarded from another channel: not the channel's own voice, ending or contact. */
+  isForward?: boolean;
 }
 
 export interface ScrapedChannel {
@@ -137,6 +139,8 @@ export function parseChannelHtml(username: string, html: string): ScrapedChannel
       text,
       views: views?.[1]?.trim(),
       date: date?.[1],
+      // Same marker as brain/scrape.ts: a partner's post forwarded here never teaches the brand its contact.
+      ...(/tgme_widget_message_forwarded_from/.test(block) ? { isForward: true } : {}),
     });
   }
   return {

@@ -20,6 +20,10 @@ vi.mock("@/lib/uslub/context", async () => await import("../src/lib/uslub/contex
 vi.mock("@/lib/uslub/brain/route-utils", async () => await import("../src/lib/uslub/brain/route-utils"));
 vi.mock("@/lib/uslub/brain/memory", async () => await import("../src/lib/uslub/brain/memory"));
 vi.mock("@/lib/uslub/brain/kbstore", () => ({ loadKnowledge: async () => ({ text: "" }) }));
+vi.mock("@/lib/uslub/brain/answers-store", () => ({ loadAnswers: async () => null }));
+vi.mock("@/lib/uslub/brain/channel-type", async () => await import("../src/lib/uslub/brain/channel-type"));
+vi.mock("@/lib/uslub/store", async () => await import("../src/lib/uslub/store"));
+vi.mock("@/lib/uslub/ending", async () => await import("../src/lib/uslub/ending"));
 vi.mock("@/lib/uslub/llm", () => ({ getAnthropic: () => { throw new Error("no model"); }, LlmError: class extends Error {} }));
 
 const plan = { weekOf: "2026-11-23", items: [{ day: "2026-11-26", time: "20:40", goal: "sale", pillar: "Ertalab", format: "photo", hook: "Kapuchino 25 000 so‘m", cta: "Buyurtma: https://t.me/mercatai?start=src_ab12cd_1", brief: "Burchak: ertalabki qahva", metric: "≥5 kishi botni ochadi", needsApproval: true }], rationale: "" };

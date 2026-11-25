@@ -3,6 +3,7 @@
  * goal, opening line and call to action, so the plan and the posts stay one thing.
  */
 import type { Goal, PlanSlot } from "./contract";
+import { stripBareIds } from "./brain/copy";
 import { clip } from "./text";
 
 export type SlotInput = PlanSlot & { brief: string; format?: string };
@@ -14,6 +15,9 @@ export function cleanBrief(brief: string): string {
     .filter((line) => !/^\s*—\s*(Dalil|Evidence|Доказ)/i.test(line))
     .join("\n")
     .replace(/\s*[[(]\s*(?:S\.[\w.-]+|F\d+|W\d+|P\.\w+\/\d+|R\.[A-Z_]+)(?:\s*,\s*(?:S\.[\w.-]+|F\d+|W\d+|P\.\w+\/\d+|R\.[A-Z_]+))*\s*[\])]/g, "")
+    .split("\n")
+    .map(stripBareIds)
+    .join("\n")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
 }
@@ -57,4 +61,11 @@ export function slotSummary(slot: SlotInput): string {
 }
 
 /** The slot as stored on the post (contract PlanSlot, no brief). */
-export const toPlanSlot = (s: SlotInput): PlanSlot => ({ day: s.day, time: s.time, goal: s.goal, hook: cleanBrief(s.hook), cta: cleanBrief(s.cta) });
+export const toPlanSlot = (s: SlotInput): PlanSlot => ({
+  day: s.day,
+  time: s.time,
+  goal: s.goal,
+  hook: cleanBrief(s.hook),
+  cta: cleanBrief(s.cta),
+  ...(s.format ? { format: s.format } : {}),
+});

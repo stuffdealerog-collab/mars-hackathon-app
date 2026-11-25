@@ -3,7 +3,8 @@
  * GROUNDED: every "fact number" must match the display/value of an id cited in the same string.
  */
 import { lexiconHits, normApos } from "./stats";
-import { ID_RE, type LedgerEntry } from "./types";
+import { ID_RE, type Goal, type LedgerEntry } from "./types";
+import { contactsIn } from "../ending";
 import { clip } from "../text";
 
 export function extractIds(text: string): string[] {
@@ -93,11 +94,13 @@ export function jaccard(a: Set<string>, b: Set<string>): number {
 
 export interface LintItem {
   slot: number;
-  goal: "reach" | "trust" | "sale";
+  goal: Goal;
   hook: string;
   cta: string;
   brief: string;
   factIds: string[];
+  /** The slot carries the opt-in tracked link (code puts it where {{LINK}} is, or at the end). Missing = false. */
+  link?: boolean;
 }
 
 export interface LintCtx {
@@ -108,6 +111,25 @@ export interface LintCtx {
   competitorTexts: string[];
   emojiCap: number;
   address: "siz" | "sen";
+  /**
+   * Contact keys (ending.ts contactsIn) of the channel's own ending and the owner's answered contact. A CTA that ends
+   * with the channel's contact line as written ("☎️ +998 90 123 45 67 | @admin") is one route, not two.
+   */
+  endingContactKeys?: string[];
+}
+
+/**
+ * Contacts in a CTA besides the channel's own (its ending's contacts all count as one route): distinct phones and
+ * @handles, plus partial "+998 90" phones contactsIn does not see as a whole number.
+ */
+function extraContacts(cta: string, own: readonly string[] = []): number {
+  const ownSet = new Set(own);
+  // Mercat's tracked link is checked above ({{LINK}}), never counted as the channel's contact here.
+  const text = cta.replace(/(?:https?:\/\/)?t\.me\/\w+\?start=\S*/gi, " ");
+  const found = contactsIn(text);
+  const keys = new Set(found.map((c) => c.key).filter((k) => !ownSet.has(k)));
+  const partialPhones = (text.replace(/\+?998[\s-]?\(?\d{2}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}/g, " ").match(/\+?998[\s-]?\d{2}/g) ?? []).length;
+  return keys.size + partialPhones + (found.some((c) => ownSet.has(c.key)) ? 1 : 0);
 }
 
 /** Code checks for one plan item: GROUNDED, PRICE, URGENCY, ONE_CTA, HOOK, NEURO, VOICE (code part), ORIGINALITY. */
@@ -124,11 +146,12 @@ export function lintItem(item: LintItem, ctx: LintCtx): CheckFail[] {
   const urg = normApos(all).match(URGENCY_RE);
   if (urg && ctx.deadlineFacts === 0) fails.push({ check: "URGENCY", quote: urg[0], reason: "urgency without a deadline/capacity fact" });
 
-  const links = (item.cta.match(/\{\{LINK\}\}/g) ?? []).length + (all.match(/https?:\/\//g) ?? []).length;
-  if (item.goal !== "reach" && (item.cta.match(/\{\{LINK\}\}/g) ?? []).length !== 1) fails.push({ check: "ONE_CTA", quote: item.cta, reason: "sale/trust CTA needs {{LINK}} exactly once" });
-  if (item.goal === "reach" && links > 0) fails.push({ check: "ONE_CTA", quote: item.cta, reason: "reach item must not carry a link" });
-  if ((item.cta.match(/\+?998[\s-]?\d{2}/g) ?? []).length + (item.cta.match(/@\w{4,}/g) ?? []).length > 1)
-    fails.push({ check: "ONE_CTA", quote: item.cta, reason: "more than one contact in the CTA" });
+  const tokens = (item.cta.match(/\{\{LINK\}\}/g) ?? []).length;
+  const links = tokens + (all.match(/https?:\/\//g) ?? []).length;
+  // The tracked link is opt-in and put in by code (owner correction 1): a token where there is no link, or twice, fails.
+  if (tokens > 1 || (tokens > 0 && !item.link)) fails.push({ check: "ONE_CTA", quote: item.cta, reason: item.link ? "{{LINK}} more than once" : "this slot has no tracked link: remove {{LINK}}" });
+  if ((item.goal === "reach" || item.goal === "engage" || item.goal === "grow") && links > 0) fails.push({ check: "ONE_CTA", quote: item.cta, reason: `${item.goal} item must not carry a link` });
+  if (extraContacts(item.cta, ctx.endingContactKeys) > 1) fails.push({ check: "ONE_CTA", quote: item.cta, reason: "more than one contact in the CTA" });
 
   const hook = item.hook.trim();
   if (hook.length > 90) fails.push({ check: "HOOK", quote: hook, reason: `hook is ${hook.length} chars (>90)` });

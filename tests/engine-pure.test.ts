@@ -32,8 +32,9 @@ describe("posts from plan slots", () => {
   };
 
   it("strips ledger ids and the strategist's meta line", () => {
-    expect(cleanBrief(slot.brief)).toBe("Napoleon tortini sotamiz, narx F3 dan.");
-    expect(slotSummary(slot)).toBe("Napoleon tortini sotamiz, narx F3 dan.");
+    // Bare ids ("narx F3 dan") go too: the owner never reads an internal fact id (plan item 3).
+    expect(cleanBrief(slot.brief)).toBe("Napoleon tortini sotamiz, narx.");
+    expect(slotSummary(slot)).toBe("Napoleon tortini sotamiz, narx.");
   });
 
   it("hands the copywriter the plan's hook, CTA (link verbatim), goal and time", () => {

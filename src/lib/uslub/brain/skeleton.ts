@@ -5,9 +5,10 @@
 import { type Benchmark, benchBestHour } from "./bench";
 import { baseViews, type Forecast, forecastSlot, steadyBase } from "./forecast";
 import type { LearnHints } from "./learn";
+import { isGrowthType } from "./channel-type";
 import { largestRemainder } from "./rules";
 import { isWinner, median, WEEKDAYS } from "./stats";
-import { TZ_H, type ChannelStats, type Goal, type Lang, type RuleResult } from "./types";
+import { TZ_H, type ChannelStats, type ChannelType, type Goal, type Lang, type RuleResult } from "./types";
 
 export interface Slot {
   slot: number; // 1-based
@@ -19,6 +20,8 @@ export interface Slot {
   format: "text" | "photo" | "album" | "video";
   exp?: "hour" | "format" | "hookType" | "length" | "language";
   calendarEvent?: string;
+  /** "preorder": a holiday people order ahead for (New Year cakes, 8 March flowers): a sale slot with real prices. */
+  calendarKind?: "event" | "preorder";
   link?: string;
   metric: string;
   approvalReasons: string[];
@@ -35,14 +38,24 @@ export interface SkeletonInput {
   stats?: ChannelStats; // undefined = no history
   competitors: ChannelStats[];
   rules: RuleResult[];
-  shares: Record<Goal, number>;
+  /** Pillar shares per goal (missing goals count 0). */
+  shares: Partial<Record<Goal, number>>;
   category: string;
   hasPriceFact: boolean;
   hasOfferFact: boolean;
   approvedPosts: number;
+  /**
+   * Mercat's bot for tracked links (t.me/<bot>?start=src_...). Pass it only when the owner opted in and the brand has an
+   * owner (owner correction 1): without it no slot gets a link, and no target promises bot starts.
+   */
   bot?: string;
   lang: Lang;
-  calendar: { id: string; name: string; daysAway: number }[];
+  /** Upcoming events; kind "notice" (a day off such as Constitution Day) is an owner question, never a slot. */
+  calendar: { id: string; name: string; daysAway: number; kind?: "event" | "preorder" | "notice" }[];
+  /** Blog, expert, media and community channels plan reach / engage / grow slots instead of reach / trust / sale. */
+  channelType?: ChannelType;
+  /** At most this many slots (distinct topics + 1 for a sales plan); missing = postCount alone. */
+  maxSlots?: number;
   planTag?: string; // short id in tracked links: src_<tag>_<slot>
   bench?: Benchmark;
   learned?: LearnHints;
@@ -83,9 +96,22 @@ export function postCount(stats: ChannelStats | undefined, rules: RuleResult[]):
   return Math.min(n, Math.max(3, Math.ceil(1.5 * ppw)));
 }
 
-export function goalCounts(n: number, shares: Record<Goal, number>, rules: RuleResult[], hasSaleFact: boolean): Record<Goal, number> {
-  const [reach, trust, sale] = largestRemainder([shares.reach, shares.trust, shares.sale], n);
-  const c: Record<Goal, number> = { reach, trust, sale };
+/** Growth slots: reach (views, forwards), engage (a question or poll), grow (the rubric, a post swap); one of each from 3. */
+export function growthCounts(n: number, shares: Partial<Record<Goal, number>>): Record<Goal, number> {
+  const [reach, engage, grow] = largestRemainder([shares.reach ?? 40, shares.engage ?? 30, shares.grow ?? 30], n);
+  const c: Record<Goal, number> = { reach, trust: 0, sale: 0, engage, grow };
+  for (const g of ["engage", "grow"] as const)
+    if (n >= 3 && c[g] < 1) {
+      const from = (["reach", "engage", "grow"] as const).filter((x) => x !== g).sort((a, b) => c[b] - c[a])[0];
+      c[from]--;
+      c[g]++;
+    }
+  return c;
+}
+
+export function goalCounts(n: number, shares: Partial<Record<Goal, number>>, rules: RuleResult[], hasSaleFact: boolean): Record<Goal, number> {
+  const [reach, trust, sale] = largestRemainder([shares.reach ?? 0, shares.trust ?? 0, shares.sale ?? 0], n);
+  const c: Record<Goal, number> = { reach, trust, sale, engage: 0, grow: 0 };
   let cap = fired(rules, "R.TRUST_GAP") || fired(rules, "R.OVERSELLING") ? 2 : 3;
   if (fired(rules, "R.INCONSISTENT")) cap = 1;
   if (!hasSaleFact) cap = 0;
@@ -150,12 +176,14 @@ function fixTime(time: string, weekday: number): string {
 
 export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot[]; counts: Record<Goal, number> } {
   const { rules, stats } = inp;
+  const growth = isGrowthType(inp.channelType);
   const start = tashkentDate(inp.now);
   start.setUTCDate(start.getUTCDate() + 1);
   // The plan starts tomorrow; weekOf names the Monday of that week (the contract's "ISO date of Monday").
   const weekOf = mondayOf(start.toISOString().slice(0, 10));
-  const N = postCount(stats, rules);
-  const counts = goalCounts(N, inp.shares, rules, inp.hasPriceFact || inp.hasOfferFact);
+  // One topic at most once a week: a sales week has no more slots than distinct topics + 1 (never fewer than 3).
+  const N = Math.min(postCount(stats, rules), inp.maxSlots != null ? Math.max(3, inp.maxSlots) : 10);
+  const counts = growth ? growthCounts(N, inp.shares) : goalCounts(N, inp.shares, rules, inp.hasPriceFact || inp.hasOfferFact);
 
   const dayOffsets = Array.from({ length: N }, (_, i) => Math.min(6, Math.round((i * 7) / N)));
   for (let i = 1; i < N; i++) if (dayOffsets[i] <= dayOffsets[i - 1] && dayOffsets[i - 1] < 6) dayOffsets[i] = dayOffsets[i - 1] + 1;
@@ -169,7 +197,19 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
   // goals
   const goals: (Goal | null)[] = Array(N).fill(null);
   const inconsistent = fired(rules, "R.INCONSISTENT");
-  if (inconsistent) goals[0] = "trust";
+  if (growth) {
+    // A growth week: no two neighbours with the same goal where possible; the first post is a reach post.
+    const left = { reach: counts.reach, engage: counts.engage, grow: counts.grow };
+    for (let i = 0; i < N; i++) {
+      const prev = goals[i - 1];
+      const pick =
+        i === 0 && left.reach > 0
+          ? "reach"
+          : (["grow", "engage", "reach"] as const).filter((g) => left[g] > 0).sort((a, b) => Number(a === prev) - Number(b === prev) || left[b] - left[a])[0];
+      goals[i] = pick ?? "reach";
+      if (pick) left[pick]--;
+    }
+  } else if (inconsistent) goals[0] = "trust";
   const bestDays = stats
     ? Object.entries(stats.weekdayLift)
         .filter(([, b]) => isWinner(b))
@@ -181,7 +221,7 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
     .sort((a, b) => Number(!preferred.includes(weekdays[a])) - Number(!preferred.includes(weekdays[b])) || b - a);
   let sales = 0;
   for (const i of order) {
-    if (sales >= counts.sale) break;
+    if (growth || sales >= counts.sale) break;
     if (goals[i] || goals[i - 1] === "sale") continue;
     const adjacent = goals.some((g, j) => g === "sale" && Math.abs(dayOffsets[j] - dayOffsets[i]) <= 1);
     if (adjacent) continue;
@@ -189,7 +229,7 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
     goals[i - 1] = "trust";
     sales++;
   }
-  counts.sale = sales;
+  if (!growth) counts.sale = sales;
   let trustLeft = counts.trust - goals.filter((g) => g === "trust").length;
   let reachLeft = N - sales - goals.filter((g) => g === "trust").length - Math.max(0, trustLeft);
   for (let i = 0; i < N; i++) {
@@ -202,14 +242,15 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
       trustLeft--;
     }
   }
-  const finalCounts: Record<Goal, number> = { reach: 0, trust: 0, sale: 0 };
+  const finalCounts: Record<Goal, number> = { reach: 0, trust: 0, sale: 0, engage: 0, grow: 0 };
   for (const g of goals) finalCounts[g as Goal]++;
 
   // formats
   const fw = rules.find((r) => r.id === "R.FORMAT_WINNER" && r.status === "fired");
   const winner = fw?.data?.winner as string | undefined;
   const losers = (fw?.data?.losers as string[] | undefined) ?? [];
-  const formats: Slot["format"][] = goals.map((g, i) => (g === "reach" ? (i === 0 ? "text" : "video") : g === "trust" ? "photo" : "photo"));
+  // An engage post is a question or poll (text); a series part and a sale post carry a picture.
+  const formats: Slot["format"][] = goals.map((g, i) => (g === "engage" ? "text" : g === "reach" ? (i === 0 ? "text" : "video") : "photo"));
   if (!stats || stats.postsInWindow === 0) {
     // prior mix: 50% photo/album, 25% video, 25% text
     formats.forEach((_, i) => (formats[i] = i % 4 === 1 ? "video" : i % 4 === 3 ? "text" : i % 2 ? "album" : "photo"));
@@ -294,12 +335,13 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
       }
     }
     time = fixTime(time, weekdays[i]);
-    const metric = metricText(goal, med, inp.lang, { steady });
+    const metric = metricText(goal, med, inp.lang, { steady, link: Boolean(inp.bot && (goal === "trust" || goal === "sale")) });
     const reasons: string[] = [];
     if (goal === "sale") reasons.push("narx");
     if (formats[i] === "video") reasons.push("video");
     if (inp.approvedPosts < 5) reasons.push("birinchi postlar");
-    const src = goal !== "reach" && inp.bot ? `src_${inp.planTag ?? yyww}_${i + 1}` : undefined;
+    // Tracked links only on trust and sale posts, and only when the owner opted in (the caller passes inp.bot then).
+    const src = (goal === "trust" || goal === "sale") && inp.bot ? `src_${inp.planTag ?? yyww}_${i + 1}` : undefined;
     const link = src ? `https://t.me/${inp.bot}?start=${src}` : undefined;
     return {
       slot: i + 1,
@@ -319,15 +361,22 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
   });
   for (const s of slots) s.forecast = forecastSlot(s, stats, inp.bench, { lang: inp.lang, ctr: inp.learned?.ctr });
 
-  // calendar overlay
-  const ev = inp.calendar.filter((e) => e.daysAway <= 14)[0];
+  // calendar overlay: a day off (notice) is an owner question, never a slot. A preorder holiday (New Year cakes,
+  // 8 March flowers) takes a sale slot built on the real product and price facts.
+  const ev = inp.calendar
+    .filter((e) => e.daysAway <= 14 && e.kind !== "notice")
+    .sort((a, b) => Number(b.kind === "preorder") - Number(a.kind === "preorder"))[0];
   if (ev) {
-    const target =
-      (inp.hasOfferFact && slots.find((s) => s.goal === "sale")) ||
-      slots.find((s) => s.goal === "trust" && !s.exp) ||
-      slots.find((s) => s.goal !== "sale");
+    const preorder = ev.kind === "preorder" && !growth && inp.hasPriceFact;
+    const target = growth
+      ? slots.find((s) => s.goal === "engage" && !s.exp) || slots.find((s) => s.goal === "reach" && !s.exp) || slots.find((s) => !s.exp)
+      : (preorder && slots.find((s) => s.goal === "sale")) ||
+        (inp.hasOfferFact && slots.find((s) => s.goal === "sale")) ||
+        slots.find((s) => s.goal === "trust" && !s.exp) ||
+        slots.find((s) => s.goal !== "sale");
     if (target) {
       target.calendarEvent = ev.name;
+      if (preorder && target.goal === "sale") target.calendarKind = "preorder";
       target.approvalReasons.push("bayram");
       target.evidence.push(`S.calendar.${ev.id}`);
     }
@@ -336,37 +385,65 @@ export function buildSkeleton(inp: SkeletonInput): { weekOf: string; slots: Slot
 }
 
 /** What each slot is judged by, in the owner's language (numbers only, no ledger ids). */
-const METRIC: Record<Lang, { first: string; reach: (v: number) => string; trust: (v: number) => string; sale: (s: number) => string }> = {
+type MetricText = {
+  first: string;
+  reach: (v: number) => string;
+  trust: (v: number) => string;
+  sale: (s: number) => string;
+  trustNoLink: (v: number) => string;
+  saleNoLink: (v: number) => string;
+  engage: (v: number) => string;
+  grow: (v: number) => string;
+};
+
+const METRIC: Record<Lang, MetricText> = {
   uz: {
     first: "birinchi hafta: boshlang‘ich raqamlarni o‘lchaymiz",
     reach: (v) => `72 soatda ≥${v} ko‘rish`,
     trust: (v) => `≥${v} ko‘rish va ≥3 kishi botni ochadi`,
     sale: (s) => `≥${s} kishi botni ochadi (taxminan 1% bosish) va ≥1 buyurtma`,
+    trustNoLink: (v) => `72 soatda ≥${v} ko‘rish`,
+    saleNoLink: (v) => `72 soatda ≥${v} ko‘rish va ≥1 buyurtma (haftalik javobingizdan)`,
+    engage: (v) => `72 soatda ≥${v} ko‘rish va izohlar yoki ovozlar`,
+    grow: (v) => `72 soatda ≥${v} ko‘rish, ulashishlar va yangi obunachilar`,
   },
   ru: {
     first: "первая неделя: замеряем исходные цифры",
     reach: (v) => `≥${v} просмотров за 72 ч`,
     trust: (v) => `≥${v} просмотров и ≥3 открытия бота`,
     sale: (s) => `≥${s} открытий бота (около 1% переходов) и ≥1 заказ`,
+    trustNoLink: (v) => `≥${v} просмотров за 72 ч`,
+    saleNoLink: (v) => `≥${v} просмотров за 72 ч и ≥1 заказ (по вашему ответу за неделю)`,
+    engage: (v) => `≥${v} просмотров за 72 ч и ответы или голоса`,
+    grow: (v) => `≥${v} просмотров за 72 ч, пересылки и новые подписчики`,
   },
   en: {
     first: "first week: we measure the starting numbers",
     reach: (v) => `≥${v} views in 72 h`,
     trust: (v) => `≥${v} views and ≥3 bot starts`,
     sale: (s) => `≥${s} bot starts (about 1% click-through) and ≥1 order`,
+    trustNoLink: (v) => `≥${v} views in 72 h`,
+    saleNoLink: (v) => `≥${v} views in 72 h and ≥1 order (from your weekly answer)`,
+    engage: (v) => `≥${v} views in 72 h, plus replies or votes`,
+    grow: (v) => `≥${v} views in 72 h, forwards and new subscribers`,
   },
 };
 
 /**
  * `medianViews` is what a new post gets (forecast.baseViews). `steady`: a cold start or only a few recent posts, so a
- * reach slot aims at today's level instead of +20%.
+ * reach slot aims at today's level instead of +20%. `link`: the slot carries the opt-in tracked link; without it no
+ * target counts bot starts (nothing could measure them). Default true (the target as before the opt-in).
  */
-export function metricText(goal: Goal, medianViews: number | undefined, lang: Lang, opts: { steady?: boolean } = {}): string {
+export function metricText(goal: Goal, medianViews: number | undefined, lang: Lang, opts: { steady?: boolean; link?: boolean } = {}): string {
   const t = METRIC[lang] ?? METRIC.uz;
   if (medianViews == null) return t.first;
+  const v = Math.round(medianViews);
   if (goal === "reach") return t.reach(Math.round((opts.steady ? 1 : 1.2) * medianViews));
-  if (goal === "trust") return t.trust(Math.round(medianViews));
-  return t.sale(Math.max(3, Math.round(0.01 * medianViews)));
+  if (goal === "engage") return t.engage(v);
+  if (goal === "grow") return t.grow(v);
+  const link = opts.link ?? true;
+  if (goal === "trust") return link ? t.trust(v) : t.trustNoLink(v);
+  return link ? t.sale(Math.max(3, Math.round(0.01 * medianViews))) : t.saleNoLink(v);
 }
 
 /* --------------------------------------------- hook types and fact focus */
@@ -374,6 +451,8 @@ export function metricText(goal: Goal, medianViews: number | undefined, lang: La
 export const HOOK_TYPES = ["number", "price", "question", "local", "before_after", "behind_scenes", "myth_fact", "product_spotlight"] as const;
 
 const HOOK_POOL: Record<Goal, string[]> = {
+  engage: ["question", "myth_fact", "number", "local"],
+  grow: ["number", "behind_scenes", "question", "product_spotlight"],
   sale: ["price", "product_spotlight", "number", "question"],
   trust: ["behind_scenes", "local", "number", "question", "product_spotlight"],
   // myth_fact last: forced "myths" read as machine-made (eval 24 Nov: NATURAL = 1 on most of them).
@@ -427,6 +506,8 @@ export function assignHookTypes(
 
 type FactRef = { id: string; type: string };
 const FOCUS: Record<Goal | "trustFirst", string[]> = {
+  engage: ["story", "number", "review", "person", "product", "year"],
+  grow: ["story", "number", "person", "year", "product", "review"],
   sale: ["price", "offer", "deadline", "product"],
   trustFirst: ["address", "landmark", "district", "hours", "contact", "delivery"],
   trust: ["review", "number", "year", "certificate", "person", "guarantee", "story", "process", "delivery", "payment", "address"],
@@ -462,6 +543,8 @@ const KPI_T: Record<Lang, Record<string, string>> = {
     starts: "Postdagi havola orqali botga yozganlar, haftasiga",
     ctr: "Sotuv postini ko‘rib, havolani bosganlar, % (taxminiy maqsad 1%)",
     weeks: "4 haftada",
+    subs: "Obunachilar",
+    guide: "taxminiy maqsad",
     howScrape: "kanalning ochiq sahifasidan hisoblaymiz",
     howTags: "post havolalarini bosganlar soni (botda)",
     howCtr: "havolalarni bosganlar va sizning haftalik javobingiz (buyurtmalar)",
@@ -473,6 +556,8 @@ const KPI_T: Record<Lang, Record<string, string>> = {
     starts: "Написали в бота по ссылке из поста, в неделю",
     ctr: "Нажали на ссылку в продающем посте, % (ориентир 1%)",
     weeks: "за 4 недели",
+    subs: "Подписчики",
+    guide: "ориентир",
     howScrape: "считаем по открытой странице канала",
     howTags: "переходы по ссылкам из постов (в боте)",
     howCtr: "переходы по ссылкам и ваш еженедельный ответ (заказы)",
@@ -484,13 +569,15 @@ const KPI_T: Record<Lang, Record<string, string>> = {
     starts: "People who wrote to the bot from a post link, per week",
     ctr: "Clicked the link in a sale post, % (1% rule of thumb)",
     weeks: "in 4 weeks",
+    subs: "Subscribers",
+    guide: "rough goal",
     howScrape: "counted from the channel's public page",
     howTags: "clicks on post links (in the bot)",
     howCtr: "link clicks plus your weekly answer (orders)",
   },
 };
 
-export function buildKpis(stats: ChannelStats | undefined, rules: RuleResult[], n: number, slots: Slot[], lang: Lang) {
+export function buildKpis(stats: ChannelStats | undefined, rules: RuleResult[], n: number, slots: Slot[], lang: Lang, opts: { channelType?: ChannelType } = {}) {
   const t = KPI_T[lang];
   const k: { metric: string; baseline?: number; target: number; how: string }[] = [];
   k.push({ metric: t.ppw, baseline: stats ? Math.round(stats.postsPerWeek * 10) / 10 : undefined, target: n, how: t.howScrape });
@@ -506,9 +593,18 @@ export function buildKpis(stats: ChannelStats | undefined, rules: RuleResult[], 
     const base = Math.round(stats.reachRate * 1000) / 10;
     k.push({ metric: t.reach, baseline: base, target: lowBand ? Math.min(100, Math.round((base + 2) * 10) / 10) : base, how: t.howScrape });
   }
+  // Growth channels count subscribers (from the channel page), never bot starts or clicks.
+  if (isGrowthType(opts.channelType)) {
+    if (stats?.subscribers) k.push({ metric: `${t.subs} (${t.weeks}, ${t.guide})`, baseline: stats.subscribers, target: Math.round(stats.subscribers * 1.03), how: t.howScrape });
+    return k.slice(0, 5);
+  }
+  // Bot starts and clicks only where a slot carries the opt-in tracked link: nothing else could measure them.
+  const linked = slots.filter((s) => s.link);
   const med = views;
-  const starts = slots.reduce((a, s) => a + (s.goal === "trust" ? 3 : s.goal === "sale" ? Math.max(3, Math.round(0.01 * (med ?? 0))) : 0), 0);
-  k.push({ metric: t.starts, target: starts, how: t.howTags });
-  if (slots.some((s) => s.goal === "sale")) k.push({ metric: t.ctr, target: 1, how: t.howCtr });
+  if (linked.length) {
+    const starts = linked.reduce((a, s) => a + (s.goal === "trust" ? 3 : s.goal === "sale" ? Math.max(3, Math.round(0.01 * (med ?? 0))) : 0), 0);
+    k.push({ metric: t.starts, target: starts, how: t.howTags });
+    if (linked.some((s) => s.goal === "sale")) k.push({ metric: t.ctr, target: 1, how: t.howCtr });
+  }
   return k.slice(0, 5);
 }

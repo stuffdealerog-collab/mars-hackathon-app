@@ -10,13 +10,15 @@ import { extractIds, groundedCheck } from "./lint";
 import { brainJson, GROUNDING, SONNET } from "./llm";
 import { type Benchmark, benchLedger, benchmarkFor, type ChannelSummary, type Niche, nicheOf } from "./bench";
 import { funnelLedger, learnFor, type LearnReport } from "./learn-run";
-import { loadBrainCache, recordAnalysis, loadSummaries, saveBrainCache } from "./memory";
+import { loadBrainCache, loadSubscriberSnapshots, recordAnalysis, loadSummaries, saveBrainCache } from "./memory";
+import { type ChannelTypeGuess, defaultGoalFor, detectChannelType, isGrowthType } from "./channel-type";
+import { growthLedger, growthSignals, type SubscriberTrend, subscriberTrendOf } from "./growth";
 import { keyId, postLedger, ruleLedger, runRules, statsLedger, type KbSignals } from "./rules";
 import { BrainScrapeError, normalizeChannel, scrapeChannelData } from "./scrape";
 import { sufficiency } from "./sufficiency";
 import { channelValidity, noPreview, type Validity, type ValidityCode } from "./validity";
 import { computeStats, LEXICON, WEEKDAYS } from "./stats";
-import { WIN, type ChannelData, type ChannelStats, type Lang, type LedgerEntry, type RuleResult } from "./types";
+import { WIN, type ChannelData, type ChannelStats, type ChannelType, type Lang, type LedgerEntry, type RuleResult } from "./types";
 
 export type Stage = { stage: string; [k: string]: unknown };
 export type OnStage = (e: Stage) => void;
@@ -41,6 +43,12 @@ export interface Analysis {
   ledger: LedgerEntry[];
   /** Upcoming calendar events (<=14 days) with names in uz/ru/en. */
   calendar: { id: string; name: { uz: string; ru: string; en: string }; daysAway: number }[];
+  /** What kind of channel this is (given by the brand, else detected from the posts): rules and findings follow it. */
+  channelType: ChannelType;
+  /** The detection behind it (missing when the brand's stored type was used). */
+  typeGuess?: ChannelTypeGuess;
+  /** Subscribers over the days Mercat measured them, when it has (channel_snapshots). */
+  subscriberTrend?: SubscriberTrend;
 }
 
 const fetchFailed = (handle: string): CompetitorIssue => ({
@@ -69,6 +77,8 @@ export async function analyzeDeterministic(input: {
   brandId?: string;
   /** True only when the caller is the verified Telegram owner of brandId and the channel is the brand's own. */
   ownerVerified?: boolean;
+  /** The brand's stored channel type; missing = detected here from the channel's posts, title and rhythm. */
+  channelType?: ChannelType;
   now?: number;
   onStage?: OnStage;
   /** Frozen channel data (eval harness): no network, no learning, no recording. */
@@ -121,10 +131,16 @@ export async function analyzeDeterministic(input: {
 
   const category = input.category ?? "";
   const niche = nicheOf(category, own.title);
-  const [summaries, learn] = await Promise.all([
+  // What kind of channel this is: the brand's stored type, else read from the posts (owner correction 2).
+  const typeGuess = input.channelType ? undefined : detectChannelType({ posts: own.posts, title: own.title, postsPerWeek: stats.postsPerWeek, channel: own.channel });
+  const channelType: ChannelType = input.channelType ?? typeGuess?.type ?? "business";
+  emit({ stage: "type", channelType, confidence: typeGuess?.confidence ?? 1, goal: defaultGoalFor(channelType) });
+  const [summaries, learn, snapshots] = await Promise.all([
     input.preloaded?.summaries ?? (live ? loadSummaries(now).catch(() => [] as ChannelSummary[]) : Promise.resolve([] as ChannelSummary[])),
     live ? learnFor(own.channel, own.posts, now, lang, { brandId: input.ownerVerified ? input.brandId : undefined, ownerReports: Boolean(input.ownerVerified && input.brandId) }).catch(() => undefined) : Promise.resolve(undefined),
+    live && isGrowthType(channelType) ? loadSubscriberSnapshots(own.channel).catch(() => []) : Promise.resolve([] as { day: string; subscribers: number }[]),
   ]);
+  const subscriberTrend = subscriberTrendOf(snapshots);
   const bench = benchmarkFor(summaries, niche, own.channel);
   emit({ stage: "bench", niche, n: bench?.n ?? 0, scope: bench?.scope ?? null, reachMedian: bench?.reachRate?.median ?? null });
   if (learn) emit({ stage: "learn", plans: learn.plans.length, measured: learn.outcomes.filter((o) => o.status === "final").length, changes: learn.changes });
@@ -133,11 +149,16 @@ export async function analyzeDeterministic(input: {
     category,
     competitors: competitors.map((c) => c.stats),
     kb: input.kb,
-    calendar: upcomingEvents(category, now).map((e) => ({ id: e.id, name: e.name.en, daysAway: e.daysAway })),
+    calendar: upcomingEvents(category, now).map((e) => ({ id: e.id, name: e.name.en, daysAway: e.daysAway, kind: e.kind })),
     bench,
     funnel: learn?.funnel,
+    channelType,
+    posts: own.posts,
+    subscriberTrend,
+    similar: competitors.map((c) => `@${c.data.channel}`),
   });
   emit({ stage: "rules", rules: rules.map((r) => ({ id: r.id, status: r.status, trigger: r.trigger, kind: r.kind })) });
+  const growthEntries = isGrowthType(channelType) ? growthLedger(growthSignals(own.posts, new Map(stats.lifts.map((x) => [x.post.id, x.lift])), own.channel), subscriberTrend) : [];
   const cal = upcomingEvents(category, now).map(
     (e): LedgerEntry => ({ id: `S.calendar.${e.id}`, label: e.name[lang], value: e.date, display: `${e.name[lang]} (${e.date})`, source: "rule", prior: e.confidence !== "fixed" }),
   );
@@ -145,6 +166,7 @@ export async function analyzeDeterministic(input: {
     ...statsLedger(stats, competitors.map((c) => c.stats)),
     ...(bench ? benchLedger(bench, { reachRate: stats.reachRate }, lang) : []),
     ...(learn ? [...learn.ledger, ...funnelLedger(learn.funnel)] : []),
+    ...growthEntries,
     ...postLedger(stats, competitors.map((c) => c.stats)),
     ...ruleLedger(rules),
     ...cal,
@@ -155,7 +177,7 @@ export async function analyzeDeterministic(input: {
     void Promise.allSettled([recordAnalysis(own, stats, niche, now), ...competitors.map((c) => recordAnalysis(c.data, c.stats, niche, now))]);
   }
   const calendar = upcomingEvents(category, now).map((e) => ({ id: e.id, name: e.name, daysAway: e.daysAway }));
-  return { data: own, stats, competitors, competitorIssues, validity, niche, bench, learn, rules, ledger, calendar };
+  return { data: own, stats, competitors, competitorIssues, validity, niche, bench, learn, rules, ledger, calendar, channelType, typeGuess, subscriberTrend };
 }
 
 const FindingsSchema = z.object({
@@ -179,9 +201,10 @@ WRITE 3–7 findings. The owner reads them as they are, so write like a person, 
 - Each finding: exactly 2 plain sentences. Sentence 1 = what the numbers show, with the number AND its comparison point (neighbouring posts, a competitor, or a prior threshold marked as such). Sentence 2 = one concrete fix for this week, taken from rule.effects (which posts, how many, when).
 - Plain words only: no variable or field names (reachRate, ctaRate, lift, CV, trigger...), no "n=", no "×" — say "40% ko'proq" / "на 40% больше" / "40% more". Percentages and counts copied from the ledger display.
 - The ids in square brackets go only at the very END of each finding, never inside a sentence.
-- For a COLD_START or insufficient-data rule, say what data is missing and how we will collect it (the experiment slot, tracked links).
+- For a COLD_START or insufficient-data rule, say what data is missing and how we will collect it (the experiment slot, the views of the new posts).
 - To point at a post, quote its first few words in «» and put its P id only in the end brackets.
 - A finding that would fit any channel is wrong. Each one must be specific to this channel's numbers.
+- channelType tells what the channel is. A blog, expert, media or community channel is not a shop: talk about readers, views, forwards, replies, series and subscribers; never advise prices, orders, delivery, contacts or "how to order", and never call its readers customers.
 
 Return JSON {findings:[{rule:"R.X", kind:"problem|opportunity|strength", text:"... [ids]", evidence:["S.x","P.y",...]}]}.`;
 
@@ -202,6 +225,7 @@ export async function writeFindings(a: Analysis, lang: Lang, onStage?: OnStage, 
         system: `${GROUNDING(lang, "'", LEXICON)}\n\n${D1}`,
         prompt: JSON.stringify({
           lang,
+          channelType: a.channelType,
           firedRules: fired.map(({ id, name, kind, severity, trigger, effects, ids }) => ({ id, name, kind, severity, trigger, effects, ids })),
           ledger: a.ledger.map(({ id, label, display, n, window, prior }) => ({ id, label, display, n, window, prior })),
           topPosts: a.ledger.filter((e) => e.source === "post").slice(0, 8).map(({ id, label, quote }) => ({ id, label, quote: quote?.slice(0, 160) })),
@@ -235,7 +259,7 @@ export async function writeFindings(a: Analysis, lang: Lang, onStage?: OnStage, 
   };
   for (const r of fired) {
     if (r.id === "R.FUNNEL_LEAK" || covered.has(r.id)) continue;
-    const text = templateFinding(r, a.stats, lang, { value, calendar: a.calendar });
+    const text = templateFinding(r, a.stats, lang, { value, calendar: a.calendar, channelType: a.channelType });
     if (!text) continue;
     covered.add(r.id);
     kept.push({ rule: r.id, kind: r.kind, text, evidence: [...r.ids.filter((i) => ledgerMap.has(i)), r.id], template: true });
@@ -289,18 +313,19 @@ export const ANALYSIS_FRESH_MS = 24 * 3600_000;
 export const AUDIT_CACHE_MS = ANALYSIS_FRESH_MS;
 
 /** Cache key of a whole saved analysis: the same channel, language, competitors, category (and brand, if given). */
-export function analysisViewKey(input: { channel: string; competitors?: string[]; category?: string; brandId?: string }, lang: Lang): string {
+export function analysisViewKey(input: { channel: string; competitors?: string[]; category?: string; brandId?: string; channelType?: ChannelType }, lang: Lang): string {
   const channel = normalizeChannel(input.channel) ?? input.channel.trim().toLowerCase();
   const comps = [...(input.competitors ?? [])].map((c) => normalizeChannel(c) ?? c.toLowerCase()).sort();
-  const raw = JSON.stringify(["v1", channel, lang, comps, (input.category ?? "").trim().toLowerCase(), input.brandId ?? ""]);
+  // A given channel type (the brand's stored one) is part of the key: a growth channel's findings are other findings.
+  const raw = JSON.stringify(["v2", channel, lang, comps, (input.category ?? "").trim().toLowerCase(), input.brandId ?? "", ...(input.channelType ? [input.channelType] : [])]);
   return `auditview:${createHash("sha256").update(raw).digest("hex").slice(0, 32)}`;
 }
 
 /** Cache key of an audit's written findings: a new post on the channel (or other competitors) makes a new key. */
-export function auditCacheKey(a: Pick<Analysis, "data">, input: { competitors?: string[]; category?: string }, lang: Lang): string {
+export function auditCacheKey(a: Pick<Analysis, "data">, input: { competitors?: string[]; category?: string; channelType?: ChannelType }, lang: Lang): string {
   const newest = a.data.posts.reduce((m, p) => Math.max(m, p.id), 0);
   const comps = [...(input.competitors ?? [])].map((c) => normalizeChannel(c) ?? c.toLowerCase()).sort();
-  const raw = JSON.stringify(["v1", a.data.channel.toLowerCase(), lang, newest, comps, (input.category ?? "").trim().toLowerCase()]);
+  const raw = JSON.stringify(["v2", a.data.channel.toLowerCase(), lang, newest, comps, (input.category ?? "").trim().toLowerCase(), ...(input.channelType ? [input.channelType] : [])]);
   return `audit:${createHash("sha256").update(raw).digest("hex").slice(0, 32)}`;
 }
 
@@ -310,6 +335,11 @@ export async function runAudit(input: {
   lang?: Lang;
   category?: string;
   brandId?: string;
+  /**
+   * The brand's stored channel type, as its confirmed goal plans it (planTypeFor): a brand whose owner wants
+   * subscribers gets growth findings, never price or how-to-order ones. Missing = detected from the posts.
+   */
+  channelType?: ChannelType;
   onStage?: OnStage;
   /** true = analyze again even if this channel was analyzed in the last 24 h (ANALYSIS_FRESH_MS). */
   refresh?: boolean;
@@ -373,6 +403,10 @@ async function analyzeFresh(input: Parameters<typeof runAudit>[0], lang: Lang) {
     niche: a.niche,
     bench: a.bench ? { ...a.bench, channels: undefined, channelCount: a.bench.channels.length } : null,
     learn: a.learn ? { plans: a.learn.plans, outcomes: a.learn.outcomes, scores: a.learn.scores, experiments: a.learn.experiments, calibration: a.learn.calibration, changes: a.learn.changes } : null,
+    // What kind of channel this is and the goal it starts with (owner correction 2); the Studio pre-fills the goal question.
+    channelType: a.channelType,
+    typeConfidence: a.typeGuess?.confidence ?? 1,
+    goal: defaultGoalFor(a.channelType),
     sufficiency: sufficiency({ stats: a.stats, bench: a.bench, competitors: a.competitors.length, learn: a.learn }, input.lang ?? "uz"),
   };
 }
