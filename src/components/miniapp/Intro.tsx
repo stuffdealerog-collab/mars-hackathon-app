@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { INTRO_CLOUD_KEY, INTRO_COPY, introSteps, localIntro, Onboarding, seenValue } from "../onboarding";
 import { askChannel, retryOnReturn } from "../studio/admin-ask";
 import { useStudio } from "../studio/store";
-import { useLang } from "../ui/lang";
+import { useCopy, useLang } from "../ui/lang";
 import { addBotToChannelUrl } from "../ui/tme";
 import { useMiniCopy } from "./copy";
 import { hasNativeSecondary } from "./native";
@@ -35,6 +35,7 @@ export function MiniIntro() {
   const brandChannel = useStudio((s) => s.brand?.channel);
   const typedChannel = useStudio((s) => s.input.channel);
   const m = useMiniCopy();
+  const c = useCopy();
   const t = INTRO_COPY[lang];
   const open = step != null;
   const kinds = introSteps(only);
@@ -123,13 +124,28 @@ export function MiniIntro() {
       if (!open) useStudio.getState().closeAdminAsk();
       return;
     }
-    if (open && only === "admin") useNav.getState().closeIntro();
-    const post = useStudio.getState().posts.find((p) => p.id === id);
-    if (post?.status === "published") {
+    // Closed by the owner («Keyinroq», ✕): nothing to say.
+    if (!open || only !== "admin") return;
+    useNav.getState().closeIntro();
+    const st = useStudio.getState();
+    const post = st.posts.find((p) => p.id === id);
+    if (!post) return; // another brand was opened meanwhile
+    if (post.status === "published") {
       haptic.success();
       useNav.getState().say(m.post.publishedToast, "ok");
+      return;
     }
-  }, [atPublish, ask, open, only, m]);
+    // The retry failed for another reason: the card goes, and the reason is said here too, not
+    // only in the post's note that was under the card.
+    const note = st.postNote[id];
+    if (note?.tone === "hint") {
+      haptic.warn();
+      useNav.getState().say(note.text);
+      return;
+    }
+    haptic.error();
+    useNav.getState().say(note?.text || c.error.generic, "bad");
+  }, [atPublish, ask, open, only, m, c]);
 
   useBottomButtons(
     "intro",

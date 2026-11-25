@@ -16,7 +16,7 @@ import * as api from "./api";
 import type { Fail } from "./api";
 import { latestBatch } from "./batch";
 import { keepAudit, keepPlan, keptAudit, keptPlan, pickPlan, type KeptPlan } from "./keep";
-import { askChannel, publishFailKind, type AskChannel, type AskState } from "./admin-ask";
+import { askChannel, nextAsk, publishFailKind, retryAsk, type AdminAsk } from "./admin-ask";
 import { defaultPro, safeTab, type Tab } from "./mode";
 import { sampleAudit, sampleBrand, samplePlan, samplePosts } from "./sample";
 
@@ -28,7 +28,7 @@ export type ApproveResult = { ok: true } | { ok: false; message: string; undone?
 export type PublishResult = { ok: true; url?: string } | { ok: false; message: string; adminUrl?: string; botUrl?: string; code?: string };
 export type RecentBrand = { id: string; name: string; channel?: string };
 /** The add-the-bot card at a publish the bot could not make (admin-ask.ts): which post, which channel, where it stands. */
-export type AdminAsk = { postId: string; script: Script; channel: AskChannel | null; state: AskState };
+export type { AdminAsk } from "./admin-ask";
 /**
  * The line under a post. `missing` (placeholder_left only): the scripts whose text still has a
  * blank, as the server named them, so the editor can open on the one that needs the fact.
@@ -811,6 +811,8 @@ export const useStudio = create<StudioState>((set, get) => {
         edited: {},
         postNote: {},
         missed: [],
+        adminAsk: null,
+        outcomes: {},
         steps: stepsFor("channel", false),
         startedAt: Date.now(),
       });
@@ -836,6 +838,8 @@ export const useStudio = create<StudioState>((set, get) => {
         edited: {},
         postNote: {},
         missed: [],
+        adminAsk: null,
+        outcomes: {},
         steps: stepsFor("fresh", !!photos?.length),
         startedAt: Date.now(),
       });
@@ -879,6 +883,7 @@ export const useStudio = create<StudioState>((set, get) => {
         postNote: {},
         missed: [],
         adminAsk: null,
+        outcomes: {},
       });
     },
 
@@ -915,6 +920,8 @@ export const useStudio = create<StudioState>((set, get) => {
         // Run-scoped facts of the previous channel must not show on this one.
         postsRead: null,
         emptyChannel: null,
+        adminAsk: null,
+        outcomes: {},
       });
       const L = lang();
       const [b, p] = await Promise.all([api.getBrand(brandId, L), api.listPosts(brandId, L)]);
@@ -1124,7 +1131,7 @@ export const useStudio = create<StudioState>((set, get) => {
         set({
           posts: get().posts.map((p) => (p.id === id ? { ...p, status: "published", publishedUrl: r.data.url } : p)),
           handTick: get().handTick + 1,
-          ...(get().adminAsk?.postId === id ? { adminAsk: null } : {}),
+          adminAsk: nextAsk(get().adminAsk, id, null),
         });
         // The channel the owner typed is this brand's now (the engine linked it on this publish).
         if (typed && !get().input.channel) set({ input: { ...get().input, channel: typed.replace(/^@/, "") } });
@@ -1143,13 +1150,11 @@ export const useStudio = create<StudioState>((set, get) => {
       const blank = kind === "blank";
       note(blank ? { text: msg, tone: "hint", missing: r.ok ? r.data.missing : r.missing } : { text: msg, href: admin, tone: "bad" });
       // The bot is not an admin of the owner's channel: the add-the-bot card opens now, at this
-      // publish, naming that channel. A retry that comes back the same way keeps it open, saying so.
-      const prev = get().adminAsk;
-      if (kind === "admin") {
-        const b = get().brand;
-        const channel = askChannel({ name: b?.dna.name, channel: b?.channel ?? chat, typed: get().input.channel });
-        set({ adminAsk: { postId: id, script, channel, state: prev?.postId === id && prev.state === "checking" ? "notYet" : "ask" } });
-      } else if (prev?.postId === id) set({ adminAsk: null });
+      // publish, naming that channel. A retry that comes back the same way keeps it open, saying so;
+      // the card keeps `chat`, so the retry goes to the channel this publish went to.
+      const b = get().brand;
+      const open = kind === "admin" ? { script, chat, channel: askChannel({ name: b?.dna.name, channel: b?.channel || chat, typed: get().input.channel }) } : null;
+      set({ adminAsk: nextAsk(get().adminAsk, id, open) });
       return { ok: false, message: msg, adminUrl: blank ? undefined : admin, botUrl, code: r.ok ? r.data.code : r.code };
     },
 
@@ -1158,14 +1163,15 @@ export const useStudio = create<StudioState>((set, get) => {
       if (a) set({ adminAsk: { ...a, state: "added" } });
     },
     closeAdminAsk: () => set({ adminAsk: null }),
-    retryAdminAsk: async () => {
-      const a = get().adminAsk;
-      if (!a || a.state === "checking" || get().busy[a.postId]) return null;
-      set({ adminAsk: { ...a, state: "checking" } });
-      // publish() closes the card on success or on any other failure, and keeps it ("notYet")
-      // when the bot is still not an admin.
-      return get().publish(a.postId, a.script);
-    },
+    // publish() closes the card on success or on any other failure, and keeps it ("notYet") when the
+    // bot is still not an admin; a publish that returns before the server closes it (retryAsk).
+    retryAdminAsk: () =>
+      retryAsk({
+        ask: () => get().adminAsk,
+        setAsk: (adminAsk) => set({ adminAsk }),
+        busy: (id) => !!get().busy[id],
+        publish: (id, script, chat) => get().publish(id, script, chat),
+      }),
 
     setImage: (id, image) => {
       seen.set(id, Date.now());
