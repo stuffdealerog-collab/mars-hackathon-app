@@ -45,6 +45,7 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
             "Telegram hisobingiz: Telegram ID, ism, foydalanuvchi nomi va til. Bularni Telegram botni yoki ilovani ochganingizda beradi.",
             "Kanalingiz: ommaviy t.me sahifasidagi postlar va raqamlar, Mercat yozgan tahlil, reja va postlar, savollarga bergan javoblaringiz.",
             "Foydalanish: qaysi ekran va tugmalardan foydalanilgani. Bosh sahifaga kirishlarni cookie’siz, har kuni yangilanadigan anonim kalit bilan sanaymiz.",
+            "Brauzeringizda Studiya va ilova kirish kalitingiz, brendlaringiz va tilni mahalliy xotirada (localStorage) saqlaydi. Studiyadan tarmoq ulayotganingizda 10 daqiqalik cookie kirishni brauzeringizga bog‘laydi. Reklama cookie’lari yo‘q.",
             "Postlar uchun chizilgan rasmlar (rasm xizmati serverida saqlanadi).",
           ],
         },
@@ -60,10 +61,10 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
         {
           h: "Ma’lumotdan qanday foydalanamiz",
           p: [
-            "Raqamlaringizni sizga ko‘rsatish, Telegram kanalingiz bilan solishtirish va haftalik reja hamda hisobot tuzish uchun. Ma’lumot sotilmaydi, reklama beruvchilarga berilmaydi va AI modellarini o‘qitishda ishlatilmaydi.",
+            "Raqamlaringizni Mercat’da, Telegram kanalingiz yonida ko‘rsatish uchun. Ma’lumot sotilmaydi, reklama beruvchilarga berilmaydi va AI modellarini o‘qitishda ishlatilmaydi.",
             "Tahlil va postlarni yozish uchun kanalingizning ommaviy postlari va javoblaringiz Anthropic (Claude) ga yuboriladi; u ularni biz uchun qayta ishlaydi. Tokenlar hech qachon yuborilmaydi.",
             "Mercat’ning Google API’laridan olingan ma’lumotdan foydalanishi va uni uzatishi [Google API Services User Data Policy]({googleUserData}) talablariga, jumladan Limited Use talablariga mos keladi.",
-            "YouTube ulansa, siz [YouTube foydalanish shartlari]({youtubeTerms})ga rozilik bildirasiz; Google ma’lumotlarni [Google maxfiylik siyosati]({googlePrivacy}) bo‘yicha qayta ishlaydi. Meta ma’lumotlari [Meta Platform Terms]({metaTerms}) bo‘yicha ishlatiladi.",
+            "Mercat kanalingiz raqamlarini o‘qish uchun YouTube API Services’dan foydalanadi. YouTube ulansa, siz [YouTube foydalanish shartlari]({youtubeTerms})ga rozilik bildirasiz; Google ma’lumotlarni [Google maxfiylik siyosati]({googlePrivacy}) bo‘yicha qayta ishlaydi. Meta ma’lumotlari [Meta Platform Terms]({metaTerms}) bo‘yicha ishlatiladi.",
           ],
         },
         {
@@ -75,7 +76,8 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
         {
           h: "Qancha saqlaymiz",
           p: [
-            "Ulangan tarmoq raqamlari ulanish turgan paytda har kuni yangilanadi. Uzsangiz, token va shu tarmoqdan o‘qilgan barcha raqamlar darhol o‘chiriladi.",
+            "Ulangan tarmoq raqamlari ulanish turgan paytda har kuni yangilanadi. 30 kun yangilanmagan post, video va kampaniya ma’lumotlari o‘chiriladi; 30 kundan eski YouTube raqamlari ham.",
+            "Uzsangiz, token va shu tarmoqdan o‘qilgan barcha raqamlar darhol o‘chiriladi. Kirish tarmoqning o‘zida tugasa (u yerda Mercat’ni o‘chirgan bo‘lsangiz yoki muddati o‘tgan bo‘lsa) va qayta ulamasangiz, Mercat buni keyingi yangilashda sezadi va ulanishni raqamlari bilan o‘chiradi: Google — 7 kun ichida, Meta — 30 kun ichida. Facebook yoki Instagram sozlamalarida Mercat’ni o‘chirsangiz, hammasi darhol o‘chiriladi.",
             "Brend, postlar va Telegram ma’lumotlari o‘chirishni so‘ragunigizcha saqlanadi.",
           ],
         },
@@ -108,6 +110,7 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
             "Аккаунт Telegram: ID, имя, username и язык. Их передаёт Telegram, когда вы открываете бота или приложение.",
             "Ваш канал: посты и цифры с публичной страницы t.me, разбор, план и посты, которые написал Mercat, и ваши ответы на вопросы.",
             "Использование: какими экранами и кнопками пользовались. Заходы на главную считаем без cookie, по анонимному ключу, который меняется каждый день.",
+            "В браузере Студия и приложение хранят ключ входа, ваши бренды и язык в локальном хранилище (localStorage). Пока вы подключаете площадку из Студии, cookie на 10 минут привязывает вход к вашему браузеру. Рекламных cookie нет.",
             "Картинки, нарисованные для постов (хранятся у сервиса картинок).",
           ],
         },
@@ -123,10 +126,10 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
         {
           h: "Как мы используем данные",
           p: [
-            "Чтобы показать вам ваши цифры, сравнить их с Telegram-каналом и составить план и отчёт на неделю. Данные не продаются, не передаются рекламодателям и не используются для обучения AI-моделей.",
+            "Чтобы показать вам ваши цифры в Mercat, рядом с Telegram-каналом. Данные не продаются, не передаются рекламодателям и не используются для обучения AI-моделей.",
             "Чтобы написать разбор и посты, публичные посты канала и ваши ответы отправляются в Anthropic (Claude), который обрабатывает их для нас. Токены не отправляются никогда.",
             "Использование и передача Mercat данных, полученных из Google API, соответствует [Google API Services User Data Policy]({googleUserData}), включая требования Limited Use.",
-            "Подключая YouTube, вы соглашаетесь с [Условиями использования YouTube]({youtubeTerms}); Google обрабатывает данные по своей [Политике конфиденциальности]({googlePrivacy}). Данные Meta используются по [Meta Platform Terms]({metaTerms}).",
+            "Mercat использует YouTube API Services, чтобы читать цифры вашего канала. Подключая YouTube, вы соглашаетесь с [Условиями использования YouTube]({youtubeTerms}); Google обрабатывает данные по своей [Политике конфиденциальности]({googlePrivacy}). Данные Meta используются по [Meta Platform Terms]({metaTerms}).",
           ],
         },
         {
@@ -138,7 +141,8 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
         {
           h: "Сколько храним",
           p: [
-            "Цифры подключённых площадок обновляются каждый день, пока подключение действует. Если вы отключите площадку, токен и все прочитанные с неё цифры сразу удаляются.",
+            "Цифры подключённых площадок обновляются каждый день, пока подключение действует. Данные о постах, видео и кампаниях, которые не обновлялись 30 дней, удаляются; цифры YouTube старше 30 дней — тоже.",
+            "Если вы отключите площадку, токен и все прочитанные с неё цифры сразу удаляются. Если доступ закончился на самой площадке (вы удалили там Mercat или срок доступа истёк) и вы не подключили её снова, Mercat заметит это при следующем обновлении и удалит подключение и его цифры: Google — в течение 7 дней, Meta — в течение 30 дней. Если удалить Mercat в настройках Facebook или Instagram, всё удаляется сразу.",
             "Бренд, посты и данные Telegram хранятся, пока вы не попросите их удалить.",
           ],
         },
@@ -171,6 +175,7 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
             "Your Telegram account: Telegram ID, name, username and language, which Telegram passes on when you open the bot or the Mini App.",
             "Your channel: the posts and numbers on its public t.me page, the analysis, plans and posts Mercat writes, and your answers to its questions.",
             "Usage: which screens and buttons were used. Visits to the home page are counted without cookies, with an anonymous key that changes every day.",
+            "In your browser, the Studio and the Mini App keep your sign-in key, your brands and your language in local storage. While you connect a platform from the Studio, a cookie that lasts 10 minutes ties the sign-in to your browser. Mercat sets no advertising cookies.",
             "Pictures made for posts (kept by the image service).",
           ],
         },
@@ -186,10 +191,10 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
         {
           h: "How we use it",
           p: [
-            "To show you your numbers, compare them with your Telegram channel, and make your weekly plan and report. The data is not sold, not shared with advertisers, and not used to train AI models.",
+            "To show you your numbers in Mercat, next to your Telegram channel. The data is not sold, not shared with advertisers, and not used to train AI models.",
             "To write analyses and posts, your channel's public posts and your answers are sent to Anthropic (Claude), which processes them for us. Tokens are never sent.",
             "Mercat's use and transfer of information received from Google APIs adheres to the [Google API Services User Data Policy]({googleUserData}), including the Limited Use requirements.",
-            "By connecting YouTube you agree to the [YouTube Terms of Service]({youtubeTerms}); Google processes data under the [Google Privacy Policy]({googlePrivacy}). Meta data is used under the [Meta Platform Terms]({metaTerms}).",
+            "Mercat uses YouTube API Services to read your channel's numbers. By connecting YouTube you agree to the [YouTube Terms of Service]({youtubeTerms}); Google processes data under the [Google Privacy Policy]({googlePrivacy}). Meta data is used under the [Meta Platform Terms]({metaTerms}).",
           ],
         },
         {
@@ -201,7 +206,8 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
         {
           h: "How long we keep it",
           p: [
-            "Numbers from connected platforms are refreshed every day while the connection is on. When you disconnect, the token and every number read through it are deleted at once.",
+            "Numbers from connected platforms are refreshed every day while the connection is on. Post, video and campaign details not refreshed for 30 days are deleted, and so are YouTube numbers older than 30 days.",
+            "When you disconnect, the token and every number read through it are deleted at once. If access ends at the platform (you removed Mercat there, or the access ran out) and you do not connect again, Mercat notices at the next update and deletes the connection and its numbers: Google within 7 days, Meta within 30 days. Removing Mercat in Facebook or Instagram settings deletes them at once.",
             "Your brand, posts and Telegram details are kept until you ask us to delete them.",
           ],
         },
@@ -361,7 +367,7 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
           h: "2. Tarmoqning o‘zida Mercat’ni o‘chirish",
           p: [
             "Instagram yoki Facebook: Sozlamalar → «Ilovalar va saytlar» (Biznes integratsiyalari) → Mercat → o‘chirish. Meta bizga xabar beradi va biz Instagram hamda Meta reklama ulanishlarini avtomatik o‘chiramiz.",
-            "Google (YouTube, Google Ads): [hisob ruxsatlari]({googlePermissions}) → Mercat → kirishni olib tashlash. Keyingi yangilashda ulanish tugaydi; raqamlarni o‘chirish uchun Mercat’da ham «Uzish»ni bosing.",
+            "Google (YouTube, Google Ads): [hisob ruxsatlari]({googlePermissions}) → Mercat → kirishni olib tashlash. Mercat buni keyingi yangilashda sezadi va ulanishni raqamlari bilan 7 kun ichida o‘chiradi.",
           ],
         },
         {
@@ -383,7 +389,7 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
           h: "2. Удалить Mercat на самой площадке",
           p: [
             "Instagram или Facebook: Настройки → «Приложения и сайты» (Бизнес-интеграции) → Mercat → удалить. Meta сообщит нам, и мы автоматически удалим подключения Instagram и рекламы Meta.",
-            "Google (YouTube, Google Ads): [разрешения аккаунта]({googlePermissions}) → Mercat → закрыть доступ. Подключение закончится при следующем обновлении; чтобы удалить цифры, нажмите «Отключить» и в Mercat.",
+            "Google (YouTube, Google Ads): [разрешения аккаунта]({googlePermissions}) → Mercat → закрыть доступ. Mercat заметит это при следующем обновлении и удалит подключение и его цифры в течение 7 дней.",
           ],
         },
         {
@@ -405,7 +411,7 @@ export const LEGAL: Record<LegalKind, Record<LegalLang, LegalDoc>> = {
           h: "2. Remove Mercat at the platform",
           p: [
             "Instagram or Facebook: Settings → Apps and websites (Business integrations) → Mercat → Remove. Meta tells us, and we delete the Instagram and Meta ads connections automatically.",
-            "Google (YouTube, Google Ads): [your account's permissions]({googlePermissions}) → Mercat → Remove access. The connection ends at the next refresh; to delete its numbers, also press Disconnect in Mercat.",
+            "Google (YouTube, Google Ads): [your account's permissions]({googlePermissions}) → Mercat → Remove access. Mercat notices at the next update and deletes the connection and its numbers within 7 days.",
           ],
         },
         {
@@ -422,6 +428,13 @@ export const DELETION_STATUS: Record<LegalLang, string> = {
   uz: "So‘rov {code}: Instagram va Meta reklama ulanishlari hamda ular orqali o‘qilgan raqamlar o‘chirildi.",
   ru: "Запрос {code}: подключения Instagram и рекламы Meta и все прочитанные через них цифры удалены.",
   en: "Request {code}: the Instagram and Meta ads connections and every number read through them were deleted.",
+};
+
+/** A code Mercat did not issue (or a cut-off link): nothing is confirmed. */
+export const DELETION_UNKNOWN: Record<LegalLang, string> = {
+  uz: "So‘rov {code} topilmadi. Havola to‘liq ochilganini tekshiring.",
+  ru: "Запрос {code} не найден. Проверьте, что ссылка открыта целиком.",
+  en: "Request {code} was not found. Check that the whole link was opened.",
 };
 
 export const LINKS: Record<string, string> = {

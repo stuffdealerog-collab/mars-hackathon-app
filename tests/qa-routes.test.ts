@@ -156,7 +156,7 @@ describe("the daily Claude budget (E6)", () => {
 
   it("no raw IP is stored: the caller key is a hash", () => {
     expect(budget.spenderKey(null, "203.0.113.7")).toMatch(/^ip:[0-9a-f]{16}$/);
-    expect(budget.spenderKey(null, "203.0.113.7")).not.toContain("203");
+    expect(budget.spenderKey(null, "203.0.113.7")).not.toContain("203.0.113.7");
     expect(budget.spenderKey(55, "203.0.113.7")).toBe("tg:55");
   });
 });

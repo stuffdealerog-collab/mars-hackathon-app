@@ -5,6 +5,11 @@ import type { ConnectorId, WeekNumber } from "./types";
  * At most two owner-facing numbers per connection for the last 7 full days (pure). A number nobody measured is
  * null and the card prints "—", never 0. Followers and subscribers are a change over the week (+38), from Mercat's
  * own daily snapshots (Instagram) or YouTube's gained − lost.
+ *
+ * TODO(B11): when these numbers go into the brain or the Monday report, they are sent to Anthropic. Before that
+ * ships, update the privacy policy (src/app/(legal)/content.ts, uz/ru/en): "How we use it" must name the weekly plan
+ * and report again, and the Anthropic sentence must add "and, for the weekly report, the numbers from platforms you
+ * connected" (Google's Limited Use requires the disclosure).
  */
 
 export interface DayMetrics {

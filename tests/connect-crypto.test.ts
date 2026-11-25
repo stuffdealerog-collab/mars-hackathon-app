@@ -2,7 +2,8 @@ import { createHmac, randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { keyId, openToken, sealToken, tokenAad } from "../src/lib/connectors/crypto";
 import { newPkce, pkceChallenge, randomToken, STATE_TTL_MS, stateExpiry, stateProblem } from "../src/lib/connectors/pkce";
-import { parseSignedRequest } from "../src/lib/connectors/signed-request";
+import { bindCookie, bindValue, browserBound, readCookie } from "../src/lib/connectors/browser-bind";
+import { deletionCode, parseSignedRequest, verifyDeletionCode } from "../src/lib/connectors/signed-request";
 
 const KEY = randomBytes(32);
 const PREV = randomBytes(32);
@@ -76,6 +77,38 @@ describe("OAuth state and PKCE", () => {
     expect(stateProblem(row, "instagram", now)).toBe("provider");
     expect(stateProblem({ ...row, usedAt: now }, "youtube", now)).toBe("used");
     expect(stateProblem(row, "youtube", new Date(now.getTime() + STATE_TTL_MS + 1))).toBe("expired");
+  });
+});
+
+describe("browser binding (Studio connects)", () => {
+  it("binds a state to the browser by its hash, read back from the Cookie header", () => {
+    const state = randomToken();
+    const header = `theme=dark; cn_youtube=${bindValue(state)}; cn_instagram=other`;
+    expect(readCookie(header, "cn_youtube")).toBe(bindValue(state));
+    expect(readCookie(header, "cn_google_ads")).toBeNull();
+    expect(readCookie(null, "cn_youtube")).toBeNull();
+    expect(browserBound(readCookie(header, "cn_youtube"), state)).toBe(true);
+    expect(browserBound(readCookie(header, "cn_youtube"), randomToken())).toBe(false);
+    expect(browserBound(null, state)).toBe(false);
+    expect(browserBound("short", state)).toBe(false);
+  });
+
+  it("the cookie never holds the state itself and drops Secure only for plain-http local servers", () => {
+    const state = randomToken();
+    expect(bindCookie("meta_ads", state, true)).toBe(`cn_meta_ads=${bindValue(state)}; Path=/api/connect/callback/meta_ads; Max-Age=600; HttpOnly; SameSite=Lax; Secure`);
+    expect(bindCookie("meta_ads", state, false)).not.toContain("Secure");
+    expect(bindCookie("meta_ads", state, true)).not.toContain(state);
+  });
+});
+
+describe("data-deletion confirmation codes", () => {
+  it("only a code made with the app secret verifies", () => {
+    const code = deletionCode(randomToken(9), "secret-one-0123456789");
+    expect(code).toMatch(/^[A-Za-z0-9_-]{12}\.[A-Za-z0-9_-]{10}$/);
+    expect(verifyDeletionCode(code, "secret-one-0123456789")).toBe(true);
+    expect(verifyDeletionCode(code, "secret-two-0123456789")).toBe(false);
+    expect(verifyDeletionCode(code.split(".")[0], "secret-one-0123456789")).toBe(false);
+    expect(verifyDeletionCode("abcdefghijkl.0123456789", "secret-one-0123456789")).toBe(false);
   });
 });
 

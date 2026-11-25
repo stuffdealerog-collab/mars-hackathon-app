@@ -57,6 +57,11 @@ export interface SyncInput {
   window: SyncWindow;
   /** Today in Tashkent: the day follower/subscriber snapshots are stored under. */
   today: string;
+  /**
+   * The tick's run (5 s budget): skip the slow extras that need one call per post or story (Instagram's media and
+   * story insights). Account numbers, followers and the post list are still read.
+   */
+  light?: boolean;
 }
 
 export interface Connector {

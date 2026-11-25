@@ -3,7 +3,7 @@ import type { ConnectorConfig } from "./config";
 import { connectEvent } from "./notify";
 import { randomToken } from "./pkce";
 import { deleteMetaUserConnections } from "./repo";
-import { parseSignedRequest } from "./signed-request";
+import { deletionCode, parseSignedRequest } from "./signed-request";
 
 /**
  * Meta's server-to-server callbacks (App settings > Basic and the Facebook Login for Business settings):
@@ -41,7 +41,8 @@ export async function metaDataDeletion(cfg: ConnectorConfig, req: Request): Prom
   const userId = await signedUser(cfg, req);
   if (!userId) return { status: 400, body: { error: "invalid signed_request" } };
   const removed = await deleteMetaUserConnections(userId);
-  const code = randomToken(9);
+  // Verifiable on the status page without a database row (signed-request.ts).
+  const code = deletionCode(randomToken(9), cfg.meta.appSecret ?? "");
   const owners = [...new Set(removed.map((r) => r.ownerTelegramId))];
   if (owners.length) for (const owner of owners) await connectEvent(owner, "connect_data_deleted", { code, deleted: removed.filter((r) => r.ownerTelegramId === owner).length });
   else await connectEvent(null, "connect_data_deleted", { code, deleted: 0 });

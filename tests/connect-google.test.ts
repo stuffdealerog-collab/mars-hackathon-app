@@ -188,6 +188,50 @@ describe("Google Ads connector", () => {
     expect(err.code).toBe("access_pending");
   });
 
+  it("at connect, a project without production access keeps the bare customer ids as 'access pending'", async () => {
+    const { fetch } = fakeFetch([
+      { match: /customers:listAccessibleCustomers/, body: fx.accessible },
+      { match: /googleAds:search/, status: 403, body: fx.notApproved },
+    ]);
+    const ads = googleAdsConnector(CREDS, { apiVersion: "v26", developerToken: null }, { fetch });
+    expect(await ads.profile({ accessToken: "ya29.x", scopes: [], subject: "110492384756123456789" }, opts)).toEqual({
+      externalId: "110492384756123456789",
+      accounts: [
+        { id: "1112223333", name: "1112223333" },
+        { id: "4445556666", name: "4445556666" },
+      ],
+      selected: "1112223333",
+      status: "error",
+      error: "access_pending",
+    });
+  });
+
+  it("one closed or unreachable customer is skipped; the others are still listed", async () => {
+    const { fetch } = fakeFetch([
+      { match: /customers:listAccessibleCustomers/, body: fx.accessible },
+      { match: /customers\/1112223333\/googleAds:search/, status: 403, body: { error: { code: 403, status: "PERMISSION_DENIED", message: "CUSTOMER_NOT_ENABLED" } } },
+      { match: /customers\/4445556666\/googleAds:search/, body: fx.customerPlain },
+    ]);
+    const ads = googleAdsConnector(CREDS, { apiVersion: "v26", developerToken: null }, { fetch });
+    const p = await ads.profile({ accessToken: "ya29.x", scopes: [], subject: "1" }, opts);
+    expect(p.accounts.map((a) => a.id)).toEqual(["4445556666"]);
+    expect(p.status).toBe("active");
+  });
+
+  it("the caller's own deadline still ends the listing with an error (no half list is saved)", async () => {
+    const ctl = new AbortController();
+    const fetch = async (url: string, init: RequestInit = {}) => {
+      if (url.includes("listAccessibleCustomers")) return new Response(JSON.stringify(fx.accessible), { status: 200 });
+      ctl.abort();
+      if (init.signal?.aborted) throw new DOMException("aborted", "AbortError");
+      return new Response(JSON.stringify(fx.customerPlain), { status: 200 });
+    };
+    const ads = googleAdsConnector(CREDS, { apiVersion: "v26", developerToken: null }, { fetch });
+    const err = await ads.profile({ accessToken: "ya29.x", scopes: [], subject: "1" }, { ...opts, signal: ctl.signal }).catch((e) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.code).toBe("sync_failed");
+  });
+
   it("GAQL dates are validated, never spliced in raw", () => {
     expect(() => campaignQuery("2026-11-18' OR 1=1 --", "2026-11-24")).toThrow();
   });

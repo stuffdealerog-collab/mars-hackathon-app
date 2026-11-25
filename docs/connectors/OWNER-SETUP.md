@@ -50,9 +50,11 @@ professional (business or creator) account linked to a Facebook Page.
    - Strict Mode for redirect URIs: on
 5. **Facebook Login for Business → Configurations → Create configuration** (twice):
    - **"Mercat Instagram"**: token type *User access token*; assets *Pages* and *Instagram accounts*;
-     permissions `instagram_basic`, `instagram_manage_insights`, `pages_show_list`, `pages_read_engagement`
-     (add `business_management` if the owners' Pages sit in a business portfolio). Copy its Configuration ID →
-     Vercel `META_IG_CONFIG_ID`.
+     permissions `instagram_basic`, `instagram_manage_insights`, `pages_show_list`, `pages_read_engagement`.
+     Copy its Configuration ID → Vercel `META_IG_CONFIG_ID`.
+     Do not add `business_management` unless a tester's Page from a business portfolio is missing after
+     connecting: it is a write-capable permission (it can manage the portfolio, not only read it), and Meta's
+     dialog and review treat it that way.
    - **"Mercat ads"**: token type *User access token*; assets *Ad accounts*; permission `ads_read`. Copy its
      Configuration ID → `META_ADS_CONFIG_ID`.
 6. **App settings → Advanced**: turn on **Require App Secret** (Mercat signs every call with `appsecret_proof`).
@@ -63,7 +65,7 @@ professional (business or creator) account linked to a Facebook Page.
    Third-party reports say up to ~14 business days; Meta publishes no figure.
 10. **App Review** (after at least one successful call with each permission, i.e. after a tester connected):
     request **Advanced Access** for `instagram_basic`, `instagram_manage_insights`, `pages_show_list`,
-    `pages_read_engagement`, `ads_read` (and `business_management` if used). Each needs a screencast: the
+    `pages_read_engagement`, `ads_read` (and `business_management` only if step 5 made you add it). Each needs a screencast: the
     Connect button in Mercat → Meta's dialog → back in Mercat → the Connections card with numbers → Disconnect.
     Reviewers cannot log in with Telegram: give them a Studio link from a demo Telegram account (the bot's
     "open on computer" link carries a 7-day key; mint a fresh one right before submitting) and step-by-step
@@ -113,12 +115,34 @@ Notes:
       read-only reports.
     - **Basic** follows minutes after brand verification.
     - Until real-account access is granted, Mercat shows the owner "waiting for Google access" (it maps
-      `CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION`).
+      `CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION`). The connection is kept with the bare customer ids, and the
+      daily sync tries again every couple of hours; once access arrives it lists the real accounts (names, managers
+      skipped) and the numbers start. If Google refuses even the list of customers, nothing is stored and the owner
+      connects again later.
     - If your console still asks for a developer token (an older setup), put it in `GOOGLE_ADS_DEVELOPER_TOKEN`;
       Mercat sends it only when set.
 11. **YouTube quota**: the default 10,000 units/day is plenty (about 3 units per channel per day). No audit needed.
+    Google's consent screen for `adwords` reads "See, edit, create and delete your Google Ads accounts and data":
+    Google has no read-only Ads scope. The card says so next to Google Ads ("Google asks for full Ads access;
+    Mercat only reads reports"), and the verification answer for this scope should say the same.
 12. After verification: set `CONNECTOR_LIVE` to include `youtube` (and `google_ads` once it has real-account
     access).
+
+## Security and data notes
+
+- **Who receives a connection.** The sign-in URL is tied to the owner who pressed Connect. From the Studio it is
+  also tied to that browser: an HttpOnly cookie set by `/api/connect/start` must come back to the callback, so a
+  sign-in link copied and sent to someone else fails with "the link expired". The Mini App path cannot be tied
+  this way (the sign-in opens in the phone's browser, which shares no cookie with Telegram). Remaining risk: an
+  owner who presses Connect in the Mini App could forward the sign-in page (valid 10 minutes) to someone else; if
+  that person signs in, their numbers land in the sender's card. The return page shows that person which Mercat
+  account received the connection ("Mercat account: <first name>") and links to how to remove Mercat at the
+  platform. Only testers can connect while the apps are in test mode.
+- **What is deleted on its own.** A connection whose access ended at the provider (removed in Google's or Meta's
+  settings, or a Meta token that ran out) drops its tokens at once; if the owner does not connect again, the
+  connection and its numbers are deleted after 5 days for Google (within YouTube's 7-day rule, counting the day
+  it takes to notice) and 30 days for Meta. Posts, videos and campaigns not refreshed for 30 days, and YouTube's
+  daily numbers older than 30 days, are deleted too. The tick does this on every run (`connectors-sync`).
 
 ## 3. Vercel variables (names only; all Production only)
 

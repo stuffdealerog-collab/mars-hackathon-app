@@ -1,4 +1,4 @@
-import { arr, type CallOpts, isRecord, num, ProviderError, str } from "../net";
+import { arr, type CallOpts, isRecord, mapLimit, num, ProviderError, str } from "../net";
 import { type GoogleCreds, googleAuthorizeUrl, googleExchange, googleGet, googlePost, googleRefresh, googleRevoke } from "./google";
 import type { Connector, ConnectorDeps, DailyRow, ItemRow, MetricValue, ProviderAccount } from "./types";
 
@@ -24,6 +24,9 @@ const CLIENTS_Q =
   "SELECT customer_client.id, customer_client.descriptive_name, customer_client.manager, customer_client.currency_code, customer_client.test_account, customer_client.status FROM customer_client WHERE customer_client.level <= 1";
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Time the account listing may take at connect (the callback answers within 60 s). */
+export const PROFILE_LISTING_MS = 20_000;
 
 export function campaignQuery(since: string, until: string): string {
   if (!DAY_RE.test(since) || !DAY_RE.test(until)) throw new Error("GAQL dates must be YYYY-MM-DD");
@@ -124,29 +127,60 @@ export function googleAdsConnector(creds: GoogleCreds, settings: GoogleAdsSettin
       const token = t.accessToken;
       if (!token) throw new ProviderError("oauth_failed", undefined, "no_token");
       const ids = parseAccessibleCustomers(await googleGet(f, `${base}/customers:listAccessibleCustomers`, token, opts, headers()));
-      const accounts: ProviderAccount[] = [];
-      const push = (a: ProviderAccount) => {
-        if (!accounts.some((x) => x.id === a.id)) accounts.push(a);
-      };
-      for (const id of ids.slice(0, 10)) {
-        const row = (await search(token, id, CUSTOMER_Q, opts, undefined, 1)).find(isRecord);
-        const c = row && isRecord(row.customer) ? row.customer : null;
-        if (!c) continue;
-        const currency = str(c.currencyCode) ?? undefined;
-        if (c.manager === true) {
-          for (const r of await search(token, id, CLIENTS_Q, opts, id, 2)) {
-            const cc = isRecord(r) && isRecord(r.customerClient) ? r.customerClient : null;
-            const cid = cc ? str(cc.id) : null;
-            if (!cc || !cid || cc.manager === true || (str(cc.status) && str(cc.status) !== "ENABLED")) continue;
-            const cur = str(cc.currencyCode) ?? undefined;
-            push({ id: cid, name: str(cc.descriptiveName) ?? cid, ...(cur ? { currency: cur } : {}), ...(cc.testAccount === true ? { test: true } : {}), via: id });
-          }
-        } else {
-          push({ id, name: str(c.descriptiveName) ?? id, ...(currency ? { currency } : {}), ...(c.testAccount === true ? { test: true } : {}) });
-        }
-      }
       const externalId = t.subject ?? ids[0];
       if (!externalId) throw new ProviderError("oauth_failed", undefined, "no_subject");
+
+      // Up to 10 customers, 4 at a time, and no more listing after 20 s: the callback must answer within its 60 s.
+      const listing = AbortSignal.timeout(PROFILE_LISTING_MS);
+      const listOpts: CallOpts = { ...opts, signal: opts.signal ? AbortSignal.any([opts.signal, listing]) : listing };
+      const accountsOf = async (id: string): Promise<ProviderAccount[]> => {
+        const row = (await search(token, id, CUSTOMER_Q, listOpts, undefined, 1)).find(isRecord);
+        const c = row && isRecord(row.customer) ? row.customer : null;
+        if (!c) return [];
+        if (c.manager !== true) {
+          const currency = str(c.currencyCode) ?? undefined;
+          return [{ id, name: str(c.descriptiveName) ?? id, ...(currency ? { currency } : {}), ...(c.testAccount === true ? { test: true } : {}) }];
+        }
+        const out: ProviderAccount[] = [];
+        for (const r of await search(token, id, CLIENTS_Q, listOpts, id, 2)) {
+          const cc = isRecord(r) && isRecord(r.customerClient) ? r.customerClient : null;
+          const cid = cc ? str(cc.id) : null;
+          if (!cc || !cid || cc.manager === true || (str(cc.status) && str(cc.status) !== "ENABLED")) continue;
+          const cur = str(cc.currencyCode) ?? undefined;
+          out.push({ id: cid, name: str(cc.descriptiveName) ?? cid, ...(cur ? { currency: cur } : {}), ...(cc.testAccount === true ? { test: true } : {}), via: id });
+        }
+        return out;
+      };
+
+      let perCustomer: ProviderAccount[][];
+      try {
+        perCustomer = await mapLimit(
+          ids.slice(0, 10),
+          4,
+          async (id) => {
+            try {
+              return await accountsOf(id);
+            } catch (err) {
+              // The caller's own deadline, a dead grant, a rate limit or the project's missing access end the listing;
+              // one closed or unreachable customer (or the 20 s cap) only drops that customer.
+              if (opts.signal?.aborted) throw err;
+              if (err instanceof ProviderError && (err.code === "access_pending" || err.code === "expired" || err.code === "rate_limited")) throw err;
+              return [];
+            }
+          },
+          listOpts.signal,
+        );
+      } catch (err) {
+        if (err instanceof ProviderError && err.code === "access_pending") {
+          // The Cloud project has no production access yet (the normal state at first): keep the connection with the
+          // bare customer ids, status error / access_pending. The sync lists the real accounts once access arrives.
+          return { externalId, accounts: ids.slice(0, 10).map((id) => ({ id, name: id })), selected: ids[0] ?? null, status: "error", error: "access_pending" };
+        }
+        throw err;
+      }
+
+      const accounts: ProviderAccount[] = [];
+      for (const a of perCustomer.flat()) if (!accounts.some((x) => x.id === a.id)) accounts.push(a);
       if (!accounts.length) return { externalId, accounts, selected: null, status: "empty", error: "no_ad_accounts" };
       // A real account first: a test account never has numbers.
       const real = accounts.find((a) => !a.test) ?? accounts[0];

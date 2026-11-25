@@ -26,9 +26,9 @@ const TEXT = {
     en: "{platform} is connected, but there is nothing to read: {reason} Fix it and connect again.",
   },
   expired: {
-    uz: "{platform} ulanishi tugadi ({account}), raqamlar endi yangilanmaydi. Qayta ulash uchun ilovada «Boshqa tarmoqlar»ni oching.",
-    ru: "Подключение {platform} закончилось ({account}), цифры больше не обновляются. Чтобы подключить снова, откройте «Другие площадки» в приложении.",
-    en: "The {platform} connection ended ({account}); its numbers no longer update. To connect again, open Other platforms in the app.",
+    uz: "{platform} ulanishi tugadi ({account}), raqamlar endi yangilanmaydi. Qayta ulash uchun ilovada «Boshqa tarmoqlar»ni oching. {days} kun ichida qayta ulamasangiz, Mercat bu raqamlarni o‘chiradi.",
+    ru: "Подключение {platform} закончилось ({account}), цифры больше не обновляются. Чтобы подключить снова, откройте «Другие площадки» в приложении. Если не подключить снова за {days} дней, Mercat удалит эти цифры.",
+    en: "The {platform} connection ended ({account}); its numbers no longer update. To connect again, open Other platforms in the app. If you do not connect again within {days} days, Mercat deletes these numbers.",
   },
   open_app: { uz: "Ilovani ochish", ru: "Открыть приложение", en: "Open the app" },
 } satisfies Record<string, Dict>;

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { requireTelegramUser } from "@/lib/connectors/owner";
-import { assertOwnedConnection, ConnectFlowError, connectorConfig, runSync } from "@/lib/connectors/service";
+import { requireConnectorsOn, requireTelegramUser } from "@/lib/connectors/owner";
+import { assertOwnedConnection, ConnectFlowError, runSync } from "@/lib/connectors/service";
 import { handle, HttpError, json, rateLimit, readJson } from "@/lib/uslub/http";
 
 export const maxDuration = 60;
@@ -16,6 +16,8 @@ const Body = z.object({
  * (synced | retry | error | expired | skipped). Two per minute per caller; the card then reloads GET /api/connect.
  */
 export const POST = handle(async (req) => {
+  const started = Date.now();
+  const cfg = requireConnectorsOn();
   rateLimit(req, "connect-sync", 2);
   const body = await readJson(req, Body);
   const ownerId = requireTelegramUser(req, body.initData);
@@ -25,6 +27,6 @@ export const POST = handle(async (req) => {
     if (err instanceof ConnectFlowError) throw new HttpError(404, "connection not found", "not_found");
     throw err;
   }
-  const outcome = await runSync(connectorConfig(), body.connectionId, Date.now() + 50_000);
+  const outcome = await runSync(cfg, body.connectionId, started + 50_000);
   return json({ outcome });
 });

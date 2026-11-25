@@ -15,6 +15,7 @@ export const maxDuration = 60;
  * Connections whose numbers are older than 6 h are refreshed after the response (the lazy sync).
  */
 export const GET = handle(async (req) => {
+  const started = Date.now();
   const empty = () => json({ connectors: [], connections: [] });
   const cfg = connectorConfig();
   if (!anyEnabled(cfg)) return empty();
@@ -28,7 +29,8 @@ export const GET = handle(async (req) => {
 
   const { body, stale } = await listForOwner(cfg, userId, brand.id);
   if (stale.length) {
-    const deadline = Date.now() + 50_000;
+    // Counted from the request's start: the function is stopped at maxDuration (60 s).
+    const deadline = started + 50_000;
     const work = async () => {
       for (const id of stale.slice(0, 4)) {
         if (Date.now() > deadline - 5_000) break;

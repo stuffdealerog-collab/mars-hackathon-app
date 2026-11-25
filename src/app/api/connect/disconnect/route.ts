@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { requireTelegramUser } from "@/lib/connectors/owner";
-import { ConnectFlowError, connectorConfig, disconnect } from "@/lib/connectors/service";
+import { requireConnectorsOn, requireTelegramUser } from "@/lib/connectors/owner";
+import { ConnectFlowError, disconnect } from "@/lib/connectors/service";
 import { handle, HttpError, json, rateLimit, readJson } from "@/lib/uslub/http";
 
 export const maxDuration = 15;
@@ -17,11 +17,12 @@ const Body = z.object({
  * and every number pulled through it. Someone else's connection answers 404, like a missing one.
  */
 export const POST = handle(async (req) => {
+  const cfg = requireConnectorsOn();
   rateLimit(req, "connect-change", 20);
   const body = await readJson(req, Body);
   const ownerId = requireTelegramUser(req, body.initData);
   try {
-    await disconnect(connectorConfig(), ownerId, body.connectionId);
+    await disconnect(cfg, ownerId, body.connectionId);
   } catch (err) {
     if (err instanceof ConnectFlowError) throw new HttpError(404, "connection not found", "not_found");
     throw err;

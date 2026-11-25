@@ -1,7 +1,7 @@
 import { TokenSealError, openToken, tokenAad } from "./crypto";
 import { type SyncWindow, syncWindow, tashkentDay } from "./days";
-import { ProviderError } from "./net";
-import type { Connector, DailyRow, ItemRow } from "./providers/types";
+import { type CallOpts, ProviderError } from "./net";
+import type { Connector, DailyRow, ItemRow, ProviderAccount } from "./providers/types";
 import type { ConnectionRow } from "./repo";
 import type { ConnectError } from "./types";
 import { endsAt } from "./view";
@@ -12,9 +12,14 @@ import { endsAt } from "./view";
  *
  * - Refresh: Google mints a fresh access token from the refresh token on every run; Meta's long-lived token is
  *   used as stored until its end date, after which the connection is expired (the owner reconnects).
- * - Outcomes: expired → status 'expired' and exactly one owner message (the status move is atomic);
- *   access_pending / scope_missing → status 'error' (retried daily, the card says why); rate limits and network
- *   errors keep the status and are retried on the next run.
+ * - Outcomes: expired → status 'expired' and exactly one owner message (the status move is atomic, and drops the
+ *   dead tokens); access_pending / scope_missing / nothing to read → status 'error' (the card says why); rate limits
+ *   and network errors keep the status. Every failure moves updated_at, and the queue waits ERROR_BACKOFF_HOURS
+ *   from it (repo.dueConnections, view.needsSync), so a stuck row never holds the head of the tick's queue.
+ * - A row in 'error' lists its accounts again first: Google Ads stored bare customer ids while access was pending,
+ *   and the real accounts (names, managers skipped) arrive with access.
+ * - `light` (the tick): the provider skips its slow extras (Instagram's per-post and per-story insights), so a run
+ *   fits the tick's 5 s; the card's lazy refresh and "Yangilash" read everything.
  * - Windows: a first sync backfills 28 days; later syncs re-read the provider's settle days (attribution and
  *   analytics still change) plus anything missed. `maxDays` caps a run (the tick's small budget).
  */
@@ -29,6 +34,8 @@ export interface SyncDeps {
   saveItems(id: string, rows: ItemRow[]): Promise<void>;
   markSynced(id: string): Promise<void>;
   markRetry(id: string, code: ConnectError): Promise<void>;
+  /** The accounts listed again for a row in 'error' (see above). */
+  saveAccounts(id: string, account: { name: string; handle?: string }, accounts: ProviderAccount[], selected: string | null): Promise<void>;
   /** True only when the status really changed. */
   moveStatus(id: string, status: "expired" | "error", code: ConnectError): Promise<boolean>;
   /** The one message on the move to expired. */
@@ -43,9 +50,25 @@ export interface SyncOptions {
   now?: Date;
   signal?: AbortSignal;
   maxDays?: number;
+  /** The tick: skip the provider's slow extras (see above). */
+  light?: boolean;
 }
 
 const running = new Set<string>();
+
+/** Errors only the owner or the team can fix: the row moves to 'error' and the card says why. */
+const OWNER_FIXABLE = new Set<ConnectError>(["access_pending", "scope_missing", "not_professional", "no_ad_accounts", "no_channel"]);
+
+/** Lists a row's accounts again; keeps the owner's choice when it is still there (and is not a test account). */
+async function relist(row: ConnectionRow, connector: Connector, token: string, callOpts: CallOpts, deps: SyncDeps): Promise<ProviderAccount> {
+  const profile = await connector.profile({ accessToken: token, scopes: row.scopes, subject: row.externalId }, callOpts);
+  if (profile.status !== "active") throw new ProviderError(profile.error ?? "access_pending", undefined, "relist");
+  const kept = profile.accounts.find((a) => a.id === row.selectedAccount && !a.test);
+  const selected = kept ?? profile.accounts.find((a) => a.id === profile.selected) ?? profile.accounts[0];
+  if (!selected) throw new ProviderError("sync_failed", undefined, "relist_empty");
+  await deps.saveAccounts(row.id, { name: selected.name, ...(selected.handle ? { handle: selected.handle } : {}) }, profile.accounts, selected.id);
+  return selected;
+}
 
 export function windowFor(row: Pick<ConnectionRow, "lastSyncAt">, connector: Pick<Connector, "settleDays">, now: Date, maxDays?: number): SyncWindow {
   const today = tashkentDay(now);
@@ -80,7 +103,12 @@ async function runSync(id: string, opts: SyncOptions, deps: SyncDeps): Promise<S
   const row = await deps.load(id);
   if (!row || row.status === "expired" || row.status === "empty" || !row.selectedAccount) return "skipped";
   const connector = deps.connector(row);
-  if (!connector) return "skipped"; // the provider was switched off (CONNECTOR_ENABLED) or lost its credentials
+  if (!connector) {
+    // The provider was switched off (CONNECTOR_ENABLED) or lost its credentials: note it, so the row waits its
+    // backoff instead of coming back first on every run.
+    await deps.markRetry(row.id, "sync_failed");
+    return "skipped";
+  }
   const now = opts.now ?? new Date();
 
   const expire = async (code: ConnectError): Promise<SyncOutcome> => {
@@ -107,12 +135,13 @@ async function runSync(id: string, opts: SyncOptions, deps: SyncDeps): Promise<S
   if (left < 1_000) return "skipped";
   const budget = AbortSignal.timeout(left);
   const callOpts = { signal: opts.signal ? AbortSignal.any([opts.signal, budget]) : budget, timeoutMs: Math.min(10_000, left) };
-  const account = row.accounts.find((a) => a.id === row.selectedAccount) ?? { id: row.selectedAccount, name: row.account.name };
+  let account: ProviderAccount = row.accounts.find((a) => a.id === row.selectedAccount) ?? { id: row.selectedAccount, name: row.account.name };
 
   try {
     const token = await connector.accessToken(stored, callOpts);
+    if (row.status === "error") account = await relist(row, connector, token, callOpts, deps);
     const window = windowFor(row, connector, now, opts.maxDays);
-    const data = await connector.sync({ token, account, window, today: tashkentDay(now) }, callOpts);
+    const data = await connector.sync({ token, account, window, today: tashkentDay(now), light: opts.light }, callOpts);
     await deps.saveDaily(row.id, data.daily);
     await deps.saveItems(row.id, data.items);
     await deps.markSynced(row.id);
@@ -123,7 +152,7 @@ async function runSync(id: string, opts: SyncOptions, deps: SyncDeps): Promise<S
     log(`[connectors] ${row.provider} sync failed: ${err instanceof Error ? err.message : String(err)}`);
     if (code === "expired") return expire(code);
     await deps.logEvent(row, "connect_sync_failed", { provider: row.provider, code }).catch(() => undefined);
-    if (code === "access_pending" || code === "scope_missing") {
+    if (OWNER_FIXABLE.has(code)) {
       await deps.moveStatus(row.id, "error", code);
       return "error";
     }

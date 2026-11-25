@@ -1,7 +1,7 @@
 import "server-only";
 import { getSql } from "../db";
 import type { DailyRow, ItemRow, ProviderAccount } from "./providers/types";
-import { type ConnectorId, type ConnectorMode, isConnectorId } from "./types";
+import { type ConnectorId, type ConnectorMode, ERROR_BACKOFF_HOURS, EXPIRED_KEEP_DAYS, FAMILY_IDS, isConnectorId, STALE_DATA_DAYS } from "./types";
 
 /**
  * Connector storage (tagged-template SQL only; tables in db/schema.sql). Sealed tokens are read only by sync.ts and
@@ -27,6 +27,8 @@ export interface ConnectionRow {
   status: string;
   lastError: string | null;
   lastSyncAt: Date | null;
+  /** Moves on every write, including a failed sync: the retry backoff counts from it. */
+  updatedAt: Date | null;
   createdAt: Date;
 }
 
@@ -75,6 +77,7 @@ function toRow(r: Raw): ConnectionRow | null {
     status: String(r.status ?? "active"),
     lastError: r.last_error ? String(r.last_error) : null,
     lastSyncAt: date(r.last_sync_at),
+    updatedAt: date(r.updated_at),
     createdAt: date(r.created_at) ?? new Date(0),
   };
 }
@@ -202,6 +205,26 @@ export async function setSelectedAccount(id: string, accountId: string): Promise
   await getSql()`UPDATE connections SET selected_account = ${accountId}, updated_at = now() WHERE id = ${id}`;
 }
 
+/** The accounts a connection can read, listed again once the provider gives access (Google Ads after "access pending"). */
+export async function saveAccounts(id: string, account: { name: string; handle?: string }, accounts: ProviderAccount[], selected: string | null): Promise<void> {
+  await getSql()`
+    UPDATE connections SET account = ${JSON.stringify(account)}::jsonb, accounts = ${JSON.stringify(accounts)}::jsonb,
+      selected_account = ${selected}, updated_at = now()
+    WHERE id = ${id}`;
+}
+
+/**
+ * The first name of the Telegram user a connection belongs to, for the Mini App's return page: whoever signed in at
+ * the provider sees which Mercat account received the connection.
+ */
+export async function connectionOwnerName(id: string): Promise<string | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const list = (await getSql()`
+    SELECT u.first_name FROM connections c JOIN app_users u ON u.telegram_id = c.owner_telegram_id WHERE c.id = ${id}`) as Raw[];
+  const name = list[0]?.first_name;
+  return typeof name === "string" && name.trim() ? name.trim().slice(0, 64) : null;
+}
+
 /** Deletes a connection and (cascade) every number pulled through it. */
 export async function deleteConnection(id: string): Promise<void> {
   await getSql()`DELETE FROM connections WHERE id = ${id}`;
@@ -233,26 +256,69 @@ export async function markSoftError(id: string, code: string): Promise<void> {
 
 /**
  * Moves a connection to a new status. Returns true only when the status really changed, so the "connection ended"
- * message goes out exactly once.
+ * message goes out exactly once. A move to 'expired' also drops the sealed tokens: the grant is dead, there is
+ * nothing left to revoke, and a dead credential is not kept. An expired row is never touched again here, so its
+ * updated_at keeps counting towards its deletion (pruneConnectorData).
  */
 export async function moveStatus(id: string, status: string, code: string | null): Promise<boolean> {
-  const list = (await getSql()`
-    UPDATE connections SET status = ${status}, last_error = ${code}, updated_at = now()
-    WHERE id = ${id} AND status IS DISTINCT FROM ${status}
-    RETURNING id`) as Raw[];
-  if (!list.length) await getSql()`UPDATE connections SET last_error = ${code}, updated_at = now() WHERE id = ${id}`;
+  const sql = getSql();
+  const list = (
+    status === "expired"
+      ? await sql`
+          UPDATE connections SET status = 'expired', last_error = ${code}, access_token_enc = NULL, refresh_token_enc = NULL, updated_at = now()
+          WHERE id = ${id} AND status IS DISTINCT FROM 'expired'
+          RETURNING id`
+      : await sql`
+          UPDATE connections SET status = ${status}, last_error = ${code}, updated_at = now()
+          WHERE id = ${id} AND status IS DISTINCT FROM ${status}
+          RETURNING id`
+  ) as Raw[];
+  if (!list.length) await sql`UPDATE connections SET last_error = ${code}, updated_at = now() WHERE id = ${id} AND status <> 'expired'`;
   return list.length > 0;
 }
 
-/** Connections whose numbers are older than `olderThanHours` (or never synced), oldest first. */
-export async function dueConnections(limit: number, olderThanHours: number): Promise<string[]> {
+/**
+ * Connections the tick should sync next, at most `limit`: numbers older than `olderThanHours` (or never synced),
+ * of a provider that is on. Rows that cannot get better without the owner (a permission left unticked) are left
+ * out, and a row whose last attempt failed waits ERROR_BACKOFF_HOURS; the failure time also orders it behind the
+ * rest, so a few stuck rows can never hold the head of the queue. Same rule as view.ts `needsSync` (the card's
+ * lazy sync).
+ */
+export async function dueConnections(limit: number, olderThanHours: number, providers: ConnectorId[]): Promise<string[]> {
+  if (!providers.length) return [];
   const list = (await getSql()`
     SELECT id FROM connections
     WHERE status IN ('active', 'error') AND revoked_at IS NULL AND selected_account IS NOT NULL
+      AND provider = ANY(${providers}::text[])
+      AND COALESCE(last_error, '') <> 'scope_missing'
       AND (last_sync_at IS NULL OR last_sync_at < now() - make_interval(hours => ${olderThanHours}::int))
-    ORDER BY last_sync_at ASC NULLS FIRST
+      AND (last_error IS NULL OR updated_at < now() - make_interval(hours => ${ERROR_BACKOFF_HOURS}::int))
+    ORDER BY GREATEST(COALESCE(last_sync_at, 'epoch'::timestamptz), CASE WHEN last_error IS NULL THEN 'epoch'::timestamptz ELSE updated_at END)
     LIMIT ${limit}`) as Raw[];
   return list.map((r) => String(r.id));
+}
+
+/**
+ * Deletes what Mercat may no longer keep (no provider calls; counts only): connections that ended at the provider
+ * and were not connected again (their numbers go with them, ON DELETE CASCADE), posts/videos/campaigns not
+ * refreshed for STALE_DATA_DAYS, and YouTube's daily numbers older than that (YouTube API Services policy).
+ */
+export async function pruneConnectorData(): Promise<{ expired: number; items: number; days: number }> {
+  const sql = getSql();
+  const expired = (await sql`
+    DELETE FROM connections
+    WHERE status = 'expired' AND (
+      (provider = ANY(${FAMILY_IDS.google}::text[]) AND updated_at < now() - make_interval(days => ${EXPIRED_KEEP_DAYS.google}::int))
+      OR (provider = ANY(${FAMILY_IDS.meta}::text[]) AND updated_at < now() - make_interval(days => ${EXPIRED_KEEP_DAYS.meta}::int)))
+    RETURNING id`) as Raw[];
+  const items = (await sql`
+    DELETE FROM connection_items WHERE fetched_at < now() - make_interval(days => ${STALE_DATA_DAYS}::int)
+    RETURNING connection_id`) as Raw[];
+  const days = (await sql`
+    DELETE FROM connection_metrics_daily d USING connections c
+    WHERE d.connection_id = c.id AND c.provider = 'youtube' AND d.fetched_at < now() - make_interval(days => ${STALE_DATA_DAYS}::int)
+    RETURNING d.connection_id`) as Raw[];
+  return { expired: expired.length, items: items.length, days: days.length };
 }
 
 /* ----------------------------------------------------------------- numbers */

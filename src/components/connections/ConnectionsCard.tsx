@@ -15,7 +15,7 @@ import { type CardRow, cardRows, cardVisible, daysLeft, weekValue } from "./mode
  * brand, a non-tester while the apps are in test mode), and it never shows a "soon" row.
  *
  *   Studio:   <ConnectionsCard brandId={brand.id} lang={lang} authorization={authHeader()} />
- *   Mini App: <ConnectionsCard brandId={brand.id} lang={lang} from="miniapp" initData={tgInitData()}
+ *   Mini App: <ConnectionsCard brandId={brand.id} lang={lang} from="miniapp" authorization={api.authHeader()}
  *               openUrl={openLink} confirm={confirmNative} />
  *
  * Colours come from the lamp world's tokens with fallbacks (glass, hairline, ink), numbers print on the amber LED

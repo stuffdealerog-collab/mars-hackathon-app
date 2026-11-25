@@ -1,7 +1,7 @@
 import { addDays } from "./days";
 import type { ProviderAccount } from "./providers/types";
 import { type DayMetrics, weekSummary } from "./summary";
-import { type ConnectionStatus, type ConnectionView, type ConnectorId, type ConnectorMode, isConnectError } from "./types";
+import { type ConnectionStatus, type ConnectionView, type ConnectorId, type ConnectorMode, ERROR_BACKOFF_HOURS, isConnectError } from "./types";
 
 /**
  * A stored connection → what the card sees (pure). Never a token, a scope list, the provider's user id or an error
@@ -57,8 +57,19 @@ export function toView(row: ViewInput, daily: (DayMetrics & { accountId: string 
   };
 }
 
-/** Connections whose numbers are older than `hours` and may be refreshed lazily when the owner opens the card. */
-export function isStale(row: Pick<ViewInput, "status" | "lastSyncAt" | "selectedAccount">, now: Date, hours = 6): boolean {
+export type SyncCandidate = Pick<ViewInput, "status" | "lastSyncAt" | "selectedAccount" | "lastError"> & { updatedAt?: Date | null };
+
+/**
+ * Whether a connection's numbers should be pulled now: older than `hours` (or never pulled), and not stuck on
+ * something only the owner can fix (a permission left unticked: only a reconnect helps). A failed attempt waits
+ * ERROR_BACKOFF_HOURS from that failure. The tick's queue (repo.dueConnections) applies the same rule in SQL.
+ */
+export function needsSync(row: SyncCandidate, now: Date, hours: number): boolean {
   if (!row.selectedAccount || (row.status !== "active" && row.status !== "error")) return false;
+  if (row.lastError === "scope_missing") return false;
+  if (row.lastError && row.updatedAt && now.getTime() - row.updatedAt.getTime() < ERROR_BACKOFF_HOURS * 3_600_000) return false;
   return !row.lastSyncAt || now.getTime() - row.lastSyncAt.getTime() > hours * 3_600_000;
 }
+
+/** Connections whose numbers are older than `hours` and may be refreshed lazily when the owner opens the card. */
+export const isStale = (row: SyncCandidate, now: Date, hours = 6): boolean => needsSync(row, now, hours);

@@ -154,6 +154,26 @@ describe("Instagram connector", () => {
     expect(byId["18000000000000001"].title).toContain("Yangi tort");
   });
 
+  it("a light run (the tick) reads days, followers, the post list and live stories in one round, without per-item insights", async () => {
+    const { fetch, calls } = fakeFetch([
+      { match: /\/17841400000000001\/insights\?/, body: fx.igInsightsDay },
+      { match: /\/17841400000000001\/media\?/, body: fx.igMedia },
+      { match: /\/17841400000000001\/stories\?/, body: fx.igStories },
+      { match: /\/17841400000000001\?/, body: fx.igProfile },
+      { match: /\/1(8000|8100)\d+\/insights\?/, body: fx.igMediaInsights },
+    ]);
+    const r = await instagramConnector(IG, { fetch }).sync(
+      { token: TOKEN, account: { id: "17841400000000001", name: "Safia Bakery" }, window: { since: "2026-11-23", until: "2026-11-24" }, today: "2026-11-25", light: true },
+      opts,
+    );
+    expect(calls.some((c) => /\/1(8000|8100)\d+\/insights/.test(c.url))).toBe(false);
+    expect(calls).toHaveLength(2 + 3); // two days of account insights, then profile, media and stories
+    expect(r.daily.map((d) => d.day)).toEqual(["2026-11-23", "2026-11-24", "2026-11-25"]);
+    const byId = Object.fromEntries(r.items.map((i) => [i.externalId, i]));
+    expect(byId["18000000000000001"].metrics).toEqual({ likes: 140, comments: 9 });
+    expect(byId["18100000000000009"]).toMatchObject({ kind: "story", metrics: {} });
+  });
+
   it("a dead token stops the sync as expired", async () => {
     const { fetch } = fakeFetch([{ match: /./, status: 400, body: fx.error190 }]);
     const err = await instagramConnector(IG, { fetch })

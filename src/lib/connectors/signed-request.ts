@@ -22,3 +22,23 @@ export function parseSignedRequest(signed: string, appSecret: string): { userId:
   const userId = typeof payload.user_id === "string" || typeof payload.user_id === "number" ? String(payload.user_id) : "";
   return /^\d{1,32}$/.test(userId) ? { userId } : null;
 }
+
+/**
+ * The confirmation code Mercat gives Meta for a data-deletion request: "<random>.<check>", where the check is an
+ * HMAC of the random part under the app secret. The status page (/data-deletion?code=) confirms a deletion only for
+ * a code Mercat issued, so an invented code shows nothing. No database row is needed.
+ */
+const deletionCheck = (random: string, appSecret: string) => createHmac("sha256", appSecret).update(`data-deletion|${random}`).digest("base64url").slice(0, 10);
+
+export function deletionCode(random: string, appSecret: string): string {
+  return `${random}.${deletionCheck(random, appSecret)}`;
+}
+
+export function verifyDeletionCode(code: string, appSecret: string | null): boolean {
+  if (!appSecret) return false;
+  const m = /^([A-Za-z0-9_-]{8,32})\.([A-Za-z0-9_-]{10})$/.exec(code);
+  if (!m) return false;
+  const given = Buffer.from(m[2]);
+  const expected = Buffer.from(deletionCheck(m[1], appSecret));
+  return given.length === expected.length && timingSafeEqual(given, expected);
+}

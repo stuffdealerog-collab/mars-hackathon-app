@@ -9,7 +9,8 @@ import { newPkce, randomToken, stateExpiry, stateProblem } from "./pkce";
 import { connectorFor } from "./registry";
 import * as repo from "./repo";
 import { type SyncDeps, type SyncOutcome, syncConnection } from "./sync";
-import { type ConnectError, type ConnectionsResponse, type ConnectorId, isConnectorId } from "./types";
+import { browserBound } from "./browser-bind";
+import { type ConnectError, type ConnectionsResponse, type ConnectorId, FAMILY_IDS, isConnectorId } from "./types";
 import { isStale, toView } from "./view";
 
 /**
@@ -31,7 +32,11 @@ export class ConnectFlowError extends Error {
 
 /* ------------------------------------------------------------------ start */
 
-export async function startConnect(cfg: ConnectorConfig, p: { provider: ConnectorId; ownerId: number; brandId: string; from: ReturnTo; now?: Date }): Promise<string> {
+/** The provider's sign-in URL, and its state (the Studio path binds it to the browser: browser-bind.ts). */
+export async function startConnect(
+  cfg: ConnectorConfig,
+  p: { provider: ConnectorId; ownerId: number; brandId: string; from: ReturnTo; now?: Date },
+): Promise<{ url: string; state: string }> {
   const connector = canConnect(cfg, p.provider, p.ownerId) ? connectorFor(p.provider, cfg) : null;
   if (!connector || !cfg.keys[0]) throw new ConnectFlowError("not_found");
   const state = randomToken();
@@ -47,10 +52,13 @@ export async function startConnect(cfg: ConnectorConfig, p: { provider: Connecto
     expiresAt: stateExpiry(p.now ?? new Date()),
   });
   await connectEvent(p.ownerId, "connect_started", { provider: p.provider, brand_id: p.brandId });
-  return connector.authorizeUrl({ state, redirectUri: redirectUri(cfg, p.provider), codeChallenge: pkce?.challenge });
+  return { url: connector.authorizeUrl({ state, redirectUri: redirectUri(cfg, p.provider), codeChallenge: pkce?.challenge }), state };
 }
 
 /* ----------------------------------------------------------------- finish */
+
+/** Provider errors the owner sees as they are at connect (each has its own line in the card's copy). */
+const PASS_THROUGH = new Set<ConnectError>(["rate_limited", "oauth_state", "access_pending", "scope_missing"]);
 
 export interface FinishResult {
   /** Relative path to send the browser to (never carries a token or the provider's code). */
@@ -59,8 +67,11 @@ export interface FinishResult {
   connectionId?: string;
 }
 
-/** Where the browser goes after the callback: the Studio, or the return page for the Mini App path. */
-export function returnLocation(p: { provider: ConnectorId; brandId: string | null; returnTo: string }, error?: ConnectError): string {
+/**
+ * Where the browser goes after the callback: the Studio, or the return page for the Mini App path. The return page
+ * also gets the stored connection's id, so it can show which Mercat account received it (`c`).
+ */
+export function returnLocation(p: { provider: ConnectorId; brandId: string | null; returnTo: string }, error?: ConnectError, connectionId?: string): string {
   const q = new URLSearchParams();
   if (p.returnTo === "studio" && p.brandId) {
     q.set("brand", p.brandId);
@@ -73,15 +84,29 @@ export function returnLocation(p: { provider: ConnectorId; brandId: string | nul
   q.set("p", p.provider);
   if (p.brandId) q.set("brand", p.brandId);
   if (error) q.set("error", error);
+  if (connectionId) q.set("c", connectionId);
   return `/connect/done?${q}`;
 }
 
-export async function finishConnect(cfg: ConnectorConfig, provider: string, params: URLSearchParams, now = new Date()): Promise<FinishResult> {
+export interface FinishOptions {
+  now?: Date;
+  /** The browser's binding cookie for this provider (browser-bind.ts), when the request carried one. */
+  cookie?: string | null;
+}
+
+export async function finishConnect(cfg: ConnectorConfig, provider: string, params: URLSearchParams, opts: FinishOptions = {}): Promise<FinishResult> {
+  const now = opts.now ?? new Date();
   if (!isConnectorId(provider)) return { location: "/connect/done?error=oauth_state" };
   const state = params.get("state") ?? "";
   const row = /^[A-Za-z0-9_-]{20,128}$/.test(state) ? await repo.consumeState(state) : null;
   // consumeState already refused used and expired rows; this also refuses a state started for another provider.
   if (!row || stateProblem({ ...row, usedAt: null }, provider, now)) return { location: `/connect/done?p=${provider}&error=oauth_state` };
+  // A Studio connect must finish in the browser that started it: a sign-in link passed to someone else (so their
+  // numbers would land in the sender's Mercat) is refused before the code is used. The neutral page names no brand.
+  if (row.returnTo === "studio" && !browserBound(opts.cookie ?? null, state)) {
+    await connectEvent(row.ownerTelegramId, "connect_failed", { provider, code: "oauth_state", why: "browser" });
+    return { location: `/connect/done?p=${provider}&error=oauth_state` };
+  }
 
   const target = { provider, brandId: row.brandId, returnTo: row.returnTo };
   const owner = row.ownerTelegramId;
@@ -116,7 +141,13 @@ export async function finishConnect(cfg: ConnectorConfig, provider: string, para
       refresh: tokens.refreshToken ? sealToken(tokens.refreshToken, tokenAad(id, "refresh"), cfg.keys[0]) : null,
     });
     const id = existing?.id ?? randomUUID();
-    const sealed = seal(id);
+    // Nothing to read (no professional Instagram, no ad account, no channel): no credential is kept. The grant is
+    // withdrawn at the provider too, unless the owner's other connection of the same family shares it.
+    const keepTokens = status !== "empty";
+    if (!keepTokens && (await repo.siblingCount(owner, FAMILY_IDS[connector.family], id).catch(() => 1)) === 0) {
+      await connector.revoke({ access: tokens.accessToken ?? null, refresh: tokens.refreshToken ?? null }, { timeoutMs: 5_000 }).catch(() => undefined);
+    }
+    const sealed = keepTokens ? seal(id) : { access: null, refresh: null };
     const storedId = await repo.upsertConnection({
       id,
       ownerTelegramId: owner,
@@ -136,7 +167,7 @@ export async function finishConnect(cfg: ConnectorConfig, provider: string, para
       status,
       lastError,
     });
-    if (storedId !== id) {
+    if (storedId !== id && keepTokens) {
       // A parallel reconnect created the row first: re-seal to the row that won, so its associated data matches.
       const again = seal(storedId);
       await repo.saveSealedTokens(storedId, again.access, again.refresh);
@@ -147,13 +178,14 @@ export async function finishConnect(cfg: ConnectorConfig, provider: string, para
     if (status !== "error") await notifyConnected(owner, provider, shown ?? { name: provider }, row.brandId, status === "empty" ? profile.error : undefined);
     // An earlier attempt that found nothing to read (e.g. YouTube before the channel existed) is replaced by this one.
     if (status === "active") await repo.deleteEmptyRows(owner, provider, storedId);
-    if (status === "empty") return { location: returnLocation(target, profile.error ?? "oauth_failed") };
-    // A grant without the insights permission is kept (the card asks to connect again with it), but not synced.
-    if (status === "error") return { location: returnLocation(target, lastError ?? "scope_missing") };
-    return { location: returnLocation(target), connectionId: storedId };
+    if (status === "empty") return { location: returnLocation(target, profile.error ?? "oauth_failed", storedId) };
+    // A grant without the insights permission is kept (the card asks to connect again with it), but not synced. Google
+    // Ads waiting for production access is kept too: the tick retries it.
+    if (status === "error") return { location: returnLocation(target, lastError ?? "scope_missing", storedId) };
+    return { location: returnLocation(target, undefined, storedId), connectionId: storedId };
   } catch (err) {
     const code: ConnectError =
-      err instanceof ProviderError ? (err.code === "rate_limited" || err.code === "oauth_state" ? err.code : "oauth_failed") : err instanceof TokenSealError ? "oauth_state" : "oauth_failed";
+      err instanceof ProviderError ? (PASS_THROUGH.has(err.code) ? err.code : "oauth_failed") : err instanceof TokenSealError ? "oauth_state" : "oauth_failed";
     console.warn(`[connectors] ${provider} connect failed: ${err instanceof ProviderError || err instanceof TokenSealError ? err.message : err instanceof Error ? err.name : "error"}`);
     return fail(code);
   }
@@ -192,8 +224,6 @@ export async function listForOwner(
 
 /* ------------------------------------------------------ disconnect, select */
 
-const FAMILY: Record<"meta" | "google", ConnectorId[]> = { meta: ["instagram", "meta_ads"], google: ["youtube", "google_ads"] };
-
 async function ownedConnection(ownerId: number, connectionId: string): Promise<repo.ConnectionRow> {
   const row = await repo.getConnection(connectionId);
   // Someone else's connection reads exactly like a missing one.
@@ -207,7 +237,7 @@ export async function disconnect(cfg: ConnectorConfig, ownerId: number, connecti
   if (connector && cfg.keys.length) {
     // Instagram and Meta ads share one grant at Meta (and YouTube and Google Ads one at Google): withdrawing it
     // would also end the owner's other connection, so it is withdrawn only when this is the last one.
-    const siblings = await repo.siblingCount(ownerId, FAMILY[connector.family], row.id).catch(() => 1);
+    const siblings = await repo.siblingCount(ownerId, FAMILY_IDS[connector.family], row.id).catch(() => 1);
     if (siblings === 0) {
       try {
         const access = row.accessTokenEnc ? openToken(row.accessTokenEnc, tokenAad(row.id, "access"), cfg.keys) : null;
@@ -244,12 +274,19 @@ export function syncDeps(cfg: ConnectorConfig): SyncDeps {
     saveItems: repo.upsertItems,
     markSynced: repo.markSynced,
     markRetry: repo.markSoftError,
+    saveAccounts: repo.saveAccounts,
     moveStatus: repo.moveStatus,
     notifyExpired: (row) => notifyExpired(row.ownerTelegramId, row.provider, row.accounts.find((a) => a.id === row.selectedAccount) ?? row.account, row.brandId),
     logEvent: (row, type, props) => connectEvent(row.ownerTelegramId, type, props),
   };
 }
 
-export function runSync(cfg: ConnectorConfig, connectionId: string, deadline: number, maxDays?: number): Promise<SyncOutcome> {
-  return syncConnection(connectionId, { deadline, maxDays }, syncDeps(cfg));
+/** `maxDays` caps the window and `light` skips the slow extras: both for the tick's small budget (task.ts). */
+export function runSync(
+  cfg: ConnectorConfig,
+  connectionId: string,
+  deadline: number,
+  opts: { maxDays?: number; light?: boolean } = {},
+): Promise<SyncOutcome> {
+  return syncConnection(connectionId, { deadline, maxDays: opts.maxDays, light: opts.light }, syncDeps(cfg));
 }

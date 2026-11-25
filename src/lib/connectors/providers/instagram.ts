@@ -7,12 +7,16 @@ import { type Connector, type ConnectorDeps, type DailyRow, type ItemRow, type M
  * Instagram insights, read-only, through Facebook Login for Business (plan §3: one Meta app for Instagram and ads).
  * The owner's Instagram professional account must be linked to a Facebook Page; the configuration
  * (META_IG_CONFIG_ID) asks for instagram_basic, instagram_manage_insights, pages_show_list and
- * pages_read_engagement (+ business_management when the Page sits in a business portfolio).
+ * pages_read_engagement (business_management only if a business-portfolio Page is missing: OWNER-SETUP §1.5).
  *
  * Reads: account insights per Tashkent day (views, reach, interactions…), the follower count once a day (Mercat's
  * own follower history), the last posts and reels with their insights, and live stories (readable for 24 h only,
  * so only a daily run catches them). `impressions` is never asked for (Meta replaced it with `views`). A metric
  * Instagram does not return (accounts under 100 followers miss several) is stored as null, never 0.
+ *
+ * A light run (the tick) reads the account insights, the follower count, the post list and the live stories, all in
+ * one parallel round, and skips the per-post and per-story insights (up to 22 more calls in several rounds); the
+ * card's refresh reads those.
  */
 
 export const IG_SCOPES_NEEDED = ["instagram_basic", "instagram_manage_insights", "pages_show_list"];
@@ -115,7 +119,7 @@ export function instagramConnector(creds: MetaCreds, deps: ConnectorDeps): Conne
       return stored.access;
     },
 
-    async sync({ token, account, window, today }, opts: CallOpts) {
+    async sync({ token, account, window, today, light }, opts: CallOpts) {
       const ig = account.id;
       const days = daysBetween(window.since, window.until);
       const [dayRows, profile, media, stories] = await Promise.all([
@@ -159,7 +163,7 @@ export function instagramConnector(creds: MetaCreds, deps: ConnectorDeps): Conne
           return {}; // a metric this media type does not support: keep likes and comments
         }
       };
-      const withInsights = mediaRows.filter((m) => Date.parse(str(m.timestamp) ?? "") >= fresh).slice(0, MAX_MEDIA);
+      const withInsights = light ? [] : mediaRows.filter((m) => Date.parse(str(m.timestamp) ?? "") >= fresh).slice(0, MAX_MEDIA);
       const mediaInsights = new Map(
         await mapLimit(withInsights, 4, async (m) => [str(m.id) ?? "", await insightsFor(str(m.id) ?? "", MEDIA_METRICS)] as const, opts.signal),
       );
@@ -177,7 +181,12 @@ export function instagramConnector(creds: MetaCreds, deps: ConnectorDeps): Conne
         });
       }
       const storyRows = arr(stories.data).filter(isRecord).slice(0, MAX_STORIES);
-      const storyInsights = await mapLimit(storyRows, 4, async (s) => ({ s, metrics: await insightsFor(str(s.id) ?? "", STORY_METRICS) }), opts.signal);
+      const storyInsights = await mapLimit(
+        storyRows,
+        4,
+        async (s) => ({ s, metrics: light ? {} : await insightsFor(str(s.id) ?? "", STORY_METRICS) }),
+        opts.signal,
+      );
       for (const { s, metrics } of storyInsights) {
         const id = str(s.id);
         if (id) items.push({ kind: "story", externalId: id, publishedAt: str(s.timestamp), title: null, permalink: str(s.permalink), metrics });

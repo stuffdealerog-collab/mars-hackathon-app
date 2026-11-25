@@ -4,16 +4,31 @@ import { Suspense } from "react";
 import { connectCopy, fill, type Lang } from "@/components/connections/copy";
 import { Mark } from "@/components/lamp/Mark";
 import { botUsername } from "@/components/ui/bot";
+import { connectionOwnerName } from "@/lib/connectors/repo";
 import { isConnectError, isConnectorId } from "@/lib/connectors/types";
+import { isDbConfigured } from "@/lib/db";
 
 /**
  * Where the owner's browser lands after connecting a platform from the Mini App (the sign-in ran in the external
  * browser, outside Telegram): one line that it worked, or why not, and the way back to Telegram. It never receives
  * a token or the provider's code: the callback strips them (src/app/api/connect/callback).
+ *
+ * It also names the Mercat account that received the connection (`c`, the stored connection's id). The sign-in ran
+ * in a browser that shares nothing with Telegram, so this is how a person who was sent someone else's sign-in link
+ * sees that their numbers went to another Mercat account, and how to take the access back.
  */
 export const metadata: Metadata = { title: { absolute: "Mercat" }, robots: { index: false, follow: false } };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function receiverName(id: string | null): Promise<string | null> {
+  if (!id || !isDbConfigured()) return null;
+  try {
+    return await connectionOwnerName(id);
+  } catch {
+    return null;
+  }
+}
 
 function langFrom(q: string | string[] | undefined, acceptLanguage: string | null): Lang {
   if (q === "ru" || q === "en" || q === "uz") return q;
@@ -28,6 +43,7 @@ async function Body({ searchParams }: { searchParams: PageProps<"/connect/done">
   const provider = typeof q.p === "string" && isConnectorId(q.p) ? q.p : null;
   const error = typeof q.error === "string" && isConnectError(q.error) ? q.error : null;
   const brand = typeof q.brand === "string" && UUID.test(q.brand) ? q.brand : null;
+  const receiver = await receiverName(typeof q.c === "string" && UUID.test(q.c) ? q.c : null);
   const platform = provider ? t.names[provider] : "Mercat";
   const bot = botUsername();
   const telegram = brand ? `https://t.me/${bot}?startapp=${encodeURIComponent(`brand_${brand}`)}` : `https://t.me/${bot}`;
@@ -42,6 +58,14 @@ async function Body({ searchParams }: { searchParams: PageProps<"/connect/done">
       <p className="mt-4 max-w-[46ch] text-[16px] leading-relaxed text-ink-2 sm:text-[17px]">
         {failed ? `${error ? `${t.errors[error]} ` : ""}${t.done.retry}` : t.done.text}
       </p>
+      {receiver && (
+        <p className="mt-4 max-w-[46ch] text-[15px] leading-relaxed text-ink-3">
+          {fill(t.done.receiver, { name: receiver })} {t.done.notYou}{" "}
+          <a href={lang === "uz" ? "/data-deletion" : `/data-deletion?lang=${lang}`} className="link">
+            {t.done.howToRemove}
+          </a>
+        </p>
+      )}
       <div className="mt-8 flex flex-wrap gap-3">
         <a href={telegram} className="btn">
           {t.done.openTelegram}

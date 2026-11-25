@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Mark } from "@/components/lamp/Mark";
 import { botUsername } from "@/components/ui/bot";
-import { DELETION_STATUS, LEGAL, type LegalKind, type LegalLang, LINKS, NAV } from "./content";
+import { DELETION_STATUS, DELETION_UNKNOWN, LEGAL, type LegalKind, type LegalLang, LINKS, NAV } from "./content";
 import { LEGAL_UPDATED, OPERATOR } from "./operator";
 
 /**
@@ -43,7 +43,8 @@ function rich(text: string, lang: LegalLang, bot: string): ReactNode[] {
   return out;
 }
 
-export function LegalPage({ kind, lang, code }: { kind: LegalKind; lang: LegalLang; code?: string | null }) {
+/** `request`: a data-deletion confirmation code from the URL, and whether Mercat issued it. */
+export function LegalPage({ kind, lang, request }: { kind: LegalKind; lang: LegalLang; request?: { code: string; known: boolean } | null }) {
   const doc = LEGAL[kind][lang];
   const nav = NAV[lang];
   const bot = botUsername();
@@ -65,9 +66,9 @@ export function LegalPage({ kind, lang, code }: { kind: LegalKind; lang: LegalLa
         <p className="mt-3 text-[13px] text-ink-3">
           {nav.updated}: {LEGAL_UPDATED}
         </p>
-        {code && (
+        {request && (
           <p role="status" className="mt-6 rounded-[20px] bg-glass px-4 py-3.5 text-[15px] leading-snug shadow-[inset_0_0_0_1px_var(--hair)]">
-            {DELETION_STATUS[lang].replace("{code}", code)}
+            {(request.known ? DELETION_STATUS : DELETION_UNKNOWN)[lang].replace("{code}", request.code)}
           </p>
         )}
         <p className="mt-6 max-w-[62ch] text-[17px] leading-relaxed text-ink-2">{rich(doc.intro, lang, bot)}</p>

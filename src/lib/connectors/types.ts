@@ -9,6 +9,25 @@ export type ConnectorId = (typeof CONNECTOR_IDS)[number];
 
 export const isConnectorId = (v: unknown): v is ConnectorId => typeof v === "string" && (CONNECTOR_IDS as readonly string[]).includes(v);
 
+/** Connections of one family share one grant at the provider: one Meta app, one Google client. */
+export type ConnectorFamily = "meta" | "google";
+export const FAMILY_IDS: Record<ConnectorFamily, ConnectorId[]> = { meta: ["instagram", "meta_ads"], google: ["youtube", "google_ads"] };
+export const familyOf = (id: ConnectorId): ConnectorFamily => (FAMILY_IDS.meta.includes(id) ? "meta" : "google");
+
+/**
+ * How long Mercat keeps data it can no longer refresh (the privacy page states these):
+ * - a connection that ended at the provider (revoked, expired) and was not connected again: Google rows go after
+ *   5 days, so with the day it takes the next sync to notice, Google's data is gone within the 7 days the YouTube API
+ *   Services policy allows; Meta rows after 30 days (a Meta token simply runs out every ~60 days, and an owner who
+ *   reconnects within the month keeps the history);
+ * - posts, videos and campaigns not refreshed for 30 days, and YouTube's daily numbers older than 30 days.
+ */
+export const EXPIRED_KEEP_DAYS: Record<ConnectorFamily, number> = { google: 5, meta: 30 };
+export const STALE_DATA_DAYS = 30;
+
+/** A sync that failed (rate limit, network, access pending) waits this long before the tick or a card open retries. */
+export const ERROR_BACKOFF_HOURS = 2;
+
 /** test = the provider app is not reviewed yet: only testers (CONNECTOR_TESTERS) see it. live = everyone. */
 export type ConnectorMode = "test" | "live";
 

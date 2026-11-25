@@ -4,7 +4,7 @@ import { getEnv } from "../env";
 import { type Locale, pickLocale } from "../i18n";
 import { safeLogEvent } from "../track";
 import { accountLabel, connectText, emptyReason, PLATFORM } from "./copy";
-import type { ConnectorId } from "./types";
+import { type ConnectorId, EXPIRED_KEEP_DAYS, familyOf } from "./types";
 
 /**
  * Messages to the owner about a connection (the bot's DM is how an owner who connected in an external browser finds
@@ -58,7 +58,11 @@ export async function notifyConnected(
 
 export async function notifyExpired(ownerId: number, provider: ConnectorId, account: { name: string; handle?: string }, brandId: string | null): Promise<void> {
   const locale = await ownerLocale(ownerId);
-  const text = connectText(locale, "expired", { platform: PLATFORM[provider][locale], account: accountLabel(account) });
+  const text = connectText(locale, "expired", {
+    platform: PLATFORM[provider][locale],
+    account: accountLabel(account),
+    days: String(EXPIRED_KEEP_DAYS[familyOf(provider)]),
+  });
   await send(ownerId, text, { text: connectText(locale, "open_app"), url: appLink(brandId) });
 }
 

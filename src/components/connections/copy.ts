@@ -28,19 +28,30 @@ interface Copy {
   connected: string;
   errors: Record<ConnectError, string>;
   busy: string;
-  done: { title: string; text: string; openTelegram: string; openStudio: string; failTitle: string; retry: string };
+  done: {
+    title: string;
+    text: string;
+    openTelegram: string;
+    openStudio: string;
+    failTitle: string;
+    retry: string;
+    /** Which Mercat account received the connection (the Mini App path signs in outside Telegram). */
+    receiver: string;
+    notYou: string;
+    howToRemove: string;
+  };
 }
 
 export const COPY: Record<Lang, Copy> = {
   uz: {
     title: "Boshqa tarmoqlar",
-    lead: "Instagram, YouTube va reklama raqamlari shu yerda. Mercat faqat o‘qiydi: hech narsa joylamaydi, o‘zgartirmaydi va pul sarflamaydi.",
+    lead: "Instagram, YouTube va reklama raqamlaringiz bir joyda. Mercat ularni faqat o‘qiydi: hech narsa joylamaydi, o‘zgartirmaydi va pul sarflamaydi.",
     names: { instagram: "Instagram", meta_ads: "Meta reklama", youtube: "YouTube", google_ads: "Google Ads" },
     reads: {
       instagram: "ko‘rishlar, qamrov, obunachilar, post va reels natijalari",
       meta_ads: "xarajat, ko‘rsatishlar, bosishlar, boshlangan yozishmalar",
       youtube: "ko‘rishlar, tomosha vaqti, obunachilar, videolar",
-      google_ads: "xarajat, ko‘rsatishlar, bosishlar, konversiyalar",
+      google_ads: "xarajat, ko‘rsatishlar, bosishlar, konversiyalar. Google barcha Ads ruxsatini so‘raydi, Mercat faqat hisobotlarni o‘qiydi.",
     },
     readsPrefix: "O‘qiymiz:",
     connect: "Ulash",
@@ -79,17 +90,20 @@ export const COPY: Record<Lang, Copy> = {
       openStudio: "Studiyani ochish",
       failTitle: "{platform} ulanmadi",
       retry: "Ilovaga qaytib, yana urinib ko‘ring.",
+      receiver: "Mercat hisobi: {name}.",
+      notYou: "Bu siz bo‘lmasangiz, tarmoq sozlamalarida Mercat ruxsatini olib tashlang.",
+      howToRemove: "Qanday qilinadi",
     },
   },
   ru: {
     title: "Другие площадки",
-    lead: "Цифры Instagram, YouTube и рекламы — здесь. Mercat только читает: ничего не публикует, не меняет и не тратит деньги.",
+    lead: "Цифры Instagram, YouTube и рекламы в одном месте. Mercat их только читает: ничего не публикует, не меняет и не тратит деньги.",
     names: { instagram: "Instagram", meta_ads: "Реклама Meta", youtube: "YouTube", google_ads: "Google Ads" },
     reads: {
       instagram: "просмотры, охват, подписчики, результаты постов и рилс",
       meta_ads: "расход, показы, клики, начатые переписки",
       youtube: "просмотры, время просмотра, подписчики, видео",
-      google_ads: "расход, показы, клики, конверсии",
+      google_ads: "расход, показы, клики, конверсии. Google попросит полный доступ к Ads, Mercat только читает отчёты.",
     },
     readsPrefix: "Читаем:",
     connect: "Подключить",
@@ -128,17 +142,20 @@ export const COPY: Record<Lang, Copy> = {
       openStudio: "Открыть Студию",
       failTitle: "{platform} не подключился",
       retry: "Вернитесь в приложение и попробуйте ещё раз.",
+      receiver: "Аккаунт Mercat: {name}.",
+      notYou: "Если это не вы, закройте доступ Mercat в настройках площадки.",
+      howToRemove: "Как это сделать",
     },
   },
   en: {
     title: "Other platforms",
-    lead: "Your Instagram, YouTube and ad numbers, here. Mercat only reads: it never posts, changes anything or spends money.",
+    lead: "Your Instagram, YouTube and ad numbers in one place. Mercat only reads them: it never posts, changes anything or spends money.",
     names: { instagram: "Instagram", meta_ads: "Meta ads", youtube: "YouTube", google_ads: "Google Ads" },
     reads: {
       instagram: "views, reach, followers, how posts and reels did",
       meta_ads: "spend, impressions, clicks, messages started",
       youtube: "views, watch time, subscribers, videos",
-      google_ads: "spend, impressions, clicks, conversions",
+      google_ads: "spend, impressions, clicks, conversions. Google asks for full Ads access; Mercat only reads reports.",
     },
     readsPrefix: "We read:",
     connect: "Connect",
@@ -177,6 +194,9 @@ export const COPY: Record<Lang, Copy> = {
       openStudio: "Open the Studio",
       failTitle: "{platform} did not connect",
       retry: "Go back to the app and try once more.",
+      receiver: "Mercat account: {name}.",
+      notYou: "If that is not you, remove Mercat's access in the platform's settings.",
+      howToRemove: "How to do it",
     },
   },
 };

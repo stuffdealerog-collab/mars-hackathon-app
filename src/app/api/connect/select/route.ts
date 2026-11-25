@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { z } from "zod";
-import { requireTelegramUser } from "@/lib/connectors/owner";
-import { ConnectFlowError, connectorConfig, runSync, selectAccount } from "@/lib/connectors/service";
+import { requireConnectorsOn, requireTelegramUser } from "@/lib/connectors/owner";
+import { ConnectFlowError, runSync, selectAccount } from "@/lib/connectors/service";
 import { handle, HttpError, json, rateLimit, readJson } from "@/lib/uslub/http";
 
 export const maxDuration = 60;
@@ -18,13 +18,15 @@ const Body = z.object({
  * the connection reads (one of the accounts the provider listed). Its numbers are pulled after the response.
  */
 export const POST = handle(async (req) => {
+  const started = Date.now();
+  const cfg = requireConnectorsOn();
   rateLimit(req, "connect-change", 20);
   const body = await readJson(req, Body);
   const ownerId = requireTelegramUser(req, body.initData);
   try {
     const row = await selectAccount(ownerId, body.connectionId, body.accountId);
-    const cfg = connectorConfig();
-    const work = () => runSync(cfg, row.id, Date.now() + 50_000).catch(() => undefined);
+    // Counted from the request's start: the function is stopped at maxDuration (60 s).
+    const work = () => runSync(cfg, row.id, started + 50_000).catch(() => undefined);
     try {
       after(work);
     } catch {
